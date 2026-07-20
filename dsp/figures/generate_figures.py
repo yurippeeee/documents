@@ -117,6 +117,149 @@ def fig01_aliasing_time():
     save(fig, "01_aliasing_time.png")
 
 
+def fig01_impulse_step():
+    n = np.arange(-4, 8)
+    d = (n == 0).astype(float)
+    u = (n >= 0).astype(float)
+    um1 = (n >= 1).astype(float)   # u[n-1]
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.4))
+    # 左: 累積和でステップになる
+    ax = axes[0]
+    ml, _, _ = ax.stem(n, u, linefmt="C0-", markerfmt="C0o", basefmt="k-",
+                       label=r"$u[n]=\sum_{k\leq n}\delta[k]$")
+    plt.setp(ml, markersize=6)
+    ml, _, _ = ax.stem(n + 0.12, d, linefmt="C3-", markerfmt="C3o", basefmt="k-",
+                       label=r"$\delta[n]$")
+    plt.setp(ml, markersize=6)
+    ax.annotate("0 番目までの δ を\n足し上げると 1、以降ずっと 1",
+                xy=(2, 1.0), xytext=(2.4, 0.55), fontsize=8,
+                arrowprops=dict(arrowstyle="->"))
+    ax.set_ylim(-0.3, 1.5)
+    ax.set_xlabel("n")
+    ax.set_title("累積和でステップになる")
+    ax.legend(loc="upper left", fontsize=9)
+    # 右: 差分でインパルスに戻る
+    ax = axes[1]
+    ax.stem(n, u, linefmt="C0-", markerfmt="C0o", basefmt="k-", label=r"$u[n]$")
+    ml, _, _ = ax.stem(n + 0.1, um1, linefmt="C1--", markerfmt="C1s", basefmt="k-",
+                       label=r"$u[n-1]$")
+    plt.setp(ml, markersize=5)
+    ml, _, _ = ax.stem(n - 0.1, u - um1, linefmt="C3-", markerfmt="C3D", basefmt="k-",
+                       label=r"$\delta[n]=u[n]-u[n-1]$")
+    plt.setp(ml, markersize=6)
+    ax.annotate("重なる部分は差し引き 0、\n段差の 1 点だけが残る",
+                xy=(0, 1.0), xytext=(1.2, 1.28), fontsize=8,
+                arrowprops=dict(arrowstyle="->"))
+    ax.set_ylim(-0.3, 1.6)
+    ax.set_xlabel("n")
+    ax.set_title("差分でインパルスに戻る")
+    ax.legend(loc="lower left", fontsize=8)
+    fig.suptitle(r"インパルス $\delta[n]$ とステップ $u[n]$ は「累積和」と「差分」で表裏一体")
+    save(fig, "01_impulse_step.png")
+
+
+def fig01_decomposition():
+    xk = {1: 0.6, 2: 1.0, 3: 0.4, 4: -0.5, 5: -0.3, 6: 0.2}
+    ks = sorted(xk)
+    nmax = 7
+    n = np.arange(0, nmax + 1)
+    x = np.array([xk.get(i, 0.0) for i in n])
+    cmap = plt.get_cmap("tab10")
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4), gridspec_kw={"width_ratios": [1, 1.25]})
+    # 左: もとの信号
+    ax = axes[0]
+    ml, sl, bl = ax.stem(n, x, linefmt="0.6", markerfmt="ko", basefmt="k-")
+    plt.setp(ml, markersize=6)
+    for i, k in enumerate(ks):
+        ax.plot([k], [xk[k]], "o", color=cmap(i), ms=7)
+    ax.axhline(0, color="k", lw=0.8)
+    ax.set_ylim(-1.0, 1.3)
+    ax.set_xlabel("n")
+    ax.set_title("任意の信号 $x[n]$")
+    # 右: 分解 (積み木)
+    ax = axes[1]
+    step = 1.5
+    for i, k in enumerate(ks):
+        off = -i * step
+        ax.axhline(off, color="0.85", lw=0.8, zorder=0)
+        ax.plot([k, k], [off, off + xk[k]], color=cmap(i), lw=2.5)
+        ax.plot([k], [off + xk[k]], "o", color=cmap(i), ms=7)
+        ax.text(-0.4, off + 0.1, f"$x[{k}]\\,\\delta[n-{k}]$", color=cmap(i),
+                fontsize=9, va="bottom")
+    ax.set_xlim(-0.6, nmax + 0.3)
+    ax.set_yticks([])
+    ax.set_xlabel("n")
+    ax.set_title("= 各時刻に置いた「1 個のインパルス」の重ね合わせ\n"
+                 r"$x[n]=\sum_k x[k]\,\delta[n-k]$")
+    save(fig, "01_decomposition.png")
+
+
+def fig01_normalized_freq():
+    fig, axd = plt.subplot_mosaic([["a", "d"], ["b", "d"], ["c", "d"]], figsize=(10, 4.4))
+    nmax = 16
+    n = np.arange(nmax + 1)
+    tt = np.linspace(0, nmax, 800)
+    for key, w, lab in [
+        ("a", 0.0, r"$\omega=0$: 全く回らない (直流)"),
+        ("b", np.pi / 2, r"$\omega=\pi/2$: 1 サンプルで 90°回転"),
+        ("c", np.pi, r"$\omega=\pi$: 1 サンプルで 180° = 表せる最速"),
+    ]:
+        ax = axd[key]
+        ax.plot(tt, np.cos(w * tt), "C0", lw=1, alpha=0.45)
+        ml, _, _ = ax.stem(n, np.cos(w * n), linefmt="C3-", markerfmt="C3o", basefmt="k-")
+        plt.setp(ml, markersize=4)
+        ax.set_ylim(-1.7, 2.0)
+        ax.set_yticks([-1, 0, 1])
+        ax.text(0.2, 1.25, lab, fontsize=9)
+        if key != "c":
+            ax.set_xticklabels([])
+    axd["c"].set_xlabel("n")
+    ax = axd["d"]
+    w1 = 0.25 * np.pi
+    ax.plot(tt, np.cos(w1 * tt), "C0", lw=1.8, label=r"$\omega=0.25\pi$")
+    ax.plot(tt, np.cos((w1 + 2 * np.pi) * tt), "C1", lw=1, ls="--",
+            label=r"$\omega=0.25\pi+2\pi$")
+    ml, _, _ = ax.stem(n, np.cos(w1 * n), linefmt="k-", markerfmt="ko", basefmt="k-")
+    plt.setp(ml, markersize=5)
+    ax.set_ylim(-1.5, 1.9)
+    ax.set_xlabel("n")
+    ax.legend(loc="upper right", fontsize=9)
+    ax.set_title(r"$\omega$ と $\omega+2\pi$ は同一のサンプル列 (黒)"
+                 "\n→ 周波数は $2\\pi$ 周期・意味があるのは $0$〜$\\pi$")
+    fig.suptitle(r"正規化角周波数 $\omega=\Omega T$ = 「1 サンプル進むごとに位相が何 rad 回るか」")
+    save(fig, "01_normalized_freq.png")
+
+
+def fig01_sampling_model():
+    T = 0.1
+    t = np.linspace(0, 1.0, 1000)
+    xa = lambda tv: 0.62 + 0.32 * np.sin(2 * np.pi * 1.2 * tv + 0.5)
+    n = np.arange(0, 11)
+    tn = n * T
+    fig, axes = plt.subplots(3, 1, figsize=(8, 6.2), sharex=True)
+    ax = axes[0]
+    ax.plot(t, xa(t), "C0", lw=2)
+    ax.set_ylim(0, 1.15); ax.set_ylabel(r"$x_a(t)$")
+    ax.set_title(r"① 連続信号 $x_a(t)$")
+    ax = axes[1]
+    ml, _, _ = ax.stem(tn, np.ones_like(tn), linefmt="C2-", markerfmt="C2^", basefmt="k-")
+    plt.setp(ml, markersize=7)
+    ax.annotate("", xy=(0, 1.28), xytext=(T, 1.28),
+                arrowprops=dict(arrowstyle="<->", color="k"))
+    ax.text(T / 2, 1.33, "T", ha="center", fontsize=11)
+    ax.set_ylim(0, 1.5); ax.set_ylabel(r"$s(t)$")
+    ax.set_title(r"② インパルス列 $s(t)=\sum_n \delta(t-nT)$ (周期 T の「櫛」)")
+    ax = axes[2]
+    ax.plot(t, xa(t), "C0", lw=1, alpha=0.3)
+    ml, _, _ = ax.stem(tn, xa(tn), linefmt="C3-", markerfmt="C3^", basefmt="k-")
+    plt.setp(ml, markersize=7)
+    ax.set_ylim(0, 1.15); ax.set_ylabel(r"$x_s(t)$")
+    ax.set_title(r"③ 積 $x_s(t)=x_a(t)\,s(t)=\sum_n x_a(nT)\,\delta(t-nT)$"
+                 "  (各インパルスの高さ = 標本値)")
+    ax.set_xlabel("時間 t")
+    save(fig, "01_sampling_model.png")
+
+
 # ---------------------------------------------------------------- 02 章
 def fig02_euler():
     th = np.deg2rad(50)
@@ -667,6 +810,10 @@ def fig09_limit_cycle():
 
 if __name__ == "__main__":
     fig01_sampling()
+    fig01_impulse_step()
+    fig01_decomposition()
+    fig01_normalized_freq()
+    fig01_sampling_model()
     fig01_replication()
     fig01_aliasing_time()
     fig02_euler()
