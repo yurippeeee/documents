@@ -26,7 +26,7 @@
 ## 2. 最小の IIR: 1 次フィルタの完全解析
 
 $$
-y[n] = a\, y[n-1] + (1-a)\, x[n], \qquad 0 < a < 1
+y[n] = a y[n-1] + (1-a) x[n], \qquad 0 < a < 1
 $$
 
 これは実務で最も使われる**指数移動平均 (EMA: Exponential Moving Average)**。
@@ -38,18 +38,18 @@ $`x[n] = \delta[n]`$を入れ、初期条件$`y[-1] = 0`$（因果的・初期�
 
 $$
 \begin{aligned}
-y[0] &= a\, y[-1] + (1-a)\,\delta[0] = 0 + (1-a) = (1-a)\\
-y[1] &= a\, y[0] + (1-a)\,\delta[1] = a(1-a) + 0 = (1-a)\,a\\
-y[2] &= a\, y[1] = (1-a)\,a^2\\
-y[3] &= a\, y[2] = (1-a)\,a^3\\
-&\;\;\vdots
+y[0] &= a y[-1] + (1-a)\delta[0] = 0 + (1-a) = (1-a)\\
+y[1] &= a y[0] + (1-a)\delta[1] = a(1-a) + 0 = (1-a)a\\
+y[2] &= a y[1] = (1-a)a^2\\
+y[3] &= a y[2] = (1-a)a^3\\
+&\vdots
 \end{aligned}
 $$
 
 パターンより（帰納法:$`y[n] = (1-a)a^n`$を仮定すると$`y[n+1] = a \cdot (1-a)a^n = (1-a)a^{n+1}`$✓）:
 
 $$
-\boxed{\;h[n] = (1-a)\, a^n\, u[n]\;}
+\boxed{h[n] = (1-a) a^n u[n]}
 $$
 
 **$`n`$がいくら大きくても$`h[n] = (1-a)a^n \neq 0`$。インパルス応答が無限に続く = IIR** の名の由来を、
@@ -64,7 +64,7 @@ Y(z) = a z^{-1} Y(z) + (1-a) X(z)
 $$
 
 $$
-Y(z)\,(1 - a z^{-1}) = (1-a)\, X(z)
+Y(z)(1 - a z^{-1}) = (1-a) X(z)
 \quad\Longrightarrow\quad
 H(z) = \frac{Y(z)}{X(z)} = \frac{1-a}{1 - a z^{-1}}
 $$
@@ -72,7 +72,7 @@ $$
 05 章の対$`a^n u[n] \leftrightarrow \frac{1}{1-az^{-1}}`$（ROC:$`|z|>|a|`$、因果的）より:
 
 $$
-h[n] = (1-a)\, a^n\, u[n]
+h[n] = (1-a) a^n u[n]
 $$
 
 方法 1 と一致。∎ 極は$`z = a`$の 1 個。$`0 < a < 1`$なら単位円内 → 安定（06 章の定理どおり）。
@@ -108,7 +108,7 @@ $`\cos\omega`$は$`\omega: 0 \to \pi`$で単調減少なので分母は単調増
 
 $$
 \frac{(1-a)^2}{1 - 2a\cos\omega_c + a^2} = \frac{1}{2}
-\;\Longrightarrow\;
+\Longrightarrow
 2(1-a)^2 = 1 - 2a\cos\omega_c + a^2
 $$
 
@@ -117,7 +117,7 @@ $$
 $$
 
 $$
-\boxed{\;\omega_c = \arccos\left(\frac{4a - a^2 - 1}{2a}\right)\;}
+\boxed{\omega_c = \arccos\left(\frac{4a - a^2 - 1}{2a}\right)}
 $$
 
 例:$`a = 0.9`$→$`\cos\omega_c = \frac{3.6 - 0.81 - 1}{1.8} = \frac{1.79}{1.8} \approx 0.9944`$→$`\omega_c \approx 0.105`$rad/sample。
@@ -132,10 +132,10 @@ $`f_s = 48`$kHz なら$`f_c = \omega_c f_s / 2\pi \approx 805`$Hz。
 
 $$
 \angle H(e^{j\omega}) = \angle(1-a) - \angle(1 - ae^{-j\omega})
-= -\arctan\!\left(\frac{a\sin\omega}{1 - a\cos\omega}\right)
+= -\arctan\left(\frac{a\sin\omega}{1 - a\cos\omega}\right)
 $$
 
-（$`1 - ae^{-j\omega} = (1 - a\cos\omega) + j\,a\sin\omega`$の偏角。分子は正の実数なので偏角 0。）
+（$`1 - ae^{-j\omega} = (1 - a\cos\omega) + ja\sin\omega`$の偏角。分子は正の実数なので偏角 0。）
 
 **群遅延**の定義は$`\tau_g(\omega) = -\dfrac{d\angle H}{d\omega}`$。「その周波数付近の波の**包絡線**が何サンプル遅れて出てくるか」を表す。
 
@@ -177,7 +177,7 @@ $$
 
 $$
 (1 - p z^{-1})(1 - p^* z^{-1}) = 1 - (p + p^*) z^{-1} + p p^* z^{-2}
-= 1 - 2\,\mathrm{Re}(p)\, z^{-1} + |p|^2 z^{-2}
+= 1 - 2\mathrm{Re}(p) z^{-1} + |p|^2 z^{-2}
 $$
 
 （$`p + p^* = 2\mathrm{Re}(p)`$、$`p p^* = |p|^2`$はともに実数。）

@@ -8,7 +8,7 @@ Z 変換（05 章）は DTFT の拡張なので、まずここを固める。
 信号$`x[n]`$の **DTFT (Discrete-Time Fourier Transform)**:
 
 $$
-X(e^{j\omega}) = \sum_{n=-\infty}^{\infty} x[n]\, e^{-j\omega n}
+X(e^{j\omega}) = \sum_{n=-\infty}^{\infty} x[n] e^{-j\omega n}
 $$
 
 （$`\sum_n |x[n]| < \infty`$なら級数は絶対収束し、DTFT は存在する。）
@@ -29,8 +29,8 @@ $`X(e^{j\omega})`$は「信号$`x[n]`$の中に、周波数$`\omega`$の回転�
 ## 2. DTFT の周期性(導出)
 
 $$
-X(e^{j(\omega + 2\pi)}) = \sum_n x[n]\, e^{-j(\omega+2\pi)n}
-= \sum_n x[n]\, e^{-j\omega n}\, \underbrace{e^{-j2\pi n}}_{=1\;(n\text{は整数})}
+X(e^{j(\omega + 2\pi)}) = \sum_n x[n] e^{-j(\omega+2\pi)n}
+= \sum_n x[n] e^{-j\omega n} \underbrace{e^{-j2\pi n}}_{=1(n\text{は整数})}
 = X(e^{j\omega})
 $$
 
@@ -45,7 +45,7 @@ DTFT は必ず周期$`2\pi`$の周期関数。∎
 ### 主張
 
 $$
-x[n] = \frac{1}{2\pi} \int_{-\pi}^{\pi} X(e^{j\omega})\, e^{j\omega n}\, d\omega
+x[n] = \frac{1}{2\pi} \int_{-\pi}^{\pi} X(e^{j\omega}) e^{j\omega n} d\omega
 $$
 
 ### 準備: 複素指数の直交性
@@ -53,7 +53,7 @@ $$
 任意の整数$`m`$について次を計算する:
 
 $$
-I(m) = \frac{1}{2\pi} \int_{-\pi}^{\pi} e^{j\omega m}\, d\omega
+I(m) = \frac{1}{2\pi} \int_{-\pi}^{\pi} e^{j\omega m} d\omega
 $$
 
 **場合 1:$`m = 0`$** — 被積分関数は 1 なので$`I(0) = \frac{1}{2\pi} \cdot 2\pi = 1`$。
@@ -72,7 +72,7 @@ $$
 まとめると:
 
 $$
-\frac{1}{2\pi} \int_{-\pi}^{\pi} e^{j\omega m}\, d\omega = \delta[m]
+\frac{1}{2\pi} \int_{-\pi}^{\pi} e^{j\omega m} d\omega = \delta[m]
 $$
 
 直感: 回転する複素指数を一周期分積分すると、ちょうど円を整数周して打ち消し合い 0 になる。回らない ($`m=0`$) ときだけ 1 が残る。
@@ -82,14 +82,14 @@ $$
 逆変換の右辺に DTFT の定義を代入する（総和のダミー変数を$`k`$にしておく）:
 
 $$
-\frac{1}{2\pi} \int_{-\pi}^{\pi} \left[\sum_{k=-\infty}^{\infty} x[k]\, e^{-j\omega k}\right] e^{j\omega n}\, d\omega
+\frac{1}{2\pi} \int_{-\pi}^{\pi} \left[\sum_{k=-\infty}^{\infty} x[k] e^{-j\omega k}\right] e^{j\omega n} d\omega
 $$
 
 積分と和を交換（絶対収束を仮定）:
 
 $$
-= \sum_{k=-\infty}^{\infty} x[k]\; \frac{1}{2\pi}\int_{-\pi}^{\pi} e^{j\omega(n-k)}\, d\omega
-= \sum_{k=-\infty}^{\infty} x[k]\; \delta[n-k]
+= \sum_{k=-\infty}^{\infty} x[k] \frac{1}{2\pi}\int_{-\pi}^{\pi} e^{j\omega(n-k)} d\omega
+= \sum_{k=-\infty}^{\infty} x[k] \delta[n-k]
 = x[n] \qquad \blacksquare
 $$
 
@@ -105,27 +105,27 @@ DTFT が「分解」、逆 DTFT が「合成」。
 ### 主張
 
 $$
-y[n] = (x * h)[n] \quad \Longrightarrow \quad Y(e^{j\omega}) = X(e^{j\omega})\, H(e^{j\omega})
+y[n] = (x * h)[n] \quad \Longrightarrow \quad Y(e^{j\omega}) = X(e^{j\omega}) H(e^{j\omega})
 $$
 
 ### 導出
 
 $$
-Y(e^{j\omega}) = \sum_{n=-\infty}^{\infty} y[n]\, e^{-j\omega n}
-= \sum_{n=-\infty}^{\infty} \left[\sum_{k=-\infty}^{\infty} x[k]\, h[n-k]\right] e^{-j\omega n}
+Y(e^{j\omega}) = \sum_{n=-\infty}^{\infty} y[n] e^{-j\omega n}
+= \sum_{n=-\infty}^{\infty} \left[\sum_{k=-\infty}^{\infty} x[k] h[n-k]\right] e^{-j\omega n}
 $$
 
-和の順序を交換し、指数を$`e^{-j\omega n} = e^{-j\omega k}\, e^{-j\omega (n-k)}`$と分解する:
+和の順序を交換し、指数を$`e^{-j\omega n} = e^{-j\omega k} e^{-j\omega (n-k)}`$と分解する:
 
 $$
-= \sum_{k=-\infty}^{\infty} x[k]\, e^{-j\omega k} \sum_{n=-\infty}^{\infty} h[n-k]\, e^{-j\omega (n-k)}
+= \sum_{k=-\infty}^{\infty} x[k] e^{-j\omega k} \sum_{n=-\infty}^{\infty} h[n-k] e^{-j\omega (n-k)}
 $$
 
 内側の和で$`m = n-k`$と変数変換（$`k`$固定で$`n`$が全整数を動けば$`m`$も全整数を動く）:
 
 $$
-= \sum_{k=-\infty}^{\infty} x[k]\, e^{-j\omega k} \sum_{m=-\infty}^{\infty} h[m]\, e^{-j\omega m}
-= X(e^{j\omega})\, H(e^{j\omega}) \qquad \blacksquare
+= \sum_{k=-\infty}^{\infty} x[k] e^{-j\omega k} \sum_{m=-\infty}^{\infty} h[m] e^{-j\omega m}
+= X(e^{j\omega}) H(e^{j\omega}) \qquad \blacksquare
 $$
 
 ### 直感（これがフィルタ理論の中心的な絵）
@@ -154,14 +154,14 @@ $$
 ### (b) 時間シフト
 
 $$
-\mathcal{F}\{x[n - n_0]\} = \sum_n x[n-n_0]\, e^{-j\omega n}
+\mathcal{F}\{x[n - n_0]\} = \sum_n x[n-n_0] e^{-j\omega n}
 $$
 
 $`m = n - n_0`$と置換:
 
 $$
-= \sum_m x[m]\, e^{-j\omega(m + n_0)} = e^{-j\omega n_0} \sum_m x[m]\, e^{-j\omega m}
-= e^{-j\omega n_0}\, X(e^{j\omega}) \qquad \blacksquare
+= \sum_m x[m] e^{-j\omega(m + n_0)} = e^{-j\omega n_0} \sum_m x[m] e^{-j\omega m}
+= e^{-j\omega n_0} X(e^{j\omega}) \qquad \blacksquare
 $$
 
 直感: 時間の遅れは、スペクトルの大きさを変えず**位相だけを周波数に比例して回す**（$`-\omega n_0`$）。
@@ -172,8 +172,8 @@ $$
 $`x[n]`$が実数のとき:
 
 $$
-X(e^{-j\omega}) = \sum_n x[n]\, e^{j\omega n}
-= \overline{\sum_n x[n]\, e^{-j\omega n}}
+X(e^{-j\omega}) = \sum_n x[n] e^{j\omega n}
+= \overline{\sum_n x[n] e^{-j\omega n}}
 = X(e^{j\omega})^*
 $$
 

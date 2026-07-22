@@ -20,7 +20,7 @@ $$
 任意の信号$`x_1, x_2`$と定数$`a, b`$に対して:
 
 $$
-\mathcal{T}\{a\, x_1[n] + b\, x_2[n]\} = a\, \mathcal{T}\{x_1[n]\} + b\, \mathcal{T}\{x_2[n]\}
+\mathcal{T}\{a x_1[n] + b x_2[n]\} = a \mathcal{T}\{x_1[n]\} + b \mathcal{T}\{x_2[n]\}
 $$
 
 直感: 「重ね合わせが効く」。2 つの音を混ぜてからフィルタに通しても、別々に通してから混ぜても結果が同じ。
@@ -54,19 +54,19 @@ $$
 01 章で導出した信号の分解を出発点にする:
 
 $$
-x[n] = \sum_{k=-\infty}^{\infty} x[k]\, \delta[n-k]
+x[n] = \sum_{k=-\infty}^{\infty} x[k] \delta[n-k]
 $$
 
 これをシステムに入力する:
 
 $$
-y[n] = \mathcal{T}\left\{\sum_{k=-\infty}^{\infty} x[k]\, \delta[n-k]\right\}
+y[n] = \mathcal{T}\left\{\sum_{k=-\infty}^{\infty} x[k] \delta[n-k]\right\}
 $$
 
 **ステップ 1（線形性を使う）**: 和の各項は「定数$`x[k]`$× 信号$`\delta[n-k]`$」の形（$`k`$は和のインデックスであり、信号としての時間変数は$`n`$であることに注意）。線形性より$`\mathcal{T}`$を和の中に入れ、定数を外に出せる:
 
 $$
-y[n] = \sum_{k=-\infty}^{\infty} x[k]\, \mathcal{T}\{\delta[n-k]\}
+y[n] = \sum_{k=-\infty}^{\infty} x[k] \mathcal{T}\{\delta[n-k]\}
 $$
 
 **ステップ 2（時不変性を使う）**:$`\mathcal{T}\{\delta[n]\} = h[n]`$だから、入力を$`k`$遅らせた$`\delta[n-k]`$に対する出力は$`h[n-k]`$:
@@ -78,7 +78,7 @@ $$
 代入して:
 
 $$
-\boxed{\;y[n] = \sum_{k=-\infty}^{\infty} x[k]\, h[n-k] \;\equiv\; (x * h)[n]\;}
+\boxed{y[n] = \sum_{k=-\infty}^{\infty} x[k] h[n-k] \equiv (x * h)[n]}
 $$
 
 これが**畳み込み和 (convolution sum)**。∎
@@ -91,7 +91,7 @@ $$
 
 ### 直感: 畳み込みは「重み付き残響の重ね合わせ」
 
-$`y[n] = \sum_k x[k]\, h[n-k]`$は次のように読める:
+$`y[n] = \sum_k x[k] h[n-k]`$は次のように読める:
 
 > 過去の各時刻$`k`$に入力された値$`x[k]`$が、それぞれ「$`h`$の形の余韻」を高さ$`x[k]`$倍で発生させる。
 > 時刻$`n`$の出力は、いま鳴っているすべての余韻の合計。
@@ -107,13 +107,13 @@ $`y[n] = \sum_k x[k]\, h[n-k]`$は次のように読める:
 ### (a) 可換性:$`x * h = h * x`$
 
 $$
-(x*h)[n] = \sum_{k=-\infty}^{\infty} x[k]\, h[n-k]
+(x*h)[n] = \sum_{k=-\infty}^{\infty} x[k] h[n-k]
 $$
 
 変数変換$`m = n - k`$（つまり$`k = n - m`$。$`k`$が$`-\infty \to \infty`$を動くとき$`m`$も$`\infty \to -\infty`$の全整数を動く）:
 
 $$
-(x*h)[n] = \sum_{m=-\infty}^{\infty} x[n-m]\, h[m] = \sum_{m=-\infty}^{\infty} h[m]\, x[n-m] = (h*x)[n] \qquad \blacksquare
+(x*h)[n] = \sum_{m=-\infty}^{\infty} x[n-m] h[m] = \sum_{m=-\infty}^{\infty} h[m] x[n-m] = (h*x)[n] \qquad \blacksquare
 $$
 
 意味: 「入力とインパルス応答の役割は対称」。実装上どちらをずらしながら掛けてもよい。
@@ -121,16 +121,16 @@ $$
 ### (b) 結合性:$`(x * h_1) * h_2 = x * (h_1 * h_2)`$
 
 $$
-\big((x*h_1)*h_2\big)[n] = \sum_{m} (x*h_1)[m]\; h_2[n-m]
-= \sum_{m} \left(\sum_{k} x[k]\, h_1[m-k]\right) h_2[n-m]
+\big((x*h_1)*h_2\big)[n] = \sum_{m} (x*h_1)[m] h_2[n-m]
+= \sum_{m} \left(\sum_{k} x[k] h_1[m-k]\right) h_2[n-m]
 $$
 
 和の順序を交換（絶対収束を仮定）し、$`l = m - k`$と変数変換（$`k`$固定で$`m`$が全整数を動けば$`l`$も全整数を動く）:
 
 $$
-= \sum_{k} x[k] \sum_{m} h_1[m-k]\, h_2[n-m]
-= \sum_{k} x[k] \sum_{l} h_1[l]\, h_2[(n-k)-l]
-= \sum_{k} x[k]\, (h_1 * h_2)[n-k]
+= \sum_{k} x[k] \sum_{m} h_1[m-k] h_2[n-m]
+= \sum_{k} x[k] \sum_{l} h_1[l] h_2[(n-k)-l]
+= \sum_{k} x[k] (h_1 * h_2)[n-k]
 $$
 
 これは$`x * (h_1 * h_2)`$の定義そのもの。∎
@@ -141,8 +141,8 @@ $$
 ### (c) 分配性:$`x * (h_1 + h_2) = x * h_1 + x * h_2`$
 
 $$
-\big(x*(h_1+h_2)\big)[n] = \sum_k x[k]\,(h_1[n-k] + h_2[n-k])
-= \sum_k x[k]\,h_1[n-k] + \sum_k x[k]\,h_2[n-k]
+\big(x*(h_1+h_2)\big)[n] = \sum_k x[k](h_1[n-k] + h_2[n-k])
+= \sum_k x[k]h_1[n-k] + \sum_k x[k]h_2[n-k]
 $$
 
 （有限の値をとる 2 つの和への分割）。これは$`(x*h_1)[n] + (x*h_2)[n]`$。∎
@@ -153,15 +153,15 @@ $$
 
 **定義**: 出力$`y[n]`$が現在と過去の入力（$`x[m], m \leq n`$）だけで決まるシステムを**因果的 (causal)** という。
 
-**LTI システムが因果的 ⟺$`h[n] = 0 \;(n < 0)`$の導出**:
+**LTI システムが因果的 ⟺$`h[n] = 0 (n < 0)`$の導出**:
 
 ($`\Leftarrow`$)$`h[n-k] `$は$`n - k < 0`$すなわち$`k > n`$で 0。よって
 
 $$
-y[n] = \sum_{k=-\infty}^{n} x[k]\, h[n-k]
+y[n] = \sum_{k=-\infty}^{n} x[k] h[n-k]
 $$
 
-となり、未来の入力$`x[k]\,(k>n)`$は出力に影響しない。因果的である。
+となり、未来の入力$`x[k](k>n)`$は出力に影響しない。因果的である。
 
 ($`\Rightarrow`$) 対偶を示す。ある$`n_0 < 0`$で$`h[n_0] \neq 0`$とする。入力$`x[n] = \delta[n]`$を考えると
 $`y[n_0] = h[n_0] \neq 0`$。つまり入力が時刻 0 に来るより**前の時刻$`n_0`$** に出力が出ている。
@@ -179,7 +179,7 @@ IIR フィルタは通常、因果的なものとして設計・実装する。
 
 $$
 \text{LTI システムが BIBO 安定} \quad \Longleftrightarrow \quad \sum_{k=-\infty}^{\infty} |h[k]| < \infty
-\;\;(\text{インパルス応答が絶対総和可能})
+(\text{インパルス応答が絶対総和可能})
 $$
 
 ### 導出（十分性:$`\sum|h| < \infty \Rightarrow`$安定）
@@ -187,8 +187,8 @@ $$
 $`|x[n]| \leq B_x`$とする。三角不等式より:
 
 $$
-|y[n]| = \left|\sum_{k} h[k]\, x[n-k]\right|
-\leq \sum_{k} |h[k]|\, |x[n-k]|
+|y[n]| = \left|\sum_{k} h[k] x[n-k]\right|
+\leq \sum_{k} |h[k]| |x[n-k]|
 \leq B_x \sum_{k} |h[k]| < \infty
 $$
 
@@ -212,8 +212,8 @@ $$
 時刻$`n = 0`$の出力を計算する:
 
 $$
-y[0] = \sum_{k} h[k]\, x[0-k] = \sum_{k} h[k]\, x[-k]
-= \sum_{k} h[k]\, \operatorname{sgn}(h[k])
+y[0] = \sum_{k} h[k] x[0-k] = \sum_{k} h[k] x[-k]
+= \sum_{k} h[k] \operatorname{sgn}(h[k])
 = \sum_{k} |h[k]| = \infty
 $$
 

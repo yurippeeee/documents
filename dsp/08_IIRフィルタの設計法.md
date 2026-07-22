@@ -24,7 +24,7 @@ IIR 設計の王道は「**よくできたアナログフィルタを設計し�
 アナログ側では Z 変換の連続時間版である**ラプラス変換**を使う:
 
 $$
-H_a(s) = \int_{-\infty}^{\infty} h_a(t)\, e^{-st}\, dt, \qquad s = \sigma + j\Omega
+H_a(s) = \int_{-\infty}^{\infty} h_a(t) e^{-st} dt, \qquad s = \sigma + j\Omega
 $$
 
 - $`s = j\Omega`$（虚軸上）で評価するとフーリエ変換 = アナログの周波数特性。
@@ -41,7 +41,7 @@ $$
 ### (a) 基本対$`e^{s_0 t}u(t) \leftrightarrow \dfrac{1}{s-s_0}`$の導出
 
 $$
-X(s) = \int_0^\infty e^{s_0 t}\, e^{-st}\, dt = \int_0^\infty e^{(s_0 - s)t}\, dt
+X(s) = \int_0^\infty e^{s_0 t} e^{-st} dt = \int_0^\infty e^{(s_0 - s)t} dt
 = \left[\frac{e^{(s_0-s)t}}{s_0 - s}\right]_0^\infty
 $$
 
@@ -56,29 +56,29 @@ $$
 初期静止（$`x(0)=0`$、因果的）の信号に対し、微分のラプラス変換を部分積分で計算:
 
 $$
-\int_0^\infty x'(t)\, e^{-st}\, dt
-= \Big[x(t)\, e^{-st}\Big]_0^\infty + s\int_0^\infty x(t)\, e^{-st}\, dt
+\int_0^\infty x'(t) e^{-st} dt
+= \Big[x(t) e^{-st}\Big]_0^\infty + s\int_0^\infty x(t) e^{-st} dt
 = 0 + s X(s)
 $$
 
 （上端は ROC 内で$`x(t)e^{-st}\to 0`$、下端は$`x(0)=0`$で消える。）
-つまり微分 ↔$`s`$倍。ゆえに$`y(t) = \int_{-\infty}^t x\,d\tau`$なら$`y' = x`$より$`sY = X`$、すなわち積分 ↔$`\dfrac{1}{s}`$倍。∎
+つまり微分 ↔$`s`$倍。ゆえに$`y(t) = \int_{-\infty}^t xd\tau`$なら$`y' = x`$より$`sY = X`$、すなわち積分 ↔$`\dfrac{1}{s}`$倍。∎
 
 ### (c) 「安定 ⟺ 極が左半平面」の導出
 
 因果的で有理な$`H_a(s)`$（単根とする）を部分分数展開（05 章のヘヴィサイド法と同一手順）すると、(a) の対から:
 
 $$
-h_a(t) = \sum_i A_i\, e^{s_i t}\, u(t), \qquad s_i = \sigma_i + j\Omega_i
+h_a(t) = \sum_i A_i e^{s_i t} u(t), \qquad s_i = \sigma_i + j\Omega_i
 $$
 
-連続時間の BIBO 安定条件は$`\int_0^\infty |h_a(t)|\,dt < \infty`$（03 章の離散版と同じ論法: 和を積分に替えるだけ）。
-$`|e^{s_i t}| = e^{\sigma_i t}\,|e^{j\Omega_i t}| = e^{\sigma_i t}`$に注意して:
+連続時間の BIBO 安定条件は$`\int_0^\infty |h_a(t)|dt < \infty`$（03 章の離散版と同じ論法: 和を積分に替えるだけ）。
+$`|e^{s_i t}| = e^{\sigma_i t}|e^{j\Omega_i t}| = e^{\sigma_i t}`$に注意して:
 
 $$
-\int_0^\infty |h_a|\,dt \leq \sum_i |A_i| \int_0^\infty e^{\sigma_i t}\, dt,
+\int_0^\infty |h_a|dt \leq \sum_i |A_i| \int_0^\infty e^{\sigma_i t} dt,
 \qquad
-\int_0^\infty e^{\sigma t}\,dt = \left[\frac{e^{\sigma t}}{\sigma}\right]_0^\infty
+\int_0^\infty e^{\sigma t}dt = \left[\frac{e^{\sigma t}}{\sigma}\right]_0^\infty
 = \begin{cases}-\dfrac{1}{\sigma} < \infty & (\sigma < 0)\\[4pt] \infty & (\sigma \geq 0)\end{cases}
 $$
 
@@ -155,11 +155,11 @@ $$
 
 $$
 A(\Omega_p) \leq A_p
-\;\Longleftrightarrow\;
+\Longleftrightarrow
 \left(\frac{\Omega_p}{\Omega_c}\right)^{2N} \leq 10^{A_p/10} - 1,
 \qquad
 A(\Omega_s) \geq A_s
-\;\Longleftrightarrow\;
+\Longleftrightarrow
 \left(\frac{\Omega_s}{\Omega_c}\right)^{2N} \geq 10^{A_s/10} - 1
 $$
 
@@ -173,9 +173,9 @@ $$
 両辺の$`\log_{10}`$をとって$`N`$について解く:
 
 $$
-\boxed{\;
-N \geq \frac{\log_{10}\dfrac{10^{A_s/10} - 1}{10^{A_p/10} - 1}}{2\,\log_{10}\dfrac{\Omega_s}{\Omega_p}}
-\;}
+\boxed{
+N \geq \frac{\log_{10}\dfrac{10^{A_s/10} - 1}{10^{A_p/10} - 1}}{2\log_{10}\dfrac{\Omega_s}{\Omega_p}}
+}
 $$
 
 これを満たす最小の整数を$`N`$とする。$`N`$が決まれば$`\Omega_c`$は 2 つの不等式のどちらか
@@ -194,7 +194,7 @@ $$
 N \geq \frac{\log_{10}\dfrac{10^4 - 1}{10^{0.1} - 1}}{2\log_{10}2}
 = \frac{\log_{10}(9999/0.2589)}{0.6021}
 = \frac{4.587}{0.6021} = 7.62
-\;\Longrightarrow\; N = 8
+\Longrightarrow N = 8
 $$
 
 （この同じ仕様をチェビシェフで解くと$`N=5`$で済む。§2.4 で導出する。）
@@ -207,7 +207,7 @@ $`|H_a(j\Omega)|^2 = H_a(s)H_a(-s)\big|_{s=j\Omega}`$という関係を使う
 $`\Omega^2 = (s/j)^2 = -s^2`$より:
 
 $$
-H_a(s)\,H_a(-s) = \frac{1}{1 + \left(\dfrac{-s^2}{\Omega_c^2}\right)^{N}}
+H_a(s)H_a(-s) = \frac{1}{1 + \left(\dfrac{-s^2}{\Omega_c^2}\right)^{N}}
 $$
 
 極は分母 = 0、すなわち:
@@ -215,19 +215,19 @@ $$
 $$
 \left(\frac{-s^2}{\Omega_c^2}\right)^{N} = -1
 \quad\Longleftrightarrow\quad
-s^{2N} = (-1)^{N+1}\, \Omega_c^{2N}
+s^{2N} = (-1)^{N+1} \Omega_c^{2N}
 $$
 
 右辺を極形式で書く。$`(-1)^{N+1} = e^{j\pi(N+1)}`$であり、$`1 = e^{j2\pi k}`$（$`k`$整数）を掛けられるので:
 
 $$
-s^{2N} = \Omega_c^{2N}\, e^{j\pi(N + 1 + 2k)}
+s^{2N} = \Omega_c^{2N} e^{j\pi(N + 1 + 2k)}
 $$
 
 $`2N`$乗根をとる:
 
 $$
-s_k = \Omega_c\, \exp\!\left(j\pi\, \frac{N + 1 + 2k}{2N}\right), \qquad k = 0, 1, \dots, 2N-1
+s_k = \Omega_c \exp\left(j\pi \frac{N + 1 + 2k}{2N}\right), \qquad k = 0, 1, \dots, 2N-1
 $$
 
 **極は半径$`\Omega_c`$の円周上に等間隔（角度間隔$`\pi/N`$）に並ぶ**。
@@ -244,7 +244,7 @@ $$
 左半平面（角度が$`\pi/2`$〜$`3\pi/2`$）にあるのは$`\frac{3\pi}{4}`$と$`\frac{5\pi}{4}`$:
 
 $$
-s_{1,2} = \Omega_c\, e^{j3\pi/4},\; \Omega_c\, e^{j5\pi/4} = \Omega_c\left(-\frac{1}{\sqrt2} \pm j\frac{1}{\sqrt2}\right)
+s_{1,2} = \Omega_c e^{j3\pi/4}, \Omega_c e^{j5\pi/4} = \Omega_c\left(-\frac{1}{\sqrt2} \pm j\frac{1}{\sqrt2}\right)
 $$
 
 伝達関数を組み立てる（分子は直流ゲイン 1 になるよう$`\Omega_c^2`$）:
@@ -254,10 +254,10 @@ H_a(s) = \frac{\Omega_c^2}{(s - s_1)(s - s_2)}
 = \frac{\Omega_c^2}{s^2 - (s_1 + s_2)s + s_1 s_2}
 $$
 
-$`s_1 + s_2 = -\sqrt{2}\,\Omega_c`$、$`s_1 s_2 = \Omega_c^2 e^{j(3\pi/4 + 5\pi/4)} = \Omega_c^2 e^{j2\pi} = \Omega_c^2`$より:
+$`s_1 + s_2 = -\sqrt{2}\Omega_c`$、$`s_1 s_2 = \Omega_c^2 e^{j(3\pi/4 + 5\pi/4)} = \Omega_c^2 e^{j2\pi} = \Omega_c^2`$より:
 
 $$
-\boxed{\;H_a(s) = \frac{\Omega_c^2}{s^2 + \sqrt{2}\,\Omega_c\, s + \Omega_c^2}\;}
+\boxed{H_a(s) = \frac{\Omega_c^2}{s^2 + \sqrt{2}\Omega_c s + \Omega_c^2}}
 $$
 
 これが 2 次バタワースの標準形（後の設計例で使う）。
@@ -269,7 +269,7 @@ $$
 **チェビシェフ I 型**:
 
 $$
-|H_a(j\Omega)|^2 = \frac{1}{1 + \varepsilon^2\, T_N^2\!\left(\dfrac{\Omega}{\Omega_c}\right)}
+|H_a(j\Omega)|^2 = \frac{1}{1 + \varepsilon^2 T_N^2\left(\dfrac{\Omega}{\Omega_c}\right)}
 $$
 
 $`\varepsilon`$: リプルの大きさを決めるパラメータ、$`T_N`$: **チェビシェフ多項式**
@@ -291,7 +291,7 @@ $$
 $`x = \cos\phi`$とおけば:
 
 $$
-T_{N+1}(x) = 2x\, T_N(x) - T_{N-1}(x), \qquad T_0(x) = 1,\; T_1(x) = x
+T_{N+1}(x) = 2x T_N(x) - T_{N-1}(x), \qquad T_0(x) = 1, T_1(x) = x
 $$
 
 例:$`T_2(x) = 2x^2 - 1`$、$`T_3(x) = 4x^3 - 3x`$。
@@ -326,7 +326,7 @@ $$
 $$
 A_p = 10\log_{10}(1 + \varepsilon^2)
 \quad\Longleftrightarrow\quad
-\boxed{\;\varepsilon = \sqrt{10^{A_p/10} - 1}\;}
+\boxed{\varepsilon = \sqrt{10^{A_p/10} - 1}}
 $$
 
 これが設計時の$`\varepsilon`$の決め方: **許せるリプル量（dB）を決めれば$`\varepsilon`$が一意に決まる**。
@@ -343,7 +343,7 @@ $$
 ### 2.3 性質の導出 2: 阻止域では cosh になって急増する
 
 阻止域$`\Omega > \Omega_c`$、つまり$`x > 1`$では$`\arccos x`$が実数でなくなる。代わりに
-$`x = \cosh u`$（$`u = \mathrm{arccosh}\,x > 0`$）とおくと:
+$`x = \cosh u`$（$`u = \mathrm{arccosh}x > 0`$）とおくと:
 
 $$
 T_N(\cosh u) = \cosh(N u)
@@ -360,7 +360,7 @@ $$
 $`\cosh(u)=T_1(\cosh u)`$で一致する。同じ漸化式・同じ初期値なら全$`N`$で一致する（帰納法）。∎
 
 $`\cosh(Nu) = \frac{e^{Nu}+e^{-Nu}}{2}`$は$`u`$に対して**指数的に**増える。$`x \gg 1`$では
-$`\mathrm{arccosh}\,x = \ln(x + \sqrt{x^2-1}) \approx \ln 2x`$を使って:
+$`\mathrm{arccosh}x = \ln(x + \sqrt{x^2-1}) \approx \ln 2x`$を使って:
 
 $$
 T_N(x) \approx \frac{1}{2}e^{N\ln 2x} = \frac{(2x)^N}{2} = 2^{N-1}x^N
@@ -369,7 +369,7 @@ $$
 （§2.1 の最高次係数と一致。検算 ✓）。したがって阻止域の遠方では:
 
 $$
-|H_a|^2 \approx \frac{1}{\varepsilon^2\, 2^{2(N-1)}\, x^{2N}}
+|H_a|^2 \approx \frac{1}{\varepsilon^2 2^{2(N-1)} x^{2N}}
 $$
 
 バタワースの$`1/x^{2N}`$と比べると、**同じ次数・同じ傾き（−20N dB/dec）だが、
@@ -392,27 +392,27 @@ $`\Omega_c = \Omega_p`$（通過域端をリプル帯の端に一致させる）
 通過域条件は §2.2 の通り$`\varepsilon = \sqrt{10^{A_p/10}-1}`$で消化済み。阻止域条件は:
 
 $$
-10\log_{10}\left[1 + \varepsilon^2 T_N^2\!\left(\frac{\Omega_s}{\Omega_p}\right)\right] \geq A_s
+10\log_{10}\left[1 + \varepsilon^2 T_N^2\left(\frac{\Omega_s}{\Omega_p}\right)\right] \geq A_s
 \quad\Longleftrightarrow\quad
-T_N\!\left(\frac{\Omega_s}{\Omega_p}\right) \geq \frac{\sqrt{10^{A_s/10}-1}}{\varepsilon}
+T_N\left(\frac{\Omega_s}{\Omega_p}\right) \geq \frac{\sqrt{10^{A_s/10}-1}}{\varepsilon}
 $$
 
-$`\Omega_s/\Omega_p > 1`$なので §2.3 の cosh 表現$`T_N(x) = \cosh(N\,\mathrm{arccosh}\,x)`$を使い、
+$`\Omega_s/\Omega_p > 1`$なので §2.3 の cosh 表現$`T_N(x) = \cosh(N\mathrm{arccosh}x)`$を使い、
 両辺の$`\mathrm{arccosh}`$をとって（$`\cosh`$は$`u>0`$で単調増加なので不等号保存）:
 
 $$
-\boxed{\;
+\boxed{
 N \geq \frac{\mathrm{arccosh}\sqrt{\dfrac{10^{A_s/10}-1}{10^{A_p/10}-1}}}{\mathrm{arccosh}\dfrac{\Omega_s}{\Omega_p}}
-\;}
+}
 $$
 
 **数値例**（§1.4 と同一仕様:$`A_p=1`$dB,$`A_s=40`$dB,$`\Omega_s/\Omega_p = 2`$）:
 
 $$
-N \geq \frac{\mathrm{arccosh}\sqrt{9999/0.2589}}{\mathrm{arccosh}\,2}
+N \geq \frac{\mathrm{arccosh}\sqrt{9999/0.2589}}{\mathrm{arccosh}2}
 = \frac{\mathrm{arccosh}(196.5)}{1.317}
 = \frac{5.974}{1.317} = 4.54
-\;\Longrightarrow\; N = 5
+\Longrightarrow N = 5
 $$
 
 同じ仕様でバタワースは$`N=8`$だった。**次数 8 → 5、biquad 換算で 4 段 → 2.5 段**。
@@ -420,7 +420,7 @@ $$
 
 > **直感: なぜ式の形が「log の比」から「arccosh の比」に変わったのか。**
 > バタワース（§1.4）では減衰が冪$`x^N`$で増えるので、対数をとると$`N`$が線形に出てきて log の比になった。
-> チェビシェフでは減衰が$`\cosh(N\,\mathrm{arccosh}\,x)`$で増えるので、逆関数 arccosh をとると
+> チェビシェフでは減衰が$`\cosh(N\mathrm{arccosh}x)`$で増えるので、逆関数 arccosh をとると
 > $`N`$が取り出せて arccosh の比になる。**式の形の違いは「減衰の増え方が冪か指数か」の違いをそのまま映している。**
 
 ![同一仕様を満たす最小次数の比較](figures/08_spec_comparison.png)
@@ -432,9 +432,9 @@ $$
 バタワース（§1.5）と同じ道具立てで、$`H_a(s)H_a(-s)`$の極を求める。分母 = 0 は:
 
 $$
-1 + \varepsilon^2 T_N^2\!\left(\frac{s}{j\Omega_c}\right) = 0
+1 + \varepsilon^2 T_N^2\left(\frac{s}{j\Omega_c}\right) = 0
 \quad\Longleftrightarrow\quad
-T_N\!\left(\frac{s}{j\Omega_c}\right) = \pm\frac{j}{\varepsilon}
+T_N\left(\frac{s}{j\Omega_c}\right) = \pm\frac{j}{\varepsilon}
 $$
 
 **ステップ 1: 複素角の導入。**$`v = s/(j\Omega_c)`$とおき、$`v = \cos\theta`$を満たす複素数
@@ -442,7 +442,7 @@ $`\theta = \alpha + j\beta`$（$`\alpha, \beta`$実数）を探す。このと�
 複素引数の$`\cos`$を実部・虚部に分解する（加法定理 +$`\cos(j\beta)=\cosh\beta`$,$`\sin(j\beta)=j\sinh\beta`$、02 章）:
 
 $$
-\cos(N\alpha + jN\beta) = \cos(N\alpha)\cosh(N\beta) - j\,\sin(N\alpha)\sinh(N\beta)
+\cos(N\alpha + jN\beta) = \cos(N\alpha)\cosh(N\beta) - j\sin(N\alpha)\sinh(N\beta)
 $$
 
 **ステップ 2: 実部と虚部の連立。** これが純虚数$`\pm j/\varepsilon`$に等しいので:
@@ -462,24 +462,24 @@ $$
 このとき$`\sin(N\alpha_k) = \pm 1`$なので、虚部の条件は$`\sinh(N\beta) = \pm\frac{1}{\varepsilon}`$、すなわち:
 
 $$
-\beta = \pm\beta_0, \qquad \beta_0 \equiv \frac{1}{N}\,\mathrm{arcsinh}\frac{1}{\varepsilon}
+\beta = \pm\beta_0, \qquad \beta_0 \equiv \frac{1}{N}\mathrm{arcsinh}\frac{1}{\varepsilon}
 $$
 
 **ステップ 3: s に戻す。**$`s = j\Omega_c \cos(\alpha_k + j\beta)`$を展開する:
 
 $$
 s = j\Omega_c\left[\cos\alpha_k \cosh\beta - j\sin\alpha_k \sinh\beta\right]
-= \Omega_c \sin\alpha_k \sinh\beta + j\,\Omega_c \cos\alpha_k \cosh\beta
+= \Omega_c \sin\alpha_k \sinh\beta + j\Omega_c \cos\alpha_k \cosh\beta
 $$
 
 安定側（実部 < 0）を選ぶ。$`k = 0,\dots,N-1`$で$`\alpha_k \in (0,\pi)`$だから$`\sin\alpha_k > 0`$であり、
 $`\beta = -\beta_0`$を採れば実部が負になる。よって左半平面の$`N`$個の極は:
 
 $$
-\boxed{\;
-s_k = -\Omega_c \sinh\beta_0\, \sin\alpha_k \;+\; j\,\Omega_c \cosh\beta_0\, \cos\alpha_k,
+\boxed{
+s_k = -\Omega_c \sinh\beta_0 \sin\alpha_k + j\Omega_c \cosh\beta_0 \cos\alpha_k,
 \qquad \alpha_k = \frac{(2k+1)\pi}{2N},\quad k = 0,\dots,N-1
-\;}
+}
 $$
 
 **ステップ 4: 軌跡の同定。**$`\sigma_k = \mathrm{Re}(s_k)`$,$`\Omega_k = \mathrm{Im}(s_k)`$とおくと:
@@ -519,13 +519,13 @@ $$
 
 ### 3.1 導出（台形積分による）
 
-積分器$`y(t) = \int x(t)\,dt`$、すなわち$`H_a(s) = \dfrac{1}{s}`$をデジタルで近似することを考える
+積分器$`y(t) = \int x(t)dt`$、すなわち$`H_a(s) = \dfrac{1}{s}`$をデジタルで近似することを考える
 （任意のアナログ伝達関数は積分器の組み合わせで書けるので、積分器の対応を決めればすべて決まる）。
 
 時刻$`t = nT`$と$`t = (n-1)T`$の間の積分を**台形則**で近似する:
 
 $$
-y(nT) = y((n-1)T) + \int_{(n-1)T}^{nT} x(t)\, dt
+y(nT) = y((n-1)T) + \int_{(n-1)T}^{nT} x(t) dt
 \approx y((n-1)T) + \frac{T}{2}\left[x(nT) + x((n-1)T)\right]
 $$
 
@@ -542,7 +542,7 @@ Y(z) = z^{-1}Y(z) + \frac{T}{2}\left(X(z) + z^{-1}X(z)\right)
 $$
 
 $$
-Y(z)\,(1 - z^{-1}) = \frac{T}{2}(1 + z^{-1})\, X(z)
+Y(z)(1 - z^{-1}) = \frac{T}{2}(1 + z^{-1}) X(z)
 \quad\Longrightarrow\quad
 \frac{Y(z)}{X(z)} = \frac{T}{2}\cdot\frac{1 + z^{-1}}{1 - z^{-1}}
 $$
@@ -550,9 +550,9 @@ $$
 これがアナログ積分器$`\frac{1}{s}`$のデジタル版。よって対応関係は:
 
 $$
-\frac{1}{s} \;\longleftrightarrow\; \frac{T}{2}\cdot\frac{1+z^{-1}}{1-z^{-1}}
+\frac{1}{s} \longleftrightarrow \frac{T}{2}\cdot\frac{1+z^{-1}}{1-z^{-1}}
 \quad\Longleftrightarrow\quad
-\boxed{\;s = \frac{2}{T}\cdot\frac{1 - z^{-1}}{1 + z^{-1}}\;}
+\boxed{s = \frac{2}{T}\cdot\frac{1 - z^{-1}}{1 + z^{-1}}}
 $$
 
 デジタルフィルタは$`H(z) = H_a(s)\big|_{s = \frac{2}{T}\frac{1-z^{-1}}{1+z^{-1}}}`$で得られる。
@@ -567,9 +567,9 @@ $`s = \sigma + j\Omega`$に対応する$`z`$を求める。上式を$`z`$につ�
 
 $$
 s\frac{T}{2}(1 + z^{-1}) = 1 - z^{-1}
-\;\Longrightarrow\;
+\Longrightarrow
 z^{-1}\left(1 + s\frac{T}{2}\right) = 1 - s\frac{T}{2}
-\;\Longrightarrow\;
+\Longrightarrow
 z = \frac{1 + sT/2}{1 - sT/2}
 $$
 
@@ -608,14 +608,14 @@ $$
 $$
 = \frac{2}{T}\cdot\frac{e^{-j\omega/2}\left(e^{j\omega/2} - e^{-j\omega/2}\right)}{e^{-j\omega/2}\left(e^{j\omega/2} + e^{-j\omega/2}\right)}
 = \frac{2}{T}\cdot\frac{2j\sin(\omega/2)}{2\cos(\omega/2)}
-= j\,\frac{2}{T}\tan\frac{\omega}{2}
+= j\frac{2}{T}\tan\frac{\omega}{2}
 $$
 
 （02 章の$`\sin\theta = \frac{e^{j\theta}-e^{-j\theta}}{2j}`$、$`\cos\theta = \frac{e^{j\theta}+e^{-j\theta}}{2}`$を使用。）
 $`s = j\Omega`$と比較して:
 
 $$
-\boxed{\;\Omega = \frac{2}{T}\tan\frac{\omega}{2}\;}
+\boxed{\Omega = \frac{2}{T}\tan\frac{\omega}{2}}
 \qquad\Longleftrightarrow\qquad
 \omega = 2\arctan\frac{\Omega T}{2}
 $$
@@ -670,7 +670,7 @@ $`\tan(\omega_c/2) = \tan(0.06545) \approx 0.065544`$。）
 **ステップ 2: アナログプロトタイプ**（§1.5 で導出済みの 2 次バタワース）
 
 $$
-H_a(s) = \frac{\Omega_c^2}{s^2 + \sqrt{2}\,\Omega_c s + \Omega_c^2}
+H_a(s) = \frac{\Omega_c^2}{s^2 + \sqrt{2}\Omega_c s + \Omega_c^2}
 $$
 
 **ステップ 3: 双一次変換を代入**
@@ -684,7 +684,7 @@ $$
 とおく。分子・分母を$`\left(\frac{2}{T}\right)^2 (1+z^{-1})^2`$で通分すると$`\frac{2}{T}`$が全部約分されて:
 
 $$
-H(z) = \frac{\lambda^2 (1+z^{-1})^2}{(1-z^{-1})^2 + \sqrt{2}\,\lambda\,(1-z^{-1})(1+z^{-1}) + \lambda^2 (1+z^{-1})^2}
+H(z) = \frac{\lambda^2 (1+z^{-1})^2}{(1-z^{-1})^2 + \sqrt{2}\lambda(1-z^{-1})(1+z^{-1}) + \lambda^2 (1+z^{-1})^2}
 $$
 
 各項を展開する:
@@ -708,12 +708,12 @@ $$
 先頭係数$`D \equiv 1 + \sqrt2\lambda + \lambda^2`$で全体を割って標準形（分母先頭 1）にする:
 
 $$
-\boxed{\;
+\boxed{
 H(z) = \frac{b_0 + b_1 z^{-1} + b_2 z^{-2}}{1 + a_1 z^{-1} + a_2 z^{-2}},\qquad
 \begin{aligned}
 b_0 &= b_2 = \frac{\lambda^2}{D}, \quad b_1 = \frac{2\lambda^2}{D}\\
 a_1 &= \frac{2(\lambda^2 - 1)}{D}, \quad a_2 = \frac{1 - \sqrt2\lambda + \lambda^2}{D}
-\end{aligned}\;}
+\end{aligned}}
 $$
 
 **ステップ 4: 数値を入れる** ($`\lambda = 0.065544`$,$`\lambda^2 = 0.0042960`$,$`\sqrt2\lambda = 0.092694`$,$`D = 1.096990`$)
@@ -743,7 +743,7 @@ $$
 **発想**: アナログフィルタのインパルス応答をそのままサンプリングする:
 
 $$
-h[n] = T\, h_a(nT)
+h[n] = T h_a(nT)
 $$
 
 ### 5.1 極の写り方の導出
@@ -752,7 +752,7 @@ $$
 $`h_a(t) = A e^{s_0 t} u(t)`$（§0(a) のラプラス対）。サンプリングすると:
 
 $$
-h[n] = T A\, e^{s_0 T n}\, u[n] = TA\, (e^{s_0 T})^n\, u[n]
+h[n] = T A e^{s_0 T n} u[n] = TA (e^{s_0 T})^n u[n]
 $$
 
 これは公比$`e^{s_0 T}`$の指数列なので、Z 変換は（05 章の基本対より）:
@@ -767,10 +767,10 @@ $$
 
 01 章で導出したとおり、連続信号$`x_a(t)`$をサンプリングした列$`x_a(nT)`$のスペクトルは
 元のスペクトルの$`\frac{1}{T}`$倍を周期$`\frac{2\pi}{T}`$で複製した和になる。
-$`h[n] = T\,h_a(nT)`$と先頭に$`T`$を掛けてあるので$`\frac{1}{T}`$が打ち消えて:
+$`h[n] = Th_a(nT)`$と先頭に$`T`$を掛けてあるので$`\frac{1}{T}`$が打ち消えて:
 
 $$
-H(e^{j\omega}) = \sum_{k=-\infty}^{\infty} H_a\!\left(j\,\frac{\omega - 2\pi k}{T}\right)
+H(e^{j\omega}) = \sum_{k=-\infty}^{\infty} H_a\left(j\frac{\omega - 2\pi k}{T}\right)
 $$
 
 **デジタルの周波数特性は、アナログの特性を$`2\pi`$おきにずらして無限に足し合わせたもの**になる。
@@ -807,21 +807,21 @@ $$
 ### 6.1 LP → HP 変換の導出
 
 $$
-s \;\longrightarrow\; \frac{\Omega_c}{s}
+s \longrightarrow \frac{\Omega_c}{s}
 \qquad\text{すなわち}\qquad
-H_{HP}(s) = H_{LP}\!\left(\frac{\Omega_c}{s}\right)
+H_{HP}(s) = H_{LP}\left(\frac{\Omega_c}{s}\right)
 $$
 
 **周波数軸上で何が起きるか**:$`s = j\Omega`$を代入すると変換後の引数は
 
 $$
-\frac{\Omega_c}{j\Omega} = -j\,\frac{\Omega_c}{\Omega} = j\left(-\frac{\Omega_c}{\Omega}\right)
+\frac{\Omega_c}{j\Omega} = -j\frac{\Omega_c}{\Omega} = j\left(-\frac{\Omega_c}{\Omega}\right)
 $$
 
 実係数フィルタの振幅特性は偶関数（$`|H(-j\Omega)| = |H(j\Omega)|`$、06 章）なので:
 
 $$
-|H_{HP}(j\Omega)| = \left|H_{LP}\!\left(j\,\frac{\Omega_c}{\Omega}\right)\right|
+|H_{HP}(j\Omega)| = \left|H_{LP}\left(j\frac{\Omega_c}{\Omega}\right)\right|
 $$
 
 対応表を作ると:
@@ -838,7 +838,7 @@ $$
 すなわち$`s = \Omega_c/p`$に移る。その実部は
 
 $$
-\mathrm{Re}\left(\frac{\Omega_c}{p}\right) = \Omega_c\,\frac{\mathrm{Re}(\bar p)}{|p|^2} = \Omega_c\,\frac{\mathrm{Re}(p)}{|p|^2} < 0
+\mathrm{Re}\left(\frac{\Omega_c}{p}\right) = \Omega_c\frac{\mathrm{Re}(\bar p)}{|p|^2} = \Omega_c\frac{\mathrm{Re}(p)}{|p|^2} < 0
 $$
 
 （$`\Omega_c > 0`$、$`\mathrm{Re}(\bar p) = \mathrm{Re}(p)`$）。**左半平面の極は左半平面に留まり、安定性は保存される**。∎
@@ -847,7 +847,7 @@ $$
 $`s \to \Omega_c/s`$を代入し、分子分母に$`s^2`$を掛けると:
 
 $$
-H_{HP}(s) = \frac{s^2}{s^2 + \sqrt{2}\,\Omega_c\, s + \Omega_c^2}
+H_{HP}(s) = \frac{s^2}{s^2 + \sqrt{2}\Omega_c s + \Omega_c^2}
 $$
 
 分母は §1.5 の LP と同一で、分子だけ$`\Omega_c^2 \to s^2`$に変わる。
@@ -857,11 +857,11 @@ $`s = 0`$の二重零点（直流の完全遮断）が現れており、ハイ�
 ### 6.2 LP → BP 変換（要点）
 
 $$
-s \;\longrightarrow\; \frac{s^2 + \Omega_0^2}{B\,s}
-\qquad(\Omega_0: \text{中心周波数},\; B: \text{帯域幅})
+s \longrightarrow \frac{s^2 + \Omega_0^2}{Bs}
+\qquad(\Omega_0: \text{中心周波数}, B: \text{帯域幅})
 $$
 
-$`s = j\Omega`$上での引数は$`j\,\dfrac{\Omega^2 - \Omega_0^2}{B\,\Omega}`$となり:
+$`s = j\Omega`$上での引数は$`j\dfrac{\Omega^2 - \Omega_0^2}{B\Omega}`$となり:
 
 - $`\Omega = \Omega_0`$: 引数 0 = LP の直流 → **中心周波数を素通し**
 - $`\Omega \to 0`$および$`\Omega \to \infty`$: 引数$`\to \pm j\infty`$= LP の阻止域 → **両側を遮断**
