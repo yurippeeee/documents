@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>09. IIR の実装構造と数値的な注意点 — DSP</title>
+<link rel="stylesheet" href="dsp.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../index.html">DSP</a>
+  <span class="cur">09 · IIR の実装構造と数値的な注意点</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 09</p>
+  <h1 class="doctitle">IIR の実装構造と数値的な注意点</h1>
+  <p>同じ伝達関数\(H(z)\)でも、計算の組み方（<strong>構造</strong>）は複数あり、 無限精度なら等価だが<strong>有限精度（浮動小数点・固定小数点）では性能が変わる</strong>。</p><h2>1. 直接形 I (Direct Form I)</h2><p>差分方程式をそのまま実装した形:</p><div class="eqn">\[ y[n] = \sum_{k=0}^{M} b_k x[n-k] - \sum_{k=1}^{N} a_k y[n-k] \]</div><pre><code>x[n] ──┬─── b0 ──→(+)──────────────┬──→ y[n]
+     [z⁻¹]         ↑               [z⁻¹]
+       ├─── b1 ──→(+)←── -a1 ───────┤
+     [z⁻¹]         ↑               [z⁻¹]
+       └─── b2 ──→(+)←── -a2 ───────┘
+   （入力側の遅延線）   （出力側の遅延線）</code></pre><ul><li>前半（\(b_k\)側）= 零点を作る FIR 部、後半（\(a_k\)側）= 極を作るフィードバック部。</li><li>遅延メモリが\(M + N\)個必要（入力履歴と出力履歴を別々に持つ）。</li><li>素直で頑健。固定小数点オーディオでは今でも定番。</li></ul><h2>2. 直接形 II (Direct Form II) — 遅延メモリの節約</h2><h3>導出</h3><p>\(H(z)\)を「フィードバック部 → FIR 部」の縦続として書き直す:</p><div class="eqn">\[ H(z) = \underbrace{\frac{1}{1 + \sum_{k=1}^N a_k z^{-k}}}_{H_1(z)} \cdot \underbrace{\sum_{k=0}^M b_k z^{-k}}_{H_2(z)} \]</div><p>畳み込みの可換性・結合性（03 章で導出）より、\(H_2 \cdot H_1\)の順でも\(H_1 \cdot H_2\)の順でも全体は同じ。 そこで<strong>先にフィードバック部\(H_1\)を通す</strong>ことにし、中間信号を\(w[n]\)とする:</p><div class="eqn">\[ W(z) = H_1(z) X(z) \Longleftrightarrow w[n] = x[n] - \sum_{k=1}^{N} a_k w[n-k] \]</div><div class="eqn">\[ Y(z) = H_2(z) W(z) \Longleftrightarrow y[n] = \sum_{k=0}^{M} b_k w[n-k] \]</div><p>2 つの式は<strong>どちらも\(w\)の過去値だけを参照する</strong>。よって遅延線は\(w\)用の 1 本 （\(\max(M, N)\)個）で済む。これが直接形 II（canonical form: 最小遅延数の意味で正準形）。</p><pre><code>x[n] ──→(+)────┬──── b0 ──→(+)──→ y[n]
+          ↑    [z⁻¹]           ↑
+          │    w[n-1]          │
+        (+)←─ -a1 ─┤├── b1 ──→(+)
+          ↑    [z⁻¹]           ↑
+          │    w[n-2]          │
+          └── -a2 ─┴─── b2 ────┘</code></pre><h3>注意</h3><p>直接形 II は中間信号\(w[n]\)に極の共振がフィルタされずに直撃するため、 <strong>内部でオーバーフローしやすい</strong>（入力・出力が小さくても\(w\)が大きくなり得る）。 浮動小数点では通常問題ないが、固定小数点では直接形 I か転置形が選ばれることが多い。</p><h3>転置形 (Transposed Direct Form II)</h3><p>信号の流れをすべて逆向きにし、分岐と加算を入れ替えても伝達関数は変わらない（転置定理）。 得られる転置形 II は浮動小数点実装で最も広く使われる:</p><div class="eqn">\[ \begin{aligned} y[n] &amp;= b_0 x[n] + s_1[n-1]\\ s_1[n] &amp;= b_1 x[n] - a_1 y[n] + s_2[n-1]\\ s_2[n] &amp;= b_2 x[n] - a_2 y[n] \end{aligned} \]</div><p>（biquad の場合。状態変数\(s_1, s_2\)の 2 個だけで済み、数値特性も良好。 SciPy の <code>lfilter</code> や多くのオーディオライブラリの内部実装がこれ。）</p><h2>3. 縦続形(biquad カスケード) — 高次 IIR の標準実装</h2><h3>なぜ高次を 1 つの直接形で実装してはいけないのか</h3><p>\(N\)次の分母多項式\(1 + a_1 z^{-1} + \cdots + a_N z^{-N}\)の<strong>根（極）の位置は、係数の微小誤差に対して 次数が上がるほど極端に敏感になる</strong>。</p><p>直感的な理由: 多項式の根は係数の複雑な非線形関数であり、高次では 「係数が 0.1% ずれただけで根が大きく動く」悪条件が生じる（Wilkinson 多項式が有名な実例）。 特に IIR では極が単位円ギリギリに配置されがちなので、 係数の量子化（例: float32 への丸め）で<strong>極が単位円の外に押し出されて発振</strong>する事故が起きる。</p><h3>解決: 2 次ずつに分けて縦続する</h3><p>\(H(z)\)を極・零点の共役対ごとに biquad へ分解する:</p><div class="eqn">\[ H(z) = G \prod_{i=1}^{\lceil N/2 \rceil} \frac{b_{0i} + b_{1i} z^{-1} + b_{2i} z^{-2}}{1 + a_{1i} z^{-1} + a_{2i} z^{-2}} \]</div><p>（03 章の結合性より、縦続接続の全体特性は各段の積。分解は数学的に厳密に等価。）</p><ul><li>各 biquad の係数はその段の 1 対の極だけを決めるので、<strong>量子化誤差の影響がその段に局所化</strong>される。</li><li>2 次の極位置は係数から直接読める（06 章:\(|p|^2 = a_2\),\(2\mathrm{Re}(p) = -a_1\)）ので、 安定性の検査・保証（安定三角形）も段ごとに簡単。</li></ul><blockquote><p><strong>実務の鉄則: 3 次以上の IIR は必ず biquad（+ 必要なら 1 次セクション）のカスケードで実装する。</strong> SciPy で <code>butter(8, ...)</code> を使うときも <code>output='sos'</code>（second-order sections）を指定し、 <code>sosfilt</code> で流すのが標準プラクティス。<code>output='ba'</code> の高次係数は次数が上がると簡単に破綻する。</p></blockquote><pre><code class="lang-python"># 推奨パターン (SciPy)
+from scipy.signal import butter, sosfilt
+sos = butter(8, 1000, btype='low', fs=48000, output='sos')  # 8次 = biquad 4段
+y = sosfilt(sos, x)</code></pre><figure><img src="../figures/09_coefficient_quantization.png" alt="係数量子化: 直接形 vs SOS" loading="lazy"><figcaption>図: 8 次バタワース(低カットオフ)の係数を 12 bit に丸めた実験。直接形(赤 ×)は 8 次多項式の根の悪条件のせいで極が大幅に飛散し、3 個が単位円の外に出て発振する。同じ 12 bit でも SOS(緑 +)の極は設計値(青 ○)からほぼ動かない。</figcaption></figure><h2>4. 量子化に起因する現象</h2><h3>(a) 係数量子化</h3><p>設計した係数を有限ビットに丸めると極・零点が設計位置からずれる。 → 特性の変形、最悪の場合は不安定化。対策: biquad 分解、倍精度で設計、係数感度の低い構造。</p><h3>(b) 丸め誤差の蓄積とリミットサイクル</h3><div class="widget" data-widget="limitcycle"></div><p>各サンプルの積和演算で生じる丸め誤差は、FIR なら出力に一度混ざって終わりだが、 <strong>IIR ではフィードバックループを回って再入力され続ける</strong>。</p><p>固定小数点実装では、入力が 0 になった後も丸め誤差が自己再生して 小さな発振が永久に残る<strong>リミットサイクル</strong>が起きることがある （例: 出力が …, +1LSB, −1LSB, +1LSB, … と振動し続ける）。 対策: 誤差フィードバック（error feedback / noise shaping）、ディザ、浮動小数点の採用。</p><figure><img src="../figures/09_limit_cycle.png" alt="リミットサイクルの実験" loading="lazy"><figcaption>図: 1 次 IIR の零入力応答を「毎サンプル LSB に丸める」固定小数点で計算した実験。理想(青)は 0 に減衰するが、固定小数点(赤)は左: 丸めが減衰を打ち消して途中で止まる(デッドバンド)、右: ±10 LSB の永久振動(リミットサイクル)に陥る。</figcaption></figure><h3>(c) 極が単位円に近いときの一般的注意</h3><p>カットオフがナイキストに比べて極端に低い（例:\(f_s = 48\)kHz で\(f_c = 20\)Hz）と、 極が\(z = 1\)の至近距離に来て、\(1 - a\)型の係数が桁落ちする。 float32 では特性が崩れることがあり、倍精度状態変数や SVF（state variable filter）構造への 置き換えが定石。</p><h2>5. 実装チェックリスト</h2><ul><li><span class="task">☐</span> 3 次以上は SOS（biquad カスケード）に分解したか</li><li><span class="task">☐</span> 各段の係数が安定三角形の内側にあるか（\(|a_2| &lt; 1\),\(1 \pm a_1 + a_2 &gt; 0\)）</li><li><span class="task">☐</span> 状態変数の初期化（ゼロクリア or 過渡応答対策）をしたか</li><li><span class="task">☐</span> 係数を実行時に変化させる場合、変化中も安定か・ジップノイズは許容範囲か</li><li><span class="task">☐</span> 固定小数点なら: 内部ワード長、オーバーフロー対策（飽和演算）、リミットサイクル対策</li><li><span class="task">☐</span> 位相の非線形性がアプリケーション上問題ないか（問題なら FIR か零位相フィルタリング <code>filtfilt</code> を検討）</li></ul><h2>6. 学習のまとめ — IIR 理解の全体像</h2><pre><code>サンプリング(01)     : 信号を数列にする。周波数は ω=2πf/fs、意味があるのは 0〜π
+複素指数(02)         : e^{jωn} は LTI の固有関数。フィルタ = 各周波数に複素倍率を掛ける装置
+畳み込み(03)         : LTI は h[n] で完全記述。安定 ⟺ Σ|h| &lt; ∞
+DTFT(04)             : 周波数特性の定義。畳み込み ↔ 掛け算
+Z変換(05)            : z⁻¹ = 1サンプル遅延。有理関数と部分分数展開が IIR の言語
+伝達関数と極零点(06) : 差分方程式 ↔ H(z) ↔ h[n]。極 = 共振と余韻、零点 = ノッチ
+                       安定 ⟺ 全極が単位円内
+IIR本体(07)          : フィードバック → 無限の余韻。低次数で急峻な特性。biquad が実用単位
+設計(08)             : アナログ理論(バタワース等) + 双一次変換(台形則、Ω=(2/T)tan(ω/2))
+実装(09)             : SOS カスケード一択。量子化と極の感度に注意</code></pre><p>これで「IIR フィルタとは何か・なぜ動くか・どう設計しどう実装するか」の一通りが、 すべての式の導出付きで追えるようになっている。</p>
+  <nav class="chnav"><a class="pn" href="08.html"><span>←</span><b>IIR フィルタの設計法</b></a><span class="pn dis"></span></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>
