@@ -254,6 +254,182 @@
     s.input.addEventListener("input",draw);reg(cv,draw);
   };
 
+
+  /* ---- 畳み込みのスライド ---- */
+  REG.conv=function(el){
+    head(el,"Convolution","h を反転してずらしながら掛けて足す");
+    var cv=screen(el,260),cc=cctx(cv);var row=ctrls(el);
+    var X=[0,0.9,1.0,0.75,0.35,0],H=[1,0.75,0.55,0.4,0.3,0.22,0.16,0.12];
+    var LY=X.length+H.length-2;
+    var s=slider(row,"時刻 n",0,LY,4,1);var btn=button(row,"▶ 再生");var out=readout(el);
+    legend(el,[["var(--signal)","x[k]"],["var(--alias)","h[n−k]（反転してずらす）"],["var(--blue)","積 x[k]·h[n−k]"]]);
+    var anim=null;
+    function y_at(n){var s2=0;for(var k=0;k<X.length;k++){var i=n-k;if(i>=0&&i<H.length)s2+=X[k]*H[i];}return s2;}
+    function draw(){var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      var n=+s.input.value;s.val.textContent="n = "+n;
+      var kmin=-H.length+1,kmax=X.length-1,NK=kmax-kmin+1;
+      var pT={l:26,r:14,t:12,b:20},hT=h*0.56;
+      grid(ctx,w,hT,pT);
+      var Xk=function(k){return pT.l+(k-kmin+0.5)/NK*(w-pT.l-pT.r);},b1=hT-pT.b,t1=pT.t+4,H1=b1-t1;
+      ctx.strokeStyle=C("--line");ctx.beginPath();ctx.moveTo(pT.l,b1);ctx.lineTo(w-pT.r,b1);ctx.stroke();
+      for(var k=kmin;k<=kmax;k++){
+        var xv=(k>=0&&k<X.length)?X[k]:0, i=n-k, hv=(i>=0&&i<H.length)?H[i]:0;
+        var x=Xk(k);
+        if(hv>0){ctx.strokeStyle=C("--alias");ctx.fillStyle=C("--alias");ctx.lineWidth=1.5;ctx.globalAlpha=.65;
+          ctx.beginPath();ctx.moveTo(x+3,b1);ctx.lineTo(x+3,b1-hv*H1*0.9);ctx.stroke();
+          ctx.beginPath();ctx.arc(x+3,b1-hv*H1*0.9,2.6,0,TAU);ctx.fill();ctx.globalAlpha=1;}
+        if(xv>0){ctx.strokeStyle=C("--signal");ctx.fillStyle=C("--signal");ctx.lineWidth=2;
+          ctx.beginPath();ctx.moveTo(x-3,b1);ctx.lineTo(x-3,b1-xv*H1*0.9);ctx.stroke();
+          ctx.beginPath();ctx.arc(x-3,b1-xv*H1*0.9,3,0,TAU);ctx.fill();}
+        if(xv>0&&hv>0){var pv=xv*hv;ctx.fillStyle=C("--blue");ctx.globalAlpha=.75;
+          ctx.fillRect(x-6,b1-pv*H1*0.9,12,pv*H1*0.9);ctx.globalAlpha=1;}
+        if(k%2===0)lab(ctx,String(k),x,b1+13,C("--faint"),"center");
+      }
+      lab(ctx,"k",w-pT.r,b1+13,C("--muted"),"right");
+      lab(ctx,"重なった青の面積 = y["+n+"]",pT.l+4,t1+8,C("--blue"),"left");
+      // 下段 y[n]
+      var oy=hT,pB={l:26,r:14,t:10,b:20},hB=h-oy;
+      ctx.save();ctx.translate(0,oy);grid(ctx,w,hB,pB);
+      var b2=hB-pB.b,t2=pB.t+4,H2=b2-t2,ymax=0;for(var q=0;q<=LY;q++)ymax=Math.max(ymax,y_at(q));
+      var Xn=function(m){return pB.l+(m+0.5)/(LY+1)*(w-pB.l-pB.r);};
+      ctx.strokeStyle=C("--line");ctx.beginPath();ctx.moveTo(pB.l,b2);ctx.lineTo(w-pB.r,b2);ctx.stroke();
+      for(var m=0;m<=LY;m++){var yv=y_at(m),x2=Xn(m),cur=(m===n);
+        ctx.strokeStyle=cur?C("--blue"):C("--faint");ctx.fillStyle=cur?C("--blue"):C("--faint");
+        ctx.globalAlpha=(m<=n)?1:0.25;ctx.lineWidth=cur?3:1.8;
+        ctx.beginPath();ctx.moveTo(x2,b2);ctx.lineTo(x2,b2-yv/ymax*H2*0.88);ctx.stroke();
+        ctx.beginPath();ctx.arc(x2,b2-yv/ymax*H2*0.88,cur?4.5:3,0,TAU);ctx.fill();ctx.globalAlpha=1;}
+      lab(ctx,"y[n] = Σ x[k]h[n−k]",pB.l+4,t2+8,C("--muted"),"left");lab(ctx,"n",w-pB.r,b2+13,C("--muted"),"right");
+      ctx.restore();
+      out.innerHTML="n = <b>"+n+"</b> ／ y["+n+"] = <b>"+y_at(n).toFixed(3)+"</b> — 上段で赤(h)を反転してn だけずらし、青(x)と重なった積（青帯）を全部足したものが下段の 1 本。";
+    }
+    s.input.addEventListener("input",draw);
+    btn.addEventListener("click",function(){if(anim){cancelAnimationFrame(anim);anim=null;btn.setAttribute("aria-pressed","false");return;}btn.setAttribute("aria-pressed","true");var last=performance.now(),acc=0;(function loop(t){acc+=t-last;last=t;if(acc>=(reduce?1:420)){acc=0;var v=(+s.input.value+1);if(v>LY)v=0;s.input.value=v;draw();}anim=requestAnimationFrame(loop);})(last);});
+    reg(cv,draw);
+  };
+
+  /* ---- 単位円ウォーク ---- */
+  REG.zwalk=function(el){
+    head(el,"Unit Circle","単位円を一周 = 周波数特性をなぞる");
+    var cv=screen(el,260),cc=cctx(cv);var row=ctrls(el);
+    var s=slider(row,"ω",0,100,28,1);var btn=button(row,"▶ 一周する");var out=readout(el);
+    var r=0.86,th=Math.PI/3,b=[1,0,-1],a=[1,-2*r*Math.cos(th),r*r],anim=null;
+    function draw(){var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      var wv=+s.input.value/100,om=wv*Math.PI;s.val.textContent=wv.toFixed(2)+"π";
+      var split=Math.min(h*1.08,w*0.44),cx=split/2+8,cy=h/2,R=Math.min(split,h)/2-20;
+      unitcircle(ctx,cx,cy,R);
+      ctx.strokeStyle=C("--signal");ctx.lineWidth=3.5;ctx.beginPath();ctx.arc(cx,cy,R,-om,0);ctx.stroke();
+      [th,-th].forEach(function(pa){var x=cx+R*r*Math.cos(pa),y=cy-R*r*Math.sin(pa);ctx.strokeStyle=C("--alias");ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(x-5,y-5);ctx.lineTo(x+5,y+5);ctx.moveTo(x+5,y-5);ctx.lineTo(x-5,y+5);ctx.stroke();});
+      [1,-1].forEach(function(zx){ctx.strokeStyle=C("--blue");ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx+R*zx,cy,5,0,TAU);ctx.stroke();});
+      var px=cx+R*Math.cos(om),py=cy-R*Math.sin(om);
+      ctx.strokeStyle=C("--faint");ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=C("--signal");ctx.beginPath();ctx.arc(px,py,6,0,TAU);ctx.fill();
+      lab(ctx,"z = e^{jω}",px+9,py-6,C("--signal"),"left");
+      var p={l:split+34,r:14,t:16,b:20};
+      var pl=plotdB(ctx,w,h,p,function(o){var m=fmag(b,a,o);return 20*Math.log10(m<1e-6?1e-6:m);},-40,25,C("--faint"),1.4);
+      ctx.strokeStyle=C("--signal");ctx.lineWidth=3;ctx.beginPath();
+      for(var i=0;i<=200;i++){var o=i/200*om;if(o>Math.PI)break;var m2=fmag(b,a,o),dv=Math.max(-40,Math.min(25,20*Math.log10(m2<1e-6?1e-6:m2)));i?ctx.lineTo(pl.X(o),pl.Y(dv)):ctx.moveTo(pl.X(o),pl.Y(dv));}
+      ctx.stroke();
+      var mm=fmag(b,a,Math.min(om,Math.PI)),dd=Math.max(-40,Math.min(25,20*Math.log10(mm)));
+      ctx.fillStyle=C("--signal");ctx.beginPath();ctx.arc(pl.X(Math.min(om,Math.PI)),pl.Y(dd),5,0,TAU);ctx.fill();
+      axw(ctx,w,h,p);lab(ctx,"|H| dB",p.l+2,p.t+8,C("--muted"),"left");
+      out.innerHTML="ω = <b>"+wv.toFixed(2)+"π</b> ／ |H| = <b>"+dd.toFixed(1)+" dB</b> — 左の円周上を歩いた分だけ、右の周波数特性が描かれる。極(×)に近づくと山、零点(○)を通ると谷。";
+    }
+    s.input.addEventListener("input",draw);
+    btn.addEventListener("click",function(){if(anim){cancelAnimationFrame(anim);anim=null;btn.setAttribute("aria-pressed","false");return;}btn.setAttribute("aria-pressed","true");s.input.value=0;var last=performance.now();(function loop(t){var dt=(t-last)/1000;last=t;var v=+s.input.value+dt*35;if(v>=100){v=100;btn.setAttribute("aria-pressed","false");cancelAnimationFrame(anim);anim=null;}s.input.value=v;draw();if(anim!==null)anim=requestAnimationFrame(loop);})(last);});
+    reg(cv,draw);
+  };
+
+  /* ---- 安定三角形 ---- */
+  REG.stability=function(el){
+    head(el,"Stability","係数 (a1,a2) を動かして安定/発振を見る");
+    var cv=screen(el,270),cc=cctx(cv);var row=ctrls(el);
+    var s1=slider(row,"a₁",-260,260,-140,1);var s2=slider(row,"a₂",-130,130,70,1);var out=readout(el);
+    function draw(){var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      var a1=+s1.input.value/100,a2=+s2.input.value/100;s1.val.textContent=a1.toFixed(2);s2.val.textContent=a2.toFixed(2);
+      var stable=(Math.abs(a2)<1)&&(1+a1+a2>0)&&(1-a1+a2>0);
+      // 左: 安定三角形
+      var split=Math.min(h*1.1,w*0.46),p={l:30,r:12,t:14,b:22};
+      var Xa=function(v){return p.l+(v+2.7)/5.4*(split-p.l-p.r);},Ya=function(v){return p.t+(1.45-v)/2.9*(h-p.t-p.b);};
+      grid(ctx,split,h,p);
+      ctx.fillStyle=C("--signal-soft");ctx.strokeStyle=C("--signal");ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(Xa(-2),Ya(1));ctx.lineTo(Xa(2),Ya(1));ctx.lineTo(Xa(0),Ya(-1));ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.strokeStyle=C("--alias");ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.beginPath();
+      for(var i=0;i<=60;i++){var v=-2+4*i/60,yy=v*v/4;i?ctx.lineTo(Xa(v),Ya(yy)):ctx.moveTo(Xa(v),Ya(yy));}ctx.stroke();ctx.setLineDash([]);
+      ctx.strokeStyle=C("--line");ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(Xa(-2.7),Ya(0));ctx.lineTo(Xa(2.7),Ya(0));ctx.moveTo(Xa(0),Ya(1.45));ctx.lineTo(Xa(0),Ya(-1.45));ctx.stroke();
+      ctx.fillStyle=stable?C("--signal"):C("--alias");ctx.beginPath();ctx.arc(Xa(a1),Ya(a2),6.5,0,TAU);ctx.fill();
+      ctx.strokeStyle=C("--screen");ctx.lineWidth=2;ctx.stroke();
+      lab(ctx,"a₁",Xa(2.5),Ya(0)+13,C("--muted"),"center");lab(ctx,"a₂",Xa(0)-6,Ya(1.3),C("--muted"),"right");
+      lab(ctx,"安定領域",Xa(0),Ya(0.45),C("--signal"),"center");
+      // 右: インパルス応答
+      var q={l:split+30,r:14,t:14,b:22},N=44;
+      var yy2=[],y1=0,y2=0;for(var n=0;n<N;n++){var xin=(n===0)?1:0;var y=xin-a1*y1-a2*y2;yy2.push(y);y2=y1;y1=y;}
+      var mx=1;for(var k=0;k<N;k++)mx=Math.max(mx,Math.abs(yy2[k]));
+      grid(ctx,w,h,q);
+      var Xn=function(n){return q.l+n/(N-1)*(w-q.l-q.r);},mid=(q.t+h-q.b)/2,amp=(h-q.t-q.b)/2*0.9;
+      ctx.strokeStyle=C("--line");ctx.beginPath();ctx.moveTo(q.l,mid);ctx.lineTo(w-q.r,mid);ctx.stroke();
+      ctx.strokeStyle=stable?C("--signal"):C("--alias");ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=1.6;
+      for(var m=0;m<N;m++){var yv=mid-yy2[m]/mx*amp;ctx.beginPath();ctx.moveTo(Xn(m),mid);ctx.lineTo(Xn(m),yv);ctx.stroke();ctx.beginPath();ctx.arc(Xn(m),yv,2.2,0,TAU);ctx.fill();}
+      lab(ctx,"インパルス応答 h[n]",q.l+2,q.t+9,C("--muted"),"left");lab(ctx,"n",w-q.r,h-q.b+13,C("--muted"),"right");
+      var disc=a1*a1-4*a2,ptxt;
+      if(disc<0){var rr=Math.sqrt(Math.abs(a2)),ang=Math.acos(Math.max(-1,Math.min(1,-a1/(2*Math.sqrt(Math.abs(a2))))));ptxt="複素共役極 r="+rr.toFixed(3)+", θ="+(ang*180/Math.PI).toFixed(0)+"°";}
+      else{var r1=(-a1+Math.sqrt(disc))/2,r2=(-a1-Math.sqrt(disc))/2;ptxt="実数極 "+r1.toFixed(3)+", "+r2.toFixed(3);}
+      out.innerHTML="(a₁,a₂) = (<b>"+a1.toFixed(2)+"</b>, <b>"+a2.toFixed(2)+"</b>) ／ "+ptxt+" ／ "+
+        (stable?'<span class="ok">安定（三角形の内側・余韻は減衰）</span>':'<span class="warn">不安定（三角形の外側・出力が発散）</span>');
+    }
+    s1.input.addEventListener("input",draw);s2.input.addEventListener("input",draw);reg(cv,draw);
+  };
+
+
+  /* ---- アナログプロトタイプ（次数と種類） ---- */
+  REG.proto=function(el){
+    head(el,"Prototype","次数 N とリプルで遮断の鋭さが決まる");
+    var cv=screen(el,250),cc=cctx(cv);var row=ctrls(el);
+    var sN=slider(row,"次数 N",1,10,4,1);
+    var bB=button(row,"バタワース");var bC=button(row,"チェビシェフ I");
+    var sE=slider(row,"リプル(dB)",1,300,100,1);var out=readout(el);
+    var mode="butter";
+    function setmode(m){mode=m;bB.setAttribute("aria-pressed",m==="butter");bC.setAttribute("aria-pressed",m==="cheby");draw();}
+    bB.addEventListener("click",function(){setmode("butter");});
+    bC.addEventListener("click",function(){setmode("cheby");});
+    function Tn(N,x){ // チェビシェフ多項式
+      if(x<=1&&x>=-1)return Math.cos(N*Math.acos(x));
+      var s2=x<0?(N%2?-1:1):1, ax=Math.abs(x);
+      return s2*Math.cosh(N*Math.log(ax+Math.sqrt(ax*ax-1)));
+    }
+    function draw(){var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx,p={l:42,r:16,t:16,b:26};ctx.clearRect(0,0,w,h);grid(ctx,w,h,p);
+      var N=+sN.input.value,Ap=+sE.input.value/100;sN.val.textContent=N;sE.val.textContent=Ap.toFixed(2)+" dB";
+      var eps=Math.sqrt(Math.pow(10,Ap/10)-1);
+      var ymin=-80,ymax=6,xmin=-1,xmax=1.1; // log10(Ω/Ωc)
+      var X=function(lg){return p.l+(lg-xmin)/(xmax-xmin)*(w-p.l-p.r);},Y=function(v){return p.t+(ymax-v)/(ymax-ymin)*(h-p.t-p.b);};
+      function dB(lg){var Om=Math.pow(10,lg);
+        if(mode==="butter")return -10*Math.log10(1+Math.pow(Om,2*N));
+        var T=Tn(N,Om);return -10*Math.log10(1+eps*eps*T*T);}
+      // -3dB / リプル線
+      ctx.strokeStyle=C("--faint");ctx.setLineDash([4,4]);ctx.lineWidth=1;
+      var refy=(mode==="butter")?-3.01:-Ap;
+      ctx.beginPath();ctx.moveTo(p.l,Y(refy));ctx.lineTo(w-p.r,Y(refy));ctx.stroke();ctx.setLineDash([]);
+      // 参考: 他次数を薄く
+      ctx.strokeStyle=C("--faint");ctx.globalAlpha=.28;ctx.lineWidth=1;
+      [1,2,4,6,8,10].forEach(function(nn){if(nn===N)return;var sv=N;N=nn;ctx.beginPath();
+        for(var i=0;i<=200;i++){var lg=xmin+(xmax-xmin)*i/200,v=Math.max(ymin,Math.min(ymax,dB(lg)));i?ctx.lineTo(X(lg),Y(v)):ctx.moveTo(X(lg),Y(v));}
+        ctx.stroke();N=sv;});
+      ctx.globalAlpha=1;
+      ctx.strokeStyle=mode==="butter"?C("--signal"):C("--alias");ctx.lineWidth=3;ctx.beginPath();
+      for(var i=0;i<=400;i++){var lg=xmin+(xmax-xmin)*i/400,v=Math.max(ymin,Math.min(ymax,dB(lg)));i?ctx.lineTo(X(lg),Y(v)):ctx.moveTo(X(lg),Y(v));}
+      ctx.stroke();
+      ctx.strokeStyle=C("--line");ctx.beginPath();ctx.moveTo(X(0),p.t);ctx.lineTo(X(0),h-p.b);ctx.stroke();
+      [0,-20,-40,-60,-80].forEach(function(v){lab(ctx,String(v),p.l-5,Y(v)+3,C("--muted"),"right");});
+      lab(ctx,"0.1",X(-1),h-p.b+14,C("--muted"),"center");lab(ctx,"Ωc",X(0),h-p.b+14,C("--muted"),"center");lab(ctx,"10",X(1),h-p.b+14,C("--muted"),"center");
+      lab(ctx,"|Ha| dB",p.l+2,p.t+9,C("--muted"),"left");lab(ctx,"Ω/Ωc (対数)",w-p.r-2,p.t+9,C("--muted"),"right");
+      var slope=-20*N, at2=dB(Math.log10(2));
+      out.innerHTML=(mode==="butter"?"バタワース":"チェビシェフ I（リプル "+Ap.toFixed(2)+" dB）")+
+        " N = <b>"+N+"</b> ／ 阻止域の傾き <b>"+slope+" dB/decade</b>（= "+(-6*N)+" dB/oct）／ Ω=2Ωc で <b>"+at2.toFixed(1)+" dB</b>"+
+        (mode==="cheby"?' — <span class="warn">通過域が波打つ代わりに同次数でより急峻。</span>':' — <span class="ok">通過域は完全に平坦。</span>');
+    }
+    sN.input.addEventListener("input",draw);sE.input.addEventListener("input",draw);
+    reg(cv,draw);setmode("butter");
+  };
+
   function init(){document.querySelectorAll("[data-widget]").forEach(function(el){if(el.dataset.done)return;el.dataset.done="1";var fn=REG[el.getAttribute("data-widget")];if(fn){try{fn(el);}catch(e){}}});requestAnimationFrame(redrawAll);}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();

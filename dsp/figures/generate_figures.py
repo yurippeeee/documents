@@ -836,3 +836,201 @@ if __name__ == "__main__":
     fig09_quantization()
     fig09_limit_cycle()
     print("done")
+
+
+# ---------------------------------------------------------------- ブロック図/概念図
+def _box(ax, x, y, w, h, text, fc=None, ec=None, fs=10, bold=False):
+    from matplotlib.patches import FancyBboxPatch
+    ec = ec or "C0"
+    ax.add_patch(FancyBboxPatch((x - w / 2, y - h / 2), w, h,
+                                boxstyle="round,pad=0.02,rounding_size=0.06",
+                                linewidth=1.6, edgecolor=ec,
+                                facecolor=fc if fc else "none", zorder=2))
+    ax.text(x, y, text, ha="center", va="center", fontsize=fs, zorder=3,
+            fontweight="bold" if bold else "normal")
+
+
+def _arrow(ax, x1, y1, x2, y2, text=None, color="k", rad=0.0, fs=9, dy=0.09):
+    ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                arrowprops=dict(arrowstyle="-|>", lw=1.5, color=color,
+                                connectionstyle=f"arc3,rad={rad}"), zorder=1)
+    if text:
+        ax.text((x1 + x2) / 2, (y1 + y2) / 2 + dy, text, ha="center", va="bottom",
+                fontsize=fs, color=color)
+
+
+def _blank(figsize):
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.set_axis_off()
+    ax.grid(False)
+    return fig, ax
+
+
+def fig04_domains():
+    fig, ax = _blank((8.4, 2.9))
+    _box(ax, 0.7, 1.55, 1.0, 0.5, "$x[n]$", ec="C0")
+    _box(ax, 3.0, 1.55, 1.7, 0.5, "畳み込み $*\\,h[n]$", ec="C0", fc="#e8f4f3")
+    _box(ax, 5.4, 1.55, 1.0, 0.5, "$y[n]$", ec="C0")
+    _box(ax, 0.7, 0.35, 1.2, 0.5, "$X(e^{j\\omega})$", ec="C3")
+    _box(ax, 3.0, 0.35, 1.7, 0.5, "掛け算 $\\times H(e^{j\\omega})$", ec="C3", fc="#fdeee8")
+    _box(ax, 5.4, 0.35, 1.2, 0.5, "$Y(e^{j\\omega})$", ec="C3")
+    _arrow(ax, 1.22, 1.55, 2.13, 1.55)
+    _arrow(ax, 3.88, 1.55, 4.88, 1.55)
+    _arrow(ax, 1.32, 0.35, 2.13, 0.35, color="C3")
+    _arrow(ax, 3.88, 0.35, 4.78, 0.35, color="C3")
+    for x in (0.7, 5.4):
+        ax.annotate("", xy=(x, 0.62), xytext=(x, 1.29),
+                    arrowprops=dict(arrowstyle="<|-|>", lw=1.3, color="C7"))
+        ax.text(x + 0.08, 0.95, "DTFT", fontsize=8.5, color="C7", va="center")
+    ax.text(6.1, 1.55, "計算はしんどい", fontsize=9.5, va="center", color="C0")
+    ax.text(6.1, 0.35, "ただの掛け算", fontsize=9.5, va="center", color="C3", fontweight="bold")
+    ax.set_xlim(0, 8.4); ax.set_ylim(-0.05, 2.1)
+    ax.set_title("畳み込み定理: 時間領域の畳み込み = 周波数領域の掛け算", fontsize=11)
+    save(fig, "04_domains.png")
+
+
+def fig05_zplane():
+    fig, ax = plt.subplots(figsize=(5.4, 5.0))
+    th = np.linspace(0, 2 * np.pi, 400)
+    ax.plot(np.cos(th), np.sin(th), "C0", lw=2.2)
+    ax.fill(np.cos(th), np.sin(th), color="C0", alpha=0.06)
+    ax.axhline(0, color="k", lw=0.8); ax.axvline(0, color="k", lw=0.8)
+    for w, lab_, ha, va in [(0, "$\\omega=0$\n$z=1$", "left", "center"),
+                            (np.pi / 2, "$\\omega=\\pi/2$\n$z=j$", "center", "bottom"),
+                            (np.pi, "$\\omega=\\pi$\n$z=-1$", "right", "center"),
+                            (-np.pi / 2, "$\\omega=-\\pi/2$", "center", "top")]:
+        x, y = np.cos(w), np.sin(w)
+        ax.plot([x], [y], "C3o", ms=9, zorder=4)
+        ax.annotate(lab_, xy=(x, y), xytext=(x * 1.22, y * 1.22),
+                    ha=ha, va=va, fontsize=9.5, color="C3")
+    wm = np.deg2rad(38)
+    ax.annotate("", xy=(np.cos(wm), np.sin(wm)), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="-|>", lw=2, color="C2"))
+    arc = np.linspace(0, wm, 60)
+    ax.plot(0.34 * np.cos(arc), 0.34 * np.sin(arc), "C2", lw=1.6)
+    ax.text(0.42 * np.cos(wm / 2), 0.42 * np.sin(wm / 2), "$\\omega$", color="C2", fontsize=12)
+    ax.annotate("この円周を一周 = $\\omega:0\\to2\\pi$\n円周上の値が周波数特性",
+                xy=(np.cos(np.deg2rad(120)), np.sin(np.deg2rad(120))),
+                xytext=(-1.75, 1.42), fontsize=9,
+                arrowprops=dict(arrowstyle="->", color="C0"))
+    ax.text(0, -0.15, "単位円 $|z|=1$", ha="center", fontsize=9.5, color="C0")
+    ax.set_xlim(-1.95, 1.95); ax.set_ylim(-1.75, 1.85); ax.set_aspect("equal")
+    ax.set_xlabel("Re(z)"); ax.set_ylabel("Im(z)")
+    ax.set_title("z 平面と単位円 — Z 変換を単位円上で評価すると DTFT", fontsize=11)
+    save(fig, "05_zplane.png")
+
+
+def fig08_design_flow():
+    fig, ax = _blank((7.6, 5.2))
+    steps = [
+        (4.7, "仕様\n(カットオフ・通過域リプル・阻止域減衰量)", "C7", "#eeeeee"),
+        (3.75, "STEP 0 — 次数 $N$ の決定  (§1.4, §2.4)", "C0", None),
+        (2.8, "STEP 1 — アナログプロトタイプ設計 → $H_a(s)$\n(バタワース / チェビシェフ / 楕円)", "C0", "#e8f4f3"),
+        (1.85, "(必要なら) 周波数変換 LP→HP/BP  (§6)", "C7", None),
+        (0.9, "STEP 2 — $s\\to z$ 変換 → $H(z)$\n(双一次変換 / インパルス不変法)", "C3", "#fdeee8"),
+        (0.0, "デジタル IIR フィルタ (係数 $a_k, b_k$)", "C2", "#eaf5ea"),
+    ]
+    for y, txt, ec, fc in steps:
+        _box(ax, 3.6, y, 6.3, 0.62, txt, ec=ec, fc=fc, fs=10)
+    for i in range(len(steps) - 1):
+        _arrow(ax, 3.6, steps[i][0] - 0.33, 3.6, steps[i + 1][0] + 0.33)
+    ax.set_xlim(0.1, 7.5); ax.set_ylim(-0.45, 5.15)
+    ax.set_title("IIR 設計の全体フロー", fontsize=11.5)
+    save(fig, "08_design_flow.png")
+
+
+def _delay(ax, x, y, s=0.34):
+    _box(ax, x, y, s * 1.7, s, "$z^{-1}$", ec="C7", fc="#f2f2f2", fs=9)
+
+
+def _sum(ax, x, y, r=0.17):
+    ax.add_patch(plt.Circle((x, y), r, fill=True, facecolor="white",
+                            edgecolor="C0", lw=1.6, zorder=3))
+    ax.text(x, y, "+", ha="center", va="center", fontsize=12, zorder=4)
+
+
+def _gain(ax, x, y, txt, color="C3", left=False):
+    d = -1 if left else 1
+    ax.plot([x - 0.2 * d, x - 0.2 * d, x + 0.24 * d, x - 0.2 * d],
+            [y - 0.21, y + 0.21, y, y - 0.21], color=color, lw=1.6, zorder=3)
+    ax.fill([x - 0.2 * d, x - 0.2 * d, x + 0.24 * d],
+            [y - 0.21, y + 0.21, y], color="white", zorder=2)
+    ax.text(x - 0.04 * d, y, txt, ha="center", va="center", fontsize=8.5, zorder=4)
+
+
+def _vdelay(ax, x, ytop, ybot, s=0.34):
+    """ytop→ybot の縦線の途中に z^-1 を挟む。"""
+    ym = (ytop + ybot) / 2
+    ax.plot([x, x], [ytop, ym + s / 2], "k", lw=1.4)
+    ax.plot([x, x], [ym - s / 2, ybot], "k", lw=1.4)
+    _box(ax, x, ym, s * 1.75, s, "$z^{-1}$", ec="C7", fc="#f2f2f2", fs=9)
+
+
+def _tap(ax, x0, y, gx, gain, xto, color, left=False):
+    """(x0,y) から水平に伸ばし、三角ゲインを通して xto まで。"""
+    _gain(ax, gx, y, gain, color=color, left=left)
+    if left:
+        ax.plot([x0, gx + 0.2], [y, y], "k", lw=1.4)
+        ax.plot([gx - 0.2, xto], [y, y], "k", lw=1.4)
+    else:
+        ax.plot([x0, gx - 0.2], [y, y], "k", lw=1.4)
+        ax.plot([gx + 0.24, xto], [y, y], "k", lw=1.4)
+
+
+def fig09_df1():
+    fig, ax = _blank((9.0, 3.6))
+    yt, y1, y2 = 2.75, 1.75, 0.75
+    xin, xb, xgb, xsA, xsB, xga, xout = 0.35, 1.35, 2.35, 3.5, 5.35, 6.4, 7.6
+    ax.text(xin - 0.02, yt + 0.16, "$x[n]$", fontsize=10)
+    ax.plot([xin, xb], [yt, yt], "k", lw=1.4)
+    _vdelay(ax, xb, yt, y1); _vdelay(ax, xb, y1, y2)
+    for y, g in [(yt, "$b_0$"), (y1, "$b_1$"), (y2, "$b_2$")]:
+        _tap(ax, xb, y, xgb, g, xsA, "C3")
+    ax.plot([xsA, xsA], [y2, yt - 0.17], "k", lw=1.4)
+    _sum(ax, xsA, yt)
+    ax.plot([xsA + 0.17, xsB - 0.17], [yt, yt], "k", lw=1.4)
+    _sum(ax, xsB, yt)
+    ax.plot([xsB + 0.17, xout], [yt, yt], "k", lw=1.4)
+    ax.annotate("", xy=(xout + 0.85, yt), xytext=(xout, yt),
+                arrowprops=dict(arrowstyle="-|>", lw=1.4, color="k"))
+    ax.text(xout + 0.5, yt + 0.16, "$y[n]$", fontsize=10)
+    _vdelay(ax, xout, yt, y1); _vdelay(ax, xout, y1, y2)
+    for y, g in [(y1, "$-a_1$"), (y2, "$-a_2$")]:
+        _tap(ax, xout, y, xga, g, xsB, "C0", left=True)
+    ax.plot([xsB, xsB], [y2, yt - 0.17], "k", lw=1.4)
+    ax.text(xgb, yt + 0.5, "FIR 部（零点をつくる）", fontsize=9.5, ha="center", color="C3")
+    ax.text(xga + 0.4, y2 - 0.5, "フィードバック部（極をつくる）", fontsize=9.5, ha="center", color="C0")
+    ax.set_xlim(0, 8.9); ax.set_ylim(0.1, 3.5)
+    ax.set_title("直接形 I: 入力履歴と出力履歴を別々に持つ（遅延 $M+N$ 個）", fontsize=11.5)
+    save(fig, "09_df1.png")
+
+
+def fig09_df2():
+    fig, ax = _blank((9.0, 3.6))
+    yt, y1, y2 = 2.75, 1.75, 0.75
+    xin, xsA, xga, xw, xgb, xsB, xout = 0.35, 1.5, 2.6, 4.3, 5.6, 6.9, 7.9
+    ax.annotate("", xy=(xsA - 0.17, yt), xytext=(xin, yt),
+                arrowprops=dict(arrowstyle="-|>", lw=1.4, color="k"))
+    ax.text(xin - 0.02, yt + 0.16, "$x[n]$", fontsize=10)
+    _sum(ax, xsA, yt)
+    ax.plot([xsA + 0.17, xw], [yt, yt], "k", lw=1.4)
+    ax.plot([xw], [yt], "ko", ms=5)
+    ax.text(xw + 0.06, yt + 0.18, "$w[n]$", fontsize=10, color="C2")
+    _vdelay(ax, xw, yt, y1); _vdelay(ax, xw, y1, y2)
+    for y, g in [(yt, "$b_0$"), (y1, "$b_1$"), (y2, "$b_2$")]:
+        _tap(ax, xw, y, xgb, g, xsB, "C3")
+    ax.plot([xsB, xsB], [y2, yt - 0.17], "k", lw=1.4)
+    for y, g in [(y1, "$-a_1$"), (y2, "$-a_2$")]:
+        _tap(ax, xw, y, xga, g, xsA, "C0", left=True)
+    ax.plot([xsA, xsA], [y2, yt - 0.17], "k", lw=1.4)
+    _sum(ax, xsB, yt)
+    ax.annotate("", xy=(xout + 0.6, yt), xytext=(xsB + 0.17, yt),
+                arrowprops=dict(arrowstyle="-|>", lw=1.4, color="k"))
+    ax.text(xout + 0.25, yt + 0.16, "$y[n]$", fontsize=10)
+    ax.text(xw, y2 - 0.45, "遅延線は $w$ 用の 1 本だけ（$\\max(M,N)$ 個）",
+            fontsize=9.5, ha="center", color="C2")
+    ax.text(xga, y2 - 0.9, "先にフィードバック部", fontsize=9, ha="center", color="C0")
+    ax.text(xgb, y2 - 0.9, "後から FIR 部", fontsize=9, ha="center", color="C3")
+    ax.set_xlim(0, 8.9); ax.set_ylim(-0.35, 3.5)
+    ax.set_title("直接形 II: フィードバック部を先に通し遅延線を共有（正準形）", fontsize=11.5)
+    save(fig, "09_df2.png")
