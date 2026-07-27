@@ -430,6 +430,70 @@
     reg(cv,draw);setmode("butter");
   };
 
+
+  /* ---- フーリエ級数: 位相の揃う瞬間だけトゲが立つ ---- */
+  REG.fourier=function(el){
+    head(el,"Fourier","高調波の位相が揃う瞬間だけトゲが立つ");
+    var cv=screen(el,270),cc=cctx(cv);var row=ctrls(el);
+    var sK=slider(row,"高調波の数 K",1,15,4,1);
+    var sT=slider(row,"時刻 t/T",-150,150,18,1);
+    var btn=button(row,"▶ 再生");var out=readout(el);
+    legend(el,[["var(--signal)","各高調波 e^{jkΩ_st}（全部長さ1）"],["var(--alias)","合成 ÷ 本数（±k が共役対なので常に実軸上）"]]);
+    var anim=null;
+    function draw(){
+      var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      var K=+sK.input.value,tt=+sT.input.value/100,om=TAU; // 時間の単位=T なので Ω_s=2π
+      sK.val.textContent=K+"（計 "+(2*K+1)+" 本）";sT.val.textContent=tt.toFixed(2);
+      // 左: 位相子
+      var split=Math.min(h*1.05,w*0.42),cx=split/2+8,cy=h/2,R=Math.min(split,h)/2-20;
+      unitcircle(ctx,cx,cy,R);
+      var sum=0;
+      for(var k=-K;k<=K;k++){
+        var a=k*om*tt,x=cx+R*Math.cos(a),y=cy-R*Math.sin(a);
+        ctx.strokeStyle=C("--signal");ctx.globalAlpha=0.3;ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();
+        ctx.globalAlpha=0.75;ctx.fillStyle=C("--signal");
+        ctx.beginPath();ctx.arc(x,y,2.4,0,TAU);ctx.fill();ctx.globalAlpha=1;
+        sum+=Math.cos(a); // 虚部は ±k で打ち消し合う
+      }
+      var rlen=sum/(2*K+1)*R;
+      ctx.strokeStyle=C("--alias");ctx.lineWidth=3.5;
+      ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+rlen,cy);ctx.stroke();
+      ctx.fillStyle=C("--alias");ctx.beginPath();ctx.arc(cx+rlen,cy,5,0,TAU);ctx.fill();
+      lab(ctx,"合成が円周に届く = 満場一致",cx,cy+R+15,C("--muted"),"center");
+      // 右: 部分和カーブ
+      var p={l:split+36,r:14,t:16,b:20},tmin=-1.6,tmax=1.6;
+      var X=function(tv){return p.l+(tv-tmin)/(tmax-tmin)*(w-p.l-p.r);};
+      var top=2*K+1,ymin=-0.38*top,ymax=1.1*top;
+      var Y=function(v){return p.t+(ymax-v)/(ymax-ymin)*(h-p.t-p.b);};
+      ctx.strokeStyle=C("--faint");ctx.setLineDash([3,3]);ctx.lineWidth=1;
+      [-1,0,1].forEach(function(n){ctx.beginPath();ctx.moveTo(X(n),p.t);ctx.lineTo(X(n),h-p.b);ctx.stroke();});
+      ctx.setLineDash([]);
+      ctx.strokeStyle=C("--line");ctx.beginPath();ctx.moveTo(p.l,Y(0));ctx.lineTo(w-p.r,Y(0));ctx.stroke();
+      function f(tv){var v=1;for(var q=1;q<=K;q++)v+=2*Math.cos(q*om*tv);return v;}
+      ctx.strokeStyle=C("--signal");ctx.lineWidth=2;ctx.beginPath();
+      for(var i=0;i<=700;i++){var tv=tmin+(tmax-tmin)*i/700;i?ctx.lineTo(X(tv),Y(f(tv))):ctx.moveTo(X(tv),Y(f(tv)));}
+      ctx.stroke();
+      var fc=f(tt);
+      ctx.fillStyle=C("--alias");ctx.beginPath();ctx.arc(X(tt),Y(fc),5.5,0,TAU);ctx.fill();
+      ctx.strokeStyle=C("--faint");ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(X(tt),Y(fc));ctx.lineTo(X(tt),h-p.b);ctx.stroke();ctx.setLineDash([]);
+      lab(ctx,"部分和 (最大 "+top+")",p.l+2,p.t+9,C("--muted"),"left");
+      lab(ctx,"-T",X(-1),h-p.b+13,C("--muted"),"center");lab(ctx,"0",X(0),h-p.b+13,C("--muted"),"center");lab(ctx,"T",X(1),h-p.b+13,C("--muted"),"center");
+      var near=Math.abs(tt-Math.round(tt))<0.04;
+      out.innerHTML="t = <b>"+tt.toFixed(2)+"T</b> ／ 和 = <b>"+fc.toFixed(2)+"</b>（最大 "+top+"） ／ "+
+        (near?'<span class="warn">t = nT: 全ベクトルの位相が揃い右向きに満場一致 → トゲが立つ</span>'
+             :'各ベクトルがばらばらの向きを向き、ほぼ打ち消し合っている');
+    }
+    sK.input.addEventListener("input",draw);sT.input.addEventListener("input",draw);
+    btn.addEventListener("click",function(){
+      if(anim){cancelAnimationFrame(anim);anim=null;btn.setAttribute("aria-pressed","false");return;}
+      btn.setAttribute("aria-pressed","true");var last=performance.now();
+      (function loop(t){var dt=(t-last)/1000;last=t;var v=+sT.input.value+dt*(reduce?0:34);
+        if(v>150)v=-150;sT.input.value=v;draw();anim=requestAnimationFrame(loop);})(last);
+    });
+    reg(cv,draw);
+  };
+
   function init(){document.querySelectorAll("[data-widget]").forEach(function(el){if(el.dataset.done)return;el.dataset.done="1";var fn=REG[el.getAttribute("data-widget")];if(fn){try{fn(el);}catch(e){}}});requestAnimationFrame(redrawAll);}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();

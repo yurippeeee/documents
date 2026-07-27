@@ -23,6 +23,7 @@ CHAPTERS = [
 WIDGETS = {
     "01": [("離散時間信号とは", "sampling"), ("重要な基本信号", "decomp"),
            ("正規化周波数", "phasor"), ("サンプリング定理", "alias"),
+           ("fig:01_fourier_comb", "fourier"),
            ("サンプリングされた信号のスペクトル", "spectrum")],
     "02": [("オイラーの公式の導出", "euler")],
     "03": [("畳み込みの導出", "conv")],
@@ -196,6 +197,14 @@ def convert_blocks(lines):
 
 def inject_widgets(num, body):
     for key, wname in WIDGETS.get(num, []):
+        widget_div = '<div class="widget" data-widget="%s"></div>' % wname
+        # fig:NAME → その図の </figure> 直後に挿入
+        if key.startswith("fig:"):
+            idx = body.find(key[4:])
+            if idx != -1:
+                end = body.index("</figure>", idx) + len("</figure>")
+                body = body[:end] + widget_div + body[end:]
+            continue
         # 最初に見つかった見出しの直後に widget を挿入
         pat = re.compile(r"(<h[23]>[^<]*" + re.escape(key) + r"[^<]*</h[23]>)")
         def repl(m):
