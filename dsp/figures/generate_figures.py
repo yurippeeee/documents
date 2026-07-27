@@ -1034,3 +1034,24 @@ def fig09_df2():
     ax.set_xlim(0, 8.9); ax.set_ylim(-0.35, 3.5)
     ax.set_title("直接形 II: フィードバック部を先に通し遅延線を共有（正準形）", fontsize=11.5)
     save(fig, "09_df2.png")
+
+
+def fig01_fourier_comb():
+    T = 1.0
+    Oms = 2 * np.pi / T
+    t = np.linspace(-1.6, 1.6, 4000)
+    fig, axes = plt.subplots(1, 3, figsize=(9.8, 3.0), sharex=True)
+    for ax, K in zip(axes, [1, 4, 15]):
+        f = (1 + 2 * sum(np.cos(k * Oms * t) for k in range(1, K + 1))) / T
+        ax.plot(t, f, "C0", lw=1.3)
+        for n in (-1, 0, 1):
+            ax.axvline(n * T, color="C3", ls=":", lw=1)
+        ax.axhline(0, color="k", lw=0.7)
+        ax.set_title(f"K = {K}（{2 * K + 1} 本の和）", fontsize=10)
+        ax.set_xlabel("t / T")
+        ax.annotate(f"高さ (2K+1)/T = {2 * K + 1}", xy=(0, 2 * K + 1),
+                    xytext=(0.25, (2 * K + 1) * 0.92), fontsize=8, color="C3",
+                    arrowprops=dict(arrowstyle="->", color="C3", lw=0.8))
+    axes[0].set_ylabel(r"$\frac{1}{T}\sum_{k=-K}^{K} e^{jk\Omega_s t}$")
+    fig.suptitle("等強度の高調波を足していくと、位相が揃う t = nT だけが尖っていく", fontsize=11)
+    save(fig, "01_fourier_comb.png")
