@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>22. 認証と製品化 — CSA 認証・VID/PID・量産 — Matter</title>
+<link rel="stylesheet" href="matter.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../matter.html">Matter</a>
+  <span class="cur">22 · 認証と製品化 — CSA 認証・VID/PID・量産</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 22</p>
+  <h1 class="doctitle">認証と製品化 — CSA 認証・VID/PID・量産</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——ここを知らずに開発を始めると、必ず遅延する.</strong></p><p>「Matter 対応」を名乗るには、<strong>CSA の会員資格と製品認証が必要</strong>である。 ロゴを使うのも同様。</p><p>そして手続きには<strong>時間がかかる</strong>。VID の取得、証明書の調達、 テストの実施、認証の申請——<strong>数か月単位のリードタイム</strong>を見込む必要がある。</p><p>「ソフトが完成したら認証を取ろう」では間に合わない。 <strong>開発の最初に手続きを開始する</strong>のが正しい進め方である。</p></blockquote><h2>1. CSA 会員資格</h2><div class="tablewrap"><table><thead><tr><th>レベル</th><th>概要</th></tr></thead><tbody><tr><td><strong>Adopter</strong></td><td>仕様を実装し、認証製品を出せる。最も基本的な参加形態</td></tr><tr><td><strong>Participant</strong></td><td>加えて、仕様策定のワーキンググループに参加できる</td></tr><tr><td><strong>Promoter</strong></td><td>理事会レベル。標準の方向性に関与する</td></tr></tbody></table></div><blockquote><p><strong>製品を出すには最低でも Adopter が必要である</strong>（年会費がかかる）。 <strong>VID の割り当ても会員資格に紐づく</strong>。</p><p>仕様書自体は誰でも無償で読めるが、 <strong>「Matter 対応」を名乗り、ロゴを使い、認証を取るには会員である必要がある</strong>。 ここは技術ではなく契約の話なので、法務・調達部門との連携が要る。</p></blockquote><h2>2. VID / PID</h2><div class="tablewrap"><table><thead><tr><th>ID</th><th>割り当て</th></tr></thead><tbody><tr><td><strong>VID</strong>（Vendor ID、16 bit）</td><td><strong>CSA が会員に割り当てる</strong>。1 社に 1 つ（複数取得も可）</td></tr><tr><td><strong>PID</strong>（Product ID、16 bit）</td><td><strong>メーカーが自由に決める</strong>。社内で管理する</td></tr></tbody></table></div><blockquote><p><strong>VID の取得を最優先で行うこと.</strong></p><p>VID がないと:</p><ul><li>DAC / PAI が発行できない（12 章）</li><li>CD が取得できない</li><li>認証申請ができない</li></ul><p><strong>開発初期にテスト VID（<code>0xFFF1</code>〜<code>0xFFF4</code>）で進めるのは正しい</strong>が、 <strong>正式な VID の申請は並行して進めておく</strong>。</p></blockquote><h3>PID の設計</h3><blockquote><p><strong>PID は社内で体系立てて管理すること.</strong></p><ul><li>製品ラインごとに範囲を分ける</li><li>派生モデル（色違い、地域違い）をどう扱うか決める</li><li><strong>一度出荷した PID は変えられない</strong>（DAC に焼かれている）</li></ul><p>CD は「VID + PID のリスト」に対して発行されるので、 <strong>PID を増やすたびに CD の再取得が必要</strong>になる場合がある。 認証の単位とも関わるので、<strong>製品企画の段階で設計する</strong>。</p></blockquote><h2>3. 認証プロセスの全体像</h2><div class="widget" data-widget="certflow"></div><pre><code>[1] CSA 会員登録、VID 取得
+        ↓
+[2] 開発（テスト VID で進める）
+        ↓
+[3] 仕様バージョンの決定（どの版で認証を取るか）
+        ↓
+[4] 社内テスト（Test Harness で事前検証）
+        ↓
+[5] 証明書の調達（PAI / DAC の発行体制、12 章）
+        ↓
+[6] CD の取得（CSA に VID/PID を申請）
+        ↓
+[7] 認証テストの実施
+        ├── 認定試験所（ATL）に依頼、または
+        └── 自己試験（対象と条件は CSA の規定による）
+        ↓
+[8] CSA に認証申請、審査
+        ↓
+[9] 認証取得、DCL への登録
+        ↓
+[10] 各エコシステムでの動作確認（別途）
+        ↓
+[11] 出荷</code></pre><blockquote><p><strong>[10] が忘れられやすい.</strong> CSA の認証を取っても、<strong>各エコシステムが自社ハブで動作を確認する 独自のプログラム</strong>を持っている場合がある。 「Works with Apple Home」といったバッジは、それぞれ別の手続きである。</p><p><strong>どのエコシステムを対象にするかを早期に決め、それぞれの要件を確認すること。</strong></p></blockquote><h2>4. Test Harness（テストハーネス）</h2><p>CSA が提供する認証テストの実行環境。<strong>認証と同じテストを社内で回せる</strong>。</p><div class="tablewrap"><table><thead><tr><th>構成</th><th>内容</th></tr></thead><tbody><tr><td>実行環境</td><td>Raspberry Pi や Linux PC 上のコンテナ</td></tr><tr><td>テストケース</td><td>Test Plans リポジトリで公開されている</td></tr><tr><td>対象</td><td>データモデル、インタラクション、コミッショニング、セキュリティ、各クラスタ</td></tr><tr><td>出力</td><td>合否レポート</td></tr></tbody></table></div><blockquote><p><strong>Test Harness を早期に導入すること。これが最大の実務的アドバイスである。</strong></p><p>認証直前に初めて走らせると、<strong>大量に落ちて手戻りになる</strong>。 開発の途中から定期的に回していれば、少しずつ直せる。</p><p>テストケースは<strong>公開されている</strong>ので、 「何を確認されるか」を事前に読める。 <strong>Device Library の必須クラスタと、テストケースの対応を確認しておくこと。</strong></p></blockquote><h3>よく落ちる項目</h3><div class="tablewrap"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><td><strong>必須属性・コマンドの欠落</strong></td><td>Device Library の M を満たしていない</td></tr><tr><td><strong>FeatureMap と実装の不一致</strong></td><td>宣言したが動かない（08 章）</td></tr><tr><td><strong>値域・制約の違反</strong></td><td>CONSTRAINT_ERROR を返すべき場面で受け入れてしまう</td></tr><tr><td><strong>エラーコードの誤り</strong></td><td>適切なステータスを返していない（09 章）</td></tr><tr><td><strong>Fail-Safe の巻き戻し不備</strong></td><td>途中で切断したときに戻らない（09 章）</td></tr><tr><td><strong>マルチアドミン</strong></td><td>複数 Fabric で正しく動かない（14 章）</td></tr><tr><td><strong>ファクトリリセットの不完全性</strong></td><td>消え残り（14 章）</td></tr><tr><td><strong>ACL の実装</strong></td><td>権限チェックの漏れ</td></tr><tr><td><strong>サブスクリプションの動作</strong></td><td>MinInterval の遵守、報告の抜け</td></tr><tr><td><strong>Identify</strong></td><td>反応がない（08 章）</td></tr><tr><td><strong>DataVersion の管理</strong></td><td>変更時に増えていない</td></tr></tbody></table></div><h2>5. 証明書の準備（12 章の実務面）</h2><div class="tablewrap"><table><thead><tr><th>項目</th><th>決めること</th></tr></thead><tbody><tr><td><strong>PAA</strong></td><td>CSA のものを使うか、自社で運営するか</td></tr><tr><td><strong>PAI</strong></td><td>誰が発行するか。製品ラインごとに分けるか</td></tr><tr><td><strong>DAC の発行体制</strong></td><td>自社 / PKI ベンダー / SoC ベンダーの事前注入</td></tr><tr><td><strong>鍵の保護</strong></td><td>セキュアエレメント / SoC のセキュア領域</td></tr><tr><td><strong>量産ラインの設計</strong></td><td>書き込み装置、ネットワーク、記録</td></tr><tr><td><strong>CD の取得</strong></td><td>CSA への申請。VID/PID のリスト</td></tr></tbody></table></div><blockquote><p><strong>リードタイムの目安（あくまで目安。実際は変動する）:</strong></p><ul><li>CSA 会員登録: 数週間</li><li>VID 取得: 数週間</li><li>PKI ベンダーとの契約・立ち上げ: 1〜数か月</li><li>CD の取得: 数週間</li><li>認証テスト: 数週間〜（不合格なら再試験）</li></ul><p><strong>合計で数か月。</strong> これを製品スケジュールに織り込むこと。</p></blockquote><h2>6. 仕様バージョンの選択</h2><blockquote><p><strong>どのバージョンで認証を取るかは重要な判断である.</strong></p><div class="tablewrap"><table><thead><tr><th>選択</th><th>影響</th></tr></thead><tbody><tr><td>新しい版</td><td>新機能が使える。ただしエコシステムの対応が追いついていない可能性</td></tr><tr><td>枯れた版</td><td>動作実績が多い。ただし新デバイスタイプは使えない</td></tr></tbody></table></div><p><strong>自分の製品カテゴリがどの版で追加されたか</strong>を確認すること（24 章）。 1.2 で追加された家電なら、1.0 では認証を取れない。</p><p>また <strong>SDK のバージョンと仕様バージョンは対応している</strong>（15 章）。 開発中に SDK を上げると、認証対象の版が変わることがある。<strong>タグで固定する。</strong></p></blockquote><h2>7. 量産の準備</h2><h3>Factory Data の書き込み（12・17 章）</h3><div class="tablewrap"><table><thead><tr><th>決めること</th><th>内容</th></tr></thead><tbody><tr><td>書き込み方式</td><td>治具、ツール、所要時間</td></tr><tr><td>鍵の生成場所</td><td>機器内 / 外部</td></tr><tr><td>ネットワーク</td><td>工場が CA と通信するか、オフラインか</td></tr><tr><td>記録</td><td>シリアル ↔ 証明書の対応を保存</td></tr><tr><td>不良品</td><td>発行済み証明書の扱い</td></tr><tr><td>委託製造</td><td>EMS に何を渡すか</td></tr></tbody></table></div><h3>品質管理</h3><div class="tablewrap"><table><thead><tr><th>検査項目</th><th>内容</th></tr></thead><tbody><tr><td>Factory Data の書き込み確認</td><td>読み戻して検証</td></tr><tr><td>個体ごとの一意性</td><td>Discriminator、passcode、DAC が重複していないか</td></tr><tr><td><strong>コミッショニングの実動作</strong></td><td>抜き取りで実際にペアリングする</td></tr><tr><td>無線性能</td><td>出荷検査</td></tr><tr><td>QR コードの印刷品質</td><td>読み取れるか</td></tr></tbody></table></div><blockquote><p><strong>QR コードの印刷品質は見落とされがちである.</strong> 小さすぎる、コントラストが低い、曲面に貼る、擦れる—— <strong>ユーザーが最初に触れる部分が読めない</strong>という事故が起きる。</p><p><strong>手動コードを必ず併記すること</strong>（13 章）。QR が読めなくても救済できる。</p></blockquote><h3>梱包・ドキュメント</h3><ul><li><span class="task">☐</span> QR コード（本体と説明書の両方に）</li><li><span class="task">☐</span> 手動ペアリングコード</li><li><span class="task">☐</span> 対応エコシステムの明記</li><li><span class="task">☐</span> <strong>Thread 機器なら「Border Router が必要」の明記</strong></li><li><span class="task">☐</span> IPv6 が必要である旨（Wi-Fi 機器）</li><li><span class="task">☐</span> トラブルシューティングの手順（05 章の落とし穴が実際に起きる）</li></ul><blockquote><p><strong>「Border Router が必要」の説明は必須である.</strong> Thread 機器を買ったユーザーが、ハブを持っていないために 設定できないという事態は頻繁に起きる（04 章）。 <strong>箱の外側に明記すべきである。</strong></p></blockquote><h2>8. 出荷後の運用</h2><div class="tablewrap"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><td><strong>OTA の配信体制</strong></td><td>どこにイメージを置き、どう承認されるか（18 章）</td></tr><tr><td>脆弱性対応</td><td>報告受付、修正、配信のプロセス</td></tr><tr><td><strong>仕様の更新への追随</strong></td><td>新しい版への対応判断</td></tr><tr><td>エコシステムの変更</td><td>各社の仕様変更で動かなくなるリスク</td></tr><tr><td>DCL の更新</td><td>ソフトウェアバージョン情報など</td></tr><tr><td>サポート</td><td>ユーザーからの問い合わせ対応</td></tr></tbody></table></div><blockquote><p><strong>セキュリティ脆弱性への対応体制は事前に整備すること.</strong> 「報告を受けてから 3 か月かかりました」では信用を失う。 <strong>OTA が動くこと自体が、脆弱性対応能力の前提</strong>である（18 章）。</p></blockquote><h2>9. チェックリスト</h2><h3>開発開始時</h3><ul><li><span class="task">☐</span> CSA 会員登録の手続きを開始</li><li><span class="task">☐</span> VID の申請</li><li><span class="task">☐</span> 対象とする仕様バージョンの決定</li><li><span class="task">☐</span> 対象エコシステムの決定</li><li><span class="task">☐</span> 証明書の調達方針の決定</li><li><span class="task">☐</span> SoC の選定（認証実績を確認、17 章）</li><li><span class="task">☐</span> Flash / RAM の余裕（OTA 込み、17 章）</li></ul><h3>開発中</h3><ul><li><span class="task">☐</span> Test Harness を定期的に実行</li><li><span class="task">☐</span> Device Library に照らして実装漏れをチェック</li><li><span class="task">☐</span> マルチアドミン（3 Fabric 以上）でテスト</li><li><span class="task">☐</span> 電池寿命の実測</li><li><span class="task">☐</span> Factory Data の書き込み方式を製造部門と確定</li><li><span class="task">☐</span> CI にテスト証明書の混入チェック</li></ul><h3>認証前</h3><ul><li><span class="task">☐</span> Test Harness が全項目パス</li><li><span class="task">☐</span> CD の取得</li><li><span class="task">☐</span> 量産ビルドでテスト証明書が入っていないことを確認</li><li><span class="task">☐</span> ファクトリリセットの完全性を確認</li><li><span class="task">☐</span> 各エコシステムでの実機動作確認</li></ul><h3>出荷前</h3><ul><li><span class="task">☐</span> DCL への登録完了</li><li><span class="task">☐</span> OTA の配信体制</li><li><span class="task">☐</span> QR / 手動コードの印刷品質</li><li><span class="task">☐</span> ドキュメント（Border Router の要否、IPv6）</li><li><span class="task">☐</span> サポート体制</li></ul><h2>10. まとめ</h2><ul><li>「Matter 対応」を名乗るには <strong>CSA 会員資格（最低 Adopter）と製品認証</strong>が必要。</li><li><strong>VID の取得を最優先</strong>。これがないと証明書も CD も認証申請もできない。</li><li>認証プロセスは <strong>会員登録 → VID → 開発 → CD → テスト → 申請 → DCL 登録</strong>。 <strong>合計で数か月</strong>。開発の最初から並行して進める。</li><li><strong>Test Harness を早期に導入する</strong>。直前に回すと大量に落ちて手戻りになる。</li><li>よく落ちるのは **必須クラスタの欠落、FeatureMap の不一致、Fail-Safe、 マルチアドミン、ファクトリリセット、ACL**。</li><li><strong>仕様バージョンの選択</strong>は製品カテゴリと SDK のタグに直結する。</li><li>量産では <strong>Factory Data の書き込み設計</strong>と<strong>個体の一意性検査</strong>が要点。</li><li><strong>QR コードの印刷品質</strong>と<strong>手動コードの併記</strong>を軽視しない。</li><li><strong>Thread 機器は「Border Router が必要」を箱に明記する。</strong></li><li>出荷後の <strong>OTA 配信体制と脆弱性対応プロセス</strong>を事前に整備する。</li></ul>
+  <nav class="chnav"><a class="pn" href="21.html"><span>←</span><b>デバッグとテスト — 切り分けの技術</b></a><a class="pn nx" href="23.html"><b>落とし穴と設計指針 — 実際にハマるところ</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

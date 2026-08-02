@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>12. デバイス認証と証明書 — DAC / PAI / PAA / CD / DCL — Matter</title>
+<link rel="stylesheet" href="matter.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../matter.html">Matter</a>
+  <span class="cur">12 · デバイス認証と証明書 — DAC / PAI / PAA / CD / DCL</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 12</p>
+  <h1 class="doctitle">デバイス認証と証明書 — DAC / PAI / PAA / CD / DCL</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——ここが製品化で最初にぶつかる壁だから.</strong></p><p>「サンプルは動いた。さあ製品にしよう」となったとき、 <strong>証明書をどう調達し、どう量産ラインで書き込むか</strong>という問題が立ちはだかる。</p><p>これは技術の問題であると同時に、<strong>調達・契約・製造プロセス</strong>の問題でもある。 リードタイムも長い。<strong>開発の最後に考え始めると必ず間に合わない。</strong></p><p>この章では証明書の構造と、実務での選択肢を整理する。</p></blockquote><h2>1. なぜデバイス認証が必要なのか</h2><blockquote><p><strong>偽造品を排除するためである.</strong></p><p>Matter がなければ、誰でも「Matter 対応」を名乗る機器を作れてしまう。 認証を受けていない機器が相互運用性を壊し、 セキュリティの穴を持ち込み、標準全体の信頼を損なう。</p><p>Matter は<strong>暗号学的に「これは認証を受けた正規品である」ことを検証する</strong>。 コミッショニング時にコントローラが確認し、 検証に失敗した機器は（エコシステムの方針により）拒否されるか、警告が出る。</p></blockquote><h2>2. 証明書チェーンの構造</h2><pre><code>PAA（Product Attestation Authority）
+  │  ・業界のルート CA
+  │  ・DCL（分散台帳）に登録されている
+  │  ・CSA 自身、またはメーカーが運営
+  ↓
+PAI（Product Attestation Intermediate）
+  │  ・メーカー（または製品ライン）ごとの中間 CA
+  │  ・VID を含む（PID を含むこともある）
+  ↓
+DAC（Device Attestation Certificate）
+     ・個体ごとに 1 枚
+     ・VID / PID を含む
+     ・対応する秘密鍵が機器の中にある</code></pre><div class="tablewrap"><table><thead><tr><th>証明書</th><th>個数</th><th>保管場所</th></tr></thead><tbody><tr><td>PAA</td><td>業界に数十枚</td><td><strong>DCL に公開</strong></td></tr><tr><td>PAI</td><td>メーカーごとに数枚</td><td>機器にも格納（チェーン検証用）</td></tr><tr><td>DAC</td><td><strong>1 個体につき 1 枚</strong></td><td>機器に格納</td></tr></tbody></table></div><p>すべて <strong>X.509 v3、ECDSA P-256、SHA-256</strong> である。</p><h3>証明書に含まれる Matter 固有の情報</h3><p>DAC / PAI の Subject には、Matter 独自の属性が入る。</p><div class="tablewrap"><table><thead><tr><th>OID の意味</th><th>内容</th></tr></thead><tbody><tr><td><code>matter-vid</code></td><td>Vendor ID</td></tr><tr><td><code>matter-pid</code></td><td>Product ID</td></tr></tbody></table></div><blockquote><p><strong>VID は必ず含まれる。PID は PAI では省略可能である。</strong> 検証時には、DAC の VID/PID が <strong>CD（次節）に記載された VID/PID と一致すること</strong>が確認される。</p></blockquote><h2>3. CD（Certification Declaration）</h2><p><strong>「この VID/PID の製品は CSA の認証を受けている」という CSA の署名付き宣言。</strong></p><div class="tablewrap"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><td>形式</td><td>CMS（Cryptographic Message Syntax）署名</td></tr><tr><td>署名者</td><td><strong>CSA</strong>（の認証鍵）</td></tr><tr><td>含まれるもの</td><td>VID、PID のリスト、認証タイプ、証明書 ID、セキュリティレベル、デバイスタイプなど</td></tr><tr><td>保管場所</td><td>機器に格納（DAC と一緒に工場で書き込む）</td></tr></tbody></table></div><blockquote><p><strong>DAC と CD の役割の違いが分かりにくいので整理する.</strong></p><div class="tablewrap"><table><thead><tr><th></th><th>DAC</th><th>CD</th></tr></thead><tbody><tr><td>誰が発行</td><td><strong>メーカー</strong>（の PAI）</td><td><strong>CSA</strong></td></tr><tr><td>何を言っている</td><td>「この個体は私が作った本物だ」</td><td>「この製品モデルは認証を通っている」</td></tr><tr><td>個体ごとに違う</td><td><strong>はい</strong></td><td>いいえ（モデル共通）</td></tr><tr><td>秘密鍵とペア</td><td>はい</td><td>いいえ（署名の検証だけ）</td></tr></tbody></table></div><p><strong>両方揃って初めて「認証を受けた正規品の個体」が証明される。</strong> DAC だけなら「メーカーが作った」ことしか言えないし、 CD だけなら「そのモデルは認証済み」だが個体の真正性は分からない。</p></blockquote><h2>4. DCL（Distributed Compliance Ledger）</h2><p>CSA が運営する<strong>分散台帳</strong>。ブロックチェーン技術を使っている。</p><div class="tablewrap"><table><thead><tr><th>登録されるもの</th><th>内容</th></tr></thead><tbody><tr><td><strong>PAA 証明書</strong></td><td>信頼すべきルート CA の一覧</td></tr><tr><td><strong>モデル情報</strong></td><td>VID/PID、製品名、メーカー、製品 URL</td></tr><tr><td><strong>コンプライアンス情報</strong></td><td>認証日、認証されたバージョン、ソフトウェアバージョン範囲</td></tr><tr><td><strong>OTA 情報</strong></td><td>ファームウェアの配布 URL（任意）</td></tr></tbody></table></div><blockquote><p><strong>コントローラは DCL から PAA のリストを取得する.</strong> 「どの PAA を信頼するか」を自分で判断せず、DCL を信頼の起点にする。</p><p>ただし<strong>実運用では、エコシステムが独自にキャッシュ・管理している</strong>ことが多い。 DCL に登録された直後は、各エコシステムに反映されるまで時間がかかることがある。 <strong>認証取得から実際に各社ハブで動くまでのラグ</strong>は製品計画で考慮すべき点である。</p></blockquote><h2>5. 検証のフロー</h2><div class="widget" data-widget="certchain"></div><p>コミッショニング中、コントローラは次を行う（13 章の一部）。</p><pre><code>1. コントローラ → 機器: AttestationRequest（32 byte のノンス）
+2. 機器 → コントローラ: AttestationResponse
+       ├── attestation_elements（CD、ノンス、タイムスタンプなどを TLV で束ねたもの）
+       └── attestation_signature（DAC の秘密鍵で署名）
+3. コントローラ → 機器: CertificateChainRequest(DAC)
+4. 機器 → コントローラ: DAC
+5. コントローラ → 機器: CertificateChainRequest(PAI)
+6. 機器 → コントローラ: PAI
+
+コントローラ側の検証:
+  a. DAC ← PAI ← PAA のチェーンを検証（PAA は DCL から取得）
+  b. attestation_signature を DAC の公開鍵で検証
+  c. ノンスが自分の送ったものと一致するか（リプレイ防止）
+  d. CD の CSA 署名を検証
+  e. CD の VID/PID と DAC の VID/PID が一致するか
+  f. Basic Information の VID/PID とも一致するか</code></pre><blockquote><p><strong>ノンスが要る理由.</strong> ノンスがなければ、正規品から一度取った署名を偽造品が使い回せる。 <strong>毎回違うノンスに署名させる</strong>ことで、鍵を実際に持っていることを証明させる。</p><p><strong>e と f の照合が偽造対策の要である.</strong> DAC を他社製品から流用しても、CD や Basic Information の VID/PID と食い違えば弾かれる。</p></blockquote><h2>6. 証明書の調達 — 実務の選択肢</h2><p><strong>ここが製品化の分岐点である。</strong></p><h3>(a) CSA の PAA を使う（多くのメーカーの選択）</h3><pre><code>CSA の PAA
+ └── 自社の PAI（CSA から発行してもらう、または CSA 認定の PKI ベンダー経由）
+      └── DAC（自社または委託先が個体ごとに発行）</code></pre><div class="tablewrap"><table><thead><tr><th>利点</th><th>欠点</th></tr></thead><tbody><tr><td>PAA を自分で運営しなくてよい</td><td>発行プロセスに時間がかかる</td></tr><tr><td>DCL への登録が確実</td><td>外部への依存</td></tr></tbody></table></div><h3>(b) 自社 PAA を運営する</h3><p>大手メーカーが自社ルートを DCL に登録する方式。</p><div class="tablewrap"><table><thead><tr><th>利点</th><th>欠点</th></tr></thead><tbody><tr><td>発行を完全に自社で制御</td><td><strong>PKI の運営責任を全部負う</strong></td></tr><tr><td>大量生産で有利</td><td>ルート鍵の管理（HSM 必須）</td></tr></tbody></table></div><h3>(c) PKI ベンダーに委託</h3><p>証明書サービスを提供するベンダー（半導体メーカー系、セキュリティベンダー系）を使う。</p><div class="tablewrap"><table><thead><tr><th>利点</th><th>欠点</th></tr></thead><tbody><tr><td>鍵の生成・保管・注入まで一括</td><td>コスト</td></tr><tr><td>セキュアエレメントとセットで提供されることも</td><td>ベンダーロックイン</td></tr></tbody></table></div><blockquote><p><strong>半導体メーカーの提供するサービスが有力な選択肢である.</strong> 一部の SoC ベンダーは、<strong>チップに DAC を事前注入して出荷する</strong>サービスを提供している。 これを使えば、量産ラインでの鍵注入設備が不要になる。</p><p>ただし VID は自社のものを使う必要があるので、 <strong>事前に CSA から VID を取得しておく</strong>（22 章）。</p></blockquote><h2>7. 量産ラインでの書き込み</h2><p>DAC・PAI・CD・鍵を、<strong>個体ごとに製造時に書き込む</strong>必要がある。</p><h3>書き込む内容（Factory Data）</h3><div class="tablewrap"><table><thead><tr><th>項目</th><th>個体ごとに違うか</th></tr></thead><tbody><tr><td><strong>DAC 証明書</strong></td><td>○</td></tr><tr><td><strong>DAC 秘密鍵</strong></td><td>○</td></tr><tr><td>PAI 証明書</td><td>×（製品共通）</td></tr><tr><td>CD</td><td>×（製品共通）</td></tr><tr><td><strong>Discriminator</strong></td><td>○（ランダム推奨）</td></tr><tr><td><strong>SPAKE2+ 検証子（w0, L）</strong></td><td>○</td></tr><tr><td>SPAKE2+ の salt / iteration count</td><td>○（salt は個体ごと）</td></tr><tr><td>VID / PID</td><td>×</td></tr><tr><td><strong>シリアル番号 / UniqueID</strong></td><td>○</td></tr><tr><td>Rotating Device ID の鍵</td><td>○</td></tr></tbody></table></div><h3>課題</h3><div class="tablewrap"><table><thead><tr><th>課題</th><th>内容</th></tr></thead><tbody><tr><td><strong>鍵の生成場所</strong></td><td>機器内で生成するか、外で作って注入するか</td></tr><tr><td><strong>注入の秘匿</strong></td><td>製造ラインのネットワークで鍵が流れる</td></tr><tr><td><strong>委託製造</strong></td><td>EMS に鍵を渡すことの是非</td></tr><tr><td><strong>速度</strong></td><td>1 個あたりの書き込み時間 × 生産数</td></tr><tr><td><strong>トレーサビリティ</strong></td><td>どの個体にどの証明書を入れたかの記録</td></tr></tbody></table></div><blockquote><p><strong>最も安全なのは「機器内で鍵を生成し、公開鍵だけを外に出して CSR で署名してもらう」方式である.</strong> 秘密鍵が一度もチップの外に出ない。 セキュアエレメントを使えばこれが自然に実現できる。</p><p>ただし<strong>製造ラインがオンラインで CA と通信する必要がある</strong>ため、 工場のネットワーク設計が絡む。</p><p><strong>オフラインで事前生成した鍵を注入する</strong>方式の方が製造は簡単だが、 鍵の受け渡し経路をどう守るかという問題が残る。 <strong>どちらを取るかは、製品のセキュリティ要件とコストで決める。</strong></p></blockquote><h2>8. 開発用のテスト証明書</h2><p>開発中は、SDK に含まれるテスト用の証明書を使う。</p><div class="tablewrap"><table><thead><tr><th>項目</th><th>値</th></tr></thead><tbody><tr><td>テスト VID</td><td><strong><code>0xFFF1</code>〜<code>0xFFF4</code></strong></td></tr><tr><td>テスト PID</td><td><code>0x8000</code> 番台など</td></tr><tr><td>テスト PAA</td><td>SDK に同梱</td></tr><tr><td>デフォルト passcode</td><td><code>20202021</code></td></tr><tr><td>デフォルト discriminator</td><td><code>3840</code></td></tr></tbody></table></div><pre><code class="lang-bash"># chip-tool でテスト PAA を信頼する（開発時）
+chip-tool pairing onnetwork 1 20202021 --paa-trust-store-path ./credentials/development/paa-root-certs</code></pre><blockquote><p><strong>これを製品に載せてはいけない.</strong> テスト VID の機器は、各エコシステムから拒否されるか、 「認証されていない機器」として警告付きで扱われる。</p><p>しかも<strong>全開発者が同じ鍵を使っている</strong>ので、セキュリティは皆無である。</p><p><strong>量産ビルドとテストビルドを、ビルドシステムのレベルで確実に分けること。</strong> 「うっかりテスト証明書で量産した」という事故は起こりうる。</p></blockquote><h2>9. Rotating Device Identifier</h2><p>機器を識別しつつ、<strong>追跡を防ぐ</strong>ための仕組み。</p><pre><code>RDI = 上位バイト（カウンタ）+ SHA-256(カウンタ ‖ 一意な機器情報) の一部</code></pre><ul><li>一定条件で値が変わる</li><li><strong>同じ機器だと知っている者（一度ペアリングした相手）だけが同一性を確認できる</strong></li><li>通りすがりの第三者には、毎回違う機器に見える</li></ul><blockquote><p><strong>なぜ必要か.</strong> 常に同じ ID を BLE や mDNS で広告していると、 店舗や公共の場でその機器（≒持ち主）を追跡できてしまう。 スマートフォンの MAC アドレスランダム化と同じ発想である。</p></blockquote><h2>10. 落とし穴</h2><div class="tablewrap"><table><thead><tr><th>落とし穴</th><th>内容・対処</th></tr></thead><tbody><tr><td>証明書の調達を最後に考える</td><td><strong>リードタイクが長い。開発初期に着手する</strong></td></tr><tr><td>テスト証明書で量産</td><td>ビルドを分ける。CI でチェックする</td></tr><tr><td>全個体で同じ DAC</td><td>1 個の解析で全製品が偽造可能になる</td></tr><tr><td>DAC 秘密鍵を平文フラッシュに置く</td><td>SE か暗号化領域を使う</td></tr><tr><td>CD の VID/PID と DAC が不一致</td><td>検証で弾かれる。発行時に照合する</td></tr><tr><td>Basic Information の VID/PID が不一致</td><td>同上</td></tr><tr><td>証明書の有効期限</td><td>Matter の運用証明書は無期限（<code>9999-12-31</code>）とすることが多い。DAC も慎重に設計</td></tr><tr><td>フラッシュ容量の見積り漏れ</td><td>証明書は数百バイト〜。チェーン全部で 1〜2 KB 程度</td></tr><tr><td>DCL 登録の遅れ</td><td>認証取得後、各エコシステムに反映されるまでのラグを見込む</td></tr></tbody></table></div><blockquote><p><strong>有効期限は要注意である.</strong> 家電は 10 年使われる。証明書が 5 年で切れたら、その時点で機器が使えなくなる可能性がある。 Matter の運用証明書では「無期限」を表す特別な値を使うのが一般的である。 <strong>DAC の有効期限をどう設定するかは、製品寿命と合わせて設計すること。</strong></p></blockquote><h2>11. まとめ</h2><ul><li>デバイス認証の目的は<strong>偽造品の排除</strong>。暗号学的に「認証済みの正規品」を検証する。</li><li>チェーンは <strong>PAA → PAI → DAC</strong>。すべて X.509 / ECDSA P-256。</li><li><strong>DAC</strong>（メーカー発行、個体ごと）と <strong>CD</strong>（CSA 発行、モデル共通）は役割が違う。 <strong>両方揃って初めて証明が成立する</strong>。</li><li><strong>DCL</strong> が PAA と製品情報の公開台帳。コントローラの信頼の起点。</li><li>検証では<strong>ノンスへの署名</strong>と、<strong>CD / DAC / Basic Information の VID/PID 一致</strong>を確認する。</li><li>証明書の調達方式（CSA の PAA / 自社 PAA / PKI ベンダー）は<strong>製品化の重要な判断</strong>。 <strong>リードタイムが長いので早期に着手する</strong>。</li><li>量産では <strong>Factory Data の書き込み設計</strong>（鍵の生成場所・注入経路・記録）が必須。</li><li><strong>テスト証明書（VID 0xFFF1 等）を製品に載せない</strong>。ビルドを分けて仕組みで防ぐ。</li></ul>
+  <nav class="chnav"><a class="pn" href="11.html"><span>←</span><b>セキュリティの全体像 — 何を、誰から守るのか</b></a><a class="pn nx" href="13.html"><b>コミッショニング — QR コードから Fabric 参加まで</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

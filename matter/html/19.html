@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>19. ブリッジ — 既存機器を Matter に見せる — Matter</title>
+<link rel="stylesheet" href="matter.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../matter.html">Matter</a>
+  <span class="cur">19 · ブリッジ — 既存機器を Matter に見せる</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 19</p>
+  <h1 class="doctitle">ブリッジ — 既存機器を Matter に見せる</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——既存の資産を捨てずに Matter へ移行する道だから.</strong></p><p>すでに Zigbee や独自プロトコルの製品を大量に出荷しているメーカーにとって、 「全製品を Matter 対応に作り直す」のは非現実的である。</p><p>ブリッジは、<strong>既存機器のファームウェアを一切変えずに、Matter 対応にする</strong>手段である。 ユーザーから見れば、古い機器が突然 Apple Home で使えるようになる。</p><p>実装の要点は「動的エンドポイント」と「マッピング設計」、 そして<strong>到達不能時の扱い</strong>である。</p></blockquote><h2>1. ブリッジとは</h2><pre><code>[Matter コントローラ]
+        │ Matter / IP
+        ↓
+   [ブリッジ]  ← 1 台の Matter Node
+        │ Zigbee / Z-Wave / 独自 RF / クラウド API
+        ├── 既存の電球 A
+        ├── 既存のセンサー B
+        └── 既存のロック C</code></pre><p><strong>ブリッジ自体が 1 台の Matter Node</strong> であり、 その中の <strong>Endpoint として、配下の機器を表現</strong>する。</p><div class="tablewrap"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><td>Matter から見える数</td><td><strong>Node は 1 台</strong>（Endpoint が複数）</td></tr><tr><td>配下機器の改造</td><td><strong>不要</strong></td></tr><tr><td>コミッショニング</td><td>ブリッジ 1 台だけ</td></tr><tr><td>配下機器の追加</td><td>Endpoint の動的な増減</td></tr></tbody></table></div><h2>2. Endpoint の構成</h2><div class="widget" data-widget="bridge"></div><pre><code>Endpoint 0  ── Root Node (0x0016)
+                 └── ユーティリティクラスタ（通常どおり）
+
+Endpoint 1  ── Aggregator (0x000E)
+                 ├── Descriptor
+                 │    └── PartsList = [2, 3, 4, ...]   ← 配下機器の Endpoint
+                 └── Actions（任意。シーンやグループ操作）
+
+Endpoint 2  ── Bridged Node (0x0013) + On/Off Light (0x0100)
+                 ├── Bridged Device Basic Information (0x0039)
+                 │    ├── NodeLabel = "リビングの電球"
+                 │    ├── Reachable = true/false        ← 重要
+                 │    ├── VendorName, ProductName, ...
+                 │    └── UniqueID
+                 ├── Descriptor
+                 ├── Identify
+                 └── On/Off
+
+Endpoint 3  ── Bridged Node + Temperature Sensor
+                 └── ...</code></pre><h3>Aggregator (<code>0x000E</code>)</h3><p>「この配下にブリッジされた機器がある」ことを示す Endpoint。 <code>PartsList</code> に配下の Endpoint を列挙する。</p><h3>Bridged Node (<code>0x0013</code>)</h3><p><strong>ブリッジされた機器であることを示すデバイスタイプ。</strong> 実際の機能を表すデバイスタイプ（On/Off Light など）と<strong>組み合わせて</strong>使う。</p><p>つまり 1 つの Endpoint の <code>DeviceTypeList</code> に <strong>2 つのデバイスタイプ</strong>が入る。</p><h3>Bridged Device Basic Information (<code>0x0039</code>)</h3><p>通常の <code>Basic Information</code>（<code>0x0028</code>）の、ブリッジ機器版。</p><div class="tablewrap"><table><thead><tr><th>属性</th><th>内容</th></tr></thead><tbody><tr><td><code>VendorName</code> / <code>ProductName</code></td><td><strong>配下機器の</strong>メーカー・製品名</td></tr><tr><td><code>NodeLabel</code></td><td>ユーザーが付ける名前</td></tr><tr><td><code>UniqueID</code></td><td>配下機器の一意な識別子</td></tr><tr><td><strong><code>Reachable</code></strong></td><td><strong>配下機器と通信できているか</strong></td></tr><tr><td><code>ProductURL</code>, <code>SerialNumber</code> など</td><td>任意</td></tr></tbody></table></div><blockquote><p><strong><code>Reachable</code> が最重要である.</strong></p><p>Zigbee の電球の電源が抜かれた、電波が届かない、電池が切れた—— ブリッジ自体は生きているので Matter の通信は成功するが、 <strong>配下機器には届かない</strong>。</p><p>このとき <code>Reachable = false</code> にすれば、コントローラは 「この機器はオフラインです」と正しく表示できる。</p><p><code>Reachable</code> を実装せず、常に <code>true</code> にしていると、 <strong>アプリ上では操作できているように見えるのに何も起きない</strong>—— ユーザーにとって最悪の体験になる。</p><p><code>ReachableChanged</code> イベントで変化を通知することもできる。</p></blockquote><h2>3. 動的エンドポイント</h2><p>配下機器は実行時に増減する。ZAP で静的に定義するだけでは足りない。</p><pre><code class="lang-cpp">// ZAP で「テンプレート」となる Endpoint 定義を用意しておく
+// （必要なクラスタを含む雛形）
+
+// 実行時に追加
+CHIP_ERROR AddBridgedDevice(Device * dev, EmberAfEndpointType * ep,
+                            const Span&lt;const EmberAfDeviceType&gt; &amp; deviceTypeList,
+                            EndpointId parentEndpointId)
+{
+    for (uint8_t index = 0; index &lt; CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT; index++)
+    {
+        if (gDevices[index] != nullptr) continue;
+        gDevices[index] = dev;
+        CHIP_ERROR err = emberAfSetDynamicEndpoint(
+            index, gCurrentEndpointId, ep,
+            Span&lt;DataVersion&gt;(gDataVersions[index]),
+            deviceTypeList, parentEndpointId);
+        if (err == CHIP_NO_ERROR) return err;
+        gDevices[index] = nullptr;
+    }
+    return CHIP_ERROR_NO_MEMORY;
+}
+
+// 削除
+emberAfClearDynamicEndpoint(index);</code></pre><blockquote><p><strong>上限は <code>CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT</code> で決まる.</strong> メモリを消費するので、<strong>現実的な最大数を決めて設計する</strong>。 「Zigbee は最大 50 台」なら 50 + 余裕、といった具合。</p></blockquote><h3>Endpoint 番号の再利用</h3><blockquote><p><strong>難しい判断が要る.</strong></p><p>機器 X が Endpoint 2 だったとする。X を取り外し、後に機器 Y を追加した。 Y に Endpoint 2 を割り当ててよいか？</p><ul><li><strong>よくない。</strong> コントローラが「Endpoint 2 = リビングの電球」と覚えていると、 別の機器が同じ名前で表示される。</li><li><strong>番号を再利用しない</strong>（単調増加）方が安全だが、いずれ枯渇する。</li><li><strong><code>UniqueID</code> を必ず設定する</strong>ことで、コントローラ側が同一性を判断できる。</li></ul><p>実装方針としては、<strong><code>UniqueID</code> を配下機器の一意な ID（Zigbee なら IEEE アドレスなど） から導出し、番号は再利用を避ける</strong>のが無難である。</p></blockquote><h3>構成変更の通知</h3><p>配下機器が増減したら、<code>Aggregator</code> の <code>PartsList</code> が変わる。 <strong>この属性の変更を報告する</strong>ことで、コントローラが再スキャンする。</p><pre><code class="lang-cpp">MatterReportingAttributeChangeCallback(kAggregatorEndpointId,
+                                       Descriptor::Id,
+                                       Descriptor::Attributes::PartsList::Id);</code></pre><blockquote><p><strong>これを忘れると「新しい機器を追加したのにアプリに出てこない」となる。</strong></p></blockquote><h2>4. マッピング設計 — ここが本当の難所</h2><p>既存プロトコルの機能を、Matter のクラスタにどう対応づけるか。</p><h3>素直に対応するもの</h3><div class="tablewrap"><table><thead><tr><th>既存</th><th>Matter</th></tr></thead><tbody><tr><td>Zigbee の On/Off クラスタ</td><td>Matter の On/Off（<strong>ほぼ同一</strong>）</td></tr><tr><td>Zigbee の Level Control</td><td>Matter の Level Control</td></tr><tr><td>Zigbee の Color Control</td><td>Matter の Color Control</td></tr><tr><td>温度センサー</td><td>Temperature Measurement</td></tr></tbody></table></div><blockquote><p><strong>Zigbee からの移行は比較的楽である.</strong> Matter のデータモデルは ZCL を継承しているので、 <strong>クラスタ ID も属性 ID もほぼ同じ</strong>であることが多い。</p></blockquote><h3>対応が難しいもの</h3><div class="tablewrap"><table><thead><tr><th>状況</th><th>対処</th></tr></thead><tbody><tr><td>既存機器に Matter の必須属性がない</td><td>固定値を返す、または推定する</td></tr><tr><td>既存機器の機能が Matter にない</td><td>独自クラスタ、または諦める</td></tr><tr><td>値域・単位が違う</td><td>変換する（<strong>単位の取り違えに注意</strong>、08 章）</td></tr><tr><td>状態の取得ができない（送信専用の機器）</td><td>最後に送った値をキャッシュする</td></tr><tr><td>応答が遅い</td><td>楽観的更新 + 後で訂正</td></tr></tbody></table></div><blockquote><p><strong>「必須属性がない」問題の例.</strong> 古い調光器が <code>MinLevel</code> / <code>MaxLevel</code> を持っていない。 Matter の Level Control では必須かもしれない。 → <strong>ブリッジが妥当な固定値を返す</strong>しかない。</p><p><strong>重要なのは「嘘をつきすぎない」ことである。</strong> 実際にはできないことを「できる」と宣言すると、 ユーザーが操作しても何も起きない。 <strong>できない機能はクラスタごと載せない</strong>方が誠実である。</p></blockquote><h3>応答の遅さへの対処</h3><pre><code>コントローラ → ブリッジ: On コマンド
+    ↓ ブリッジは即座に Success を返す（Matter のタイムアウトを避ける）
+    ↓ 裏で Zigbee にコマンドを送る（数百 ms〜数秒）
+    ↓ 実際に点いたら OnOff 属性を更新 → 報告</code></pre><blockquote><p><strong>楽観的更新をするかどうかは設計判断である.</strong></p><ul><li>すぐ属性を更新する → アプリの反応が速いが、失敗したら訂正が必要</li><li>実際の応答を待つ → 正確だが遅い</li></ul><p><strong>どちらにせよ、Matter のコマンド応答をブロックして待ってはいけない</strong>（09 章）。 ブリッジ全体が止まる。</p></blockquote><h2>5. ブリッジの規模と制約</h2><div class="tablewrap"><table><thead><tr><th>項目</th><th>考慮</th></tr></thead><tbody><tr><td>配下機器数</td><td>動的 Endpoint の上限、メモリ</td></tr><tr><td>Fabric 数</td><td>ブリッジ 1 台が複数 Fabric に所属（14 章）</td></tr><tr><td>サブスクリプション</td><td>配下機器の数 × 属性数 × Fabric 数。<strong>膨大になる</strong></td></tr><tr><td>イベントバッファ</td><td>配下機器全部のイベント</td></tr><tr><td>応答性</td><td>ブリッジがボトルネックになる</td></tr></tbody></table></div><blockquote><p><strong>サブスクリプションのリソースが最も厳しい.</strong> 50 台の配下機器 × 各 5 属性 × 3 Fabric = 750 パス。 これを保持するのは組み込み機器には重い。</p><p><strong>ブリッジは Linux ベース（Raspberry Pi クラス）で作られることが多い</strong>のは このためである。MCU では厳しい規模になる。</p></blockquote><h2>6. Actions クラスタ（任意）</h2><p><code>Actions</code> クラスタ (<code>0x0025</code>) を使うと、 <strong>「リビングの照明を全部消す」といったブリッジ固有の操作</strong>を公開できる。</p><div class="tablewrap"><table><thead><tr><th>概念</th><th>内容</th></tr></thead><tbody><tr><td><strong>EndpointList</strong></td><td>「リビング」などの Endpoint のグループ</td></tr><tr><td><strong>ActionList</strong></td><td>「全部消す」などの実行可能な操作</td></tr></tbody></table></div><blockquote><p><strong>既存システムのシーンやグループを Matter に見せる手段である.</strong> ただし対応しているコントローラは限られる。 標準のグループ機能（09 章）で足りるなら、そちらの方が相互運用性は高い。</p></blockquote><h2>7. 実装の出発点</h2><pre><code class="lang-bash"># SDK のサンプル
+./scripts/examples/gn_build_example.sh examples/bridge-app/linux out/bridge
+./out/bridge/chip-bridge-app
+
+# コミッショニング
+chip-tool pairing onnetwork 1 20202021
+
+# 構成を確認
+chip-tool descriptor read parts-list 1 0        # Endpoint 0 の子
+chip-tool descriptor read parts-list 1 1        # Aggregator の配下
+chip-tool descriptor read device-type-list 1 3  # ある Endpoint の種別
+chip-tool bridgeddevicebasicinformation read reachable 1 3
+chip-tool onoff toggle 1 3</code></pre><blockquote><p><strong><code>bridge-app</code> は動的 Endpoint の追加・削除の実例として非常に有用である.</strong> ここから始めて、配下プロトコルの部分を自社のものに差し替えるのが最短経路である。</p></blockquote><h2>8. 落とし穴</h2><div class="tablewrap"><table><thead><tr><th>落とし穴</th><th>対処</th></tr></thead><tbody><tr><td><strong><code>Reachable</code> を実装しない</strong></td><td>オフライン機器が操作できるように見える</td></tr><tr><td><code>UniqueID</code> を設定しない</td><td>機器の同一性が判定できない</td></tr><tr><td><code>PartsList</code> の変更を報告しない</td><td>新機器がアプリに出てこない</td></tr><tr><td>Endpoint 番号の安易な再利用</td><td>別機器が前の名前で表示される</td></tr><tr><td>動的 Endpoint の上限不足</td><td>機器を追加できない</td></tr><tr><td>Matter のコマンドをブロックして待つ</td><td>ブリッジ全体が停止</td></tr><tr><td>できない機能を宣言する</td><td>操作しても何も起きない</td></tr><tr><td>単位変換のミス</td><td>08 章の単位に注意</td></tr><tr><td>サブスクリプションのリソース不足</td><td>規模を見積もる</td></tr><tr><td>ブリッジ自体の障害</td><td><strong>単一障害点</strong>。落ちると配下が全滅</td></tr></tbody></table></div><blockquote><p><strong>ブリッジは単一障害点である.</strong> これは構造上避けられない。</p><ul><li>冗長化は困難（1 台の Matter Node なので）</li><li><strong>ブリッジ自身の安定性が全体の可用性を決める</strong></li><li>ウォッチドッグ、自動再起動、状態の永続化が重要</li></ul><p>ユーザーへの説明としても、「ハブが必要」という事実は明示すべきである。</p></blockquote><h2>9. まとめ</h2><ul><li>ブリッジは <strong>1 台の Matter Node</strong> として振る舞い、 配下機器を <strong>Endpoint</strong> として表現する。<strong>配下機器の改造は不要</strong>。</li><li>構成は <strong>Aggregator (<code>0x000E</code>)</strong> + <strong>Bridged Node (<code>0x0013</code>) + 実機能のデバイスタイプ</strong>。</li><li><strong><code>Bridged Device Basic Information</code> の <code>Reachable</code> が最重要</strong>。 実装しないと、オフライン機器が操作可能に見える。</li><li><strong>動的エンドポイント</strong>で実行時に増減させる。上限はメモリで決まる。 <code>PartsList</code> の変更報告を忘れない。</li><li><strong>マッピング設計が本当の難所</strong>。できない機能を宣言しない。単位変換に注意。</li><li><strong>Matter のコマンド応答をブロックしない</strong>。楽観的更新か非同期通知で。</li><li>サブスクリプションのリソースが厳しいので、<strong>規模を見積もる</strong>。 だからブリッジは Linux クラスで作られることが多い。</li><li><strong>ブリッジは単一障害点</strong>。安定性が全体の可用性を決める。</li></ul>
+  <nav class="chnav"><a class="pn" href="18.html"><span>←</span><b>OTA ソフトウェア更新 — Provider / Requestor と BDX</b></a><a class="pn nx" href="20.html"><b>コントローラ／アプリ側の開発</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

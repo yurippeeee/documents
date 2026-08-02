@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>05. Wi-Fi・Ethernet・BLE — どれを選び、どう使うか — Matter</title>
+<link rel="stylesheet" href="matter.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../matter.html">Matter</a>
+  <span class="cur">05 · Wi-Fi・Ethernet・BLE — どれを選び、どう使うか</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 05</p>
+  <h1 class="doctitle">Wi-Fi・Ethernet・BLE — どれを選び、どう使うか</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——ネットワークの選択は、あとから変えられない.</strong></p><p>Thread か Wi-Fi かは、SoC の選定・電源設計・BOM コスト・ 「ユーザーにハブを買わせるか」という商品企画にまで波及する。 <strong>基板を起こしてからでは戻れない</strong>判断である。</p><p>そして BLE。Matter で BLE は<strong>コミッショニング専用</strong>という特殊な使われ方をする。 ここを誤解すると「BLE で常時通信できるはず」という前提で設計してしまう。</p></blockquote><h2>1. Matter がサポートするリンク層</h2><div class="tablewrap"><table><thead><tr><th>リンク</th><th>運用通信</th><th>コミッショニング</th><th>主な用途</th></tr></thead><tbody><tr><td><strong>Wi-Fi</strong></td><td>○</td><td>○（同一ネットワークにいれば）</td><td>常時給電・高スループット機器</td></tr><tr><td><strong>Ethernet</strong></td><td>○</td><td>○</td><td>ハブ・ブリッジ・据置機器</td></tr><tr><td><strong>Thread</strong></td><td>○</td><td>○（既に参加済みなら）</td><td>電池機器・多数配置</td></tr><tr><td><strong>BLE</strong></td><td><strong>×</strong></td><td><strong>○（主役）</strong></td><td>初期セットアップの経路</td></tr></tbody></table></div><blockquote><p><strong>BLE は運用通信に使えない.</strong> Matter の仕様上、BLE は<strong>コミッショニング時のトランスポート</strong>としてのみ定義されている。 「Matter 機器と BLE で日常的に喋る」ということはない。 設定が終われば BLE は切断され、以降は Wi-Fi か Thread を使う。</p></blockquote><h2>2. Wi-Fi</h2><h3>要件</h3><div class="tablewrap"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><td><strong>IPv6 必須</strong></td><td>ルータが IPv6 を有効にしている必要がある（03 章）</td></tr><tr><td>mDNS</td><td>マルチキャストが通ること</td></tr><tr><td>帯域</td><td>2.4 GHz が一般的。5 GHz 対応機器もある</td></tr><tr><td>規格</td><td>802.11 b/g/n が多い。Wi-Fi 6 (ax) 対応 SoC も増加</td></tr></tbody></table></div><h3>消費電力の現実</h3><div class="tablewrap"><table><thead><tr><th>状態</th><th>目安</th></tr></thead><tbody><tr><td>送受信中</td><td>100〜300 mA</td></tr><tr><td>アイドル（接続維持）</td><td>数 mA〜数十 mA</td></tr><tr><td>DTIM ビーコン受信</td><td>周期的に起きる必要がある</td></tr><tr><td>ディープスリープ</td><td>数 µA（ただし切断される）</td></tr></tbody></table></div><blockquote><p><strong>Wi-Fi で電池駆動は原則として無理である.</strong> 接続を維持するだけで DTIM ごとに起きる必要があり、平均消費電流は どうしても mA オーダーになる。単三電池 2 本（約 2000 mAh）で 数百時間——つまり<strong>数週間</strong>が限界に近い。</p><p>「Wi-Fi + 電池」を成立させるには、<strong>普段は完全に切断し、 イベント時だけ接続する</strong>設計にするしかない（接続に数秒かかり、 その間の消費も大きい）。ドアベルやカメラの一部がこの方式を採る。</p><p><strong>常時応答が必要な電池機器なら Thread 一択</strong>である。</p></blockquote><h3>Wi-Fi での落とし穴</h3><div class="tablewrap"><table><thead><tr><th>落とし穴</th><th>内容</th></tr></thead><tbody><tr><td><strong>IPv6 が無効なルータ</strong></td><td>機器が動かない。ユーザー側の設定に依存する</td></tr><tr><td><strong>クライアント分離</strong></td><td>ゲスト Wi-Fi では端末間通信が禁止されている</td></tr><tr><td><strong>2.4/5 GHz の分離</strong></td><td>スマホが 5 GHz、機器が 2.4 GHz で別サブネットだと mDNS が届かない</td></tr><tr><td><strong>メッシュ Wi-Fi</strong></td><td>中継機を跨ぐとマルチキャストが落ちることがある</td></tr><tr><td><strong>省電力モードでのマルチキャスト取りこぼし</strong></td><td>機器が mDNS クエリを見逃す</td></tr><tr><td><strong>DTIM 設定</strong></td><td>大きいと応答が遅れる</td></tr></tbody></table></div><blockquote><p><strong>「うちのルータでは動かない」というサポート問い合わせは必ず来る.</strong> 上記のどれかであることがほとんどである。 <strong>トラブルシューティング手順をドキュメント化しておくこと</strong>が実務上きわめて重要になる。</p></blockquote><h2>3. Ethernet</h2><p>最も素直に動く。Border Router、ハブ、ブリッジ、据置型の機器に向く。</p><div class="tablewrap"><table><thead><tr><th>利点</th><th>欠点</th></tr></thead><tbody><tr><td>安定・高速</td><td>配線が必要</td></tr><tr><td>マルチキャストの問題が起きにくい</td><td>設置場所が制約される</td></tr><tr><td>電源が確保されている前提が置ける</td><td>一般家庭では敷設されていないことが多い</td></tr></tbody></table></div><blockquote><p><strong>開発初期は Ethernet で作るのが賢い.</strong> ネットワークの不確定要素を排除して、Matter のロジックだけに集中できる。 Linux 上の <code>all-clusters-app</code> を Ethernet で動かし、 データモデルとインタラクションを固めてから、無線に移す——という順序が効率的である。</p></blockquote><h2>4. BLE — コミッショニングの入口</h2><h3>なぜ BLE が必要なのか</h3><p>新品の機器は、<strong>まだ Wi-Fi のパスワードも Thread の Dataset も知らない</strong>。 ネットワークに入れないので、IP で通信できない。</p><p>そこで、<strong>まだネットワークに入っていない機器と話す経路</strong>が要る。それが BLE である。</p><pre><code>1. 機器が BLE でアドバタイズ（「私はコミッショニング待ちです」）
+2. スマホが BLE で接続
+3. BLE 上で PASE セッションを確立（13 章）
+4. BLE 経由で Wi-Fi 認証情報 or Thread Dataset を渡す
+5. 機器がネットワークに参加
+6. 以降は IP（Wi-Fi / Thread）で通信。BLE は切断</code></pre><h3>BTP（Bluetooth Transport Protocol）</h3><p>BLE は MTU が小さい（デフォルト 23 bytes、拡張しても 244 bytes 程度）ので、 Matter のメッセージをそのまま載せられない。</p><p><strong>BTP</strong> が、Matter メッセージを BLE の GATT 上でフラグメント／再構成する。</p><div class="tablewrap"><table><thead><tr><th>要素</th><th>内容</th></tr></thead><tbody><tr><td>サービス UUID</td><td>Matter 用に割り当てられた 16 bit UUID</td></tr><tr><td>Characteristic C1</td><td>クライアント → サーバ（Write）</td></tr><tr><td>Characteristic C2</td><td>サーバ → クライアント（Indicate）</td></tr><tr><td>Characteristic C3</td><td>追加データ（任意）</td></tr><tr><td>ハンドシェイク</td><td>ウィンドウサイズと MTU の折衝</td></tr><tr><td>フラグメント</td><td>セグメント化と再構成、フロー制御</td></tr></tbody></table></div><h3>BLE アドバタイズの中身</h3><p>コミッショニング待ちの機器は、以下を含むアドバタイズを出す。</p><div class="tablewrap"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><td>Discriminator</td><td>12 bit。どの機器かを絞り込む</td></tr><tr><td>Vendor ID / Product ID</td><td>機器の種類（任意）</td></tr><tr><td>Commissioning Mode</td><td>コミッショニング可能な状態か</td></tr></tbody></table></div><p>スマホは QR コードから読み取った Discriminator と突き合わせて、<strong>目的の機器を特定する</strong>。</p><blockquote><p><strong>Discriminator は「同時に複数台をセットアップする」ための識別子である.</strong> 家電量販店の店頭や、同じ機種を何台も設置する現場では、 周囲に同じ製品が複数コミッショニング待ちになっている。 Discriminator（12 bit = 4096 通り）で絞り込むことで、目的の 1 台を選べる。</p><p>完全にユニークではないので、<strong>製造時にランダムに割り当てる</strong>のが望ましい。 全個体で同じ Discriminator にすると、隣の機器を設定してしまう事故が起きる。</p></blockquote><h2>5. ネットワークの選び方</h2><div class="widget" data-widget="netchoice"></div><h3>判断フロー</h3><pre><code>電池駆動か？
+ ├─ はい → 常時の即応性が必要か？
+ │          ├─ はい → Thread（SED、ポーリング間隔を短めに）
+ │          └─ いいえ → Thread（SED、ポーリング間隔を長く）※電池寿命最優先
+ └─ いいえ（常時給電）
+      ├─ 大きなデータを流す（映像・音声）か？ → Wi-Fi
+      ├─ 有線を引ける据置機器か？ → Ethernet
+      ├─ ユーザーにハブを要求できるか？
+      │     ├─ できる → Thread（多数配置なら特に有利）
+      │     └─ できない → Wi-Fi
+      └─ 既存 Wi-Fi 製品の Matter 対応 → Wi-Fi（ハード変更なしの可能性）</code></pre><h3>比較表</h3><div class="tablewrap"><table><thead><tr><th>観点</th><th>Wi-Fi</th><th>Thread</th><th>Ethernet</th></tr></thead><tbody><tr><td>電池駆動</td><td>ほぼ不可</td><td><strong>○</strong></td><td>不可</td></tr><tr><td>スループット</td><td>高い</td><td>250 kbps</td><td>高い</td></tr><tr><td>到達範囲</td><td>ルータ次第</td><td><strong>メッシュで拡張</strong></td><td>ケーブル次第</td></tr><tr><td>ハブ（Border Router）</td><td>不要</td><td><strong>必要</strong></td><td>不要</td></tr><tr><td>SoC コスト</td><td>やや高</td><td>やや低</td><td>—</td></tr><tr><td>設置の手軽さ</td><td>○</td><td>○</td><td>×</td></tr><tr><td>ネットワークトラブル</td><td>起きやすい</td><td>Border Router 依存</td><td>少ない</td></tr></tbody></table></div><blockquote><p><strong>多くのメーカーが両方を出している.</strong> 同じ製品ラインで Wi-Fi 版と Thread 版を用意し、 ユーザーの環境に合わせて選ばせる。SDK は共通なので、 <strong>プラットフォーム抽象化さえきちんとしておけば、アプリ層は使い回せる</strong>。</p></blockquote><h2>6. 同時対応（マルチトランスポート）</h2><p>1 台の機器が Wi-Fi と Thread の両方を持つ構成もありうる。</p><div class="tablewrap"><table><thead><tr><th>メリット</th><th>デメリット</th></tr></thead><tbody><tr><td>ユーザー環境を選ばない</td><td>BOM コストが上がる</td></tr><tr><td>Border Router が無くても動く</td><td>2 つのラジオの共存設計が必要</td></tr><tr><td>—</td><td>認証も両方必要になる可能性</td></tr></tbody></table></div><blockquote><p><strong>仕様上、Matter の運用トランスポートは基本的に 1 つを選ぶ.</strong> 「Wi-Fi と Thread を同時に運用する」構成は複雑さの割に得るものが少ない。 実際には、<strong>両対応 SoC を載せて、コミッショニング時にどちらかを選ぶ</strong>設計が現実的である。</p></blockquote><h2>7. 開発時の構成例</h2><h3>最速で動かす（Ethernet / Linux）</h3><pre><code class="lang-bash"># Linux 上でサンプルを直接実行。ネットワークの不確定要素がゼロ
+./out/linux-x64-all-clusters/chip-all-clusters-app
+# 別端末から
+./out/linux-x64-chip-tool/chip-tool pairing onnetwork 1 20202021
+./out/linux-x64-chip-tool/chip-tool onoff toggle 1 1</code></pre><h3>Wi-Fi 機器の開発（ESP32 の例）</h3><pre><code class="lang-bash"># esp-matter 環境で
+idf.py set-target esp32
+idf.py build flash monitor
+# BLE 経由でコミッショニング（Wi-Fi 認証情報を渡す）
+chip-tool pairing ble-wifi 1 &lt;SSID&gt; &lt;PASSWORD&gt; 20202021 3840</code></pre><h3>Thread 機器の開発</h3><pre><code class="lang-bash"># Border Router の Dataset を取得
+ot-ctl dataset active -x
+# BLE 経由でコミッショニング（Thread Dataset を渡す）
+chip-tool pairing ble-thread 1 hex:&lt;dataset&gt; 20202021 3840</code></pre><blockquote><p><strong><code>20202021</code> と <code>3840</code> は SDK のサンプルのデフォルト値である</strong> （テスト用の passcode と discriminator）。 <strong>製品では必ず個体ごとに変えること</strong>（13 章・22 章）。 全製品が同じ passcode だと、誰でもコミッショニングできてしまう。</p></blockquote><h2>8. 落とし穴</h2><div class="tablewrap"><table><thead><tr><th>落とし穴</th><th>対処</th></tr></thead><tbody><tr><td>BLE を運用通信に使おうとする</td><td>仕様上できない。設計を見直す</td></tr><tr><td>Wi-Fi + 電池を想定する</td><td>消費電力を実測して現実性を確認する</td></tr><tr><td>Discriminator が全個体同じ</td><td>製造時にランダム割り当て</td></tr><tr><td>BLE アドバタイズを止め忘れる</td><td>コミッショニング完了後は停止する（電力・セキュリティ両面）</td></tr><tr><td>5 GHz 前提の設計</td><td>多くの Matter SoC は 2.4 GHz のみ</td></tr><tr><td>ルータの IPv6 が無効</td><td>ユーザー向けドキュメントで案内が必要</td></tr><tr><td>BLE と Wi-Fi/Thread の共存</td><td>同じ 2.4 GHz。コエグジスタンス設定を確認する</td></tr></tbody></table></div><blockquote><p><strong>BLE アドバタイズの停止は忘れられがちである.</strong> コミッショニングが完了したら、BLE は不要になる。 出し続けると電力を消費し、また 「コミッショニング待ちに見える」状態が残ってセキュリティ上も望ましくない。 ただし<strong>再コミッショニング用に、条件付きで再開できる</strong>必要はある（14 章）。</p></blockquote><h2>9. まとめ</h2><ul><li>Matter の運用トランスポートは <strong>Wi-Fi / Ethernet / Thread</strong>。<strong>BLE はコミッショニング専用</strong>。</li><li>BLE では <strong>BTP</strong> が Matter メッセージをフラグメントして GATT で運ぶ。</li><li>BLE アドバタイズには <strong>Discriminator</strong> が入り、複数台の中から目的の 1 台を特定する。 <strong>個体ごとにランダムであるべき</strong>。</li><li><strong>Wi-Fi + 電池は原則として成立しない</strong>。電池機器は Thread。</li><li>Thread は Border Router（ハブ）が必要——これは<strong>商品企画上の判断</strong>でもある。</li><li>開発初期は <strong>Ethernet / Linux</strong> で動かすと、ネットワーク要因を排除できて速い。</li></ul>
+  <nav class="chnav"><a class="pn" href="04.html"><span>←</span><b>Thread — 低消費電力 IPv6 メッシュ</b></a><a class="pn nx" href="06.html"><b>探索とメッセージング — DNS-SD と MRP</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>
