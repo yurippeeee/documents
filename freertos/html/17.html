@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>17. スタックとオーバーフロー — 最も多い「原因不明のクラッシュ」の正体 — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">17 · スタックとオーバーフロー — 最も多い「原因不明のクラッシュ」の正体</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 17</p>
+  <h1 class="doctitle">スタックとオーバーフロー — 最も多い「原因不明のクラッシュ」の正体</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——RTOS のバグで最も多いのがこれだから.</strong></p><p>「たまに再起動する」「デバッグビルドでは動くのにリリースで落ちる」 「printf を足したら動かなくなった」—— <strong>これらの症状の相当部分がスタックオーバーフローである。</strong></p><p>しかも症状が出るまでに時間がかかり、出る場所が原因の場所と無関係なので、 <strong>原因究明が極端に難しい</strong>。だから先に知っておく必要がある。</p></blockquote><h2>1. なぜ RTOS でスタックが問題になるのか</h2><p>OS を使わないプログラムでは、スタックは<strong>1 本だけ</strong>である。 リンカが「RAM の末尾から下向きに、残り全部」を割り当てるので、 たいていは十分な余裕がある。</p><p><strong>RTOS では、タスクごとにスタックが要る。</strong></p><pre><code>RAM 全体（例: 64 KB）
+┌────────────────────────────────┐
+│ .data / .bss（グローバル変数）    │
+├────────────────────────────────┤
+│ FreeRTOS ヒープ                  │
+│   ├ TaskA のスタック (1 KB)      │
+│   ├ TaskB のスタック (1 KB)      │  ← ここが全部固定サイズ
+│   ├ TaskC のスタック (512 B)     │
+│   └ キュー・セマフォなど          │
+├────────────────────────────────┤
+│ 割り込み用スタック（MSP）         │
+└────────────────────────────────┘</code></pre><p><strong>各タスクのスタックは固定サイズで、しかも小さい。</strong> そして——<strong>溢れても、CPU は何も教えてくれない</strong>。 隣のメモリを黙って書き換えるだけである。</p><blockquote><p><strong>これが最悪の性質である.</strong></p><p>TaskA のスタックが溢れると、<strong>TaskB の TCB やスタックを壊す</strong>。 すると、しばらく経ってから <strong>TaskB が異常な動作をする</strong>。</p><ul><li>原因: TaskA の深い関数呼び出し</li><li>症状: TaskB のクラッシュ</li></ul><p><strong>原因と症状が別のタスクに現れる。</strong> デバッガで追っても、 「TaskB のここでポインタが壊れている」までしか分からない。</p></blockquote><h2>2. スタックには何が積まれるか</h2><div class="tablewrap"><table><thead><tr><th>項目</th><th>サイズの目安</th></tr></thead><tbody><tr><td><strong>コンテキスト退避</strong></td><td>Cortex-M4: 約 64 バイト、M4F（FPU 使用時）: 約 200 バイト</td></tr><tr><td><strong>関数の戻りアドレス</strong></td><td>4 バイト × 呼び出しの深さ</td></tr><tr><td><strong>退避レジスタ</strong></td><td>関数 1 段あたり 8〜32 バイト</td></tr><tr><td><strong>ローカル変数</strong></td><td>関数ごとに異なる。配列があると一気に増える</td></tr><tr><td><strong>関数の引数</strong>（レジスタに載らない分）</td><td>5 個目以降</td></tr><tr><td><strong>割り込みのネスト</strong></td><td>Cortex-M は<strong>タスクスタックを使う</strong>ので加算が必要</td></tr></tbody></table></div><h3>割り込みがタスクスタックを使う</h3><p>これは Cortex-M で特に重要である。</p><pre><code>通常時（タスク実行中）:  PSP がタスクスタックを指す
+割り込み発生:            ハードウェアが PSP のスタックに 8 レジスタを積む
+                          → ★ タスクのスタックが消費される
+割り込みハンドラ実行:     MSP に切り替わる（ハンドラのローカル変数は MSP 側）</code></pre><p>つまり、<strong>割り込みハンドラが軽くても、割り込みが入るだけでタスクスタックが 32〜100 バイト減る</strong>。 しかも<strong>割り込みがネストすれば、その分だけ増える</strong>。</p><blockquote><p><strong>だからスタック計算に「割り込み分」を必ず足す.</strong></p><div class="eqn">\[ S_{\text{必要}} = S_{\text{最深呼出}} + S_{\text{コンテキスト}} + N_{\text{ネスト}} \times S_{\text{割込}} + \text{マージン} \]</div><p>割り込みの最大ネスト段数を把握していないなら、<strong>保守的に見積もる</strong>しかない。 割り込み優先度の段数分だけネストしうる、と考えるのが安全側である。</p></blockquote><h2>3. スタック使用量を測る — High Water Mark</h2><p>FreeRTOS は、タスク生成時にスタック全体を<strong>特定の値で埋める</strong>。</p><pre><code class="lang-c">#if ( ( configCHECK_FOR_STACK_OVERFLOW &gt; 1 ) || ( configUSE_TRACE_FACILITY == 1 ) \
+      || ( INCLUDE_uxTaskGetStackHighWaterMark == 1 ) )
+{
+    ( void ) memset( pxStack, ( int ) tskSTACK_FILL_BYTE,
+                     ( size_t ) ulStackDepth * sizeof( StackType_t ) );
+}
+#endif</code></pre><pre><code class="lang-c">#define tskSTACK_FILL_BYTE  ( 0xa5U )</code></pre><p><strong>まだ 0xA5 のままの領域＝一度も使われていない領域</strong>である。</p><pre><code>pxStack ──→ ┌────────────────┐
+            │ A5 A5 A5 A5    │  ← 未使用（ここが High Water Mark = 余裕）
+            │ A5 A5 A5 A5    │
+            ├────────────────┤ ← ここまで使ったことがある
+            │ (使用済み)      │
+            │      ⋮         │
+            └────────────────┘</code></pre><pre><code class="lang-c">UBaseType_t uxTaskGetStackHighWaterMark( TaskHandle_t xTask );</code></pre><p><strong>戻り値は「一度も使われていない残りワード数」</strong>である。 0 に近いほど危険。<strong>バイト数ではなくワード数</strong>なので、32 bit CPU なら 4 倍する。</p><pre><code class="lang-c">void vMonitorTask( void *pv )
+{
+    for (;;) {
+        UBaseType_t hwm = uxTaskGetStackHighWaterMark( xWorkerTask );
+        printf( "worker stack margin: %u words (%u bytes)\n",
+                (unsigned)hwm, (unsigned)(hwm * sizeof(StackType_t)) );
+        vTaskDelay( pdMS_TO_TICKS( 5000 ) );
+    }
+}</code></pre><h3>スタック使用量を見る</h3><div class="widget" data-widget="stack"></div><p>関数の深さやローカル変数を変えて、 スタック使用量と High Water Mark がどう変わるかを確かめられる。</p><blockquote><p><strong>High Water Mark には限界がある.</strong></p><p><strong>「まだ深い経路を通っていないだけ」かもしれない。</strong></p><pre><code class="lang-c">if( rare_condition ) {
+    deep_error_handling();      /* ← 普段は通らない。通ると 500 バイト使う */
+}</code></pre><p>通常運転で測って「余裕 300 ワード」でも、 エラー処理経路に入った瞬間に溢れる、ということが起きる。</p><p><strong>対策:</strong></p><ul><li><strong>エラー経路も含めてテストする</strong>（フォールトインジェクション）</li><li><strong>静的解析ツールで最悪呼び出し深さを求める</strong>（GCC の <code>-fstack-usage</code>、 あるいは商用のスタック解析ツール）</li><li><strong>マージンを厚めに取る</strong>（30〜50 %）</li></ul></blockquote><h3><code>-fstack-usage</code> を使う</h3><pre><code class="lang-bash">gcc -fstack-usage -c task.c
+cat task.su</code></pre><pre><code>task.c:42:6:vSensorTask    96      static
+task.c:58:5:process_data   248     static
+task.c:71:5:format_output  1064    dynamic</code></pre><p>各関数のスタック使用量が分かる。 <code>dynamic</code> は可変長配列や <code>alloca</code> を使っている印であり、<strong>組み込みでは避けるべき</strong>である。</p><blockquote><p><strong>呼び出しグラフと組み合わせると、最悪深さが計算できる.</strong> <code>cflow</code> や商用ツールで呼び出しグラフを作り、 各経路の <code>.su</code> の値を足し合わせて最大値を取る。 <strong>再帰があると計算できない</strong>ので、組み込みでは再帰も避ける。</p></blockquote><h2>4. オーバーフロー検出</h2><pre><code class="lang-c">#define configCHECK_FOR_STACK_OVERFLOW  2</code></pre><div class="tablewrap"><table><thead><tr><th>値</th><th>方法</th><th>検出できるもの</th><th>コスト</th></tr></thead><tbody><tr><td><code>0</code></td><td>検出しない</td><td>—</td><td>なし</td></tr><tr><td><code>1</code></td><td><strong>切り替え時にスタックポインタを確認</strong></td><td>SP が範囲外に出た場合</td><td>小</td></tr><tr><td><code>2</code></td><td>方法 1 ＋ <strong>末尾 20 バイトのパターン確認</strong></td><td>深く踏み込んだ形跡</td><td>中</td></tr></tbody></table></div><h3>方法 1 の実装</h3><pre><code class="lang-c">#define taskCHECK_FOR_STACK_OVERFLOW()                                       \
+{                                                                             \
+    if( pxCurrentTCB-&gt;pxTopOfStack &lt;= pxCurrentTCB-&gt;pxStack ) {               \
+        vApplicationStackOverflowHook( ( TaskHandle_t ) pxCurrentTCB,         \
+                                       pxCurrentTCB-&gt;pcTaskName );            \
+    }                                                                         \
+}</code></pre><p><strong>コンテキストスイッチのときにしか確認しない</strong>ので、 「切り替えの合間に深く踏み込んで、戻ってきた」場合は見逃す。</p><h3>方法 2 の実装</h3><pre><code class="lang-c">#define taskCHECK_FOR_STACK_OVERFLOW()                                        \
+{                                                                              \
+    const uint32_t * const pulStack = ( uint32_t * ) pxCurrentTCB-&gt;pxStack;    \
+    const uint32_t ulCheckValue = ( uint32_t ) 0xa5a5a5a5;                     \
+                                                                               \
+    if( ( pulStack[ 0 ] != ulCheckValue ) ||                                   \
+        ( pulStack[ 1 ] != ulCheckValue ) ||                                   \
+        ( pulStack[ 2 ] != ulCheckValue ) ||                                   \
+        ( pulStack[ 3 ] != ulCheckValue ) )                                    \
+    {                                                                          \
+        vApplicationStackOverflowHook( ( TaskHandle_t ) pxCurrentTCB,          \
+                                       pxCurrentTCB-&gt;pcTaskName );             \
+    }                                                                          \
+}</code></pre><p><strong>スタックの末端 16 バイトが 0xA5 のままかを確認する。</strong> 一時的に深く踏み込んだ形跡も残るので、方法 1 より検出力が高い。</p><blockquote><p><strong>どちらも「完全」ではない.</strong></p><ul><li>検出は<strong>切り替えのときだけ</strong></li><li>末端 16 バイトを<strong>飛び越えて</strong>さらに深く書いた場合、パターンは残っているかもしれない</li><li><strong>ポインタバグによる暴走書き込み</strong>は検出できない</li></ul><p>それでも、<strong>あるとないとでは大違いである</strong>。開発中は必ず <code>2</code> にすること。 リリースでも、コストが許すなら <code>1</code> は残しておく価値がある。</p></blockquote><h3>フックの書き方</h3><pre><code class="lang-c">void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
+{
+    /* ★ ここでは、そのタスクのスタックが既に壊れている前提で書く */
+    taskDISABLE_INTERRUPTS();
+
+    /* 不揮発メモリにタスク名を記録してからリセットするのが実用的 */
+    save_crash_info( pcTaskName );
+    system_reset();
+}</code></pre><blockquote><p><strong>フックの中で複雑なことをしてはいけない.</strong></p><p>スタックが壊れているので、<strong>関数呼び出し自体が危険</strong>である。 <code>printf</code> を呼ぶと、その中でさらにスタックを使って、二次被害を起こす。</p><p><strong>最小限の記録をして、リセットする</strong>のが現実的である。 どのタスクで起きたかさえ分かれば、原因の絞り込みには十分である。</p></blockquote><h2>5. MPU によるハードウェア検出</h2><p>Cortex-M3 以上には <strong>MPU (Memory Protection Unit)</strong> があり、 「このアドレス範囲への書き込みを禁止する」設定ができる。</p><p><strong>スタックの末端に MPU 領域を設定すると、 オーバーフローした瞬間に MemManage フォールトが発生する。</strong></p><div class="tablewrap"><table><thead><tr><th>方法</th><th>検出タイミング</th><th>精度</th></tr></thead><tbody><tr><td><code>configCHECK_FOR_STACK_OVERFLOW</code></td><td><strong>切り替えのとき</strong></td><td>事後（既に壊れている）</td></tr><tr><td><strong>MPU</strong></td><td><strong>溢れた瞬間</strong></td><td><strong>正確</strong>（PC が原因の場所を指す）</td></tr></tbody></table></div><p>FreeRTOS-MPU（<code>portable/GCC/ARM_CM4_MPU</code> など）を使うと、 タスクごとの MPU 設定が自動化される。</p><blockquote><p><strong>MPU 版は設定が複雑になる代償がある.</strong></p><ul><li>各タスクがアクセスできる領域を明示的に宣言する必要がある</li><li>特権モード／非特権モードの区別が発生する</li><li>デバッグが難しくなる（フォールトの原因解析が要る）</li></ul><p><strong>開発中に一時的に使う</strong>、あるいは <strong>安全性が要求される製品で本格導入する</strong>、のどちらかである。 Cortex-M8.1（v8-M）以降には<strong>スタックリミットレジスタ (PSPLIM)</strong> があり、 MPU より簡単に同じ検出ができる。移植層が対応していれば有効にする価値が高い。</p></blockquote><h2>6. スタックサイズの決め方 — 実務的な手順</h2><div class="tablewrap"><table><thead><tr><th>手順</th><th>内容</th></tr></thead><tbody><tr><td>1</td><td><strong>多めに割り当てる</strong>（例: 2048 バイト）。まず動かす</td></tr><tr><td>2</td><td><strong>十分に長時間・全経路を実行する</strong>（エラー処理も含む）</td></tr><tr><td>3</td><td><code>uxTaskGetStackHighWaterMark()</code> で余裕を測る</td></tr><tr><td>4</td><td><strong>使用量 × 1.5 ＋ 割り込み分</strong>まで削る</td></tr><tr><td>5</td><td>もう一度長時間動かして確認する</td></tr></tbody></table></div><pre><code class="lang-c">/* 手順 3 の測定用タスク */
+void vStackMonitor( void *pv )
+{
+    TaskStatus_t *pxStatus;
+    UBaseType_t n;
+
+    for (;;) {
+        vTaskDelay( pdMS_TO_TICKS( 10000 ) );
+
+        n = uxTaskGetNumberOfTasks();
+        pxStatus = pvPortMalloc( n * sizeof( TaskStatus_t ) );
+        if( pxStatus != NULL ) {
+            n = uxTaskGetSystemState( pxStatus, n, NULL );
+            for( UBaseType_t i = 0; i &lt; n; i++ ) {
+                printf( "%-16s margin=%4u words\n",
+                        pxStatus[i].pcTaskName,
+                        (unsigned)pxStatus[i].usStackHighWaterMark );
+            }
+            vPortFree( pxStatus );
+        }
+    }
+}</code></pre><h3>目安の値</h3><div class="tablewrap"><table><thead><tr><th>タスクの内容</th><th>スタックサイズの目安（バイト）</th></tr></thead><tbody><tr><td>LED 点滅など極小</td><td>256〜512</td></tr><tr><td>センサ読み取り・単純な制御</td><td>512〜1024</td></tr><tr><td>通信プロトコル処理</td><td>1024〜2048</td></tr><tr><td><strong><code>printf</code> を使う</strong></td><td><strong>+1024〜2048</strong></td></tr><tr><td><strong><code>sprintf("%f")</code> を使う</strong></td><td><strong>+2048 以上</strong></td></tr><tr><td>ファイルシステム・TCP/IP</td><td>2048〜4096</td></tr></tbody></table></div><blockquote><p><strong><code>printf</code> の問題は本当に深刻である.</strong></p><p>newlib の完全版 <code>printf</code> は、内部で <code>malloc</code> を呼び、 数キロバイトのスタックを使うことがある。</p><p><strong>対策:</strong></p><ul><li><code>newlib-nano</code> を使う（<code>-specs=nano.specs</code>）</li><li>軽量 <code>printf</code> 実装（<code>mpaland/printf</code> など）に差し替える</li><li><strong>ログ専用タスクを 1 つ作り、そこだけ大きなスタックを与える</strong></li></ul><p>3 つ目が最も実用的である。他のタスクは 「ログ文字列をキューに送るだけ」にすれば、スタックを小さく保てる。</p></blockquote><h2>7. 事故を減らす習慣</h2><div class="tablewrap"><table><thead><tr><th>習慣</th><th>効果</th></tr></thead><tbody><tr><td><strong>大きな配列をローカルに置かない</strong></td><td><code>static</code> かヒープへ</td></tr><tr><td><strong>再帰を使わない</strong></td><td>深さが計算できなくなる</td></tr><tr><td><strong>可変長配列 (VLA) と <code>alloca</code> を使わない</strong></td><td>同上</td></tr><tr><td><strong>深い関数呼び出しを避ける</strong></td><td>特にライブラリ関数のネスト</td></tr><tr><td><strong><code>printf</code> をタスクに直接書かない</strong></td><td>ログタスクに集約</td></tr><tr><td><strong>割り込みハンドラを浅く保つ</strong></td><td>タスクスタックを消費する</td></tr><tr><td><strong><code>configASSERT</code> を有効にする</strong></td><td>関連するミスが捕まる</td></tr></tbody></table></div><pre><code class="lang-c">/* 悪い例 */
+void vTask( void *pv ) {
+    uint8_t buf[ 2048 ];        /* ← スタックに 2 KB */
+    ...
+}
+
+/* 良い例 */
+static uint8_t buf[ 2048 ];      /* ← .bss に置く */
+void vTask( void *pv ) {
+    ...
+}</code></pre><blockquote><p><strong><code>static</code> にすると再入不可になる点に注意.</strong> 同じ関数から複数のタスクを作る場合（02 章）、<code>static</code> バッファは共有される。 その場合はミューテックスで守るか、タスクごとにバッファを渡す設計にすること。</p></blockquote><h2>8. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>なぜ問題か</td><td>タスクごとに<strong>固定サイズ</strong>で、しかも<strong>溢れても検出されない</strong></td></tr><tr><td>最悪の性質</td><td><strong>原因と症状が別のタスクに現れる</strong></td></tr><tr><td>割り込み</td><td>Cortex-M では<strong>タスクスタックを消費する</strong>。ネスト分を加算</td></tr><tr><td>High Water Mark</td><td>0xA5 の埋め草で測る。<strong>ワード単位</strong></td></tr><tr><td>HWM の限界</td><td>「まだ深い経路を通っていない」可能性がある</td></tr><tr><td><code>-fstack-usage</code></td><td>静的に各関数の使用量が分かる。<code>dynamic</code> は要注意</td></tr><tr><td>検出設定</td><td>開発中は <code>configCHECK_FOR_STACK_OVERFLOW = 2</code></td></tr><tr><td>フック</td><td><strong>最小限の記録＋リセット</strong>。複雑なことをしない</td></tr><tr><td>MPU / PSPLIM</td><td><strong>溢れた瞬間</strong>に捕まる。最も正確</td></tr><tr><td><code>printf</code></td><td>単独で 1〜2 KB。<strong>ログ専用タスクに集約する</strong></td></tr></tbody></table></div><p>ここまでで第 IV 部は終わりである。 次章から第 V 部——「正しく動かす」ための知識に入る。 まずは、最も間違いが起きやすい境界——割り込みとの関係である。</p>
+  <nav class="chnav"><a class="pn" href="16.html"><span>←</span><b>メモリ管理 — heap_1〜heap_5 のどれを選ぶか</b></a><a class="pn nx" href="18.html"><b>割り込みとの境界 — FromISR がなぜ別 API なのか</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

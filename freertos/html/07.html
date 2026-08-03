@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>07. Ready リストの実装 — なぜ O(1) で次のタスクが決まるのか — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">07 · Ready リストの実装 — なぜ O(1) で次のタスクが決まるのか</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 07</p>
+  <h1 class="doctitle">Ready リストの実装 — なぜ O(1) で次のタスクが決まるのか</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——リアルタイム OS の「リアルタイム」はここにある.</strong></p><p>「最高優先度の Ready タスクを選ぶ」——素朴にやればタスク数に比例した時間がかかる。 だが<strong>タスク数に依存して切り替え時間が変わる OS は、リアルタイム OS を名乗れない</strong>。 最悪実行時間が計算できなくなるからである。</p><p>FreeRTOS はこれを <strong>O(1)</strong>、つまり<strong>タスクが何個あっても一定時間</strong>で行う。 その仕掛けは驚くほど単純で、そして美しい。</p></blockquote><h2>1. <code>list.c</code> — すべての土台</h2><p>FreeRTOS のカーネルは、<strong>たった 1 種類のデータ構造</strong>の上に立っている。 <strong>番兵付き循環双方向リンクリスト</strong>である。</p><pre><code class="lang-c">typedef struct xLIST_ITEM
+{
+    TickType_t          xItemValue;     /* 並べ替えの鍵（優先度 or 起床時刻） */
+    struct xLIST_ITEM  *pxNext;
+    struct xLIST_ITEM  *pxPrevious;
+    void               *pvOwner;        /* この項目を持っている TCB へのポインタ */
+    struct xLIST       *pvContainer;    /* いま所属しているリストへのポインタ */
+} ListItem_t;
+
+typedef struct xLIST
+{
+    volatile UBaseType_t uxNumberOfItems;
+    ListItem_t * volatile pxIndex;      /* 走査用のカーソル */
+    MiniListItem_t xListEnd;            /* 番兵（終端マーカー） */
+} List_t;</code></pre><h3>3 つの工夫</h3><p><strong>工夫 1: 循環している</strong></p><pre><code>     ┌──────────────────────────────────┐
+     ↓                                  │
+  [xListEnd] ⇄ [ItemA] ⇄ [ItemB] ⇄ [ItemC]
+     ↑                                  │
+     └──────────────────────────────────┘</code></pre><p>末尾の次は先頭に戻る。だから「末尾に追加」も「先頭を取る」も、 <strong>NULL チェックが要らない</strong>。分岐が減り、コードが短くなる。</p><p><strong>工夫 2: 番兵 (<code>xListEnd</code>) がある</strong></p><p><code>xListEnd.xItemValue = portMAX_DELAY</code>（最大値）に固定されている。 昇順ソートで挿入するとき、<strong>必ず番兵の手前で止まる</strong>ので、 「リストの終端に着いた」という特別扱いが不要になる。</p><p><strong>工夫 3: <code>pvContainer</code> を持っている</strong></p><p>各項目が「自分がいまどのリストにいるか」を知っている。だから——</p><pre><code class="lang-c">void uxListRemove( ListItem_t * const pxItemToRemove )
+{
+    List_t * const pxList = pxItemToRemove-&gt;pvContainer;    /* 自分で分かる */
+
+    pxItemToRemove-&gt;pxNext-&gt;pxPrevious = pxItemToRemove-&gt;pxPrevious;
+    pxItemToRemove-&gt;pxPrevious-&gt;pxNext = pxItemToRemove-&gt;pxNext;
+
+    if( pxList-&gt;pxIndex == pxItemToRemove ) {
+        pxList-&gt;pxIndex = pxItemToRemove-&gt;pxPrevious;
+    }
+    pxItemToRemove-&gt;pvContainer = NULL;
+    ( pxList-&gt;uxNumberOfItems )--;
+
+    return pxList-&gt;uxNumberOfItems;
+}</code></pre><p><strong>リストを探索せずに、O(1) で削除できる。</strong> これが「イベント待ちのタスクを 2 つのリストから外す」（04 章）を高速にしている。</p><h3>リストの操作</h3><div class="widget" data-widget="listops"></div><p>挿入・削除・カーソル移動が実際にどう動くかを確かめられる。</p><h3>2 種類の挿入</h3><div class="tablewrap"><table><thead><tr><th>関数</th><th>挿入位置</th><th>使われる場面</th></tr></thead><tbody><tr><td><code>vListInsertEnd()</code></td><td><strong>カーソル <code>pxIndex</code> の直前</strong>（＝実質「末尾」）</td><td>Ready リストへの追加。<strong>O(1)</strong></td></tr><tr><td><code>vListInsert()</code></td><td><code>xItemValue</code> の<strong>昇順を保つ位置</strong></td><td>遅延リスト、イベント待ちリスト。<strong>O(n)</strong></td></tr></tbody></table></div><blockquote><p><strong><code>vListInsert()</code> は O(n) だが、それでよい.</strong></p><p>遅延リストは「起床時刻の昇順」で並んでいる必要がある。 そうすれば「先頭だけ見れば、次に起きるタスクが分かる」からである（10 章）。</p><p>挿入に O(n) かかるが、<strong>ティックごとの判定は O(1)</strong> になる。 ティック割り込みは毎ミリ秒来るのに対し、遅延リストへの挿入は タスクが寝るときだけ——<strong>頻度の高い方を速くする</strong>、正しいトレードオフである。</p></blockquote><h2>2. Ready リスト — 優先度ごとの配列</h2><pre><code class="lang-c">static List_t pxReadyTasksLists[ configMAX_PRIORITIES ];</code></pre><pre><code>優先度 4: pxReadyTasksLists[4] → [空]
+優先度 3: pxReadyTasksLists[3] → [TaskA]
+優先度 2: pxReadyTasksLists[2] → [TaskB] → [TaskC] → [TaskD]
+優先度 1: pxReadyTasksLists[1] → [空]
+優先度 0: pxReadyTasksLists[0] → [Idle]</code></pre><p><strong>優先度ごとに独立したリストを持つ</strong>——これが O(1) の第 1 の鍵である。</p><p>なぜなら:</p><ul><li><strong>追加</strong>: <code>vListInsertEnd(&amp;pxReadyTasksLists[prio], item)</code> → <strong>O(1)</strong>（ソート不要）</li><li><strong>削除</strong>: <code>uxListRemove(item)</code> → <strong>O(1)</strong>（<code>pvContainer</code> のおかげ）</li><li><strong>選択</strong>: 「空でない最高優先度」を見つけて、その先頭を取る → <strong>ここが問題</strong></li></ul><p>残った問題は「空でない最高優先度をどう見つけるか」だけである。</p><h3>Ready リストの動作</h3><div class="widget" data-widget="readylist"></div><p>タスクの優先度を変えたり、Ready/Blocked を切り替えたりして、 リストの状態と選ばれるタスクがどう変わるかを確かめられる。</p><h2>3. 選択方法 A: 汎用版（ビットマップなし）</h2><pre><code class="lang-c">#define taskSELECT_HIGHEST_PRIORITY_TASK()                                  \
+{                                                                            \
+    UBaseType_t uxTopPriority = uxTopReadyPriority;                          \
+                                                                             \
+    /* 空でないリストが見つかるまで優先度を下げていく */                      \
+    while( listLIST_IS_EMPTY( &amp;( pxReadyTasksLists[ uxTopPriority ] ) ) ) {   \
+        configASSERT( uxTopPriority );                                       \
+        --uxTopPriority;                                                     \
+    }                                                                        \
+                                                                             \
+    /* そのリストの「次の」項目を取る（＝ラウンドロビン） */                  \
+    listGET_OWNER_OF_NEXT_ENTRY( pxCurrentTCB,                               \
+                                 &amp;( pxReadyTasksLists[ uxTopPriority ] ) );  \
+    uxTopReadyPriority = uxTopPriority;                                      \
+}</code></pre><p>これは厳密には O(1) ではなく、<strong>O(<code>configMAX_PRIORITIES</code>)</strong> である。</p><p>ただし——<strong>タスク数には依存しない</strong>。 優先度の段数はコンパイル時に決まる定数なので、 <strong>最悪実行時間は計算できる</strong>。リアルタイム性の観点では、これで十分合格である。</p><blockquote><p><strong><code>uxTopReadyPriority</code> は「ヒント」である.</strong></p><p>この変数は「Ready なタスクがいる最高優先度<strong>以上</strong>の値」を保っている。 <strong>正確な値とは限らない</strong>（タスクがブロックしても下げないことがある）。</p><p>だから上のループは「ヒントから始めて、実際に空でないところまで下る」という形になる。 ヒントが多少ずれていても、<strong>下れば必ず正しい答えに着く</strong>（優先度 0 にはアイドルタスクが必ずいるから）。</p><p><code>configASSERT( uxTopPriority )</code> は「優先度 0 まで下って、そこも空だった」を捕まえる。 これが起きたら<strong>アイドルタスクが消えている</strong>ということで、カーネルの深刻な破損である。</p></blockquote><h3><code>listGET_OWNER_OF_NEXT_ENTRY</code> — ラウンドロビンの実体</h3><pre><code class="lang-c">#define listGET_OWNER_OF_NEXT_ENTRY( pxTCB, pxList )                     \
+{                                                                         \
+    List_t * const pxConstList = ( pxList );                              \
+    ( pxConstList )-&gt;pxIndex = ( pxConstList )-&gt;pxIndex-&gt;pxNext;          \
+    if( ( void * ) ( pxConstList )-&gt;pxIndex                               \
+          == ( void * ) &amp;( ( pxConstList )-&gt;xListEnd ) ) {                \
+        ( pxConstList )-&gt;pxIndex = ( pxConstList )-&gt;pxIndex-&gt;pxNext;      \
+    }                                                                     \
+    ( pxTCB ) = ( pxConstList )-&gt;pxIndex-&gt;pvOwner;                        \
+}</code></pre><p><strong>カーソル <code>pxIndex</code> を 1 つ進めて、そこの持ち主を返す。</strong> 番兵に当たったらもう 1 つ進めて飛ばす。</p><p>これだけで、同一優先度のタスクが<strong>順繰りに選ばれる</strong>。 リストを並べ替える必要も、カウンタを持つ必要もない。<strong>カーソルが 1 個あればよい。</strong></p><blockquote><p><strong>これは非常にエレガントな実装である.</strong></p><p>ラウンドロビンを実装しようとすると、多くの人は 「実行したタスクをリストの末尾に移動する」と考える。 それでも動くが、<strong>リストの操作が 2 回（削除＋挿入）必要</strong>になる。</p><p>FreeRTOS は<strong>リストを一切触らず、カーソルだけ動かす</strong>。 操作は「ポインタを 1 つ進める」だけである。</p></blockquote><h2>4. 選択方法 B: ビットマップ最適化版</h2><pre><code class="lang-c">#define configUSE_PORT_OPTIMISED_TASK_SELECTION  1</code></pre><p>こちらは<strong>真の O(1)</strong> である。</p><pre><code class="lang-c">#define taskRECORD_READY_PRIORITY( uxPriority )                          \
+    portRECORD_READY_PRIORITY( ( uxPriority ), uxTopReadyPriority )
+
+/* Cortex-M の実装例 */
+#define portRECORD_READY_PRIORITY( uxPriority, uxReadyPriorities )       \
+    ( uxReadyPriorities ) |= ( 1UL &lt;&lt; ( uxPriority ) )
+
+#define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities )     \
+    uxTopPriority = ( 31UL - ( uint32_t ) __builtin_clz( uxReadyPriorities ) )</code></pre><h3>仕組み</h3><p><code>uxTopReadyPriority</code> を<strong>優先度ビットマップ</strong>として使う。</p><pre><code>uxTopReadyPriority = 0b00001101
+                       ││││││││
+                       │││││││└─ 優先度 0 に Ready あり（アイドル）
+                       ││││││└── 優先度 1 は空
+                       │││││└─── 優先度 2 に Ready あり
+                       ││││└──── 優先度 3 に Ready あり
+                       └───────── 優先度 4 以上は空
+
+最高優先度 = 最上位の立っているビット = 3</code></pre><p>「最上位の立っているビットを求める」は、多くの CPU に<strong>専用命令がある</strong>。</p><div class="tablewrap"><table><thead><tr><th>CPU</th><th>命令</th><th>意味</th></tr></thead><tbody><tr><td>ARM</td><td><code>CLZ</code></td><td>Count Leading Zeros（先頭のゼロを数える）</td></tr><tr><td>RISC-V (Zbb)</td><td><code>clz</code></td><td>同上</td></tr><tr><td>x86</td><td><code>BSR</code> / <code>LZCNT</code></td><td>Bit Scan Reverse</td></tr><tr><td>PowerPC</td><td><code>cntlzw</code></td><td>Count Leading Zeros Word</td></tr></tbody></table></div><p><code>CLZ</code> は<strong>1 命令、1 サイクル</strong>である。だから優先度の選択が</p><div class="eqn">\[ \text{priority} = 31 - \text{CLZ}(\text{bitmap}) \]</div><p>——<strong>1 サイクル</strong>で終わる。これが真の O(1) である。</p><h3>ビットマップの制約</h3><div class="tablewrap"><table><thead><tr><th>制約</th><th>理由</th></tr></thead><tbody><tr><td><code>configMAX_PRIORITIES</code> ≤ 32</td><td>ビットマップが 1 ワード（32 bit）だから</td></tr><tr><td>CPU に <code>CLZ</code> 相当がある</td><td>ない場合は C のループになり、利点が薄れる</td></tr></tbody></table></div><blockquote><p><strong>32 段を超えたい場合はどうするか.</strong></p><p>大きな OS では<strong>多段ビットマップ</strong>を使う。 Linux の O(1) スケジューラ（2.6 初期）は 140 段の優先度を 「ビットマップの配列 ＋ そのビットマップ」の 2 段構成で扱っていた。</p><p>だが組み込みで 32 段を超える設計はまず必要ない。 <strong>段数が多いほど、どこに置くべきか分からなくなる</strong>（06 章）。</p></blockquote><h2>5. 2 つの方式の比較</h2><div class="tablewrap"><table><thead><tr><th>観点</th><th>汎用版</th><th>ビットマップ版</th></tr></thead><tbody><tr><td>計算量</td><td>O(<code>configMAX_PRIORITIES</code>)</td><td><strong>O(1)</strong></td></tr><tr><td>実測（優先度 8 段）</td><td>約 10〜30 サイクル</td><td><strong>約 3 サイクル</strong></td></tr><tr><td>優先度の上限</td><td>制限なし</td><td><strong>32</strong></td></tr><tr><td>移植性</td><td><strong>どの CPU でも動く</strong></td><td><code>CLZ</code> 相当が必要</td></tr><tr><td>コードサイズ</td><td>小</td><td>小</td></tr></tbody></table></div><blockquote><p><strong>どちらを選ぶか.</strong></p><p><strong>CPU が対応しているなら、迷わずビットマップ版</strong>を使うべきである。 Cortex-M3 以上、RISC-V（Zbb 拡張あり）なら対応している。</p><p>Cortex-M0/M0+ は <code>CLZ</code> を持たないので汎用版になる。 ただし優先度が 5 段程度なら、汎用版でも数十サイクルで済む。 <strong>48 MHz なら 1 µs 未満</strong>なので、実用上の問題はまずない。</p></blockquote><h2>6. リストの使われ方まとめ</h2><p><code>List_t</code> は、カーネル全体でこう使われている。</p><div class="tablewrap"><table><thead><tr><th>リスト</th><th><code>xItemValue</code> の意味</th><th>ソート</th><th>挿入</th></tr></thead><tbody><tr><td><code>pxReadyTasksLists[p]</code></td><td>優先度（使われない）</td><td>しない</td><td><code>vListInsertEnd</code></td></tr><tr><td><code>xDelayedTaskList1/2</code></td><td><strong>起床時刻</strong>（絶対ティック）</td><td><strong>昇順</strong></td><td><code>vListInsert</code></td></tr><tr><td>イベント待ちリスト</td><td><strong><code>configMAX_PRIORITIES - 優先度</code></strong></td><td><strong>昇順</strong></td><td><code>vListInsert</code></td></tr><tr><td><code>xSuspendedTaskList</code></td><td>（使われない）</td><td>しない</td><td><code>vListInsertEnd</code></td></tr><tr><td><code>xPendingReadyList</code></td><td>（使われない）</td><td>しない</td><td><code>vListInsertEnd</code></td></tr><tr><td><code>xTasksWaitingTermination</code></td><td>（使われない）</td><td>しない</td><td><code>vListInsertEnd</code></td></tr></tbody></table></div><blockquote><p><strong>イベント待ちリストのソート鍵に注目してほしい.</strong></p><p><code>configMAX_PRIORITIES - uxPriority</code> を鍵にして<strong>昇順</strong>に並べる。 つまり実質的には<strong>優先度の降順</strong>である。</p><p>なぜこうするか。キューにデータが来たとき、 <strong>待っているタスクのうち最高優先度のものを起こす</strong>必要があるからである。 昇順ソート済みなら、<strong>先頭を取るだけで最高優先度が手に入る</strong>（O(1)）。</p><p>「昇順ソートしか用意せず、鍵の方をひっくり返す」—— <strong>コードを 1 種類に保つための工夫</strong>である。</p></blockquote><h2>7. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>唯一のデータ構造</td><td>番兵付き循環双方向リンクリスト</td></tr><tr><td>循環の利点</td><td>NULL チェックが不要</td></tr><tr><td>番兵の利点</td><td>ソート挿入で終端の特別扱いが不要</td></tr><tr><td><code>pvContainer</code></td><td><strong>探索せずに O(1) で削除</strong>できる</td></tr><tr><td>Ready リスト</td><td><strong>優先度ごとに独立したリスト</strong>。追加も削除も O(1)</td></tr><tr><td>汎用版の選択</td><td>O(<code>configMAX_PRIORITIES</code>)。<strong>タスク数には依存しない</strong></td></tr><tr><td>ビットマップ版</td><td><code>CLZ</code> 1 命令で O(1)。<strong>優先度 32 段まで</strong></td></tr><tr><td>ラウンドロビン</td><td><strong>カーソル <code>pxIndex</code> を 1 つ進めるだけ</strong>。リストは触らない</td></tr><tr><td>イベント待ちの鍵</td><td>優先度を反転して昇順に。<strong>先頭が最高優先度</strong></td></tr></tbody></table></div><p>次章では、この全体を駆動する唯一の時間源——ティック割り込みを見る。</p>
+  <nav class="chnav"><a class="pn" href="06.html"><span>←</span><b>スケジューリング方針 — 常に最高優先度が走る</b></a><a class="pn nx" href="08.html"><b>ティックとタイムスライス — 時間を刻む唯一の割り込み</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

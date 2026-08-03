@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>11. キュー — FreeRTOS の中核データ構造 — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">11 · キュー — FreeRTOS の中核データ構造</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 11</p>
+  <h1 class="doctitle">キュー — FreeRTOS の中核データ構造</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——<code>queue.c</code> は 1 本で 4 つのものを実装している.</strong></p><p>FreeRTOS におけるキュー・バイナリセマフォ・カウンティングセマフォ・ ミューテックス・再帰ミューテックスは、<strong>すべて同じ構造体・同じ関数</strong>でできている。</p><p>つまり<strong>キューを 1 つ理解すれば、残りは全部おまけ</strong>である。 逆に、キューを曖昧にしたままだと、セマフォもミューテックスも曖昧なままになる。</p></blockquote><h2>1. キューとは何か</h2><p><strong>タスク間・ISR とタスク間で、データを安全に受け渡す FIFO バッファ</strong>である。</p><pre><code class="lang-c">QueueHandle_t q = xQueueCreate( 10, sizeof( int ) );   /* int を 10 個まで */
+
+/* 送る側 */
+int value = 42;
+xQueueSend( q, &amp;value, pdMS_TO_TICKS( 100 ) );
+
+/* 受ける側 */
+int received;
+xQueueReceive( q, &amp;received, portMAX_DELAY );</code></pre><p>FreeRTOS のキューには、<strong>3 つの重要な性質</strong>がある。</p><div class="tablewrap"><table><thead><tr><th>性質</th><th>内容</th></tr></thead><tbody><tr><td><strong>値渡し（コピー）</strong></td><td>ポインタではなく<strong>中身をコピー</strong>する</td></tr><tr><td><strong>ブロックできる</strong></td><td>満杯なら送信側が待ち、空なら受信側が待つ</td></tr><tr><td><strong>スレッドセーフ</strong></td><td>排他制御が内蔵されている。<strong>外側でロックする必要がない</strong></td></tr></tbody></table></div><h3>キューの動作</h3><div class="widget" data-widget="queue"></div><p>送信・受信・タイムアウトの様子と、待ちタスクがどう起こされるかを確かめられる。</p><h2>2. なぜ「値渡し」なのか</h2><p>これは FreeRTOS の最も重要な設計判断の 1 つである。</p><pre><code class="lang-c">xQueueSend( q, &amp;value, 0 );    /* value の「中身」がキューにコピーされる */</code></pre><p>送った後、<code>value</code> を書き換えても、キューの中のデータは変わらない。</p><blockquote><p><strong>これは大きな安全性をもたらす.</strong></p><p>ポインタを渡す設計だと、こういう事故が起きる。</p><pre><code class="lang-c">void vSenderTask( void *pv )
+{
+    for (;;) {
+        int local = read_sensor();
+        xQueueSend( q, &amp;local, 0 );      /* ← ポインタ渡しだったら？ */
+        /* この関数を抜けると local は消える。受信側は壊れたメモリを読む */
+    }
+}</code></pre><p>値渡しなら、<strong>送った瞬間にコピーが完了している</strong>ので、 送信側は何をしても構わない。<strong>所有権の問題が発生しない。</strong></p></blockquote><h3>値渡しのコスト</h3><p>大きなデータを送ると、コピーのコストがかかる。</p><div class="tablewrap"><table><thead><tr><th>データサイズ</th><th>キュー長</th><th>メモリ</th><th>コピー時間の目安</th></tr></thead><tbody><tr><td>4 バイト</td><td>10</td><td>40 バイト</td><td>数十 ns</td></tr><tr><td>64 バイト</td><td>10</td><td>640 バイト</td><td>数百 ns</td></tr><tr><td>1024 バイト</td><td>10</td><td><strong>10 KB</strong></td><td>数 µs</td></tr></tbody></table></div><p><strong>大きなデータは、ポインタを送る</strong>のが定石である。</p><pre><code class="lang-c">typedef struct { uint8_t *buf; size_t len; } Msg_t;
+
+Msg_t msg = { .buf = pvPortMalloc( 1024 ), .len = 1024 };
+fill( msg.buf );
+xQueueSend( q, &amp;msg, 0 );        /* 8 バイトのコピーで済む */
+
+/* 受信側が解放の責任を負う */
+xQueueReceive( q, &amp;msg, portMAX_DELAY );
+process( msg.buf, msg.len );
+vPortFree( msg.buf );</code></pre><blockquote><p><strong>ポインタを送る場合、「所有権」を設計で決めること.</strong></p><ul><li>誰が確保するか</li><li>誰が解放するか</li><li>キューが満杯で送れなかったとき、誰が解放するか（<strong>これを忘れるとリークする</strong>）</li></ul><pre><code class="lang-c">if( xQueueSend( q, &amp;msg, 0 ) != pdPASS ) {
+    vPortFree( msg.buf );      /* 送れなかったので自分で解放 */
+}</code></pre><p><strong>この設計判断を文書化しておかないと、必ずリークかダブルフリーが起きる。</strong></p></blockquote><h2>3. キューの内部構造</h2><pre><code class="lang-c">typedef struct QueueDefinition
+{
+    int8_t *pcHead;                    /* バッファの先頭 */
+    int8_t *pcWriteTo;                 /* 次に書く位置 */
+
+    union
+    {
+        QueuePointers_t     xQueue;    /* 通常のキューのとき */
+        SemaphoreData_t     xSemaphore;/* セマフォ／ミューテックスのとき */
+    } u;
+
+    List_t xTasksWaitingToSend;        /* 空きを待っているタスク */
+    List_t xTasksWaitingToReceive;     /* データを待っているタスク */
+
+    volatile UBaseType_t uxMessagesWaiting;   /* いま入っている個数 */
+    UBaseType_t uxLength;                     /* 最大個数 */
+    UBaseType_t uxItemSize;                   /* 1 個のバイト数 */
+
+    volatile int8_t cRxLock;           /* ロック中の受信回数 */
+    volatile int8_t cTxLock;           /* ロック中の送信回数 */
+    ...
+} xQUEUE;</code></pre><pre><code class="lang-c">typedef struct QueuePointers
+{
+    int8_t *pcTail;                    /* バッファの末尾 */
+    int8_t *pcReadFrom;                /* 最後に読んだ位置 */
+} QueuePointers_t;
+
+typedef struct SemaphoreData
+{
+    TaskHandle_t xMutexHolder;         /* ミューテックスの所有者（12 章） */
+    UBaseType_t  uxRecursiveCallCount; /* 再帰ミューテックスの深さ */
+} SemaphoreData_t;</code></pre><blockquote><p><strong><code>union</code> に注目してほしい.</strong></p><p>通常のキューは <code>pcTail</code> と <code>pcReadFrom</code> を使う。 セマフォ／ミューテックスは <code>xMutexHolder</code> と <code>uxRecursiveCallCount</code> を使う。 <strong>同時に使うことはない</strong>ので、<code>union</code> で重ねてメモリを節約している。</p><p>セマフォは <code>uxItemSize = 0</code> なので、バッファもポインタも不要である。 <strong>「個数だけを数えるキュー」がセマフォである。</strong> これで実装が完全に共有できる。</p></blockquote><h3>リングバッファ</h3><pre><code>uxLength = 4, uxItemSize = 4 のキュー
+
+pcHead ──→ ┌──────┬──────┬──────┬──────┐ ←── pcTail
+           │ item │ item │      │      │
+           └──────┴──────┴──────┴──────┘
+              ↑             ↑
+         pcReadFrom     pcWriteTo
+
+uxMessagesWaiting = 2</code></pre><p><code>pcWriteTo</code> が <code>pcTail</code> に達したら <code>pcHead</code> に戻る。<strong>単純なリングバッファ</strong>である。</p><h2>4. 送信 — <code>xQueueGenericSend()</code></h2><p>キューへの送信は、この 1 つの関数に集約されている。</p><pre><code class="lang-c">BaseType_t xQueueGenericSend( QueueHandle_t xQueue,
+                              const void * const pvItemToQueue,
+                              TickType_t xTicksToWait,
+                              const BaseType_t xCopyPosition )
+{
+    for( ;; )
+    {
+        taskENTER_CRITICAL();
+        {
+            /* (A) 空きがあるか？ 上書き指定なら常に書ける */
+            if( ( pxQueue-&gt;uxMessagesWaiting &lt; pxQueue-&gt;uxLength )
+                || ( xCopyPosition == queueOVERWRITE ) )
+            {
+                prvCopyDataToQueue( pxQueue, pvItemToQueue, xCopyPosition );
+
+                /* (B) 受信待ちのタスクがいれば起こす */
+                if( listLIST_IS_EMPTY( &amp;( pxQueue-&gt;xTasksWaitingToReceive ) ) == pdFALSE )
+                {
+                    if( xTaskRemoveFromEventList(
+                            &amp;( pxQueue-&gt;xTasksWaitingToReceive ) ) != pdFALSE )
+                    {
+                        queueYIELD_IF_USING_PREEMPTION();   /* 高優先度なら即切替 */
+                    }
+                }
+                taskEXIT_CRITICAL();
+                return pdPASS;
+            }
+            else
+            {
+                /* (C) 満杯。待たないなら失敗を返す */
+                if( xTicksToWait == 0 ) {
+                    taskEXIT_CRITICAL();
+                    return errQUEUE_FULL;
+                }
+                else if( xEntryTimeSet == pdFALSE ) {
+                    vTaskInternalSetTimeOutState( &amp;xTimeOut );
+                    xEntryTimeSet = pdTRUE;
+                }
+            }
+        }
+        taskEXIT_CRITICAL();
+
+        /* (D) 待つ */
+        vTaskSuspendAll();
+        prvLockQueue( pxQueue );
+
+        if( xTaskCheckForTimeOut( &amp;xTimeOut, &amp;xTicksToWait ) == pdFALSE )
+        {
+            if( prvIsQueueFull( pxQueue ) != pdFALSE )
+            {
+                vTaskPlaceOnEventList( &amp;( pxQueue-&gt;xTasksWaitingToSend ), xTicksToWait );
+                prvUnlockQueue( pxQueue );
+                if( xTaskResumeAll() == pdFALSE ) { portYIELD_WITHIN_API(); }
+            }
+            else {
+                prvUnlockQueue( pxQueue );
+                ( void ) xTaskResumeAll();
+            }
+        }
+        else
+        {
+            prvUnlockQueue( pxQueue );
+            ( void ) xTaskResumeAll();
+            return errQUEUE_FULL;      /* タイムアウト */
+        }
+    }
+}</code></pre><p><strong>構造を整理する。</strong></p><div class="tablewrap"><table><thead><tr><th>段階</th><th>処理</th></tr></thead><tbody><tr><td>A</td><td>クリティカルセクションで空きを確認し、あればコピー</td></tr><tr><td>B</td><td>受信待ちのタスクを起こす（最高優先度のもの 1 つ）</td></tr><tr><td>C</td><td>満杯なら、タイムアウト 0 で失敗、そうでなければタイムアウトの基準時刻を設定</td></tr><tr><td>D</td><td>イベントリストに登録して寝る。起きたらループの先頭に戻って<strong>やり直す</strong></td></tr></tbody></table></div><blockquote><p><strong><code>for(;;)</code> で囲まれ、起きたら「やり直す」構造になっている.</strong></p><p>なぜなら、起こされてもう一度見たとき、<strong>まだ満杯かもしれない</strong>からである。</p><pre><code>TaskA(低優先度) が満杯を待っている
+TaskB が 1 個取り出す → TaskA を起こす
+しかしその前に TaskC(高優先度) が 1 個入れてしまう
+→ TaskA が起きたときには、また満杯</code></pre><p>これを「<strong>偽の目覚め (spurious wakeup)</strong>」と呼ぶ。 POSIX の条件変数でも同じ問題があり、対策も同じ—— <strong>「起きたら必ず条件をもう一度確認する」</strong>である。</p><p>だから待ちは <code>if</code> ではなく <strong><code>while</code> / <code>for(;;)</code></strong> で書く。これは一般則である。</p></blockquote><h3>送信の 3 つのバリエーション</h3><pre><code class="lang-c">xQueueSend( q, &amp;item, timeout );          /* = xQueueSendToBack。末尾に追加 */
+xQueueSendToBack( q, &amp;item, timeout );    /* 通常の FIFO */
+xQueueSendToFront( q, &amp;item, timeout );   /* 先頭に割り込む（LIFO）*/
+xQueueOverwrite( q, &amp;item );              /* 長さ 1 のキュー専用。常に上書き */</code></pre><p><code>xQueueSendToFront</code> は「緊急メッセージを先に処理させたい」ときに使う。 <code>xQueueOverwrite</code> は「最新の値だけあればよい」センサ値の受け渡しに便利である （<strong>必ず長さ 1 のキューに対して使うこと</strong>）。</p><h2>5. キューのロック — <code>cRxLock</code> / <code>cTxLock</code></h2><p>上のコードに <code>prvLockQueue()</code> / <code>prvUnlockQueue()</code> が出てきた。これは何か。</p><p>段階 D では <code>vTaskSuspendAll()</code> でスケジューラを止めているが、 <strong>割り込みは止めていない</strong>。だから ISR から <code>xQueueSendFromISR()</code> が呼ばれうる。</p><p>そのとき ISR がイベントリストを直接触ると、 「タスク側が今まさに触っているリスト」を壊す危険がある。</p><p>そこで、<strong>「ロック中は、イベントリストを触らず、回数だけ数える」</strong>という仕組みにする。</p><pre><code class="lang-c">#define prvLockQueue( pxQueue )                       \
+    taskENTER_CRITICAL();                             \
+    {                                                 \
+        if( pxQueue-&gt;cRxLock == queueUNLOCKED ) { pxQueue-&gt;cRxLock = queueLOCKED_UNMODIFIED; } \
+        if( pxQueue-&gt;cTxLock == queueUNLOCKED ) { pxQueue-&gt;cTxLock = queueLOCKED_UNMODIFIED; } \
+    }                                                 \
+    taskEXIT_CRITICAL()</code></pre><p>ISR 側（<code>xQueueGenericSendFromISR</code>）:</p><pre><code class="lang-c">if( pxQueue-&gt;cTxLock == queueUNLOCKED ) {
+    /* ロックされていない → その場で起こす */
+    if( listLIST_IS_EMPTY( &amp;( pxQueue-&gt;xTasksWaitingToReceive ) ) == pdFALSE ) {
+        if( xTaskRemoveFromEventList( &amp;( pxQueue-&gt;xTasksWaitingToReceive ) ) != pdFALSE ) {
+            *pxHigherPriorityTaskWoken = pdTRUE;
+        }
+    }
+}
+else {
+    /* ロック中 → 回数を数えるだけ */
+    pxQueue-&gt;cTxLock = ( int8_t ) ( cTxLock + 1 );
+}</code></pre><p><code>prvUnlockQueue()</code> で、<strong>溜まった回数の分だけまとめて起こす</strong>。</p><pre><code class="lang-c">static void prvUnlockQueue( Queue_t * const pxQueue )
+{
+    taskENTER_CRITICAL();
+    {
+        int8_t cTxLock = pxQueue-&gt;cTxLock;
+        while( cTxLock &gt; queueLOCKED_UNMODIFIED ) {
+            if( listLIST_IS_EMPTY( &amp;( pxQueue-&gt;xTasksWaitingToReceive ) ) == pdFALSE ) {
+                if( xTaskRemoveFromEventList( &amp;( pxQueue-&gt;xTasksWaitingToReceive ) ) != pdFALSE ) {
+                    vTaskMissedYield();
+                }
+            } else { break; }
+            --cTxLock;
+        }
+        pxQueue-&gt;cTxLock = queueUNLOCKED;
+    }
+    taskEXIT_CRITICAL();
+    /* cRxLock も同様 */
+}</code></pre><blockquote><p><strong>これは「作業を遅延させる」という古典的な同期技法である.</strong></p><p>Linux の<strong>ソフト割り込み (softirq)</strong> や <strong>タスクレット</strong>、 あるいは NAPI の「割り込みを止めてポーリングに切り替える」—— どれも同じ発想である。</p><p><strong>危険な区間では作業を積み上げておいて、安全になったらまとめて処理する。</strong> こうすると、危険な区間で割り込みを止め続ける必要がなくなる。 <strong>割り込みレイテンシを悪化させずに、データ構造の整合性を守れる。</strong></p></blockquote><h2>6. 受信 — <code>xQueueReceive()</code></h2><p>送信とほぼ対称である。違いは 1 点だけ。</p><pre><code class="lang-c">prvCopyDataFromQueue( pxQueue, pvBuffer );
+--( pxQueue-&gt;uxMessagesWaiting );
+
+/* 送信待ちのタスクがいれば起こす（空きができたので） */
+if( listLIST_IS_EMPTY( &amp;( pxQueue-&gt;xTasksWaitingToSend ) ) == pdFALSE ) {
+    if( xTaskRemoveFromEventList( &amp;( pxQueue-&gt;xTasksWaitingToSend ) ) != pdFALSE ) {
+        queueYIELD_IF_USING_PREEMPTION();
+    }
+}</code></pre><h3><code>xQueuePeek()</code> — 読むが消さない</h3><pre><code class="lang-c">xQueuePeek( q, &amp;buf, timeout );    /* 先頭を読むが、キューからは消えない */</code></pre><p><code>prvCopyDataFromQueue()</code> の後に <code>pcReadFrom</code> を<strong>元に戻す</strong>だけの実装である。</p><pre><code class="lang-c">/* xQueuePeek の中 */
+pcOriginalReadPosition = pxQueue-&gt;u.xQueue.pcReadFrom;
+prvCopyDataFromQueue( pxQueue, pvBuffer );
+pxQueue-&gt;u.xQueue.pcReadFrom = pcOriginalReadPosition;   /* 戻す */
+/* uxMessagesWaiting は減らさない */</code></pre><p>「複数のタスクが同じ値を見たい」「値があるか確認だけしたい」ときに使う。</p><h2>7. ISR 版 API</h2><pre><code class="lang-c">BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+void UART_IRQHandler( void )
+{
+    uint8_t c = UART-&gt;DR;
+    xQueueSendFromISR( q, &amp;c, &amp;xHigherPriorityTaskWoken );
+
+    portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}</code></pre><div class="tablewrap"><table><thead><tr><th>違い</th><th>タスク版</th><th>ISR 版</th></tr></thead><tbody><tr><td>ブロック</td><td>できる</td><td><strong>できない</strong>（タイムアウト引数がない）</td></tr><tr><td>切り替え</td><td>内部で行う</td><td><strong><code>xHigherPriorityTaskWoken</code> を返すだけ</strong></td></tr><tr><td>排他</td><td><code>taskENTER_CRITICAL()</code></td><td><code>portSET_INTERRUPT_MASK_FROM_ISR()</code></td></tr></tbody></table></div><p><strong>なぜ ISR 版が切り替えを自分で行わないのか</strong>は 18 章で詳しく扱う。 簡単に言えば、<strong>割り込みハンドラの一番最後で切り替えたい</strong>からである。</p><blockquote><p><strong><code>xHigherPriorityTaskWoken</code> の初期化を忘れないこと.</strong></p><pre><code class="lang-c">BaseType_t xHigherPriorityTaskWoken = pdFALSE;    /* ← 必ず pdFALSE で初期化 */</code></pre><p>初期化を忘れると、スタック上のゴミが入っていて、 <strong>毎回不要な切り替えが起きる</strong>か、<strong>必要な切り替えが起きない</strong>。 前者は性能劣化、後者は応答の遅れになる。どちらも発見しにくい。</p></blockquote><h2>8. キューセット — 複数のキューを同時に待つ</h2><pre><code class="lang-c">QueueSetHandle_t xQueueSet = xQueueCreateSet( 10 );
+xQueueAddToSet( q1, xQueueSet );
+xQueueAddToSet( q2, xQueueSet );
+
+for (;;) {
+    QueueSetMemberHandle_t x = xQueueSelectFromSet( xQueueSet, portMAX_DELAY );
+    if( x == q1 )      { xQueueReceive( q1, &amp;a, 0 ); }
+    else if( x == q2 ) { xQueueReceive( q2, &amp;b, 0 ); }
+}</code></pre><p>POSIX の <code>select()</code> に相当する機能である。</p><blockquote><p><strong>キューセットはあまり推奨されない.</strong></p><ul><li><strong>メモリを食う</strong>（キューセット自体がキューであり、追加のコピーが発生する）</li><li><code>xQueueSelectFromSet()</code> は「どのキューにデータが来たか」を返すだけで、 <strong>もう一度 <code>xQueueReceive()</code> を呼ぶ必要がある</strong>（2 段階になる）</li><li><code>configUSE_QUEUE_SETS</code> を有効にすると、<strong>全キューの処理が少し重くなる</strong></li></ul><p><strong>多くの場合、「1 本のキューに、タグ付きの構造体を流す」方が単純で速い。</strong></p><pre><code class="lang-c">typedef struct {
+    enum { MSG_SENSOR, MSG_BUTTON, MSG_TIMEOUT } type;
+    union { int sensor_value; int button_id; } data;
+} Event_t;
+
+/* 1 本のキューで全部受ける */
+xQueueReceive( xEventQueue, &amp;ev, portMAX_DELAY );
+switch( ev.type ) { ... }</code></pre><p>これは「<strong>イベント駆動タスク</strong>」の定番パターンであり、設計としても見通しがよい。</p></blockquote><h2>9. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>値渡し</td><td><strong>中身をコピー</strong>。所有権の問題が発生しない</td></tr><tr><td>大きなデータ</td><td>ポインタを送る。<strong>所有権を設計で決めること</strong></td></tr><tr><td>内部構造</td><td>リングバッファ ＋ 送信待ち／受信待ちの 2 つのイベントリスト</td></tr><tr><td><code>union</code></td><td>セマフォと通常キューで<strong>フィールドを共有</strong></td></tr><tr><td>待ちの構造</td><td><code>for(;;)</code> で<strong>やり直す</strong>。偽の目覚めに備える</td></tr><tr><td>キューのロック</td><td>危険区間では<strong>回数だけ数え</strong>、後でまとめて起こす</td></tr><tr><td><code>xQueuePeek</code></td><td>読み位置を戻すだけ。個数は減らさない</td></tr><tr><td>ISR 版</td><td>ブロックできない。<code>xHigherPriorityTaskWoken</code> を<strong>必ず初期化</strong></td></tr><tr><td>キューセット</td><td>使わずに、<strong>タグ付き構造体を 1 本のキューに流す</strong>方が良いことが多い</td></tr></tbody></table></div><p>次章では、この同じ実装から作られる セマフォとミューテックスを見る。<strong>新しい実装はほとんど出てこない。</strong></p>
+  <nav class="chnav"><a class="pn" href="10.html"><span>←</span><b>ブロックと遅延リスト — 待っているタスクを O(1) で起こす</b></a><a class="pn nx" href="12.html"><b>セマフォとミューテックス — 中身はキュー、違いは「所有者」</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

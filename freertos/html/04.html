@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>04. タスクの状態機械 — Running / Ready / Blocked / Suspended — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">04 · タスクの状態機械 — Running / Ready / Blocked / Suspended</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 04</p>
+  <h1 class="doctitle">タスクの状態機械 — Running / Ready / Blocked / Suspended</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——OS のロジックの 9 割はこの図の上にある.</strong></p><p>スケジューラが実際にやっていることは、突き詰めるとこうである。</p><p><strong>「タスクを、あるリストから別のリストへ動かす。そして走らせるタスクを 1 つ選ぶ。」</strong></p><p>状態とは、そのタスクが<strong>どのリストに入っているか</strong>のことである。 ここを掴むと、以降の章は「どういう理由でリストを移動するか」の各論になる。</p></blockquote><h2>1. 4 つの状態</h2><p>FreeRTOS のタスクは、常にこの 4 つのどれか 1 つの状態にある。</p><div class="tablewrap"><table><thead><tr><th>状態</th><th>意味</th><th>CPU を使うか</th><th>実体（どこにいるか）</th></tr></thead><tbody><tr><td><strong>Running</strong></td><td>いま実行中</td><td>使う</td><td><code>pxCurrentTCB</code> が指している</td></tr><tr><td><strong>Ready</strong></td><td>実行可能。CPU の空きを待っている</td><td>使わない</td><td><code>pxReadyTasksLists[優先度]</code></td></tr><tr><td><strong>Blocked</strong></td><td>何かを待って寝ている</td><td>使わない</td><td>遅延リスト＋イベントリスト</td></tr><tr><td><strong>Suspended</strong></td><td>明示的に止められている</td><td>使わない</td><td><code>xSuspendedTaskList</code></td></tr></tbody></table></div><blockquote><p><strong>単一コアでは Running はちょうど 1 つ.</strong> 走るタスクがなければ、<strong>アイドルタスクが Running になる</strong>（09 章）。 だから「Running が 0 個」という状態は存在しない。<strong>必ず何かが走っている。</strong></p></blockquote><h3>状態機械を動かす</h3><div class="widget" data-widget="taskstate"></div><p>各遷移をクリックすると、何がきっかけで、カーネル内部で何が起きるかが表示される。</p><h2>2. 状態遷移の全体像</h2><pre><code>                    ┌─────────────────────────────────────┐
+                    │                                     │
+      vTaskCreate   │        (2) スケジューラが選ぶ        │
+           │        │              ↓                      │
+           ↓        │        ┌──────────┐                 │
+      ┌────────┐    │        │ Running  │                 │
+      │ Ready  │────┘        └────┬─────┘                 │
+      └────────┘  ←──────────────┘                       │
+        ↑    ↑     (1) 優先度が高いタスクが Ready になった │
+        │    │         またはタイムスライス切れ            │
+        │    │                                            │
+        │    │              (3) 待つ API を呼んだ          │
+        │    │                   ↓                        │
+        │    └────────────┌───────────┐                   │
+        │  (4) 条件成立    │  Blocked  │                   │
+        │      or タイムアウト└─────┬─────┘                 │
+        │                          │                      │
+        │                    (5) vTaskSuspend             │
+        │                          ↓                      │
+        │                   ┌────────────┐                │
+        └───────────────────│ Suspended  │←───────────────┘
+             (6) vTaskResume└────────────┘   (5) vTaskSuspend</code></pre><h3>遷移の一覧</h3><div class="tablewrap"><table><thead><tr><th>#</th><th>遷移</th><th>きっかけ</th><th>カーネルがやること</th></tr></thead><tbody><tr><td>1</td><td>Running → Ready</td><td>高優先度タスクが Ready に／タイムスライス切れ／<code>taskYIELD()</code></td><td>Ready リストに戻す。<code>pxCurrentTCB</code> を更新</td></tr><tr><td>2</td><td>Ready → Running</td><td>スケジューラが選んだ</td><td>Ready リストから外し、<code>pxCurrentTCB</code> を指す</td></tr><tr><td>3</td><td>Running → Blocked</td><td><code>vTaskDelay</code> / <code>xQueueReceive</code> など待つ API</td><td>Ready リストから外し、遅延リスト（＋イベントリスト）へ</td></tr><tr><td>4</td><td>Blocked → Ready</td><td>条件成立（データ到着など）／タイムアウト</td><td>遅延リストとイベントリストから外し、Ready リストへ</td></tr><tr><td>5</td><td>任意 → Suspended</td><td><code>vTaskSuspend()</code></td><td>いまいるリストから外し、<code>xSuspendedTaskList</code> へ</td></tr><tr><td>6</td><td>Suspended → Ready</td><td><code>vTaskResume()</code></td><td><code>xSuspendedTaskList</code> から外し、Ready リストへ</td></tr></tbody></table></div><blockquote><p><strong>Suspended → Running の直行はない.</strong> 必ず Ready を経由する。「実行可能になった」と「実行される」は別のことだからである。 <strong>同じ理由で、Blocked → Running もない。</strong></p></blockquote><h2>3. Ready — 「走れるが、順番待ち」</h2><p>Ready のタスクは、<strong>優先度ごとの配列</strong>に入っている。</p><pre><code class="lang-c">static List_t pxReadyTasksLists[ configMAX_PRIORITIES ];</code></pre><pre><code>pxReadyTasksLists[4] : (空)
+pxReadyTasksLists[3] : ── TaskA ──┐         ← 優先度 3 の Ready リスト
+                        └─────────┘
+pxReadyTasksLists[2] : ── TaskB ── TaskC ──┐
+                        └──────────────────┘  ← 同じ優先度が複数いてもよい
+pxReadyTasksLists[1] : (空)
+pxReadyTasksLists[0] : ── Idle ──┐          ← アイドルタスクは常にここ
+                        └────────┘</code></pre><p>スケジューラの仕事は、<strong>「空でない最高優先度のリストの先頭を選ぶ」</strong>——それだけである。 どうやって「空でない最高優先度」を O(1) で求めるかは 07 章で扱う。</p><blockquote><p><strong>同じ優先度に複数のタスクがいるとき、どちらが走るか.</strong> リストの<strong>先頭</strong>が走る。そして走った後は<strong>末尾</strong>に回される。 これが<strong>ラウンドロビン</strong>である（08 章）。</p></blockquote><h2>4. Blocked — 「条件が整うまで寝る」</h2><p>Blocked は 4 つの中で最も重要で、最も込み入っている。</p><h3>Blocked に入る API</h3><div class="tablewrap"><table><thead><tr><th>API</th><th>何を待つか</th></tr></thead><tbody><tr><td><code>vTaskDelay(n)</code></td><td>いまから n ティック</td></tr><tr><td><code>vTaskDelayUntil(&amp;last, n)</code></td><td>前回起床から n ティック後（周期実行用）</td></tr><tr><td><code>xQueueReceive(q, &amp;buf, timeout)</code></td><td>キューにデータが入るまで</td></tr><tr><td><code>xQueueSend(q, &amp;item, timeout)</code></td><td>キューに空きができるまで</td></tr><tr><td><code>xSemaphoreTake(s, timeout)</code></td><td>セマフォが空くまで</td></tr><tr><td><code>ulTaskNotifyTake(clear, timeout)</code></td><td>通知が来るまで</td></tr><tr><td><code>xEventGroupWaitBits(...)</code></td><td>指定のビットが立つまで</td></tr></tbody></table></div><h3>2 つの待ち方</h3><p>Blocked には、実は<strong>性格の違う 2 種類</strong>がある。</p><div class="tablewrap"><table><thead><tr><th>種類</th><th>待つもの</th><th>使うリスト</th><th>起こされ方</th></tr></thead><tbody><tr><td><strong>時間待ち</strong></td><td>時間だけ</td><td>遅延リストのみ</td><td>ティックが来たら</td></tr><tr><td><strong>イベント待ち</strong></td><td>イベント（＋タイムアウト）</td><td>遅延リスト ＋ <strong>イベントリスト</strong></td><td>イベント発生 or タイムアウト</td></tr></tbody></table></div><p>イベント待ちのタスクは、<strong>2 つのリストに同時に入っている</strong>。</p><pre><code>TCB_t {
+    ListItem_t  xStateListItem;    ← 遅延リスト（または Ready リスト）に繋ぐ
+    ListItem_t  xEventListItem;    ← イベント待ちリストに繋ぐ
+    ...
+}</code></pre><blockquote><p><strong>1 つの構造体に 2 つのリストノードを持たせる.</strong></p><p>これは C で多重リストを実現する定番の手法である。 Linux カーネルの <code>list_head</code> を構造体に複数埋めるのと同じ発想である。</p><p><strong>なぜ 2 つ必要か:</strong> <code>xQueueReceive(q, &amp;buf, pdMS_TO_TICKS(100))</code> は 「データが来る <strong>or</strong> 100 ms 経つ、どちらか早い方」で起きる必要がある。 だから<strong>両方のリストに登録しておいて、先に来た方が起こす</strong>。 起こす側は、<strong>もう一方のリストからも外す</strong>責任を負う。</p></blockquote><p><strong>タイムアウトなし（<code>portMAX_DELAY</code>）で待つ場合は、遅延リストではなく <code>xSuspendedTaskList</code> に入る。</strong> 「永久に時間切れしない」＝「時間の管理をしなくてよい」＝「遅延リストに置く意味がない」からである。 これは実装上の最適化であって、状態としては Blocked である。</p><blockquote><p><strong>紛らわしい点:</strong> <code>vTaskSuspend()</code> された Suspended タスクと、 <code>portMAX_DELAY</code> で待っている Blocked タスクは、<strong>同じリストに同居している</strong>。 <code>eTaskGetState()</code> はこの 2 つを区別できる（<code>xEventListItem</code> が繋がっているかで判定する）。</p></blockquote><h2>5. Suspended — 「明示的に止める」</h2><pre><code class="lang-c">vTaskSuspend(xHandle);       /* 止める */
+vTaskResume(xHandle);        /* 再開する */
+vTaskSuspend(NULL);          /* 自分を止める（他人に起こしてもらう） */</code></pre><p>Suspended のタスクは、<strong>何があっても実行されない</strong>。</p><ul><li>タイムアウトしない</li><li>キューにデータが来ても起きない</li><li>優先度が最高でも走らない</li></ul><blockquote><p><strong><code>vTaskSuspend</code> は「止まった瞬間」を選べない.</strong></p><p>他のタスクを <code>vTaskSuspend()</code> すると、そのタスクは<strong>どこで止まるか分からない</strong>。 ミューテックスを持ったまま止まるかもしれない。malloc の途中かもしれない。 <strong>そうなると誰も先に進めなくなる。</strong></p><p>だから実務では、<code>vTaskSuspend</code> を他タスクに対して使うのは<strong>避けるべき</strong>である。 代わりに「止まってほしい」と<strong>通知して、相手に安全な地点で自発的に止まってもらう</strong>。</p><pre><code class="lang-c">/* 止める側 */
+xTaskNotify(worker, STOP_REQUEST, eSetBits);
+
+/* 止まる側（安全な地点で判定する） */
+for (;;) {
+    if (ulTaskNotifyTake(pdTRUE, 0) &amp; STOP_REQUEST) {
+        cleanup();
+        vTaskSuspend(NULL);   /* 自分で止まる */
+    }
+    do_work();
+}</code></pre></blockquote><h3><code>vTaskResume</code> の非対称性</h3><p><code>vTaskSuspend</code> は<strong>ネストしない</strong>。 3 回 Suspend しても、<strong>1 回の Resume で起きる</strong>。</p><p>これはカウンタではなく「リストにいるかどうか」で管理しているためである。 「3 回止めたから 3 回起こす」という設計にはなっていない。<strong>混乱の元なので覚えておくこと。</strong></p><h2>6. 削除 — 5 番目の「状態」</h2><pre><code class="lang-c">vTaskDelete(xHandle);
+vTaskDelete(NULL);          /* 自分自身 */</code></pre><p>削除は状態遷移というより「消滅」だが、<strong>すぐには消えない</strong>。</p><div class="tablewrap"><table><thead><tr><th>誰を消すか</th><th>どうなるか</th></tr></thead><tbody><tr><td><strong>他のタスク</strong></td><td>その場で TCB とスタックを解放できる</td></tr><tr><td><strong>自分自身</strong></td><td><strong>自分のスタックの上で走っているので解放できない</strong></td></tr></tbody></table></div><p>自分を削除する場合、タスクは <code>xTasksWaitingTermination</code> リストに移され、 <strong>アイドルタスクが後で解放する</strong>（09 章）。</p><blockquote><p><strong>だから「削除したのにメモリが空かない」ことがある.</strong></p><p>原因はほぼ 2 つである。</p><ol><li><strong>アイドルタスクが走っていない</strong>。優先度の高いタスクがビジーウェイトしていると、 アイドルタスクに順番が回らず、永久に後片付けされない。</li><li><strong>削除されたタスクが確保したリソースは自動で解放されない</strong>。 <code>malloc</code> した領域、取ったミューテックス、開いたファイル——<strong>全部残る</strong>。</li></ol><p><strong>FreeRTOS にはリソースの自動回収がない。</strong> Linux のプロセス終了とはまったく違う。 だから実務では、<strong>タスクを動的に生成・削除しない設計</strong>が推奨される。 起動時に必要なだけ作り、あとは寝かせておく方が安全である。</p></blockquote><h2>7. 状態を調べる API</h2><pre><code class="lang-c">eTaskState eTaskGetState(TaskHandle_t xTask);</code></pre><div class="tablewrap"><table><thead><tr><th>戻り値</th><th>意味</th></tr></thead><tbody><tr><td><code>eRunning</code></td><td>実行中（自分自身を問い合わせた場合）</td></tr><tr><td><code>eReady</code></td><td>Ready</td></tr><tr><td><code>eBlocked</code></td><td>Blocked</td></tr><tr><td><code>eSuspended</code></td><td>Suspended（無期限 Blocked を含む）</td></tr><tr><td><code>eDeleted</code></td><td>削除済みで後片付け待ち</td></tr><tr><td><code>eInvalid</code></td><td>ハンドルが無効</td></tr></tbody></table></div><p>デバッグ時には、全タスクの状態を一覧できる。</p><pre><code class="lang-c">/* configUSE_TRACE_FACILITY と configUSE_STATS_FORMATTING_FUNCTIONS が必要 */
+char buf[512];
+vTaskList(buf);
+printf("%s", buf);</code></pre><pre><code>Name          State  Priority  Stack   Num
+Sensor          B       3        142    1
+Control         R       4         88    2
+Display         B       2        210    3
+IDLE            R       0        112    4
+Tmr Svc         B       6        180    5</code></pre><p><code>Stack</code> は<strong>残りスタックの最小値</strong>（ワード単位）である。17 章で詳しく扱う。</p><blockquote><p><strong><code>vTaskList()</code> は本番で使ってはいけない.</strong> 実行中に<strong>スケジューラを止めて</strong>全タスクを走査するので、リアルタイム性が壊れる。 開発時のデバッグ用と割り切ること。</p></blockquote><h2>8. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>4 つの状態</td><td>Running / Ready / Blocked / Suspended</td></tr><tr><td>状態の実体</td><td><strong>どのリストに入っているか</strong></td></tr><tr><td>Running</td><td>常にちょうど 1 つ。走るものがなければアイドルタスク</td></tr><tr><td>Ready</td><td>優先度ごとの配列 <code>pxReadyTasksLists[]</code></td></tr><tr><td>Blocked</td><td>時間待ち（遅延リスト）とイベント待ち（<strong>2 つのリストに同時登録</strong>）</td></tr><tr><td>無期限待ち</td><td>遅延リストではなく <code>xSuspendedTaskList</code> に入る（最適化）</td></tr><tr><td>Suspended</td><td>ネストしない。他タスクへの使用は<strong>避ける</strong>べき</td></tr><tr><td>削除</td><td>自分の削除は<strong>アイドルタスクが後片付け</strong>。リソースは自動回収されない</td></tr></tbody></table></div><p>次章では、この状態遷移の中で最も重い操作—— Running が入れ替わる瞬間、コンテキストスイッチを見る。</p>
+  <nav class="chnav"><a class="pn" href="03.html"><span>←</span><b>FreeRTOS の全体像 — カーネルの責務と、移植層との契約</b></a><a class="pn nx" href="05.html"><b>TCB とコンテキストスイッチ — 「実行の途中」を畳んで保存する</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

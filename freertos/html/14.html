@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>14. タスク通知とイベントグループ — キューより 45 倍速い通知路 — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">14 · タスク通知とイベントグループ — キューより 45 倍速い通知路</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 14</p>
+  <h1 class="doctitle">タスク通知とイベントグループ — キューより 45 倍速い通知路</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——キューは万能だが、重い.</strong></p><p>11 章で見たとおり、キューは <strong>オブジェクト本体 ＋ バッファ ＋ 2 本のイベントリスト ＋ ロック機構</strong>を持つ。 送信のたびにクリティカルセクションに入り、コピーし、リストを操作する。</p><p>だが用途によっては、そこまで必要ない。 「ISR がタスクを 1 つ起こす」だけなら、<strong>もっと軽い方法がある</strong>。 それがタスク通知であり、FreeRTOS 公式が<strong>推奨する</strong>方法である。</p></blockquote><h2>1. タスク通知 — TCB に直接書き込む</h2><pre><code class="lang-c">#define configUSE_TASK_NOTIFICATIONS  1        /* 既定値は 1 */</code></pre><p>各タスクの TCB に、<strong>通知用の変数が最初から埋め込まれている</strong>。</p><pre><code class="lang-c">#if ( configUSE_TASK_NOTIFICATIONS == 1 )
+    volatile uint32_t ulNotifiedValue[ configTASK_NOTIFICATION_ARRAY_ENTRIES ];
+    volatile uint8_t  ucNotifyState[  configTASK_NOTIFICATION_ARRAY_ENTRIES ];
+#endif</code></pre><div class="tablewrap"><table><thead><tr><th>フィールド</th><th>内容</th></tr></thead><tbody><tr><td><code>ulNotifiedValue</code></td><td>32 bit の通知値</td></tr><tr><td><code>ucNotifyState</code></td><td><code>taskNOT_WAITING_NOTIFICATION</code> / <code>taskWAITING_NOTIFICATION</code> / <code>taskNOTIFICATION_RECEIVED</code></td></tr></tbody></table></div><p><code>configTASK_NOTIFICATION_ARRAY_ENTRIES</code>（既定 1）で、通知の「チャネル数」を増やせる。</p><blockquote><p><strong>これが速さの理由である.</strong></p><ul><li><strong>オブジェクトを作る必要がない</strong>（TCB に埋め込み済み）</li><li><strong>キューもリストもバッファもない</strong></li><li>通知の実体は「<strong>32 bit 変数への書き込み ＋ 状態フラグの更新</strong>」だけ</li></ul><p>FreeRTOS 公式の測定では、 <strong>キューでの通知より 45 % 速く、メモリを 60 バイト以上節約する</strong>とされている （構成による。ARM Cortex-M での GCC 最適化ありの測定値）。</p></blockquote><h3>通知の使い方（最も単純な形）</h3><pre><code class="lang-c">/* 待つ側 */
+void vTask( void *pv )
+{
+    for (;;) {
+        ulTaskNotifyTake( pdTRUE, portMAX_DELAY );    /* 通知が来るまで寝る */
+        handle();
+    }
+}
+
+/* 起こす側（ISR から） */
+void UART_IRQHandler( void )
+{
+    BaseType_t woken = pdFALSE;
+    vTaskNotifyGiveFromISR( xTaskHandle, &amp;woken );
+    portYIELD_FROM_ISR( woken );
+}</code></pre><p><strong>バイナリセマフォと同じ形だが、オブジェクトの生成が不要である。</strong></p><h2>2. 通知の 4 つのモード</h2><p><code>xTaskNotify()</code> の第 3 引数 <code>eAction</code> で、通知値の扱い方を選ぶ。</p><pre><code class="lang-c">BaseType_t xTaskNotify( TaskHandle_t xTaskToNotify,
+                        uint32_t ulValue,
+                        eNotifyAction eAction );</code></pre><div class="tablewrap"><table><thead><tr><th><code>eAction</code></th><th>動作</th><th>相当するもの</th></tr></thead><tbody><tr><td><code>eNoAction</code></td><td>値は変えず、通知だけ</td><td><strong>バイナリセマフォ</strong></td></tr><tr><td><code>eSetBits</code></td><td>`ulNotifiedValue \</td><td>= ulValue`</td><td><strong>イベントグループ</strong>（32 ビット）</td></tr><tr><td><code>eIncrement</code></td><td><code>ulNotifiedValue++</code></td><td><strong>カウンティングセマフォ</strong></td></tr><tr><td><code>eSetValueWithOverwrite</code></td><td><code>ulNotifiedValue = ulValue</code>（常に上書き）</td><td><strong>長さ 1 のキュー</strong>（<code>xQueueOverwrite</code>）</td></tr><tr><td><code>eSetValueWithoutOverwrite</code></td><td>未読なら失敗、既読なら代入</td><td><strong>長さ 1 のキュー</strong>（<code>xQueueSend</code>）</td></tr></tbody></table></div><p><strong>5 つのモードで、キュー・セマフォ・イベントグループのほとんどを代替できる。</strong></p><h3>使い分けの例</h3><pre><code class="lang-c">/* (a) 単純な起床通知 = バイナリセマフォ */
+vTaskNotifyGive( xTask );                          /* = xTaskNotify(t, 0, eIncrement) */
+ulTaskNotifyTake( pdTRUE, portMAX_DELAY );         /* pdTRUE = 取ったら 0 にクリア */
+
+/* (b) 回数を数える = カウンティングセマフォ */
+vTaskNotifyGive( xTask );                          /* 呼ぶたびに +1 */
+ulTaskNotifyTake( pdFALSE, portMAX_DELAY );        /* pdFALSE = 1 だけ減らす */
+
+/* (c) 複数の事象をビットで = イベントグループ */
+#define EVT_RX   (1 &lt;&lt; 0)
+#define EVT_TX   (1 &lt;&lt; 1)
+#define EVT_ERR  (1 &lt;&lt; 2)
+
+xTaskNotify( xTask, EVT_RX, eSetBits );
+
+uint32_t ulNotified;
+xTaskNotifyWait( 0x00,            /* 入る前にクリアするビット */
+                 ULONG_MAX,       /* 出るときにクリアするビット（全部） */
+                 &amp;ulNotified,     /* 受け取った値 */
+                 portMAX_DELAY );
+if( ulNotified &amp; EVT_RX ) { ... }
+
+/* (d) 値を 1 個渡す = 長さ 1 のキュー */
+xTaskNotify( xTask, sensor_value, eSetValueWithOverwrite );</code></pre><h3>タスク通知 vs キューのコスト</h3><div class="widget" data-widget="notifycost"></div><p>同じ通知をキュー・セマフォ・タスク通知で行ったときの メモリ使用量と処理時間を比較できる。</p><h2>3. タスク通知の制約</h2><p><strong>速い代わりに、できないことがある。</strong></p><div class="tablewrap"><table><thead><tr><th>制約</th><th>内容</th></tr></thead><tbody><tr><td><strong>相手を 1 つに特定する必要がある</strong></td><td><code>TaskHandle_t</code> が要る。「誰でもいいから 1 つ」はできない</td></tr><tr><td><strong>複数の受信者に配れない</strong></td><td>1 対 1 専用。ブロードキャストは不可</td></tr><tr><td><strong>送信側がブロックできない</strong></td><td>「相手が受け取るまで待つ」ができない（送信は必ず即座に戻る）</td></tr><tr><td><strong>バッファがない</strong></td><td>未読の通知に上書きすると、前の値は消える</td></tr><tr><td><strong>1 つの値しか持てない</strong></td><td>32 bit ×（配列の数）だけ</td></tr></tbody></table></div><blockquote><p><strong>「送信側がブロックできない」が実務では効いてくる.</strong></p><p>キューなら、満杯のとき送信側が待って<strong>流量が自然に調整される</strong>（バックプレッシャ）。 通知にはそれがないので、<strong>受信側が遅いと通知が失われる</strong>。</p><pre><code class="lang-c">xTaskNotify( t, v, eSetValueWithoutOverwrite );   /* 未読なら pdFAIL が返る */</code></pre><p><code>eSetValueWithoutOverwrite</code> を使えば失敗を検出できるが、 「待つ」ことはできない。<strong>流量制御が要るならキューを使うこと。</strong></p></blockquote><h2>4. 通知の内部実装</h2><pre><code class="lang-c">BaseType_t xTaskGenericNotify( TaskHandle_t xTaskToNotify,
+                               UBaseType_t uxIndexToNotify,
+                               uint32_t ulValue,
+                               eNotifyAction eAction,
+                               uint32_t * pulPreviousNotificationValue )
+{
+    TCB_t * pxTCB = xTaskToNotify;
+
+    taskENTER_CRITICAL();
+    {
+        if( pulPreviousNotificationValue != NULL ) {
+            *pulPreviousNotificationValue = pxTCB-&gt;ulNotifiedValue[ uxIndexToNotify ];
+        }
+
+        ucOriginalNotifyState = pxTCB-&gt;ucNotifyState[ uxIndexToNotify ];
+        pxTCB-&gt;ucNotifyState[ uxIndexToNotify ] = taskNOTIFICATION_RECEIVED;
+
+        switch( eAction )
+        {
+            case eSetBits:   pxTCB-&gt;ulNotifiedValue[ uxIndexToNotify ] |= ulValue; break;
+            case eIncrement: ( pxTCB-&gt;ulNotifiedValue[ uxIndexToNotify ] )++;      break;
+            case eSetValueWithOverwrite:
+                             pxTCB-&gt;ulNotifiedValue[ uxIndexToNotify ] = ulValue;  break;
+            case eSetValueWithoutOverwrite:
+                if( ucOriginalNotifyState != taskNOTIFICATION_RECEIVED ) {
+                    pxTCB-&gt;ulNotifiedValue[ uxIndexToNotify ] = ulValue;
+                } else {
+                    xReturn = pdFAIL;      /* 未読の通知があるので失敗 */
+                }
+                break;
+            case eNoAction:  break;
+        }
+
+        /* 待っていたなら起こす */
+        if( ucOriginalNotifyState == taskWAITING_NOTIFICATION )
+        {
+            ( void ) uxListRemove( &amp;( pxTCB-&gt;xStateListItem ) );
+            prvAddTaskToReadyList( pxTCB );
+
+            configASSERT( pxTCB-&gt;xEventListItem.pvContainer == NULL );  /* イベントリスト不使用 */
+
+            if( pxTCB-&gt;uxPriority &gt; pxCurrentTCB-&gt;uxPriority ) {
+                taskYIELD_IF_USING_PREEMPTION();
+            }
+        }
+    }
+    taskEXIT_CRITICAL();
+
+    return xReturn;
+}</code></pre><blockquote><p><strong><code>configASSERT( pxTCB-&gt;xEventListItem.pvContainer == NULL )</code> に注目.</strong></p><p>通知待ちのタスクは、<strong>イベントリストを使わない</strong>。 「誰から通知が来るか」が既に決まっているので、待ち行列を作る必要がないからである。</p><p>だから起こす処理が</p><pre><code class="lang-c">uxListRemove( &amp;( pxTCB-&gt;xStateListItem ) );
+prvAddTaskToReadyList( pxTCB );</code></pre><p>の 2 行だけで済む。キューの <code>xTaskRemoveFromEventList()</code> より格段に短い。 <strong>これが 45 % 速い理由の本体である。</strong></p></blockquote><h2>5. イベントグループ — 複数の事象を組み合わせて待つ</h2><pre><code class="lang-c">#define configUSE_EVENT_GROUPS  1
+
+EventGroupHandle_t xEventGroup = xEventGroupCreate();
+
+#define BIT_WIFI_UP    ( 1 &lt;&lt; 0 )
+#define BIT_TIME_SYNC  ( 1 &lt;&lt; 1 )
+#define BIT_CONFIG_OK  ( 1 &lt;&lt; 2 )
+
+/* 立てる側 */
+xEventGroupSetBits( xEventGroup, BIT_WIFI_UP );
+
+/* 待つ側: 3 つ全部が揃うまで待つ */
+EventBits_t bits = xEventGroupWaitBits(
+        xEventGroup,
+        BIT_WIFI_UP | BIT_TIME_SYNC | BIT_CONFIG_OK,
+        pdFALSE,          /* xClearOnExit: 抜けるときにクリアしない */
+        pdTRUE,           /* xWaitForAllBits: pdTRUE = AND、pdFALSE = OR */
+        portMAX_DELAY );</code></pre><p><strong>タスク通知との決定的な違い</strong>はこれである。</p><div class="tablewrap"><table><thead><tr><th>観点</th><th>タスク通知</th><th>イベントグループ</th></tr></thead><tbody><tr><td>受信者</td><td><strong>1 つのタスク専用</strong></td><td><strong>複数のタスクが同じビットを待てる</strong></td></tr><tr><td>AND 待ち</td><td><strong>できない</strong></td><td><strong>できる</strong>（<code>xWaitForAllBits</code>）</td></tr><tr><td>OR 待ち</td><td>できる（受け取ってから自分で判定）</td><td>できる</td></tr><tr><td>メモリ</td><td>TCB に埋め込み（追加 0）</td><td>オブジェクト 1 つ（約 30 バイト）</td></tr><tr><td>速度</td><td>速い</td><td>やや遅い</td></tr></tbody></table></div><blockquote><p><strong>イベントグループを使う理由は「AND 待ち」と「複数受信者」の 2 つだけ.</strong></p><p>それ以外の用途なら、タスク通知の <code>eSetBits</code> で足りる。 「複数の条件が揃うまで待つ」は、素朴に書くと難しい。</p><pre><code class="lang-c">/* イベントグループなしで AND 待ちを書くと… */
+for (;;) {
+    xSemaphoreTake( xSemA, portMAX_DELAY );
+    xSemaphoreTake( xSemB, portMAX_DELAY );   /* ← 順序に依存する。B が先に来ると？ */
+    ...
+}</code></pre><p>イベントグループなら 1 行で済む。<strong>これが存在理由である。</strong></p></blockquote><h3>ビット数の制限</h3><pre><code class="lang-c">typedef uint32_t EventBits_t;      /* configUSE_16_BIT_TICKS == 0 のとき */</code></pre><p><strong>使えるのは下位 24 ビットだけ</strong>である（上位 8 ビットはカーネルが制御用に使う）。</p><pre><code class="lang-c">#define eventEVENT_BITS_CONTROL_BYTES   0xff000000UL</code></pre><p><code>configUSE_16_BIT_TICKS == 1</code> の場合は <code>uint16_t</code> になり、<strong>使えるのは下位 8 ビット</strong>になる。</p><h3><code>xEventGroupSync()</code> — ランデブー</h3><pre><code class="lang-c">EventBits_t xEventGroupSync( EventGroupHandle_t xEventGroup,
+                             const EventBits_t uxBitsToSet,
+                             const EventBits_t uxBitsToWaitFor,
+                             TickType_t xTicksToWait );</code></pre><p>「自分のビットを立てて、全員のビットが揃うまで待つ」—— <strong>複数タスクの待ち合わせ（バリア同期）</strong>である。</p><pre><code class="lang-c">#define TASK_A_BIT  (1 &lt;&lt; 0)
+#define TASK_B_BIT  (1 &lt;&lt; 1)
+#define TASK_C_BIT  (1 &lt;&lt; 2)
+#define ALL_BITS    (TASK_A_BIT | TASK_B_BIT | TASK_C_BIT)
+
+/* 各タスクで */
+do_my_part();
+xEventGroupSync( xEventGroup, TASK_A_BIT, ALL_BITS, portMAX_DELAY );
+/* ここに来たときは、3 つ全部が do_my_part() を終えている */</code></pre><p><strong>ビットのクリアは自動で行われる</strong>ので、次のラウンドでそのまま使える。</p><blockquote><p><strong><code>xEventGroupSetBits()</code> と <code>xEventGroupWaitBits()</code> を素朴に組み合わせても ランデブーにはならない.</strong></p><pre><code class="lang-c">xEventGroupSetBits( g, MY_BIT );
+xEventGroupWaitBits( g, ALL_BITS, pdTRUE, pdTRUE, portMAX_DELAY );  /* ← 競合する */</code></pre><p>「クリアするのは誰か」が競合する。 早く来たタスクが <code>xClearOnExit</code> でクリアすると、 遅れて来たタスクが「まだ揃っていない」と判定してしまう。</p><p><code>xEventGroupSync()</code> はこの競合をカーネル内部で正しく処理している。 <strong>バリア同期には必ずこれを使うこと。</strong></p></blockquote><h2>6. イベントグループと ISR</h2><p><strong>イベントグループの ISR 版は、タイマタスク経由で動く。</strong></p><pre><code class="lang-c">BaseType_t xEventGroupSetBitsFromISR( EventGroupHandle_t xEventGroup,
+                                      const EventBits_t uxBitsToSet,
+                                      BaseType_t *pxHigherPriorityTaskWoken )
+{
+    return xTimerPendFunctionCallFromISR( vEventGroupSetBitsCallback,
+                                          ( void * ) xEventGroup,
+                                          ( uint32_t ) uxBitsToSet,
+                                          pxHigherPriorityTaskWoken );
+}</code></pre><p>なぜか。ビットを立てる処理は「<strong>待っている全タスクを調べて、条件を満たすものを全部起こす</strong>」 という<strong>長さの読めない処理</strong>だからである。ISR の中でやりたくない。</p><p>そこで、<strong>タイマタスク（デーモンタスク）に処理を委譲する</strong>（15 章）。</p><blockquote><p><strong>これには 2 つの帰結がある.</strong></p><ol><li><strong><code>configUSE_TIMERS</code> を有効にしないと <code>xEventGroupSetBitsFromISR</code> は使えない</strong></li><li><strong>ビットが実際に立つのは、タイマタスクが走った後</strong>である（遅延がある）</li></ol><p>ISR から即座に反応させたいなら、<strong>タスク通知を使うこと</strong>。 <code>vTaskNotifyGiveFromISR()</code> はその場で処理が完了する。</p></blockquote><h2>7. ストリームバッファとメッセージバッファ</h2><p>v10.0 で追加された、<strong>1 対 1 専用の軽量なバイト列転送</strong>である。</p><pre><code class="lang-c">StreamBufferHandle_t xStream = xStreamBufferCreate( 1024, 10 );
+/* サイズ 1024 バイト、トリガレベル 10 バイト */
+
+/* 送る */
+xStreamBufferSend( xStream, data, len, timeout );
+
+/* 受ける: 10 バイト以上溜まるか、タイムアウトするまで待つ */
+size_t n = xStreamBufferReceive( xStream, buf, sizeof(buf), timeout );</code></pre><div class="tablewrap"><table><thead><tr><th>種類</th><th>単位</th><th>用途</th></tr></thead><tbody><tr><td><strong>ストリームバッファ</strong></td><td><strong>バイト列</strong>（境界なし）</td><td>UART の受信、連続データ</td></tr><tr><td><strong>メッセージバッファ</strong></td><td><strong>メッセージ</strong>（長さ付き、境界あり）</td><td>可変長のパケット</td></tr></tbody></table></div><pre><code class="lang-c">MessageBufferHandle_t xMsg = xMessageBufferCreate( 1024 );
+xMessageBufferSend( xMsg, "hello", 5, 0 );
+xMessageBufferSend( xMsg, "world!", 6, 0 );
+
+char buf[32];
+size_t n = xMessageBufferReceive( xMsg, buf, sizeof(buf), 0 );   /* n = 5, "hello" */
+n = xMessageBufferReceive( xMsg, buf, sizeof(buf), 0 );          /* n = 6, "world!" */</code></pre><blockquote><p><strong>重要な制約: 1 対 1 専用である.</strong></p><ul><li>送信側は<strong>1 つのタスク（または 1 つの ISR）だけ</strong></li><li>受信側は<strong>1 つのタスクだけ</strong></li></ul><p>この前提のおかげで、<strong>ロックなし（lock-free）で実装されている</strong>。 だからキューより速い。</p><p>複数の送信者がいる場合は、<strong>自分でミューテックスをかける</strong>必要がある。 「ロックなしで速い」のは前提を守った場合だけである。</p></blockquote><h3>適材適所のまとめ</h3><div class="tablewrap"><table><thead><tr><th>やりたいこと</th><th>最適な道具</th></tr></thead><tbody><tr><td>ISR → タスクの起床通知</td><td><strong>タスク通知</strong>（<code>vTaskNotifyGiveFromISR</code>）</td></tr><tr><td>ISR → タスクの値渡し（1 個）</td><td><strong>タスク通知</strong>（<code>eSetValueWithOverwrite</code>）</td></tr><tr><td>構造化データの受け渡し（複数個）</td><td><strong>キュー</strong></td></tr><tr><td>大きな可変長データ</td><td><strong>メッセージバッファ</strong></td></tr><tr><td>UART の連続受信</td><td><strong>ストリームバッファ</strong></td></tr><tr><td>共有資源の保護</td><td><strong>ミューテックス</strong></td></tr><tr><td>複数条件の AND 待ち</td><td><strong>イベントグループ</strong></td></tr><tr><td>複数タスクの待ち合わせ</td><td><strong><code>xEventGroupSync</code></strong></td></tr><tr><td>資源プールの個数管理</td><td><strong>カウンティングセマフォ</strong></td></tr></tbody></table></div><h2>8. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>タスク通知</td><td>TCB に埋め込まれた 32 bit 変数。<strong>オブジェクト生成が不要</strong></td></tr><tr><td>速さの理由</td><td>イベントリストを使わない。起こす処理が 2 行</td></tr><tr><td>5 つのモード</td><td>セマフォ・カウンティング・イベントグループ・キュー（長さ 1）を代替</td></tr><tr><td>制約</td><td>1 対 1・<strong>送信側がブロックできない</strong>・バッファなし</td></tr><tr><td>イベントグループ</td><td><strong>AND 待ち</strong>と<strong>複数受信者</strong>のためだけに使う</td></tr><tr><td>ビット数</td><td>実用は<strong>下位 24 ビット</strong>（上位 8 ビットはカーネル用）</td></tr><tr><td><code>xEventGroupSync</code></td><td>バリア同期。素朴な組み合わせでは競合する</td></tr><tr><td>ISR 版イベントグループ</td><td><strong>タイマタスク経由</strong>なので遅延がある</td></tr><tr><td>ストリーム／メッセージバッファ</td><td><strong>1 対 1 専用でロックなし</strong>。前提を守れば速い</td></tr></tbody></table></div><p>ここまでで第 III 部は終わりである。 次章から第 IV 部——時間とメモリの管理に入る。</p>
+  <nav class="chnav"><a class="pn" href="13.html"><span>←</span><b>優先度逆転と優先度継承 — 火星探査機を止めたバグ</b></a><a class="pn nx" href="15.html"><b>ソフトウェアタイマ — タイマタスクという「専用のスタッフ」</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

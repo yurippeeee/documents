@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>05. TCB とコンテキストスイッチ — 「実行の途中」を畳んで保存する — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">05 · TCB とコンテキストスイッチ — 「実行の途中」を畳んで保存する</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 05</p>
+  <h1 class="doctitle">TCB とコンテキストスイッチ — 「実行の途中」を畳んで保存する</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——ここが「OS の魔法」に見える部分の正体である.</strong></p><p>「タスクが切り替わる」と言葉で言うのは簡単だが、 実際に何が起きているのかを説明できる人は少ない。</p><p>だが 01 章で見たとおり、<strong>「実行の途中」は有限のデータに落ちる</strong>。 データに落ちるなら、保存も復元もただのメモリ操作である。 <strong>魔法ではない。</strong> この章でそれを最後まで確かめる。</p></blockquote><h2>1. TCB — タスクの正体</h2><p>FreeRTOS がタスクについて知っていることは、すべて <strong>TCB (Task Control Block)</strong> に入っている。</p><pre><code class="lang-c">typedef struct tskTaskControlBlock
+{
+    volatile StackType_t *pxTopOfStack;   /* ★ 保存されたスタックポインタ */
+
+    ListItem_t   xStateListItem;          /* Ready / 遅延 / Suspended リスト用 */
+    ListItem_t   xEventListItem;          /* イベント待ちリスト用 */
+    UBaseType_t  uxPriority;              /* 現在の優先度 */
+    StackType_t *pxStack;                 /* スタック領域の先頭 */
+    char         pcTaskName[ configMAX_TASK_NAME_LEN ];
+
+    #if ( portSTACK_GROWTH &gt; 0 )
+        StackType_t *pxEndOfStack;
+    #endif
+    #if ( portCRITICAL_NESTING_IN_TCB == 1 )
+        UBaseType_t uxCriticalNesting;
+    #endif
+    #if ( configUSE_MUTEXES == 1 )
+        UBaseType_t uxBasePriority;       /* 優先度継承前の元の優先度（13 章） */
+        UBaseType_t uxMutexesHeld;        /* 保持中のミューテックス数 */
+    #endif
+    #if ( configUSE_TASK_NOTIFICATIONS == 1 )
+        volatile uint32_t ulNotifiedValue[ configTASK_NOTIFICATION_ARRAY_ENTRIES ];
+        volatile uint8_t  ucNotifyState[  configTASK_NOTIFICATION_ARRAY_ENTRIES ];
+    #endif
+    ...
+} tskTCB;</code></pre><h3><code>pxTopOfStack</code> が構造体の先頭にある理由</h3><p>これは<strong>偶然ではない</strong>。</p><p>コンテキストスイッチのアセンブラは、<code>pxCurrentTCB</code> をロードして、 <strong>そのアドレスが指す先頭 4 バイト（＝ <code>pxTopOfStack</code>）</strong>を読み書きする。</p><pre><code>pxCurrentTCB ──→ ┌────────────────┐ ← オフセット 0
+                 │ pxTopOfStack   │   アセンブラはここだけ触ればよい
+                 ├────────────────┤
+                 │ xStateListItem │
+                 │ ...            │</code></pre><p>先頭にあれば、アセンブラ側は<strong>構造体のレイアウトを一切知らなくてよい</strong>。 オフセット計算が不要になり、移植層のコードが数命令短くなる。</p><blockquote><p><strong>この「先頭に置く」というトリックは至るところで使われている.</strong> Linux の <code>thread_info</code>、Zephyr の <code>_thread_arch</code>—— <strong>アセンブラから触るフィールドは構造体の先頭</strong>、というのは OS 実装の常識である。</p></blockquote><h2>2. スタックの中身</h2><p>タスクのスタックは、生成時にこう確保される。</p><pre><code class="lang-c">pxStack = pvPortMalloc( usStackDepth * sizeof( StackType_t ) );</code></pre><p><code>usStackDepth</code> は<strong>ワード数</strong>であることに注意。 32 bit CPU で <code>usStackDepth = 128</code> なら、<strong>512 バイト</strong>である。</p><pre><code>（スタックが下向きに伸びる CPU の場合）
+
+pxStack ──→ ┌────────────────┐ 低位アドレス
+            │ 0xA5A5A5A5     │  ← 未使用領域の埋め草（17 章の HWM 検出用）
+            │ 0xA5A5A5A5     │
+            │      ⋮         │
+            │ 0xA5A5A5A5     │
+            ├────────────────┤ ← pxTopOfStack（保存されたスタックポインタ）
+            │ 退避レジスタ    │  ← 切り替え時に積まれた R4-R11 など
+            │ 復帰用の情報    │
+            ├────────────────┤
+            │ ローカル変数    │  ← タスクが実行中に積んだもの
+            │ 戻りアドレス    │
+            │      ⋮         │
+            └────────────────┘ 高位アドレス（スタックの底）</code></pre><p><strong>タスクが走っているとき</strong>、CPU の SP レジスタがこのスタックを指している。 <strong>タスクが止まっているとき</strong>、その時点の SP が <code>pxTopOfStack</code> に保存されている。</p><blockquote><p><strong>これが「実行の途中の保存」の全体像である.</strong></p><ul><li>スタックの<strong>中身は動かさない</strong>。そこにあり続ける</li><li>保存するのは<strong>スタックポインタ 1 個</strong>だけ</li><li>レジスタは、そのスタックの上に積んでおく</li></ul><p>つまり切り替えの実体は、 <strong>「レジスタをスタックに積む → <code>pxTopOfStack</code> に SP を書く → 別のタスクの <code>pxTopOfStack</code> から SP を読む → レジスタを降ろす」</strong> ——これだけである。</p></blockquote><h2>3. コンテキストスイッチの手順</h2><p>移植層がやることを、CPU 非依存の擬似コードで書くとこうなる。</p><pre><code>1. 現在のタスクの全レジスタを、現在の SP が指すスタックに積む
+2. pxCurrentTCB-&gt;pxTopOfStack = 現在の SP        ← 保存完了
+
+3. vTaskSwitchContext()  を呼ぶ                 ← カーネルの仕事
+      ここで pxCurrentTCB が新しいタスクを指すようになる
+
+4. 現在の SP = pxCurrentTCB-&gt;pxTopOfStack        ← 復元開始
+5. スタックからレジスタを降ろす
+6. 復帰する（PC が復元され、そのタスクの続きから走り出す）</code></pre><p><strong>ステップ 3 だけがカーネルの仕事で、残りは全部移植層である。</strong> そして <code>vTaskSwitchContext()</code> の中身は、次章と 07 章で見るとおり、 <strong>「Ready リストから最高優先度のタスクを選んで <code>pxCurrentTCB</code> に代入する」</strong>だけである。</p><h3>コンテキストスイッチをステップ実行する</h3><div class="widget" data-widget="ctxswitch"></div><p>各ステップで、レジスタ・SP・スタックの中身・<code>pxCurrentTCB</code> がどう変わるかを追える。</p><blockquote><p><strong>ステップ 6 の「復帰する」が最も面白い.</strong></p><p>復元されるレジスタの中には <strong>PC（プログラムカウンタ）</strong> が含まれている。 PC を書き換えるということは、<strong>その瞬間に実行の流れが飛ぶ</strong>ということである。</p><p>つまり、</p><ul><li>入ったのは <strong>タスク A のコンテキスト</strong></li><li>出ていくのは <strong>タスク B のコンテキスト</strong></li></ul><p>同じ関数に入って、<strong>違う場所から出てくる</strong>。 C 言語では書けない（<code>setjmp</code>/<code>longjmp</code> が近いが不十分）。 <strong>だからこの部分だけはアセンブラで書かざるを得ない。</strong></p></blockquote><h2>4. 切り替えの 2 つのきっかけ</h2><p>コンテキストスイッチが起きるきっかけは、大きく 2 つしかない。</p><div class="tablewrap"><table><thead><tr><th>種類</th><th>きっかけ</th><th>例</th></tr></thead><tbody><tr><td><strong>自発的 (voluntary)</strong></td><td>タスク自身が API を呼んだ</td><td><code>vTaskDelay</code>、<code>xQueueReceive</code>、<code>taskYIELD</code></td></tr><tr><td><strong>強制的 (preemptive)</strong></td><td>割り込みの中で必要と判断された</td><td>ティック割り込み、ISR がタスクを起こした</td></tr></tbody></table></div><h3>自発的な切り替え</h3><pre><code class="lang-c">void vTaskDelay( const TickType_t xTicksToDelay )
+{
+    if( xTicksToDelay &gt; 0 ) {
+        vTaskSuspendAll();
+        {
+            prvAddCurrentTaskToDelayedList( xTicksToDelay, pdFALSE );
+        }
+        xAlreadyYielded = xTaskResumeAll();
+    }
+
+    if( xAlreadyYielded == pdFALSE ) {
+        portYIELD_WITHIN_API();     /* ← ここで切り替わる */
+    }
+}</code></pre><p>自分で Ready リストを抜けて遅延リストに入り、それから <code>portYIELD</code> する。 <strong>この関数から戻ってくるのは、指定ティック後である。</strong></p><h3>強制的な切り替え</h3><p>ティック割り込みの中で、<code>xTaskIncrementTick()</code> が 「起こすべきタスクがいて、それが現在のタスクより優先度が高い」と判断すると、 割り込みからの復帰時に切り替えが起きる。</p><pre><code class="lang-c">void xPortSysTickHandler( void )     /* 移植層 */
+{
+    if( xTaskIncrementTick() != pdFALSE ) {
+        /* 切り替えが必要 → PendSV を起こす（Cortex-M の場合） */
+        portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT;
+    }
+}</code></pre><blockquote><p><strong>重要な設計判断: 切り替えは「割り込みの一番外側」で行う.</strong></p><p>割り込みハンドラの中で直接切り替えると、 <strong>割り込みが多重にネストしているとき</strong>に破綻する。</p><p>だから多くの移植層は「切り替えたい」というフラグを立てるだけにして、 <strong>すべての割り込みを抜けた後</strong>の最低優先度の割り込み（Cortex-M なら PendSV）で 実際の切り替えを行う。</p><p>結果として、<strong><code>portYIELD()</code> は即座には切り替わらない</strong>。 数命令〜数十命令の遅れがある。これは正常な動作である。</p></blockquote><h2>5. コンテキストスイッチのコスト</h2><p>切り替えには時間がかかる。目安を持っておくことは重要である。</p><div class="tablewrap"><table><thead><tr><th>CPU</th><th>1 回の切り替え</th><th>備考</th></tr></thead><tbody><tr><td>Cortex-M0+ @48 MHz</td><td>約 3〜5 µs</td><td>手動退避が多い</td></tr><tr><td>Cortex-M4 @168 MHz</td><td>約 1〜2 µs</td><td>一部ハードウェアが退避</td></tr><tr><td>Cortex-M4F @168 MHz</td><td>約 2〜4 µs</td><td><strong>FPU レジスタ 32 個が追加</strong>される</td></tr><tr><td>RISC-V RV32 @100 MHz</td><td>約 2〜4 µs</td><td>レジスタ 31 本</td></tr></tbody></table></div><h3>切り替えコストの影響</h3><div class="widget" data-widget="swcost"></div><p>ティック周期と切り替え回数を変えると、オーバーヘッドが何 % になるかを確かめられる。</p><blockquote><p><strong>FPU を使うタスクは切り替えが重い.</strong></p><p>Cortex-M4F の FPU レジスタは S0〜S31 の 32 本＝128 バイト。 汎用レジスタと合わせると<strong>退避量が 2 倍以上</strong>になる。</p><p>対策として、多くの移植層は<strong>遅延スタッキング (lazy stacking)</strong> を使う。 「FPU を実際に使ったタスクだけ FPU レジスタを退避する」という仕組みである。 ハードウェアが自動でやってくれるので、<strong>FPU を使わないタスクは軽いまま</strong>である。</p><p>だから「<strong>割り込みハンドラの中で float を使わない</strong>」は今も有効な指針である。 使った瞬間に、そのハンドラの退避量が跳ね上がる。</p></blockquote><h3>コストを見積もる式</h3><p>ティック周期を \(T_{tick}\)、1 回の切り替えコストを \(C_{sw}\)、 1 ティックあたりの平均切り替え回数を \(n\) とすると、 オーバーヘッド率は次のようになる。</p><div class="eqn">\[ \eta = \frac{n \cdot C_{sw}}{T_{tick}} \]</div><p>たとえば \(T_{tick} = 1\) ms、\(C_{sw} = 2\) µs、\(n = 4\) なら</p><div class="eqn">\[ \eta = \frac{4 \times 2\ \mu s}{1000\ \mu s} = 0.8\% \]</div><p><strong>1 % 未満なら、まず問題にならない。</strong> 逆に \(n\) が 50 を超えるようなら（＝ 1 ティックに 50 回切り替わる）、 設計を疑うべきである。たいていはビジーウェイトか、細かすぎるタスク分割が原因である。</p><h2>6. 切り替えで壊れるもの・壊れないもの</h2><div class="tablewrap"><table><thead><tr><th>対象</th><th>切り替えで保存されるか</th><th>理由</th></tr></thead><tbody><tr><td>ローカル変数</td><td><strong>される</strong></td><td>タスクのスタックにある</td></tr><tr><td>関数の引数</td><td><strong>される</strong></td><td>同上</td></tr><tr><td>CPU レジスタ</td><td><strong>される</strong></td><td>スタックに積まれる</td></tr><tr><td>グローバル変数</td><td><strong>されない</strong>（共有される）</td><td>どのタスクからも同じものが見える</td></tr><tr><td><code>static</code> 変数</td><td><strong>されない</strong>（共有される）</td><td>同上</td></tr><tr><td><code>errno</code></td><td>設定次第</td><td><code>configUSE_NEWLIB_REENTRANT</code> で TCB に持てる</td></tr><tr><td>ペリフェラルのレジスタ</td><td><strong>されない</strong></td><td>ハードウェアはタスクを知らない</td></tr></tbody></table></div><blockquote><p><strong>最後の行が実務で効いてくる.</strong></p><pre><code class="lang-c">/* タスク A */
+SPI-&gt;CR = SPI_MODE_0;    /* SPI をモード 0 に設定 */
+/* ← ここで切り替わる */
+spi_transfer(...);        /* 実際はモード 3 で転送されるかもしれない */
+
+/* タスク B */
+SPI-&gt;CR = SPI_MODE_3;    /* SPI をモード 3 に設定 */</code></pre><p>ペリフェラルは 1 セットしかないので、<strong>タスクごとの設定を持てない</strong>。 だから<strong>共有ペリフェラルは必ずミューテックスで守る</strong>（12 章）。 これはメモリの排他制御と並んで、RTOS で最も多いバグの原因である。</p></blockquote><h2>7. スタックサイズをどう決めるか</h2><p>これは 17 章で詳しくやるが、原理だけ先に述べる。</p><p>タスクのスタックに必要な量は、次の合計である。</p><div class="tablewrap"><table><thead><tr><th>項目</th><th>量</th></tr></thead><tbody><tr><td><strong>コンテキスト退避領域</strong></td><td>移植層が決める（Cortex-M4F で約 100 バイト）</td></tr><tr><td><strong>最も深い呼び出し経路のローカル変数</strong></td><td>関数を追って合計する</td></tr><tr><td><strong>その経路上の戻りアドレスと退避レジスタ</strong></td><td>関数 1 段あたり 20〜40 バイト</td></tr><tr><td><strong>割り込みのネスト分</strong></td><td>移植による（Cortex-M は割り込み専用スタックがないので<strong>加算が必要</strong>）</td></tr><tr><td><strong>安全マージン</strong></td><td>上記合計の 30〜50 %</td></tr></tbody></table></div><blockquote><p><strong><code>printf</code> は要注意.</strong></p><p>標準ライブラリの <code>printf</code> は、実装によっては<strong>1〜2 KB のスタック</strong>を使う。 <code>%f</code> を使うと更に増える。</p><p>「タスクにデバッグ用の printf を足したら動かなくなった」は定番の事故である。 組み込みでは軽量な <code>printf</code> 実装に差し替えるか、 <strong>ログ専用タスクを 1 つ作って、そこだけ大きなスタックを与える</strong>のが定石である。</p></blockquote><h2>8. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>TCB</td><td>タスクの全情報。<code>pxTopOfStack</code> が<strong>構造体の先頭</strong>にあるのは意図的</td></tr><tr><td>保存されるもの</td><td><strong>スタックポインタ 1 個</strong>。スタックの中身は動かさない</td></tr><tr><td>切り替えの手順</td><td>積む → SP を保存 → <code>vTaskSwitchContext()</code> → SP を復元 → 降ろす</td></tr><tr><td>カーネルの仕事</td><td><strong><code>pxCurrentTCB</code> を書き換えるだけ</strong>。残りは移植層</td></tr><tr><td>出口が違う</td><td>入るのは A、出るのは B。<strong>C 言語では書けない</strong></td></tr><tr><td>切り替えのタイミング</td><td>即座ではない。<strong>割り込みの一番外側</strong>で行う移植が多い</td></tr><tr><td>コスト</td><td>1〜5 µs。オーバーヘッド率 1 % 未満が目安</td></tr><tr><td>保存されないもの</td><td>グローバル・<code>static</code>・<strong>ペリフェラルレジスタ</strong></td></tr></tbody></table></div><p>次章では、<code>vTaskSwitchContext()</code> の中身—— 「誰を次に走らせるか」を決める方針を見る。</p>
+  <nav class="chnav"><a class="pn" href="04.html"><span>←</span><b>タスクの状態機械 — Running / Ready / Blocked / Suspended</b></a><a class="pn nx" href="06.html"><b>スケジューリング方針 — 常に最高優先度が走る</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>09. アイドルタスクとフック — 「何もしない」タスクが必要な理由 — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">09 · アイドルタスクとフック — 「何もしない」タスクが必要な理由</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 09</p>
+  <h1 class="doctitle">アイドルタスクとフック — 「何もしない」タスクが必要な理由</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「走るものがない」状態を作らないため.</strong></p><p>06 章の規則は「実行可能な最高優先度タスクが必ず走っている」だった。 では、<strong>全部のタスクがブロックしていたら</strong>どうなるのか。</p><p>走らせるタスクがなければ、<code>pxCurrentTCB</code> は何を指せばいいのか。 スケジューラは何をすればいいのか。</p><p>この「例外」を消すために、FreeRTOS は<strong>絶対にブロックしないタスクを 1 つ用意する</strong>。 それがアイドルタスクである。そして、それは「何もしない」わけではない。</p></blockquote><h2>1. なぜアイドルタスクが必要か</h2><p>素朴に考えれば、「走るタスクがなければ、割り込みが来るまで CPU を止めればいい」と思える。 実際、そういう設計の OS もある。</p><p>だが FreeRTOS はそうしない。理由は 3 つある。</p><div class="tablewrap"><table><thead><tr><th>理由</th><th>説明</th></tr></thead><tbody><tr><td><strong>スケジューラを単純にする</strong></td><td>「Ready が空」という特別扱いが不要になる</td></tr><tr><td><strong>後片付けの実行主体が要る</strong></td><td>自分を削除したタスクのスタックを、誰かが解放しないといけない</td></tr><tr><td><strong>アプリケーションに介入点を与える</strong></td><td>省電力・統計・ウォッチドッグの処理を差し込める</td></tr></tbody></table></div><p>とくに 1 つ目が本質的である。</p><blockquote><p><strong>アイドルタスクは「規則の例外をなくすための装置」である.</strong></p><p>優先度 0 に絶対にブロックしないタスクが 1 つ常駐していれば、 <strong><code>pxReadyTasksLists[0]</code> は常に空でない</strong>。</p><p>だから 07 章の</p><pre><code class="lang-c">while( listLIST_IS_EMPTY( &amp;( pxReadyTasksLists[ uxTopPriority ] ) ) ) { --uxTopPriority; }</code></pre><p>は、<strong>必ず有限回で止まる</strong>ことが保証される。</p><p>スケジューラのコードから条件分岐が 1 つ消える。 <strong>例外をなくすために 1 つ余計なものを常駐させる</strong>——これは OS 設計の常套手段である。 Linux の <code>swapper</code> プロセス（PID 0）もまったく同じ役割である。</p></blockquote><h2>2. アイドルタスクの中身</h2><pre><code class="lang-c">static portTASK_FUNCTION( prvIdleTask, pvParameters )
+{
+    for( ;; )
+    {
+        /* (1) 削除されたタスクの後片付け */
+        prvCheckTasksWaitingTermination();
+
+        /* (2) タイムスライスが無効なら、同優先度に譲る */
+        #if ( configUSE_PREEMPTION == 0 )
+        {
+            taskYIELD();
+        }
+        #endif
+
+        #if ( ( configUSE_PREEMPTION == 1 ) &amp;&amp; ( configIDLE_SHOULD_YIELD == 1 ) )
+        {
+            /* 優先度 0 に他のタスクがいるなら、すぐ譲る */
+            if( listCURRENT_LIST_LENGTH( &amp;( pxReadyTasksLists[ 0 ] ) ) &gt; 1 ) {
+                taskYIELD();
+            }
+        }
+        #endif
+
+        /* (3) アプリケーションのフック */
+        #if ( configUSE_IDLE_HOOK == 1 )
+        {
+            extern void vApplicationIdleHook( void );
+            vApplicationIdleHook();
+        }
+        #endif
+
+        /* (4) ティックレス（低消費電力） */
+        #if ( configUSE_TICKLESS_IDLE != 0 )
+        {
+            TickType_t xExpectedIdleTime = prvGetExpectedIdleTime();
+            if( xExpectedIdleTime &gt;= configEXPECTED_IDLE_TIME_BEFORE_SLEEP ) {
+                vTaskSuspendAll();
+                {
+                    xExpectedIdleTime = prvGetExpectedIdleTime();
+                    if( xExpectedIdleTime &gt;= configEXPECTED_IDLE_TIME_BEFORE_SLEEP ) {
+                        portSUPPRESS_TICKS_AND_SLEEP( xExpectedIdleTime );
+                    }
+                }
+                ( void ) xTaskResumeAll();
+            }
+        }
+        #endif
+    }
+}</code></pre><p><strong>4 つの仕事</strong>がある。順に見ていく。</p><h2>3. 仕事 1: 削除されたタスクの後片付け</h2><p>04 章で触れたとおり、タスクが<strong>自分自身を削除する</strong>とき、 その場でスタックを解放することはできない。<strong>まだそのスタックの上で走っているから</strong>である。</p><pre><code class="lang-c">static void prvCheckTasksWaitingTermination( void )
+{
+    while( uxDeletedTasksWaitingCleanUp &gt; 0U )
+    {
+        taskENTER_CRITICAL();
+        {
+            pxTCB = listGET_OWNER_OF_HEAD_ENTRY( &amp;xTasksWaitingTermination );
+            ( void ) uxListRemove( &amp;( pxTCB-&gt;xStateListItem ) );
+            --uxCurrentNumberOfTasks;
+            --uxDeletedTasksWaitingCleanUp;
+        }
+        taskEXIT_CRITICAL();
+
+        prvDeleteTCB( pxTCB );      /* スタックと TCB を解放 */
+    }
+}</code></pre><blockquote><p><strong>アイドルタスクが走らないと、メモリが返ってこない.</strong></p><p>これが「タスクを削除したのにヒープが減ったまま」の正体である。</p><pre><code class="lang-c">/* 高優先度タスクがビジーウェイトしている */
+void vBadTask(void *pv) {
+    for (;;) { if (flag) handle(); }    /* ブロックしない */
+}</code></pre><p>このタスクがいると、アイドルタスクに CPU が回らない。 <code>vTaskDelete()</code> を何回呼んでも、TCB とスタックは <code>xTasksWaitingTermination</code> に <strong>溜まり続ける</strong>。やがてヒープが尽きる。</p><p><strong>「メモリリークだと思ったら、実はアイドルタスクの飢餓だった」</strong>—— 実務でよく見る症状である。</p></blockquote><h3>アイドルタスクのスタックサイズ</h3><pre><code class="lang-c">#define configMINIMAL_STACK_SIZE  128       /* ワード単位 */</code></pre><p>アイドルタスク自身はほとんどスタックを使わない。 <strong>問題は <code>vApplicationIdleHook()</code> である。</strong></p><p>フックの中で <code>printf</code> を呼んだり深い関数を呼んだりすると、 <strong>アイドルタスクのスタックが溢れる</strong>。しかも症状が出にくい（たまにしか走らないから）。</p><p><strong>フックの中では、必要最小限のことしかしないこと。</strong></p><h2>4. 仕事 2: <code>configIDLE_SHOULD_YIELD</code></h2><pre><code class="lang-c">#define configIDLE_SHOULD_YIELD  1        /* 既定値は 1 */</code></pre><p>これは「<strong>優先度 0 にアプリケーションのタスクを置いた場合</strong>」の挙動を決める。</p><div class="tablewrap"><table><thead><tr><th>設定</th><th>挙動</th></tr></thead><tbody><tr><td><code>1</code></td><td>アイドルタスクは、優先度 0 に他のタスクがいたら<strong>即座に譲る</strong></td></tr><tr><td><code>0</code></td><td>アイドルタスクも<strong>タイムスライスで 1 ティック分走る</strong></td></tr></tbody></table></div><p><code>1</code> なら、優先度 0 のアプリタスクは CPU をほぼ全部使える。</p><blockquote><p><strong>そもそも優先度 0 を使わないこと.</strong></p><p><code>configIDLE_SHOULD_YIELD = 1</code> にしても、 アイドルタスクは「1 回ループを回ってから」譲る。完全にゼロにはならない。</p><p>しかも、優先度 0 に複数タスクがいると<strong>タイムスライスが正しく効かない</strong> （アイドルタスクが毎回途中で譲るため、時間配分が不均等になる）。</p><p><strong>アプリケーションのタスクは優先度 1 以上に置く。</strong> これで全部解決する。</p></blockquote><h2>5. 仕事 3: アイドルフック</h2><pre><code class="lang-c">#define configUSE_IDLE_HOOK  1
+
+void vApplicationIdleHook( void )
+{
+    /* ここに書く */
+}</code></pre><p><strong>アイドルフックには 2 つの絶対的な制約がある。</strong></p><div class="tablewrap"><table><thead><tr><th>制約</th><th>理由</th></tr></thead><tbody><tr><td><strong>絶対にブロックしてはいけない</strong></td><td>アイドルタスクがブロックすると、走るタスクがゼロになる</td></tr><tr><td><strong>絶対に削除・終了してはいけない</strong></td><td>同上</td></tr></tbody></table></div><pre><code class="lang-c">void vApplicationIdleHook( void )
+{
+    vTaskDelay( 10 );        /* ← 絶対にダメ */
+    xQueueReceive( q, &amp;x, portMAX_DELAY );    /* ← 絶対にダメ */
+}</code></pre><p>これをやると、<code>pxReadyTasksLists[0]</code> が空になり、 07 章の探索ループが<strong>優先度 0 を下回って暴走する</strong>。 <code>configASSERT</code> を定義していれば、そこで捕まる。</p><h3>アイドルフックの正しい使い方</h3><div class="tablewrap"><table><thead><tr><th>用途</th><th>内容</th></tr></thead><tbody><tr><td><strong>省電力</strong></td><td><code>__WFI()</code> で CPU を止める。次の割り込みで起きる</td></tr><tr><td><strong>CPU 使用率の測定</strong></td><td>アイドルフックが呼ばれた回数を数える</td></tr><tr><td><strong>ウォッチドッグ</strong></td><td>「全タスクが正常に寝ている」証拠としてキックする</td></tr><tr><td><strong>低優先度の後始末</strong></td><td>ログのフラッシュなど（<strong>ブロックしない範囲で</strong>）</td></tr></tbody></table></div><pre><code class="lang-c">/* 省電力の最小形 */
+void vApplicationIdleHook( void )
+{
+    __WFI();      /* Wait For Interrupt。次の割り込みまで CPU クロックを止める */
+}</code></pre><blockquote><p><strong><code>__WFI()</code> を入れるだけで消費電流が劇的に下がる.</strong></p><p>何もしないとアイドルタスクは全力でループを回り続ける。 Cortex-M4 なら数十 mA を無駄に消費する。</p><p><code>__WFI()</code> を入れると、次の割り込み（多くはティック割り込み）まで CPU が止まる。 <strong>1 ms 周期のティックでも、消費電流は 1/5〜1/10 になる</strong>ことがある。</p><p>さらに下げたいなら <code>configUSE_TICKLESS_IDLE</code>（次節）である。</p></blockquote><h3>CPU 使用率の測定</h3><p>アイドルフックの呼び出し回数を数えると、CPU 使用率が分かる。</p><pre><code class="lang-c">volatile uint32_t ulIdleCount = 0;
+
+void vApplicationIdleHook( void )
+{
+    ulIdleCount++;
+}
+
+/* 別のタスクで、1 秒ごとに */
+float cpu_usage = 100.0f * (1.0f - (float)ulIdleCount / ulIdleCountMax);
+ulIdleCount = 0;</code></pre><p><code>ulIdleCountMax</code> は「全タスクを止めて 1 秒間アイドルさせたときのカウント」を あらかじめ測っておく（キャリブレーション）。</p><h3>CPU 使用率を測る</h3><div class="widget" data-widget="cpuload"></div><p>タスクの負荷を変えて、アイドル時間と CPU 使用率がどう変わるかを確かめられる。</p><blockquote><p><strong>この方法の欠点.</strong></p><p><code>__WFI()</code> を入れると、アイドルフックの実行時間が「割り込みを待つ時間」に化けるので、 <strong>カウント方式の測定が成立しなくなる</strong>。</p><p>より正確に測るには、21 章の<strong>実行時間統計（run-time stats）</strong>を使う。 高分解能タイマでタスクごとの実行時間を積算する仕組みである。</p></blockquote><h2>6. 仕事 4: ティックレスアイドル</h2><p>8 章で触れた低消費電力機能である。アイドルタスクの中で実行される。</p><pre><code class="lang-c">TickType_t xExpectedIdleTime = prvGetExpectedIdleTime();
+if( xExpectedIdleTime &gt;= configEXPECTED_IDLE_TIME_BEFORE_SLEEP ) {
+    portSUPPRESS_TICKS_AND_SLEEP( xExpectedIdleTime );
+}</code></pre><p><code>prvGetExpectedIdleTime()</code> は「次にタスクを起こすべき時刻までの残りティック数」を返す。 それが <code>configEXPECTED_IDLE_TIME_BEFORE_SLEEP</code>（既定 2）以上なら、寝る価値があると判断する。</p><blockquote><p><strong><code>vTaskSuspendAll()</code> で囲んで、もう一度確認しているのはなぜか.</strong></p><pre><code class="lang-c">vTaskSuspendAll();
+{
+    xExpectedIdleTime = prvGetExpectedIdleTime();      /* もう一度 */
+    if( xExpectedIdleTime &gt;= configEXPECTED_IDLE_TIME_BEFORE_SLEEP ) {
+        portSUPPRESS_TICKS_AND_SLEEP( xExpectedIdleTime );
+    }
+}
+( void ) xTaskResumeAll();</code></pre><p>1 回目の判定と 2 回目の判定の間に、<strong>割り込みでタスクが Ready になったかもしれない</strong>からである。 古い値を信じて長時間寝てしまうと、そのタスクの起床が遅れる。</p><p>これは<strong>チェック・アンド・アクトの競合 (TOCTOU)</strong> の典型的な対策である。 「判定した状態のまま行動する」ために、判定と行動を排他区間で囲み直している。 19 章で改めて扱う。</p></blockquote><h2>7. 他のフック</h2><p>FreeRTOS が用意しているフックは 5 つある。</p><div class="tablewrap"><table><thead><tr><th>フック</th><th>呼ばれる場所</th><th>用途</th><th>制約</th></tr></thead><tbody><tr><td><code>vApplicationIdleHook</code></td><td>アイドルタスク</td><td>省電力・統計</td><td><strong>ブロック禁止</strong></td></tr><tr><td><code>vApplicationTickHook</code></td><td><strong>ティック割り込みの中</strong></td><td>高頻度の軽い処理</td><td><strong>ISR の制約が全部かかる</strong></td></tr><tr><td><code>vApplicationStackOverflowHook</code></td><td>スタック溢れ検出時</td><td>ログ・リセット</td><td>状況が壊れている前提で書く</td></tr><tr><td><code>vApplicationMallocFailedHook</code></td><td><code>pvPortMalloc</code> が NULL を返したとき</td><td>ログ・リセット</td><td>ヒープがない前提で書く</td></tr><tr><td><code>vApplicationDaemonTaskStartupHook</code></td><td>タイマタスクの起動直後</td><td>スケジューラ開始後の初期化</td><td>一度だけ呼ばれる</td></tr></tbody></table></div><h3><code>vApplicationTickHook</code> の注意</h3><p><strong>これは割り込みコンテキストで呼ばれる。</strong></p><pre><code class="lang-c">void vApplicationTickHook( void )
+{
+    /* ここは ISR の中。FromISR 版の API しか使えない */
+    xQueueSendFromISR( q, &amp;data, &amp;xHigherPriorityTaskWoken );    /* ○ */
+    xQueueSend( q, &amp;data, 0 );                                    /* × */
+    vTaskDelay( 1 );                                              /* × 論外 */
+}</code></pre><p>しかも<strong>毎ティック呼ばれる</strong>ので、ここが重いとシステム全体が遅くなる。 数マイクロ秒で終わる処理だけを書くこと。</p><blockquote><p><strong><code>vApplicationDaemonTaskStartupHook</code> は意外に便利.</strong></p><p>「スケジューラが動き出してから初期化したい」ものがある。 たとえば、キューやセマフォを使う初期化処理、 あるいはタスクとして走らせる必要のあるドライバの初期化である。</p><p><code>main()</code> の中ではまだスケジューラが動いていないのでブロックできない。 このフックは<strong>タイマタスク（デーモンタスク）の起動直後</strong>に一度だけ呼ばれるので、 <strong>ブロックする API を安全に使える最初の場所</strong>になる。</p></blockquote><h2>8. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>存在理由</td><td>「Ready が空」という<strong>規則の例外をなくす</strong>ため</td></tr><tr><td>優先度</td><td><strong>常に 0</strong>。アプリのタスクは 1 以上に置くこと</td></tr><tr><td>仕事 1</td><td>削除済みタスクの後片付け。<strong>走らないとメモリが返らない</strong></td></tr><tr><td>仕事 2</td><td><code>configIDLE_SHOULD_YIELD</code> による譲り</td></tr><tr><td>仕事 3</td><td>アイドルフック。<strong>ブロック禁止・終了禁止</strong></td></tr><tr><td>仕事 4</td><td>ティックレスアイドル。<strong>TOCTOU 対策で二重判定</strong></td></tr><tr><td>省電力の第一歩</td><td>フックに <code>__WFI()</code> を 1 行入れるだけで消費電流が大幅に下がる</td></tr><tr><td><code>vApplicationTickHook</code></td><td><strong>ISR コンテキスト</strong>。FromISR 版しか使えない</td></tr></tbody></table></div><p>ここまでで第 II 部（スケジューラの中核）は終わりである。 次章から第 III 部——「待つ・起こす」の仕組みに入る。</p>
+  <nav class="chnav"><a class="pn" href="08.html"><span>←</span><b>ティックとタイムスライス — 時間を刻む唯一の割り込み</b></a><a class="pn nx" href="10.html"><b>ブロックと遅延リスト — 待っているタスクを O(1) で起こす</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

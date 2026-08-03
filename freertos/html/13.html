@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>13. 優先度逆転と優先度継承 — 火星探査機を止めたバグ — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">13 · 優先度逆転と優先度継承 — 火星探査機を止めたバグ</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 13</p>
+  <h1 class="doctitle">優先度逆転と優先度継承 — 火星探査機を止めたバグ</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——優先度の設計が「効かなくなる」現象がある.</strong></p><p>06 章の規則は「最高優先度の Ready タスクが必ず走る」だった。 だがこの規則は、<strong>「Ready なら」</strong>という条件付きである。</p><p>高優先度タスクが<strong>資源を待ってブロックしている</strong>とき、その資源を持っているのは 低優先度タスクかもしれない。すると——<strong>優先度の順序が実質的に逆転する</strong>。</p><p>これは理論上の話ではない。1997 年、火星に着陸した探査機がこれで再起動を繰り返した。</p></blockquote><h2>1. 事件 — Mars Pathfinder, 1997</h2><p>1997 年 7 月、NASA の火星探査機 Mars Pathfinder は着陸後まもなく、 <strong>原因不明のシステムリセットを繰り返す</strong>という不具合に見舞われた。</p><p>原因はこうだった。</p><div class="tablewrap"><table><thead><tr><th>タスク</th><th>優先度</th><th>役割</th></tr></thead><tbody><tr><td><strong>bc_dispatch</strong>（情報バス管理）</td><td>高</td><td>共有バスの管理。<strong>周期実行され、遅れるとウォッチドッグが発火する</strong></td></tr><tr><td><strong>通信タスク</strong></td><td>中</td><td>地球との通信。<strong>実行時間が長い</strong></td></tr><tr><td><strong>ASI/MET</strong>（気象データ収集）</td><td>低</td><td>共有バスにデータを書く</td></tr></tbody></table></div><ol><li><strong>ASI/MET（低）</strong> が共有バスのミューテックスを取る</li><li><strong>bc_dispatch（高）</strong> が同じミューテックスを要求 → <strong>ブロック</strong></li><li><strong>通信タスク（中）</strong> が Ready になり、ASI/MET（低）を<strong>プリエンプト</strong></li><li>ASI/MET は走れない → ミューテックスを返せない → bc_dispatch も走れない</li><li>bc_dispatch が周期実行に間に合わない → <strong>ウォッチドッグがシステムをリセット</strong></li></ol><p><strong>高優先度タスクが、中優先度タスクに実質的に負けている。</strong> これが優先度逆転である。</p><blockquote><p><strong>JPL のエンジニアはこれをどう直したか.</strong></p><p>使っていた VxWorks には<strong>優先度継承の機能があったが、無効になっていた</strong> （性能上の理由でオフにされていた）。</p><p>地上でシミュレーションして原因を突き止めた後、 <strong>火星の探査機に「優先度継承を有効にする」パッチを無線で送信した</strong>。 それでリセットは止まった。</p><p>この事例は、リアルタイムシステムの教科書に必ず載っている。 <strong>「優先度継承は性能のために切ってよい機能ではない」</strong>という教訓である。</p></blockquote><h2>2. 優先度逆転の 2 つの型</h2><h3>有界な優先度逆転（避けられない・許容できる）</h3><pre><code>時刻 →
+低 L: ██████░░░░░░░░░░░░░░░░
+高 H: ░░░░░░[待ち]███████████
+              ↑
+        L がロックを解放するまで待つ</code></pre><p>高優先度タスクが、低優先度タスクの<strong>クリティカルセクションの長さだけ</strong>待たされる。</p><p><strong>これは避けられない。</strong> 資源を共有する以上、誰かが使っている間は待つしかない。 だが待ち時間の上限は<strong>クリティカルセクションの実行時間</strong>なので、<strong>計算できる</strong>。 これを「<strong>有界 (bounded)</strong>」と呼ぶ。</p><h3>無制限の優先度逆転（これが問題）</h3><pre><code>時刻 →
+低 L: ███░░░░░░░░░░░░░░░░░░░░░░░░░░██░░░░
+中 M: ░░░████████████████████████░░░░░░░░
+高 H: ░░[━━━━━━━ 待たされる ━━━━━━]███</code></pre><p><strong>中優先度タスクが割り込んできて、低優先度タスクの実行を止める。</strong> すると高優先度タスクの待ち時間は、<strong>中優先度タスクの実行時間に依存する</strong>。</p><p>中優先度タスクが何個いるか、それぞれが何 ms 走るかは事前に分からない。 だから待ち時間の上限が計算できない。これを「<strong>無制限 (unbounded)</strong>」と呼ぶ。</p><p><strong>リアルタイムシステムでは、これは致命的である。</strong></p><h3>優先度逆転を見る</h3><div class="widget" data-widget="priinv"></div><p>3 つのタスクの実行時間とロック区間を変えて、 優先度継承の有無で待ち時間がどう変わるかを比較できる。</p><h2>3. 優先度継承 — FreeRTOS の解決策</h2><blockquote><p><strong>ロックを持っている低優先度タスクの優先度を、 待っている最高優先度タスクと同じまで一時的に引き上げる。</strong></p></blockquote><pre><code>時刻 →
+低 L: ███[優先度を H に昇格]███░░░░░
+中 M: ░░░░░░░░░░░░░░░░░░░░░░░████████
+高 H: ░░[待ち]░░░░░░░░░░░░░░░███░░░░░
+             ↑            ↑
+        H が待ち始めた    L が解放 → H が走る
+        → L を H の優先度に昇格         → L は元の優先度に戻る</code></pre><p>昇格した L は中優先度タスク M より高いので、<strong>M に邪魔されない</strong>。 L は速やかにクリティカルセクションを抜け、ミューテックスを解放する。</p><p><strong>結果として、H の待ち時間は L のクリティカルセクションの長さだけになる。</strong> つまり<strong>無制限の逆転が、有界の逆転に落ちる</strong>。これが優先度継承の効果である。</p><h2>4. 実装 — 昇格する側</h2><pre><code class="lang-c">/* xQueueSemaphoreTake の中。ミューテックスが取れなかったとき */
+if( pxQueue-&gt;uxQueueType == queueQUEUE_IS_MUTEX ) {
+    taskENTER_CRITICAL();
+    {
+        xInheritanceOccurred = xTaskPriorityInherit( pxQueue-&gt;u.xSemaphore.xMutexHolder );
+    }
+    taskEXIT_CRITICAL();
+}
+vTaskPlaceOnEventList( &amp;( pxQueue-&gt;xTasksWaitingToReceive ), xTicksToWait );</code></pre><p><code>xTaskPriorityInherit()</code> の中身:</p><pre><code class="lang-c">BaseType_t xTaskPriorityInherit( TaskHandle_t const pxMutexHolder )
+{
+    TCB_t * const pxTCB = pxMutexHolder;
+    BaseType_t xReturn = pdFALSE;
+
+    if( pxMutexHolder != NULL )
+    {
+        /* 所有者の優先度が、待っているタスクより低いなら昇格 */
+        if( pxTCB-&gt;uxPriority &lt; pxCurrentTCB-&gt;uxPriority )
+        {
+            /* イベントリストのソート鍵も更新（07 章） */
+            if( ( listGET_LIST_ITEM_VALUE( &amp;( pxTCB-&gt;xEventListItem ) )
+                  &amp; taskEVENT_LIST_ITEM_VALUE_IN_USE ) == 0UL )
+            {
+                listSET_LIST_ITEM_VALUE( &amp;( pxTCB-&gt;xEventListItem ),
+                    ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) pxCurrentTCB-&gt;uxPriority );
+            }
+
+            /* 所有者が Ready リストにいるなら、正しい優先度のリストへ移す */
+            if( listIS_CONTAINED_WITHIN(
+                    &amp;( pxReadyTasksLists[ pxTCB-&gt;uxPriority ] ),
+                    &amp;( pxTCB-&gt;xStateListItem ) ) != pdFALSE )
+            {
+                if( uxListRemove( &amp;( pxTCB-&gt;xStateListItem ) ) == 0 ) {
+                    portRESET_READY_PRIORITY( pxTCB-&gt;uxPriority, uxTopReadyPriority );
+                }
+                pxTCB-&gt;uxPriority = pxCurrentTCB-&gt;uxPriority;    /* ★ 昇格 */
+                prvAddTaskToReadyList( pxTCB );
+            }
+            else {
+                /* Ready でない（Blocked 中など）なら、値だけ書き換える */
+                pxTCB-&gt;uxPriority = pxCurrentTCB-&gt;uxPriority;
+            }
+            xReturn = pdTRUE;
+        }
+        else if( pxTCB-&gt;uxBasePriority &lt; pxCurrentTCB-&gt;uxPriority ) {
+            /* 既に昇格済みだが、元の優先度はもっと低い → 解除が必要 */
+            xReturn = pdTRUE;
+        }
+    }
+    return xReturn;
+}</code></pre><p><strong>ポイントは 3 つ。</strong></p><div class="tablewrap"><table><thead><tr><th>#</th><th>処理</th><th>なぜ必要か</th></tr></thead><tbody><tr><td>1</td><td><code>uxPriority</code> を書き換える</td><td>昇格そのもの</td></tr><tr><td>2</td><td><strong>Ready リストを移し替える</strong></td><td>Ready リストは優先度ごとに分かれている（07 章）</td></tr><tr><td>3</td><td><strong>イベントリストのソート鍵を更新</strong></td><td>所有者自身が別の資源を待っている場合、そちらの待ち行列でも順位が上がるべき</td></tr></tbody></table></div><h3><code>uxBasePriority</code> — 元の優先度を覚えておく</h3><pre><code class="lang-c">#if ( configUSE_MUTEXES == 1 )
+    UBaseType_t uxBasePriority;      /* 昇格前の優先度 */
+    UBaseType_t uxMutexesHeld;       /* 保持中のミューテックス数 */
+#endif</code></pre><p>昇格は一時的なものなので、<strong>元に戻すために元の値を覚えておく</strong>必要がある。 <code>vTaskPrioritySet()</code> を呼ぶと、昇格中なら <code>uxBasePriority</code> だけが変わり、 <code>uxPriority</code> はミューテックス解放時に <code>uxBasePriority</code> に戻る。</p><h2>5. 実装 — 解除する側</h2><pre><code class="lang-c">/* xQueueGenericSend の中（ミューテックスを Give したとき） */
+if( pxQueue-&gt;uxQueueType == queueQUEUE_IS_MUTEX ) {
+    xYieldRequired = xTaskPriorityDisinherit( pxQueue-&gt;u.xSemaphore.xMutexHolder );
+    pxQueue-&gt;u.xSemaphore.xMutexHolder = NULL;
+}</code></pre><pre><code class="lang-c">BaseType_t xTaskPriorityDisinherit( TaskHandle_t const pxMutexHolder )
+{
+    TCB_t * const pxTCB = pxMutexHolder;
+
+    if( pxMutexHolder != NULL )
+    {
+        configASSERT( pxTCB == pxCurrentTCB );      /* 所有者本人しか解放できない */
+        ( pxTCB-&gt;uxMutexesHeld )--;
+
+        if( pxTCB-&gt;uxPriority != pxTCB-&gt;uxBasePriority )
+        {
+            /* ★ まだ他のミューテックスを持っているなら、戻してはいけない */
+            if( pxTCB-&gt;uxMutexesHeld == 0 )
+            {
+                if( uxListRemove( &amp;( pxTCB-&gt;xStateListItem ) ) == 0 ) {
+                    portRESET_READY_PRIORITY( pxTCB-&gt;uxPriority, uxTopReadyPriority );
+                }
+                pxTCB-&gt;uxPriority = pxTCB-&gt;uxBasePriority;      /* 元に戻す */
+                listSET_LIST_ITEM_VALUE( &amp;( pxTCB-&gt;xEventListItem ),
+                    ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) pxTCB-&gt;uxPriority );
+                prvAddTaskToReadyList( pxTCB );
+                xReturn = pdTRUE;
+            }
+        }
+    }
+    return xReturn;
+}</code></pre><blockquote><p><strong><code>uxMutexesHeld == 0</code> の判定が重要である.</strong></p><p>1 つのタスクが複数のミューテックスを持っていることがある。 そのうち 1 つを解放しただけで優先度を戻すと、 <strong>まだ持っている別のミューテックスで待たれているタスクが、また逆転する。</strong></p><p>だから「<strong>全部返すまで昇格を維持する</strong>」。 安全側に倒した実装である。</p></blockquote><h2>6. FreeRTOS の優先度継承の限界</h2><p>FreeRTOS の実装は<strong>単純化されている</strong>。次の 2 点は完全ではない。</p><h3>限界 1: 連鎖的な継承（chained inheritance）が不完全</h3><pre><code>H が M1 を待つ → M1 の所有者 L1 を昇格
+L1 が M2 を待っている → M2 の所有者 L2 も昇格すべき</code></pre><p>理想的には、<strong>継承が連鎖して伝播する</strong>べきである。 FreeRTOS はこの伝播を行わない（1 段だけ）。</p><h3>限界 2: 解除のタイミングが粗い</h3><pre><code class="lang-c">if( pxTCB-&gt;uxMutexesHeld == 0 )</code></pre><p>正確には「<strong>そのミューテックスを待っているタスクのうち最高優先度</strong>」まで下げるべきだが、 FreeRTOS は「全部返したら元の値に戻す」という単純な規則を使う。</p><p>その結果、<strong>必要以上に長く昇格が続く</strong>ことがある。 安全側なので実害は小さいが、厳密ではない。</p><blockquote><p><strong>FreeRTOS 公式ドキュメントも、これを明記している.</strong></p><blockquote><p>"The priority inheritance mechanism implemented in FreeRTOS is a simplified implementation... it is not a full priority inheritance implementation."</p></blockquote><p>より厳密な保証が必要なら、 <strong>優先度上限プロトコル (Priority Ceiling Protocol)</strong> を採用した OS を使う。</p><p>ただし——<strong>実務では FreeRTOS の実装で十分な場合がほとんどである。</strong> 限界が問題になるのは、ミューテックスを多段にネストする設計をしたときだけであり、 そういう設計自体を避けるべきである（19 章）。</p></blockquote><h2>7. 優先度上限プロトコル（比較のために）</h2><p>もう 1 つの古典的な解法である。FreeRTOS には<strong>ない</strong>が、考え方を知っておく価値がある。</p><blockquote><p><strong>各ミューテックスに「上限優先度」を決めておく。 それは「そのミューテックスを使う可能性のあるタスクの最高優先度」。 ミューテックスを取ったタスクは、即座にその上限優先度まで昇格する。</strong></p></blockquote><div class="tablewrap"><table><thead><tr><th>プロトコル</th><th>昇格のタイミング</th><th>特徴</th></tr></thead><tbody><tr><td><strong>優先度継承 (PIP)</strong></td><td><strong>待たれたとき</strong>（後から）</td><td>実装が簡単。FreeRTOS はこれ</td></tr><tr><td><strong>優先度上限 (PCP)</strong></td><td><strong>取ったとき</strong>（先回り）</td><td><strong>デッドロックを防げる</strong>。事前解析が要る</td></tr><tr><td><strong>即時上限 (ICPP)</strong></td><td>取ったとき</td><td>PCP の簡易版。多くの RTOS が採用</td></tr></tbody></table></div><p>PCP の強みは、<strong>デッドロックが構造的に起きなくなる</strong>ことである。 弱みは、<strong>すべてのタスクとミューテックスの関係を事前に洗い出す必要がある</strong>こと。</p><blockquote><p><strong>µITRON / TOPPERS、OSEK/VDX（自動車）は上限プロトコルを採用している.</strong> 自動車の OSEK では、全リソースの上限優先度を<strong>設定ファイルに静的に記述する</strong>。 これによりデッドロックが起きないことを<strong>ビルド時に保証できる</strong>。</p></blockquote><h2>8. 実務上の指針</h2><div class="tablewrap"><table><thead><tr><th>指針</th><th>理由</th></tr></thead><tbody><tr><td><strong>ロックには必ずミューテックスを使う</strong></td><td>バイナリセマフォには継承がない</td></tr><tr><td><strong>クリティカルセクションを短くする</strong></td><td>有界逆転の時間 = クリティカルセクションの長さ</td></tr><tr><td><strong>ミューテックスをネストしない</strong></td><td>連鎖継承の限界に当たる。デッドロックも起きる</td></tr><tr><td><strong>ミューテックスを持ったままブロックしない</strong></td><td><code>vTaskDelay</code> や <code>xQueueReceive</code> を呼ばない</td></tr><tr><td><strong>ISR とミューテックスを混ぜない</strong></td><td>ISR は所有者になれない</td></tr></tbody></table></div><blockquote><p><strong>「ミューテックスを持ったままブロックしない」が最も重要である.</strong></p><pre><code class="lang-c">xSemaphoreTake( xMutex, portMAX_DELAY );
+    xQueueReceive( q, &amp;item, portMAX_DELAY );    /* ← 危険 */
+xSemaphoreGive( xMutex );</code></pre><p>キューにデータが来るまで、ミューテックスを持ったまま寝てしまう。 その間、このミューテックスを待つ全タスクが止まる。 <strong>優先度継承をもってしても、これは救えない</strong>（昇格しても、寝ているものは走らない）。</p><p>クリティカルセクションの中には、<strong>必ず終わる処理だけ</strong>を書くこと。</p></blockquote><h2>9. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>優先度逆転</td><td>高優先度タスクが、低優先度タスクの持つ資源を待つ現象</td></tr><tr><td>有界な逆転</td><td>クリティカルセクションの長さだけ待つ。<strong>避けられないが計算できる</strong></td></tr><tr><td>無制限の逆転</td><td>中優先度タスクが割り込む。<strong>待ち時間の上限が計算できない</strong></td></tr><tr><td>Mars Pathfinder</td><td>優先度継承を無効にしていたため、火星でリセットを繰り返した</td></tr><tr><td>優先度継承</td><td>所有者を、待っている最高優先度まで<strong>一時的に昇格</strong>させる</td></tr><tr><td><code>uxBasePriority</code></td><td>昇格前の優先度を覚えておく</td></tr><tr><td>解除条件</td><td><strong>全ミューテックスを返すまで</strong>昇格を維持（安全側）</td></tr><tr><td>FreeRTOS の限界</td><td>連鎖継承が 1 段のみ。解除のタイミングが粗い</td></tr><tr><td>最重要の指針</td><td><strong>ミューテックスを持ったままブロックしない</strong></td></tr></tbody></table></div><p>次章では、キューやセマフォより<strong>はるかに軽い</strong>通知の仕組みを見る。</p>
+  <nav class="chnav"><a class="pn" href="12.html"><span>←</span><b>セマフォとミューテックス — 中身はキュー、違いは「所有者」</b></a><a class="pn nx" href="14.html"><b>タスク通知とイベントグループ — キューより 45 倍速い通知路</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>
