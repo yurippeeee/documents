@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>10. フォールトインジェクション攻撃 — if 文が飛ぶ — IoT セキュリティ</title>
+<link rel="stylesheet" href="sec.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../iotsec.html">IoT Security</a>
+  <span class="cur">10 · フォールトインジェクション攻撃 — if 文が飛ぶ</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 10</p>
+  <h1 class="doctitle">フォールトインジェクション攻撃 — if 文が飛ぶ</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「保護機能そのもの」が狙われるから.</strong></p><p>セキュアブート、読み出し保護、デバッグ無効化、鍵の権限チェック—— これらはすべて、最終的には<strong>プログラム上の分岐</strong>に落ちる。</p><pre><code class="lang-c">if (verify() != OK) halt();</code></pre><p><strong>この 1 行を飛ばせたら、全部が無効になる。</strong></p><p>そして、それは<strong>数万円の機材でできる</strong>。</p></blockquote><h2>1. 原理</h2><p>CPU は、電源電圧・クロック・温度が仕様の範囲内にあることを前提に動く。 その前提を<strong>一瞬だけ壊す</strong>と、次のようなことが起きる。</p><div class="tablewrap"><table><thead><tr><th>現象</th><th>内容</th></tr></thead><tbody><tr><td><strong>命令スキップ</strong></td><td>フェッチした命令が実行されない、または NOP になる</td></tr><tr><td><strong>データ破損</strong></td><td>レジスタやメモリの読み書きでビットが化ける</td></tr><tr><td><strong>分岐の反転</strong></td><td>条件分岐の判定が逆になる</td></tr><tr><td><strong>ループカウンタの改変</strong></td><td>ループが早く終わる／終わらない</td></tr><tr><td><strong>アドレスの化け</strong></td><td>ジャンプ先が変わる</td></tr></tbody></table></div><h3>攻撃手法</h3><div class="tablewrap"><table><thead><tr><th>手法</th><th>やること</th><th>費用の目安</th><th>精度</th></tr></thead><tbody><tr><td><strong>電圧グリッチ</strong></td><td>電源電圧を数十〜数百 ns だけ落とす／上げる</td><td><strong>数万円</strong></td><td>中</td></tr><tr><td><strong>クロックグリッチ</strong></td><td>クロックに短いパルスを挿入する</td><td>数万円</td><td>中〜高（外部クロックが必要）</td></tr><tr><td><strong>電磁パルス (EMFI)</strong></td><td>近接コイルで強い磁界パルスを与える</td><td>数十万〜数百万円</td><td>高（<strong>空間分解能あり</strong>）</td></tr><tr><td><strong>レーザー (LFI)</strong></td><td>チップを開封し、レーザーを照射する</td><td>数百万〜数千万円</td><td><strong>極めて高い</strong>（1 ビット単位）</td></tr><tr><td><strong>温度・電源の極端な操作</strong></td><td>動作範囲外にする</td><td>数千円</td><td>低</td></tr><tr><td><strong>ボディバイアス注入</strong></td><td>基板側から電位を注入する</td><td>数百万円</td><td>高</td></tr></tbody></table></div><blockquote><p><strong>電圧グリッチのハードルの低さが問題である.</strong></p><p>ChipWhisperer などのオープンソースツールと数万円のハードウェアで、 <strong>誰でも実験できる</strong>。手法は公開され、チュートリアルも豊富にある。</p><p>つまり <strong>02 章のクラス 2（愛好家）でも実行可能</strong>な攻撃になっている。 「専門ラボが必要」という時代ではない。</p></blockquote><h3>グリッチによる分岐スキップを見る</h3><div class="widget" data-widget="glitch"></div><p>グリッチのタイミングと幅を変えて、成功する条件と対策の効果を確かめられる。</p><h2>2. 何が狙われるか</h2><h3>標的 1: セキュアブートの検証</h3><pre><code class="lang-c">if (verify_signature(image) != OK) {
+    halt();                      /* ← ここに来なければ通る */
+}
+jump_to(image);</code></pre><p><strong>攻撃者は署名検証の直後を狙ってグリッチを打つ。</strong> <code>halt()</code> への分岐が飛べば、<strong>不正なファームウェアが起動する</strong>。</p><h3>標的 2: 読み出し保護の判定</h3><pre><code class="lang-c">/* ブート ROM の中（イメージ） */
+if (read_protection_level() &gt; 0) {
+    disable_debug_port();        /* ← ここを飛ばせたら？ */
+}</code></pre><p>飛ばせたら、<strong>デバッグポートが開いたまま起動する</strong>。 SWD を繋いでフラッシュを吸い出せる。</p><blockquote><p><strong>これは理論上の話ではない.</strong></p><p>複数のベンダの MCU で、<strong>電圧グリッチによる読み出し保護のバイパス</strong>が 公開実証されている。</p><p>代表的なものとして、あるベンダの MCU では APPROTECT（アクセスポート保護）が<strong>単一のレジスタ判定</strong>に依存しており、 グリッチで解除できることが 2020 年に公表された。 同社はその後、<strong>保護の判定をハードウェアで冗長化した改良版</strong>を出している。</p><p><strong>「保護機能がある」だけでは足りない。「フォールト耐性があるか」を確認すること。</strong></p></blockquote><h3>標的 3: PIN / パスワードの比較</h3><pre><code class="lang-c">if (memcmp(input_pin, stored_pin, 4) == 0) {
+    unlock();
+}</code></pre><p>比較の結果を保持するレジスタをグリッチで書き換えれば、通る。</p><h3>標的 4: ループカウンタ</h3><pre><code class="lang-c">for (i = 0; i &lt; 32; i++) {
+    key[i] = read_key_byte(i);
+}</code></pre><p>ループ回数を減らせば、<strong>鍵の一部が初期値（0 など）のまま</strong>になる。 探索空間が劇的に小さくなる。</p><h3>標的 5: 暗号演算そのもの（DFA）</h3><p><strong>差分故障解析 (Differential Fault Analysis)</strong> は、 暗号演算の途中に故障を注入し、<strong>正常な暗号文と故障暗号文の差分</strong>から鍵を求める。</p><div class="tablewrap"><table><thead><tr><th>暗号</th><th>必要な故障暗号文</th></tr></thead><tbody><tr><td><strong>AES-128</strong></td><td>理論上、<strong>1〜2 個</strong>（最終ラウンド近傍への 1 バイト故障）</td></tr><tr><td><strong>RSA-CRT</strong></td><td><strong>1 個</strong>（有名な Bellcore 攻撃。CRT の片側だけ壊すと素因数が求まる）</td></tr><tr><td><strong>ECDSA</strong></td><td>数個</td></tr></tbody></table></div><blockquote><p><strong>RSA-CRT の Bellcore 攻撃は特に有名である.</strong></p><p>RSA の署名生成を中国剰余定理（CRT）で高速化する実装で、 <strong>\(p\) 側か \(q\) 側の片方だけを故障させる</strong>と、 正しい署名 \(S\) と誤った署名 \(S'\) から</p><div class="eqn">\[ \gcd(S - S', N) = p \]</div><p>として<strong>素因数が 1 回で求まる</strong>。鍵が完全に破られる。</p><p><strong>対策は単純: 署名を作ったら、その場で検証してから出力する。</strong> (\(S^e \bmod N\) が元のメッセージに戻るか確認する。) これは多くのライブラリで既に実装されている。</p></blockquote><h2>3. 対策 — ソフトウェア側</h2><h3>対策 1: 冗長な検証</h3><pre><code class="lang-c">/* 悪い: 単一の分岐に全部を賭けている */
+if (verify(img) != OK) halt();
+jump_to(img);
+
+/* 良い: 二重チェック + 冗長な値 + デフォルト失敗 */
+#define OK_MAGIC    0xA5C36E9Bu       /* ハミング距離の大きい値 */
+#define FAIL_MAGIC  0x5A3C91B6u
+
+volatile uint32_t r1 = FAIL_MAGIC, r2 = FAIL_MAGIC;
+
+r1 = verify(img);
+random_delay();
+r2 = verify(img);                     /* 2 回検証する */
+
+if (r1 != OK_MAGIC)      halt();
+if (r2 != OK_MAGIC)      halt();
+if (r1 != r2)            halt();
+if ((r1 ^ r2) != 0)      halt();      /* 冗長な確認 */
+if (r1 + r2 != 2 * OK_MAGIC) halt();  /* さらに冗長 */
+
+jump_to(img);</code></pre><div class="tablewrap"><table><thead><tr><th>技法</th><th>効果</th></tr></thead><tbody><tr><td><strong>デフォルトを失敗にする</strong></td><td>初期化を飛ばされても安全側に落ちる</td></tr><tr><td><strong>成功値に特殊なビットパターン</strong></td><td>単一ビット反転では成功値にならない</td></tr><tr><td><strong>同じ検証を 2 回行う</strong></td><td>2 回とも同じタイミングで飛ばすのは難しい</td></tr><tr><td><strong>ランダム遅延を挟む</strong></td><td>タイミングを狙いにくくする</td></tr><tr><td><strong>冗長な条件を並べる</strong></td><td>すべてを飛ばす必要がある</td></tr></tbody></table></div><h3>対策 2: 制御フロー完全性（CFI）</h3><p><strong>「本来通るはずの経路を通ったか」を検証する。</strong></p><pre><code class="lang-c">/* 各関門でカウンタを進める */
+volatile uint32_t flow_counter = 0;
+
+void secure_boot(void)
+{
+    flow_counter = 0;
+
+    if (check_header(img) != OK) halt();
+    flow_counter += 0x11;
+
+    if (check_key_hash(img) != OK) halt();
+    flow_counter += 0x22;
+
+    if (check_signature(img) != OK) halt();
+    flow_counter += 0x44;
+
+    if (check_svn(img) != OK) halt();
+    flow_counter += 0x88;
+
+    /* ★ すべての関門を通ったことを確認する */
+    if (flow_counter != (0x11 + 0x22 + 0x44 + 0x88)) halt();
+
+    jump_to(img);
+}</code></pre><p><strong>関門を 1 つ飛ばすと、カウンタの値が合わなくなる。</strong></p><h3>対策 3: 秘密の二重化</h3><pre><code class="lang-c">/* 鍵を 2 通りの形で保持し、使う前に照合する */
+uint8_t key[32];
+uint8_t key_complement[32];      /* ビット反転版 */
+
+load_key(key, key_complement);
+
+for (int i = 0; i &lt; 32; i++) {
+    if ((key[i] ^ key_complement[i]) != 0xFF) halt();   /* 破損を検出 */
+}</code></pre><h3>対策 4: 暗号演算の結果検証</h3><pre><code class="lang-c">/* RSA 署名を作ったら、その場で検証する（Bellcore 対策） */
+rsa_sign(msg, sig);
+if (rsa_verify(msg, sig) != OK) {
+    /* 故障が起きた。署名を出力してはいけない */
+    zeroize(sig);
+    halt();
+}
+output(sig);</code></pre><pre><code class="lang-c">/* AES も、暗号化 → 復号 → 一致確認（コストは 2 倍になる） */
+aes_encrypt(pt, ct);
+aes_decrypt(ct, check);
+if (memcmp_ct(pt, check, 16) != 0) halt();</code></pre><blockquote><p><strong>どこまでやるかはコストとのトレードオフである.</strong></p><p>全部の暗号演算を二重化すると性能が半分になる。</p><p><strong>原則: 「一度きりで、取り返しがつかない処理」を重点的に守る。</strong></p><ul><li>セキュアブートの検証 → <strong>必ず冗長化する</strong></li><li>OTA イメージの検証 → <strong>必ず冗長化する</strong></li><li>ライフサイクル状態の遷移 → <strong>必ず冗長化する</strong></li><li>デバッグポートの閉鎖 → <strong>必ず冗長化する</strong></li><li>通信の 1 パケットの暗号化 → 冗長化しなくてよい（失敗しても再送される）</li></ul></blockquote><h2>4. 対策 — ハードウェア側</h2><p>シリコンレベルの対策は、ベンダが実装するものである。<strong>選定時に確認する。</strong></p><div class="tablewrap"><table><thead><tr><th>対策</th><th>内容</th></tr></thead><tbody><tr><td><strong>電圧モニタ</strong></td><td>電源電圧が範囲外になったら検出してリセット</td></tr><tr><td><strong>クロックモニタ</strong></td><td>クロック周波数の異常を検出（グリッチ検出）</td></tr><tr><td><strong>温度センサ</strong></td><td>動作範囲外の温度を検出</td></tr><tr><td><strong>光センサ</strong></td><td>開封＋レーザー照射を検出（パッケージが開いたら光が入る）</td></tr><tr><td><strong>アクティブシールド</strong></td><td>チップ表面に配線を張り、断線したら検出（プロービング対策）</td></tr><tr><td><strong>メモリの ECC / パリティ</strong></td><td>ビット反転を検出・訂正</td></tr><tr><td><strong>冗長な CPU（ロックステップ）</strong></td><td>2 つの CPU が同じ命令を実行し、結果を照合</td></tr><tr><td><strong>タンパー検出</strong></td><td>検出時に鍵を即座に消去する</td></tr></tbody></table></div><div class="tablewrap"><table><thead><tr><th>ベンダ・製品</th><th>特徴</th></tr></thead><tbody><tr><td><strong>Arm Cortex-M35P</strong></td><td>物理セキュリティ機能（パリティ、アンチタンパリング）を持つ M33 派生</td></tr><tr><td><strong>Silicon Labs Secure Vault High</strong></td><td>アンチタンパ、DPA/DFA 対策</td></tr><tr><td><strong>セキュアエレメント全般</strong></td><td>センサ群 + シールド + 冗長設計（22 章）</td></tr><tr><td><strong>スマートカード IC</strong></td><td>最も対策が厚い。CC AVA_VAN.5</td></tr></tbody></table></div><blockquote><p><strong>MCU とセキュアエレメントの差が最も出るのが、この分野である.</strong></p><p>汎用 MCU は「電圧が下がったらリセットする」程度のブラウンアウト検出しか持たないことが多い。 これは<strong>電源異常への対策</strong>であって、<strong>攻撃への対策</strong>ではない。</p><p>数十ナノ秒のグリッチは、ブラウンアウト検出の応答より速い。</p><p>セキュアエレメントは、<strong>グリッチを検出するための専用回路</strong>を持ち、 検出したら即座に鍵を消去する。<strong>設計思想が違う。</strong></p></blockquote><h2>5. 攻撃の実際のフロー</h2><p>攻撃者の作業を知っておくと、対策の効き所が分かる。</p><div class="tablewrap"><table><thead><tr><th>段階</th><th>やること</th><th>ここを潰す対策</th></tr></thead><tbody><tr><td>1. 標的の特定</td><td>どの命令を飛ばしたいかを決める（ファームウェア解析）</td><td><strong>ファームウェアを読ませない</strong>（06・11 章）</td></tr><tr><td>2. トリガーの確立</td><td>グリッチを打つタイミングの基準を見つける（GPIO、通信、電源波形）</td><td><strong>ランダム遅延</strong>でタイミングを揺らす</td></tr><tr><td>3. パラメータ探索</td><td>電圧・幅・遅延を総当たりで試す（数千〜数万回）</td><td><strong>試行回数の制限</strong>、異常検出でロック</td></tr><tr><td>4. 成功の検出</td><td>「保護が外れた」ことをどう知るか</td><td><strong>失敗時の応答を一様にする</strong></td></tr><tr><td>5. 再現性の確保</td><td>成功率を上げる（数 % でも実用になる）</td><td><strong>冗長チェック</strong>で成功確率を下げる</td></tr></tbody></table></div><blockquote><p><strong>段階 1 が実は最大の防御点である.</strong></p><p><strong>ファームウェアを読めなければ、どこを狙えばよいか分からない。</strong> 「署名検証の後の分岐」がどのアドレスにあるかを知るには、 まずファームウェアを入手して解析する必要がある。</p><p>だから 11 章（ファームウェア抽出の防止）が、 フォールト攻撃への間接的だが強力な対策になる。</p><p>ただし——<strong>ブート ROM は多くのベンダで解析されている</strong>（同じチップを買えば誰でも読める）。 ROM を狙う攻撃には、この防御は効かない。</p></blockquote><h2>6. 「グリッチ耐性」を評価する</h2><p>SoC を選定するとき、次を確認する。</p><div class="tablewrap"><table><thead><tr><th>確認項目</th><th>どこを見るか</th></tr></thead><tbody><tr><td><strong>物理攻撃耐性の第三者評価</strong></td><td>PSA Certified <strong>Level 3</strong>、SESIP <strong>4 以上</strong>、CC <strong>AVA_VAN.4 以上</strong></td></tr><tr><td><strong>保護機能の冗長性</strong></td><td>セキュリティアプリケーションノート。「フォールト耐性」の記述</td></tr><tr><td><strong>公知の攻撃事例</strong></td><td>学会論文、CVE、セキュリティ研究者の公開資料</td></tr><tr><td><strong>シリコンリビジョン</strong></td><td><strong>過去に破られた品種は、改版で対策されていることがある</strong></td></tr><tr><td><strong>ハードウェア検出機構</strong></td><td>電圧／クロック／温度／光センサの有無</td></tr></tbody></table></div><blockquote><p><strong>公知の攻撃事例を調べることを強く推奨する.</strong></p><p>MCU のグリッチ攻撃は、セキュリティカンファレンス （CHES、Black Hat、DEF CON、hardwear.io など）で継続的に発表されている。</p><p>「候補チップ名 + glitch」「候補チップ名 + fault injection」で検索して、 <strong>公開された攻撃事例があるか</strong>を確認するのは、選定時の重要な作業である。</p><p>事例があること自体は必ずしも失格ではない（対策版が出ていることも多い）。 <strong>重要なのは、ベンダが対応したかどうかである。</strong></p></blockquote><h2>7. サイドチャネルとの関係</h2><div class="tablewrap"><table><thead><tr><th></th><th>サイドチャネル（09 章）</th><th>フォールト（本章）</th></tr></thead><tbody><tr><td>性格</td><td><strong>受動的</strong>（観測するだけ）</td><td><strong>能動的</strong>（介入する）</td></tr><tr><td>検出</td><td>ほぼ不可能</td><td><strong>検出できる</strong>（センサで）</td></tr><tr><td>標的</td><td>主に<strong>暗号演算</strong></td><td><strong>保護の判定ロジック</strong>全般</td></tr><tr><td>必要な試行</td><td>数百〜数百万回の<strong>正常な</strong>実行</td><td>数千〜数万回の<strong>故障を起こす</strong>試行</td></tr><tr><td>主な対策</td><td>マスキング、定時間実装</td><td>冗長化、CFI、センサ</td></tr></tbody></table></div><blockquote><p><strong>組み合わせると強力になる.</strong></p><p><strong>DPA 対策のマスキングを、フォールトで無効化する</strong>という複合攻撃がある。 マスク生成の乱数を 0 に固定できれば、マスキングは効かなくなる。</p><p>だから高セキュリティ実装では、 <strong>「乱数が本当にランダムか」を検証してから使う</strong>といった対策も入れる。</p><p><strong>対策どうしが干渉することもある。</strong> たとえば「エラー時に即座に停止する」フォールト対策が、 「エラーの有無で処理時間が変わる」タイミング攻撃の窓口になる。 <strong>両方を考慮した設計が必要で、これが専門性を要する理由である。</strong></p></blockquote><h2>8. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>原理</td><td>電圧・クロック・温度を一瞬崩す → <strong>命令スキップ、データ化け、分岐反転</strong></td></tr><tr><td>ハードル</td><td><strong>電圧グリッチは数万円</strong>。クラス 2（愛好家）でも実行可能</td></tr><tr><td>主な標的</td><td><strong>セキュアブートの検証</strong>、<strong>読み出し保護の判定</strong>、PIN 比較、ループ、暗号演算</td></tr><tr><td>実例</td><td>複数ベンダの MCU で読み出し保護のグリッチ突破が<strong>公開実証されている</strong></td></tr><tr><td>DFA</td><td>AES は<strong>1〜2 個</strong>の故障暗号文で、RSA-CRT は<strong>1 個</strong>で破れる</td></tr><tr><td>RSA-CRT の対策</td><td><strong>署名を作ったら、その場で検証してから出力する</strong></td></tr><tr><td>ソフト対策</td><td>デフォルト失敗・<strong>二重検証</strong>・ハミング距離の大きい成功値・<strong>CFI カウンタ</strong></td></tr><tr><td>どこを守るか</td><td><strong>一度きりで取り返しがつかない処理</strong>（ブート検証、LCS 遷移、デバッグ閉鎖）</td></tr><tr><td>ハード対策</td><td>電圧／クロック／温度／光センサ、アクティブシールド、ロックステップ</td></tr><tr><td>最大の防御点</td><td><strong>ファームウェアを読ませない</strong>。狙う場所が分からなければ攻撃できない</td></tr><tr><td>選定時</td><td><strong>PSA L3 / SESIP 4 / AVA_VAN.4 以上</strong>と、<strong>公知の攻撃事例</strong>を確認する</td></tr></tbody></table></div><p>次章では、その「ファームウェアを読ませない」を正面から扱う。</p>
+  <nav class="chnav"><a class="pn" href="09.html"><span>←</span><b>サイドチャネル攻撃 — 消費電力から鍵が出てくる</b></a><a class="pn nx" href="11.html"><b>ファームウェア抽出とデバッグポート</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

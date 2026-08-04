@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>09. サイドチャネル攻撃 — 消費電力から鍵が出てくる — IoT セキュリティ</title>
+<link rel="stylesheet" href="sec.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../iotsec.html">IoT Security</a>
+  <span class="cur">09 · サイドチャネル攻撃 — 消費電力から鍵が出てくる</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 09</p>
+  <h1 class="doctitle">サイドチャネル攻撃 — 消費電力から鍵が出てくる</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「暗号が数学的に安全」でも、実装から漏れるから.</strong></p><p>AES-256 の鍵空間は \(2^{256}\) で、総当たりは不可能である。 だが<strong>実装が動いている物理的な装置</strong>は、 演算内容に応じて消費電力・処理時間・電磁波を変化させる。</p><p><strong>その変化を測ると、鍵が出てくる。</strong> しかも、条件が整えば<strong>数分から数時間</strong>で。</p></blockquote><h2>1. サイドチャネルとは何か</h2><pre><code>【設計者が想定している経路】
+   平文 → [暗号処理] → 暗号文        ← ここだけを守っている
+
+【実際に存在する経路（サイドチャネル）】
+              ↓ 消費電力
+              ↓ 処理時間
+              ↓ 電磁放射
+              ↓ 音（一部の攻撃）
+              ↓ 温度
+              ↓ キャッシュの状態
+           攻撃者が観測できる</code></pre><div class="tablewrap"><table><thead><tr><th>サイドチャネル</th><th>観測方法</th><th>必要な機材</th></tr></thead><tbody><tr><td><strong>処理時間</strong></td><td>応答時間を測る</td><td><strong>PC だけ</strong>（リモートでも可能な場合がある）</td></tr><tr><td><strong>消費電力</strong></td><td>電源ラインに抵抗を入れて電圧を測る</td><td>オシロスコープ（数万円〜）</td></tr><tr><td><strong>電磁放射</strong></td><td>磁界プローブを近づける</td><td>プローブ + オシロ（<strong>非接触</strong>）</td></tr><tr><td><strong>キャッシュ</strong></td><td>自分のアクセス時間から他プロセスの動作を推定</td><td>ソフトウェアのみ（主に Cortex-A / PC）</td></tr><tr><td><strong>フォールト応答</strong></td><td>誤り時の挙動の違い</td><td>10 章</td></tr></tbody></table></div><blockquote><p><strong>電磁放射による攻撃が実務的には厄介である.</strong></p><p><strong>チップに触れる必要がない。</strong> パッケージの上にプローブを置くだけでよい。 基板を改造する必要も、電源ラインに介入する必要もない。</p><p>しかも<strong>空間分解能がある</strong>ので、 「チップのこの部分だけ」を狙って観測できる。 AES エンジンの真上にプローブを置けば、ノイズの少ない波形が取れる。</p></blockquote><h2>2. タイミング攻撃 — 最も基本的で、最も見落とされる</h2><h3>典型的な脆弱コード</h3><pre><code class="lang-c">/* ★ 危険: 早期リターンする比較 */
+int compare_mac(const uint8_t *a, const uint8_t *b, size_t len)
+{
+    for (size_t i = 0; i &lt; len; i++) {
+        if (a[i] != b[i]) return 0;     /* ← 一致しなくなった位置で抜ける */
+    }
+    return 1;
+}</code></pre><p><strong>攻撃者は 1 バイトずつ MAC を復元できる。</strong></p><pre><code>1 バイト目を 0x00〜0xFF まで試す
+  → 正しい値のときだけ、2 バイト目の比較まで進む
+  → その分だけ処理時間が長い（数十ナノ秒の差）
+  → 何千回も測って平均を取ると、差が見える
+→ 1 バイト目が確定
+→ 2 バイト目へ…
+
+16 バイトの MAC なら、256 × 16 = 4096 回の試行で復元できる
+（総当たりなら 2^128 回）</code></pre><h3>定時間実装</h3><pre><code class="lang-c">/* ★ 正しい: 常に全バイトを比較し、実行時間が入力に依存しない */
+int compare_mac_ct(const uint8_t *a, const uint8_t *b, size_t len)
+{
+    uint8_t diff = 0;
+    for (size_t i = 0; i &lt; len; i++) {
+        diff |= (uint8_t)(a[i] ^ b[i]);      /* 差分を溜める */
+    }
+    return (diff == 0);                       /* 最後に 1 回だけ判定 */
+}</code></pre><p><strong>定時間実装の原則:</strong></p><div class="tablewrap"><table><thead><tr><th>原則</th><th>内容</th></tr></thead><tbody><tr><td><strong>秘密値で分岐しない</strong></td><td><code>if (secret) { ... }</code> を書かない</td></tr><tr><td><strong>秘密値でメモリアドレスを決めない</strong></td><td><code>table[secret]</code> はキャッシュ攻撃の的になる</td></tr><tr><td><strong>早期リターンしない</strong></td><td>常に同じ処理量を実行する</td></tr><tr><td><strong>秘密値で除算しない</strong></td><td>除算命令は値によって時間が変わる CPU がある</td></tr></tbody></table></div><blockquote><p><strong>既存ライブラリの定時間実装を使うこと.</strong></p><ul><li>Mbed TLS: <code>mbedtls_ct_memcmp()</code></li><li>libsodium: <code>sodium_memcmp()</code></li><li>OpenSSL: <code>CRYPTO_memcmp()</code></li></ul><p><strong>自分で書かない。</strong> 特に「コンパイラが最適化で分岐を復活させる」ことがあり、 ソースが定時間でもバイナリが定時間とは限らない。</p></blockquote><h3>RSA と ECC のタイミング攻撃</h3><p>素朴な冪乗計算（square-and-multiply）は、<strong>指数のビットが 1 か 0 かで処理が変わる</strong>。</p><pre><code>for each bit of exponent:
+    square()                    /* 常に実行 */
+    if (bit == 1) multiply()    /* ★ ビットが 1 のときだけ */</code></pre><p>処理時間を測れば、指数（= 秘密鍵）のビット列が分かる。</p><p><strong>対策:</strong></p><div class="tablewrap"><table><thead><tr><th>対策</th><th>内容</th></tr></thead><tbody><tr><td><strong>Montgomery ladder</strong></td><td>ビットの値によらず常に同じ演算列を実行する</td></tr><tr><td><strong>常時実行 (always-multiply)</strong></td><td>ビットが 0 でも掛け算し、結果を捨てる</td></tr><tr><td><strong>ブラインディング</strong></td><td>秘密値をランダム値で撹乱してから演算する</td></tr></tbody></table></div><h2>3. 電力解析 — SPA と DPA</h2><h3>SPA（単純電力解析）</h3><p><strong>1 本の波形を見るだけで秘密が分かる</strong>場合がある。</p><pre><code>RSA の冪乗計算の消費電流波形（模式）
+
+  ┌──┐  ┌──┐┌────┐  ┌──┐  ┌──┐┌────┐
+  │S │  │S ││ M  │  │S │  │S ││ M  │
+  └──┘  └──┘└────┘  └──┘  └──┘└────┘
+   0      1            0      1
+   ↑ Square のみ = ビット 0
+          ↑ Square + Multiply = ビット 1</code></pre><p><strong>波形を目で見るだけで鍵のビット列が読める。</strong> これは対策なしの素朴な実装で実際に起きる。</p><h3>DPA（差分電力解析）— 本命</h3><p>SPA が効かない場合でも、<strong>統計的手法</strong>で鍵が取れる。</p><h3>電力解析の原理を見る</h3><div class="widget" data-widget="dpa"></div><p>漏洩モデルとノイズ、波形数を変えて、相関がどう立ち上がるかを確かめられる。</p><p><strong>原理:</strong></p><p>CMOS 回路の消費電力は、<strong>ビットが変化した数（ハミング距離）</strong>や <strong>1 のビット数（ハミング重み）</strong>に比例する成分を持つ。</p><div class="eqn">\[ P_{\text{測定}} = a \cdot \text{HW}(\text{中間値}) + b + \text{noise} \]</div><p>AES の場合、最初のラウンドの S-Box 出力が狙われる。</p><div class="eqn">\[ v = \text{SBox}(p \oplus k) \]</div><p>ここで \(p\) は平文の 1 バイト（<strong>既知</strong>）、\(k\) は鍵の 1 バイト（<strong>未知、256 通り</strong>）。</p><p><strong>攻撃の手順:</strong></p><div class="tablewrap"><table><thead><tr><th>順</th><th>やること</th></tr></thead><tbody><tr><td>1</td><td>ランダムな平文で暗号化させ、<strong>数百〜数万本の電力波形</strong>を記録する</td></tr><tr><td>2</td><td>鍵バイトの候補 \(k'\) を 0〜255 の<strong>それぞれについて</strong>、各波形の中間値 \(v = \text{SBox}(p \oplus k')\) を計算する</td></tr><tr><td>3</td><td>その<strong>予測消費電力</strong> \(\text{HW}(v)\) と、<strong>実測波形の各時点の値</strong>との<strong>相関係数</strong>を計算する</td></tr><tr><td>4</td><td>正しい鍵バイトのときだけ、ある時点で<strong>相関が跳ね上がる</strong></td></tr><tr><td>5</td><td>16 バイト分を<strong>独立に</strong>繰り返す</td></tr></tbody></table></div><div class="eqn">\[ \rho(k') = \frac{\sum_i (\text{HW}(v_i) - \overline{\text{HW}}) (P_i - \overline{P})} {\sqrt{\sum_i (\text{HW}(v_i) - \overline{\text{HW}})^2} \sqrt{\sum_i (P_i - \overline{P})^2}} \]</div><blockquote><p><strong>ここが決定的に重要である: 探索空間が掛け算にならない.</strong></p><p>AES-128 の鍵は 16 バイト。総当たりなら \(256^{16} = 2^{128}\) 通り。</p><p>だが DPA では、<strong>16 バイトを 1 バイトずつ独立に求められる</strong>。 必要な試行は \(256 \times 16 = 4096\) 通りの計算だけである。</p><div class="eqn">\[ 2^{128} \quad \longrightarrow \quad 4096 \]</div><p><strong>これが「暗号が数学的に強くても実装で破れる」の意味である。</strong></p></blockquote><h3>必要な波形数の目安</h3><div class="tablewrap"><table><thead><tr><th>実装</th><th>波形数の目安</th></tr></thead><tbody><tr><td>対策なしのソフトウェア AES</td><td><strong>数百〜数千本</strong></td></tr><tr><td>対策なしのハードウェア AES</td><td>数千〜数万本</td></tr><tr><td>1 次マスキング実装</td><td>数十万〜数百万本（<strong>高次 DPA が必要</strong>）</td></tr><tr><td>高次マスキング + シャッフリング</td><td>実用上困難な本数</td></tr></tbody></table></div><p><strong>波形の取得は自動化できる。</strong> 1 秒に数百〜数千波形を取れるので、 <strong>数千本なら数分、数十万本でも数時間</strong>で集まる。</p><h2>4. 電磁解析（EMA）</h2><p>原理は電力解析と同じだが、<strong>取得方法が違う</strong>。</p><div class="tablewrap"><table><thead><tr><th>特徴</th><th>内容</th></tr></thead><tbody><tr><td><strong>非接触</strong></td><td>パッケージの上にプローブを置くだけ</td></tr><tr><td><strong>空間分解能</strong></td><td>チップ上の特定の回路だけを狙える</td></tr><tr><td><strong>ノイズが少ない場合がある</strong></td><td>電源ラインの平滑化コンデンサの影響を受けない</td></tr><tr><td><strong>基板改造が不要</strong></td><td>電源ラインに抵抗を入れる必要がない</td></tr></tbody></table></div><blockquote><p><strong>BGA パッケージや、電源が厳重にフィルタされた基板でも、EMA なら通る.</strong></p><p>「電源ラインにアクセスできないから安全」という想定は成り立たない。 <strong>物理攻撃を想定するなら、EMA を前提にする必要がある。</strong></p></blockquote><h2>5. 対策</h2><h3>対策 1: マスキング（最も重要）</h3><p><strong>中間値をランダム値で撹乱し、消費電力と秘密の相関を断つ。</strong></p><pre><code>【対策なし】
+  v = SBox(p ⊕ k)              ← v の HW が漏れる → k が分かる
+
+【1 次マスキング】
+  ランダムな m を毎回生成
+  v' = SBox(p ⊕ k ⊕ m) ⊕ m'    ← 実際に処理されるのはマスクされた値
+  最後にマスクを外す
+
+  → 消費電力は v' の HW に比例するが、m がランダムなので
+     v' と（攻撃者の予測できる）v の間に相関がない</code></pre><div class="tablewrap"><table><thead><tr><th>次数</th><th>内容</th><th>破るには</th></tr></thead><tbody><tr><td><strong>1 次マスキング</strong></td><td>ランダム値 1 個で撹乱</td><td><strong>2 次 DPA</strong>（2 点の積を取る）が必要</td></tr><tr><td><strong>d 次マスキング</strong></td><td>ランダム値 d 個で撹乱</td><td><strong>(d+1) 次 DPA</strong> が必要。必要な波形数が指数的に増える</td></tr></tbody></table></div><blockquote><p><strong>マスキングは「正しく実装するのが極めて難しい」.</strong></p><ul><li>コンパイラの最適化でマスクが外れる</li><li>CPU の内部でマスクされた値とマスクなしの値が同じレジスタを通る（<strong>トランジション漏洩</strong>）</li><li>S-Box をマスクしたまま計算するのが難しい（テーブル再計算が必要）</li></ul><p><strong>自作しないこと。</strong> DPA 対策済みのハードウェアエンジンを使うのが正解である。</p></blockquote><h3>対策 2: 隠蔽（Hiding）</h3><p><strong>信号対雑音比を下げる。</strong></p><div class="tablewrap"><table><thead><tr><th>手法</th><th>内容</th></tr></thead><tbody><tr><td><strong>シャッフリング</strong></td><td>S-Box 16 個の処理順序を毎回ランダムに入れ替える</td></tr><tr><td><strong>ダミー演算</strong></td><td>無関係な演算をランダムに挿入する</td></tr><tr><td><strong>ランダム遅延</strong></td><td>処理の間にランダムな待ちを入れる</td></tr><tr><td><strong>クロックジッタ</strong></td><td>クロック周波数を微妙に揺らす</td></tr><tr><td><strong>電力平坦化回路</strong></td><td>ハードウェアで消費電流を一定に保つ</td></tr></tbody></table></div><blockquote><p><strong>隠蔽だけでは不十分である.</strong></p><p>シャッフリングやランダム遅延は、<strong>波形を位置合わせ（アライメント）すれば無効化される</strong>。 攻撃者は相関ベースのアライメント手法を使って、揺らぎを除去できる。</p><p><strong>隠蔽は「波形数を増やさせる」効果しかない。</strong> \(n\) 通りのシャッフルなら、必要な波形数が約 \(n^2\) 倍になる程度である。</p><p><strong>マスキング（撹乱）と隠蔽（雑音）を組み合わせる</strong>のが実際の設計である。</p></blockquote><h3>対策 3: プロトコル・システムレベル</h3><p><strong>そもそも同じ鍵で大量の暗号化をさせない。</strong></p><div class="tablewrap"><table><thead><tr><th>手法</th><th>内容</th></tr></thead><tbody><tr><td><strong>鍵の使用回数制限</strong></td><td>同じ鍵での暗号化回数に上限を設ける</td></tr><tr><td><strong>フレッシュな鍵の導出</strong></td><td>セッションごとに鍵を派生させる</td></tr><tr><td><strong>リーク耐性のあるプロトコル</strong></td><td>鍵を都度更新する構成にする</td></tr><tr><td><strong>レート制限</strong></td><td>短時間に大量の要求を受け付けない</td></tr></tbody></table></div><blockquote><p><strong>これが実は最も費用対効果が高い場合がある.</strong></p><p>DPA には<strong>数千本以上の波形</strong>が要る。 「同じ鍵での暗号化は 100 回まで」という制約をプロトコルで課せば、 <strong>必要な波形が集まらない</strong>。</p><p>ハードウェアを変えずに、プロトコル設計だけで防げる場合がある。</p></blockquote><h3>対策 4: 認証済みハードウェアを使う</h3><div class="tablewrap"><table><thead><tr><th>認証</th><th>物理攻撃耐性の評価</th></tr></thead><tbody><tr><td><strong>PSA Certified Level 3</strong></td><td>サイドチャネル・フォールトへの耐性を含む</td></tr><tr><td><strong>SESIP 4 以上</strong></td><td>同上</td></tr><tr><td><strong>CC AVA_VAN.4 以上</strong></td><td>同上</td></tr><tr><td><strong>CC AVA_VAN.5</strong>（EAL6+ など）</td><td><strong>最も高い</strong>。セキュアエレメントが取得（22 章）</td></tr></tbody></table></div><blockquote><p><strong>最も確実な対策は「その用途にセキュアエレメントを使う」ことである.</strong></p><p>ATECC608、SE050、OPTIGA Trust M などは、 <strong>サイドチャネル対策を前提に設計され、第三者評価を受けている</strong>（22 章）。</p><p>MCU 内蔵の暗号エンジンで DPA 耐性まで持つものは限られる。 <strong>「機器の長期秘密鍵はセキュアエレメントに、 セッション鍵は MCU の暗号エンジンで」</strong>という役割分担が現実的である。</p></blockquote><h2>6. どこまでやるべきか</h2><p>02 章の攻撃者クラスに戻る。</p><div class="tablewrap"><table><thead><tr><th>攻撃者クラス</th><th>サイドチャネル対策の必要性</th></tr></thead><tbody><tr><td>クラス 1〜2（好奇心・愛好家）</td><td><strong>不要</strong>。もっと安い攻撃手段がある</td></tr><tr><td>クラス 3（犯罪者）</td><td><strong>場合による</strong>。「1 台破ると全台破れる」構造があるなら必要</td></tr><tr><td>クラス 4（競合他社・専門ラボ）</td><td><strong>必要</strong></td></tr><tr><td>クラス 5（国家）</td><td><strong>必要</strong>。かつ、それでも十分とは限らない</td></tr></tbody></table></div><blockquote><p><strong>優先順位を間違えないこと.</strong></p><p>DPA 対策に投資する前に、確認すべきことがある。</p><ul><li>デバッグポートは閉じているか（11 章）</li><li>外部フラッシュは暗号化されているか（06 章）</li><li>全台で同じ鍵を使っていないか（12 章）</li><li>デフォルトパスワードは廃止されているか</li></ul><p><strong>これらが空いているなら、そちらから取られる。</strong> 攻撃者は最も安い経路を選ぶ（02 章の攻撃ツリー）。</p><p>DPA 対策は「他が全部固まってから」検討する項目である。</p></blockquote><h2>7. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>サイドチャネル</td><td>時間・電力・電磁波・キャッシュ。<strong>設計者が想定していない経路</strong></td></tr><tr><td>EMA の脅威</td><td><strong>非接触</strong>で、空間分解能がある。基板改造が不要</td></tr><tr><td>タイミング攻撃</td><td>最も基本的。<strong>秘密値で分岐しない・早期リターンしない</strong></td></tr><tr><td>定時間比較</td><td>ライブラリの <code>ct_memcmp</code> を使う。<strong>自作しない</strong></td></tr><tr><td>DPA の核心</td><td><strong>16 バイトを 1 バイトずつ独立に求められる</strong>。\(2^{128} \to 4096\)</td></tr><tr><td>必要な波形数</td><td>対策なしで<strong>数百〜数千本</strong>。数分で集まる</td></tr><tr><td>マスキング</td><td>最も重要な対策。だが<strong>正しい実装が極めて難しい</strong></td></tr><tr><td>隠蔽</td><td>波形数を増やさせるだけ。<strong>マスキングと併用する</strong></td></tr><tr><td>システムレベル</td><td><strong>同じ鍵の使用回数を制限する</strong>。費用対効果が高い</td></tr><tr><td>確実な対策</td><td><strong>セキュアエレメント</strong>（AVA_VAN.5 相当）に長期鍵を置く</td></tr><tr><td>優先順位</td><td><strong>基本の穴を全部塞いでから</strong>。DPA 対策は最後</td></tr></tbody></table></div><p>次章では、もう 1 つの物理攻撃—— 「電圧をひと突きすると if 文が飛ぶ」フォールトインジェクションを扱う。</p>
+  <nav class="chnav"><a class="pn" href="08.html"><span>←</span><b>暗号アクセラレータと乱数生成器</b></a><a class="pn nx" href="10.html"><b>フォールトインジェクション攻撃 — if 文が飛ぶ</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>
