@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """circuit/*.md -> circuit/html/NN.html (自己完結・KaTeX数式・図・章間ナビ)。"""
-import os, re, html
+import os, re, html, sys, json
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from figures import F as FIGS
 
 SRC = "/home/user/documents/circuit"
 OUT = "/home/user/documents/circuit/html"
@@ -40,7 +42,7 @@ WIDGETS = {
     "01": [("オームの法則と分圧を確かめる", "ohm")],
     "02": [("コンデンサのインピーダンスを見る", "capz"), ("3 つの素子のインピーダンスを比べる", "rlcz")],
     "03": [("RC の過渡応答を見る", "rcstep"), ("フィルタの周波数特性を見る", "filter"), ("RLC の共振とリンギングを見る", "rlcring")],
-    "04": [("ダイオードの I-V 特性を見る", "diode")],
+    "04": [("ダイオードの I-V 特性を見る", "diode"), ("整流回路の動作を見る", "rectify")],
     "05": [("MOSFET の特性を見る", "mosfet"), ("スイッチング波形を見る", "mosswitch")],
     "06": [("BJT の特性を見る", "bjt"), ("MOSFET と BJT を比べる", "bjtmos")],
     "07": [("オペアンプの内部を追う", "opampin")],
@@ -51,17 +53,17 @@ WIDGETS = {
     "12": [("タイミング制約を確かめる", "timing"), ("メタステーブルの確率を確かめる", "metastable")],
     "13": [("メモリセルの構造を比べる", "memcell"), ("Flash の書き換えと摩耗を見る", "flashwear"), ("メモリ階層のアクセス時間を比べる", "memhier")],
     "14": [("LDO のドロップアウトと効率を見る", "ldodrop"), ("LDO の安定性を確かめる", "ldostab"), ("LDO の熱と負荷応答を見る", "ldotherm")],
-    "15": [("Buck コンバータの動作を見る", "buck"), ("効率と損失の内訳を見る", "swloss")],
+    "15": [("Buck コンバータの動作を見る", "buck"), ("電流の経路を切り替えて見る", "topopath"), ("効率と損失の内訳を見る", "swloss")],
     "16": [("デカップリングの効果を見る", "decap"), ("熱設計を確かめる", "thermal")],
     "17": [("SAR ADC の変換過程を見る", "sar"), ("ADC 方式を比べる", "adctype")],
     "18": [("PWM から電圧を作る", "pwmdac"), ("DAC 方式を比べる", "dactype")],
     "19": [("プルアップ抵抗を選ぶ", "pullup")],
     "20": [("シングルエンドと差動を比べる", "diffse"), ("インタフェースを比べる", "ifcompare")],
     "21": [("ゲート駆動を見る", "gatedrive")],
-    "22": [("H ブリッジとデッドタイムを見る", "hbridge")],
+    "22": [("H ブリッジの状態を切り替える", "hbstate"), ("H ブリッジとデッドタイムを見る", "hbridge")],
     "23": [("反射とリンギングを見る", "reflect"), ("リターン電流の経路を見る", "retpath")],
     "24": [("放射エミッションの要因を見る", "emission")],
-    "25": [("部品選定を確かめる", "partsel")],
+    "25": [("グラウンドリードの影響を見る", "probering"), ("部品選定を確かめる", "partsel")],
 }
 
 def esc(s):
@@ -120,6 +122,12 @@ def convert_blocks(lines):
             while i < n and lines[i].strip() != "```":
                 body.append(lines[i]); i += 1
             i += 1
+            if lang == "fig":
+                name = (body[0].strip() if body else "")
+                if name not in FIGS:
+                    raise SystemExit("unknown figure: %r" % name)
+                out.append(FIGS[name])
+                continue
             cls = ' class="lang-%s"' % lang if lang else ""
             out.append("<pre><code%s>%s</code></pre>" % (cls, esc("\n".join(body))))
             continue
@@ -266,7 +274,7 @@ def page(num, title, body, prev_c, next_c):
     nav_prev = ('<a class="pn" href="%s.html"><span>←</span><b>%s</b></a>' % (prev_c[0], prev_c[1])) if prev_c else '<span class="pn dis"></span>'
     nav_next = ('<a class="pn nx" href="%s.html"><b>%s</b><span>→</span></a>' % (next_c[0], next_c[1])) if next_c else '<span class="pn dis"></span>'
     has_widget = 'data-widget' in body
-    wscript = '<script defer src="widgets.js"></script>' if has_widget else ''
+    wscript = ('<script defer src="figures.js"></script>\n<script defer src="widgets.js"></script>') if has_widget else ''
     tshort = re.sub(r'^[0-9]+[.\s]*', '', title)
     tshort_html = convert_inline(tshort)
     return f"""<!DOCTYPE html>
@@ -324,3 +332,16 @@ for k, (num, title, body) in enumerate(metas):
     print("wrote", num, title)
 
 print("titles:", [short(m[1]) for m in metas])
+
+# ---- ウィジェットが使う図を JS に書き出す ----
+WFIGS = [
+    "c07_diffin", "c07_gainstage", "c07_output", "c07_bode",
+    "c11_inv", "c11_nand", "c11_nor", "c11_aoi", "c11_xor",
+    "c13_sram6t", "c13_dram", "c13_fg", "c13_norand", "c13_eeprom", "c13_fram",
+    "c18_rstring", "c18_r2r", "c18_isrc", "c18_dsdac", "c18_pwmrc",
+]
+from figures import SVGONLY
+_js = "window.CFIG={\n" + ",\n".join(
+    '%s:%s' % (json.dumps(k), json.dumps(SVGONLY[k])) for k in WFIGS) + "\n};\n"
+open(os.path.join(OUT, "figures.js"), "w", encoding="utf-8").write(_js)
+print("wrote figures.js", len(WFIGS), "figures")

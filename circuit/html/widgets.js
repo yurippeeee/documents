@@ -108,6 +108,12 @@
     reg(null,draw);draw();
     return {redraw:draw,get:function(){return items[sel];}};
   }
+  /* 図（インライン SVG）を埋め込む */
+  function figure(name){
+    var g=(window.CFIG||{})[name];
+    if(!g)return '<div style="color:var(--alias);font-size:.8rem">figure not found: '+esc(name)+'</div>';
+    return '<div class="wfig">'+g+'</div>';
+  }
   /* 見出し付きブロック */
   function blk(title,html,col){
     return '<div style="margin-bottom:.6rem"><div style="color:var('+(col||"--muted")+
@@ -714,7 +720,7 @@
     readout(el);var out=el.querySelector(".readout");
     var A=[
       {n:"① 差動入力段",c:"--signal",d:"2 つの入力の差だけを取り出す。ここが決める仕様が最も多い。",
-       cir:["  +IN ──┤ Q1   Q2 ├── −IN","          └──┬──┘","          テール電流源 I_tail","             ↓ 差動 → 単相 変換（カレントミラー）"],
+       fig:"c07_diffin",
        spec:[["入力オフセット電圧 V_OS","Q1/Q2 のミスマッチ。数 µV（チョッパ）〜数 mV（汎用）"],
              ["入力バイアス電流 I_B","BJT 入力なら nA〜µA、FET 入力なら pA"],
              ["入力電圧ノイズ e_n","入力段トランジスタの熱雑音。電流を増やすと下がる"],
@@ -723,21 +729,21 @@
              ["ドリフト","V_OS の温度係数。μV/℃"]],
        note:"<b>入力オフセットとバイアス電流はここで決まる。</b>センサ用途で最も効く段。"},
       {n:"② 利得段",c:"--blue",d:"電圧利得の大半（60〜100 dB）をここで稼ぐ。位相補償もここ。",
-       cir:["  前段 ──┤ Q3 ├── 次段へ","          │","         ═╪═ C_c（ミラー補償）","          │","         高抵抗負荷（能動負荷）"],
+       fig:"c07_gainstage",
        spec:[["開ループ利得 A_OL","100〜140 dB。ここでほぼ決まる"],
              ["GBW","<b>GBW = g_m1/(2π·C_c)</b>。入力段の g_m と補償容量の比"],
              ["スルーレート","<b>SR = I_tail/C_c</b>。テール電流を C_c に流し込む速度"],
              ["支配極","C_c により数 Hz〜数十 Hz に置かれる"]],
        note:"<b>GBW とスルーレートは、どちらも C_c が分母にいる。</b>速い品種は C_c が小さいか I_tail が大きい。"},
       {n:"③ 出力段",c:"--signal",d:"低インピーダンスで電流を供給する。電圧利得はほぼ 1。",
-       cir:["         VCC","          │","         ┤ 上側（ソース）","  前段 ──┼──── OUT","         ┤ 下側（シンク）","          │","         GND"],
+       fig:"c07_output",
        spec:[["出力電圧振幅","エミッタフォロワなら V_CC−1.5 V 程度。<b>RRO は MOS で数十 mV まで</b>"],
              ["出力電流","短絡保護が入っている。データシートの負荷曲線を見る"],
              ["出力インピーダンス","開ループで数十 Ω。負帰還で 1/(1+Aβ) に下がる"],
              ["クロスオーバ歪み","クラス AB のバイアスで決まる"]],
        note:"<b>RRO（レール・ツー・レール出力）は無負荷での話。</b>電流を流すと振幅は縮む。"},
       {n:"周波数特性",c:"--alias",d:"3 段を合わせた開ループ特性。ここから安定性が読める。",
-       cir:["  |A| ─────╲","           │ ╲ −20 dB/dec","    0 dB ──┼───╲──────── f","           │     ╲ ← 第 2 極","          f_p1   GBW"],
+       fig:"c07_bode",
        spec:[["支配極 f_p1","A_OL·f_p1 = GBW。数 Hz〜数十 Hz"],
              ["−20 dB/dec","1 極だけなら位相遅れは 90°。<b>90° の余裕がある</b>"],
              ["第 2 極","GBW より十分上にないと位相余裕が減る"],
@@ -746,8 +752,7 @@
     ];
     picker(el,A,function(it){
       var h=blk("役割",'<div style="color:var(--ink)">'+it.d+'</div>',it.c);
-      h+=blk("回路の骨格",'<pre style="margin:0;font-family:var(--mono);font-size:.76rem;line-height:1.5;color:var(--muted);white-space:pre">'+
-        esc(it.cir.join("\n"))+'</pre>',"--muted");
+      h+=blk("回路の骨格",figure(it.fig),"--muted");
       h+=blk("この段が決める仕様",tbl(["仕様","内容"],it.spec),it.c);
       h+='<div style="border-left:3px solid var('+it.c+');padding-left:.6rem;color:var(--ink);font-size:.86rem">'+it.note+'</div>';
       return h;
@@ -1206,35 +1211,34 @@
     var A=[
       {n:"インバータ",c:"--signal",tr:2,f:"Y = A&#772;",
        pdn:"NMOS 1 個（A）",pun:"PMOS 1 個（A）",
-       art:["   VDD","    │","   ‖ P(A)","    ├── Y","   ‖ N(A)","    │","   GND"],
+       fig:"c11_inv",
        tt:[["A","Y"],["0","1"],["1","0"]],
        note:"すべての基本。<b>CMOS ロジックは必ず出力が反転する</b>——PDN が導通すると出力は L になるから。"},
       {n:"NAND2",c:"--signal",tr:4,f:"Y = (A·B)&#772;",
        pdn:"NMOS <b>直列</b> 2 個",pun:"PMOS <b>並列</b> 2 個",
-       art:["   VDD","    ├──┬──","   ‖P(A) ‖P(B)   ← 並列","    ├──┴──┤","         Y","   ‖ N(A)        ← 直列","   ‖ N(B)","    │","   GND"],
+       fig:"c11_nand",
        tt:[["A","B","Y"],["0","0","1"],["0","1","1"],["1","0","1"],["1","1","0"]],
        note:"<b>NAND が CMOS の標準ゲートである。</b>直列になるのが NMOS 側で、NMOS は PMOS より強いので面積・速度の点で NOR より有利。"},
       {n:"NOR2",c:"--blue",tr:4,f:"Y = (A+B)&#772;",
        pdn:"NMOS <b>並列</b> 2 個",pun:"PMOS <b>直列</b> 2 個",
-       art:["   VDD","   ‖ P(A)        ← 直列","   ‖ P(B)","    ├── Y","    ├──┬──","   ‖N(A) ‖N(B)   ← 並列","    ├──┴──","   GND"],
+       fig:"c11_nor",
        tt:[["A","B","Y"],["0","0","1"],["0","1","0"],["1","0","0"],["1","1","0"]],
        note:"PMOS が直列になるので<b>遅い</b>。同じ速度を出すには PMOS を大きくする必要があり、面積が増える。<b>合成ツールが NAND を好むのはこのため。</b>"},
       {n:"AOI21",c:"--signal",tr:6,f:"Y = (A·B + C)&#772;",
        pdn:"（A 直列 B）と C の <b>並列</b>",pun:"（A 並列 B）と C の <b>直列</b>",
-       art:["   VDD","   ‖P(A) ‖P(B)  ← 並列","    └──┬──┘","   ‖ P(C)       ← 直列","    ├── Y","    ├────┬","   ‖N(A)  ‖N(C)","   ‖N(B)   │   ← (A·B) ∥ C","    ├────┴","   GND"],
+       fig:"c11_aoi",
        tt:[["A","B","C","Y"],["0","0","0","1"],["1","1","0","0"],["0","0","1","0"],["1","1","1","0"]],
        note:"<b>AND-OR-Invert。</b>個別のゲートを並べるより<b>トランジスタが少なく速い</b>。ライブラリに必ず入っている。"},
       {n:"XOR2",c:"--alias",tr:"8〜12",f:"Y = A ⊕ B",
        pdn:"複合、または伝送ゲート構成",pun:"同左",
-       art:["  伝送ゲート方式（6 Tr）:","","   A ──┬──[TG(B)]──┬── Y","       │             │","       └──[TG(B&#772;)]──┘","          （A&#772; 側）"],
+       fig:"c11_xor",
        tt:[["A","B","Y"],["0","0","0"],["0","1","1"],["1","0","1"],["1","1","0"]],
        note:"<b>XOR は CMOS にとって高価なゲートである。</b>加算器が遅く大きいのはこれが理由。伝送ゲートを使う実装もあるが、<b>信号が減衰する・駆動能力がない</b>という弱点がある。"}
     ];
     picker(el,A,function(it){
       var h=blk("論理式",'<div style="font-family:var(--mono);color:var(--ink);font-size:1rem">'+it.f+'</div>',it.c);
       h+=blk("構成",tbl(["項目","内容"],[["プルダウン網 (PDN)",it.pdn],["プルアップ網 (PUN)",it.pun],["トランジスタ数",it.tr+" 個"]]),it.c);
-      h+=blk("回路",'<pre style="margin:0;font-family:var(--mono);font-size:.76rem;line-height:1.5;color:var(--muted);white-space:pre">'+
-        esc(it.art.join("\n"))+'</pre>',"--muted");
+      h+=blk("回路",figure(it.fig),"--muted");
       h+=blk("真理値表",tbl(it.tt[0],it.tt.slice(1),it.tt[0].map(function(){return "center";})),it.c);
       h+='<div style="border-left:3px solid var('+it.c+');padding-left:.6rem;color:var(--ink);font-size:.86rem">'+it.note+'</div>';
       return h;
@@ -1446,28 +1450,28 @@
     readout(el);var out=el.querySelector(".readout");
     var A=[
       {n:"SRAM 6T",c:"--signal",hold:"回路の状態（正帰還）",
-       art:["    VDD          VDD","     │            │","   ‖M2         ‖M4","     │            │","  Q ─┼──────╳─────┼─ QB","     │     たすき掛け│","   ‖M1         ‖M3","     │            │","    GND          GND","","  WL ─┬───────────┬─","    ‖M5        ‖M6","     BL          BLB"],
+       fig:"c13_sram6t",
        rows:[["セル面積","<b>120〜150 F²</b>（最も大きい）"],["アクセス時間","<b>1〜10 ns</b>（最速）"],
              ["保持","電源が入っている限り無限"],["書き換え耐性","<b>無限</b>"],
              ["待機電力","リーク電流のみ（微細化で無視できなくなる）"],
              ["製造","<b>普通の CMOS で作れる → MCU に内蔵できる</b>"]],
        note:"読み出しは <b>BL/BLB の数十 mV の差</b>をセンスアンプで判定する。フルスイングを待たないので速い。<b>読み出しでセルが反転しないよう、M1 を M5 より強くする（βレシオ）。</b>"},
       {n:"DRAM 1T1C",c:"--blue",hold:"キャパシタの電荷",
-       art:["       WL","        │","     ───┼───","       ‖ M","        │","  BL ───┴──┬","           ═╪═ Cs ≈ 25 fF","            │","           GND"],
+       fig:"c13_dram",
        rows:[["セル面積","<b>約 6 F²</b>（SRAM の 1/20）"],["アクセス時間","行を開けるのに数十 ns"],
              ["保持","<b>約 64 ms</b>。リフレッシュが必要"],["書き換え耐性","無限"],
              ["読み出し","<b>破壊読み出し</b>。読んだら必ず書き戻す（リストア）"],
              ["製造","<b>専用の深溝／積層キャパシタ工程 → MCU に内蔵しにくい</b>"]],
        note:"読み出しは電荷分配。ΔV = C<sub>s</sub>/(C<sub>s</sub>+C<sub>BL</sub>)·(V<sub>cell</sub>−V<sub>DD</sub>/2) ≈ <b>55 mV</b> しかない。<b>だから 1 本のビット線に繋げるセル数に上限がある。</b>"},
       {n:"NOR Flash",c:"--signal",hold:"絶縁膜に閉じ込めた電荷",
-       art:["        コントロールゲート","  ─────────────────────","  ▒▒▒ ONO 絶縁膜 ▒▒▒","  ─────────────────────","      フローティングゲート","  ▒▒ トンネル酸化膜 8-10nm ▒▒","  ─────────────────────","   n+ │   p 基板   │ n+","","  各セルが BL に直接つながる"],
+       fig:"c13_fg",
        rows:[["セル面積","中（各セルにコンタクトが要る）"],["読み出し","<b>ランダム読み出し可・数十 ns</b>"],
              ["XIP（直接実行）","<b>可能 → MCU のコード領域はこれ</b>"],
              ["書き込み単位","ワード〜ページ"],["消去単位","<b>セクタ 4〜64 KB</b>"],
              ["書き換え耐性","10⁴〜10⁵ 回"]],
        note:"書き込み・消去には <b>15〜20 V</b> が要る（内蔵チャージポンプ）。<b>だから遅く、消費電流が跳ね、書き込み中は同じバンクを読めない。</b>"},
       {n:"NAND Flash",c:"--blue",hold:"絶縁膜に閉じ込めた電荷",
-       art:["        BL","         │","      ─┤├─ 選択Tr","  WL0 ─┤├─","  WL1 ─┤├─   ← 直列に数十個","  WL2 ─┤├─","   ⋮    ⋮","  WL63 ┤├─","      ─┤├─","        GND"],
+       fig:"c13_norand",
        rows:[["セル面積","<b>最小</b>（直列なのでコンタクトが少ない）"],
              ["読み出し","<b>ページ単位・数十 µs</b>。ランダム読み出し不可"],
              ["XIP","<b>不可</b>（RAM にコピーが必要）"],
@@ -1475,13 +1479,13 @@
              ["書き換え耐性","SLC 10⁴／MLC 3×10³／TLC 10³／QLC 数百"]],
        note:"<b>ビットエラーが出る前提で設計されている。</b>ECC（BCH/LDPC）・ウェアレベリング・不良ブロック管理が必須。出荷時点で不良ブロックが存在する。"},
       {n:"EEPROM",c:"--muted",hold:"絶縁膜に閉じ込めた電荷（2T）",
-       art:["   選択Tr    セルTr","    ‖        ‖(FG)","    └────────┘","","  バイトごとに選択Trを持つ","  → バイト単位で消去できる","  → その代わり面積が倍"],
+       fig:"c13_eeprom",
        rows:[["セル面積","Flash の 2〜3 倍"],["消去単位","<b>バイト</b>"],
              ["書き換え耐性","<b>10⁵〜10⁶ 回</b>"],["容量","数百 B〜数十 KB"],
              ["単価","高い"],["用途","設定値・校正値・シリアル番号"]],
        note:"原理は Flash と同じ。<b>違いは「バイトごとに選択トランジスタを付けたか」だけ。</b>最近の MCU は EEPROM を積まず、<b>Flash の 2 セクタを使ったエミュレーション</b>で代替することが多い。"},
       {n:"FRAM",c:"--alias",hold:"強誘電体の分極方向",
-       art:["      プレート線","        │","      ═╪═ 強誘電体キャパシタ","        │        （分極の向きで記憶）","     ───┼───","       ‖ M","        │","       BL"],
+       fig:"c13_fram",
        rows:[["セル面積","DRAM より大きい"],["書き込み","<b>RAM 並に速い（数十 ns）</b>"],
              ["書き換え耐性","<b>10¹²〜10¹⁴ 回</b>"],["保持","不揮発（10 年〜）"],
              ["消費エネルギー","<b>Flash の 1/100 以下</b>"],
@@ -1490,8 +1494,7 @@
     ];
     picker(el,A,function(it){
       var h=blk("何で覚えているか",'<div style="color:var(--ink)">'+it.hold+'</div>',it.c);
-      h+=blk("セル構造",'<pre style="margin:0;font-family:var(--mono);font-size:.74rem;line-height:1.45;color:var(--muted);white-space:pre">'+
-        esc(it.art.join("\n"))+'</pre>',"--muted");
+      h+=blk("セル構造",figure(it.fig),"--muted");
       h+=blk("構造から出てくる性質",tbl(["項目","内容"],it.rows),it.c);
       h+='<div style="border-left:3px solid var('+it.c+');padding-left:.6rem;color:var(--ink);font-size:.86rem">'+it.note+'</div>';
       return h;
@@ -2306,7 +2309,7 @@
     readout(el);var out=el.querySelector(".readout");
     var A=[
       {n:"抵抗ストリング",c:"--signal",
-       art:["  VREF ─┬─R─┬─R─┬─ … ─┬─ GND","        │   │   │       │","       SW  SW  SW      SW","        └───┴───┴───────┴─→ VOUT"],
+       fig:"c18_rstring",
        rows:[["単調性","<b>保証される</b>（直列抵抗のタップだから）"],
              ["DNL","良い"],["INL","抵抗のばらつきが累積。中央付近で最大"],
              ["面積","<b>2<sup>N</sup> に比例</b> → 10〜12 bit が実用上限"],
@@ -2314,7 +2317,7 @@
              ["出力インピーダンス","<b>高い（数〜数十 kΩ）</b>"]],
        note:"<b>MCU 内蔵 DAC の主流。</b>出力インピーダンスが高いので<b>必ずバッファする</b>。内蔵バッファを ON にするとレール付近（0 V 付近・V<sub>DD</sub> 付近の 0.2 V）が出せなくなる点に注意。"},
       {n:"R-2R ラダー",c:"--blue",
-       art:["      2R   2R   2R   2R","       │    │    │    │","  ─R───┴─R──┴─R──┴────┴──","       │    │    │    │","      b3   b2   b1   b0"],
+       fig:"c18_r2r",
        rows:[["単調性","<b>保証されない</b>"],
              ["面積","<b>N に比例</b>（2<sup>N</sup> ではない）→ 高分解能に向く"],
              ["必要な抵抗","<b>2 種類だけ</b>（R と 2R）"],
@@ -2322,7 +2325,7 @@
              ["グリッチ","<b>大きい（メジャーコードグリッチ）</b>"]],
        note:"どの節点から右を見ても抵抗が R になるよう作られており、1 段ごとに重みが半分になる。<b>0111…→1000… で全ビットが同時に変わり、タイミングのずれがヒゲになる。</b>"},
       {n:"電流セル（セグメント）",c:"--signal",
-       art:["  ┌──┐┌──┐┌──┐┌──┐","  │ I ││ I ││ I ││ I │  全部同じ電流源","  └┬─┘└┬─┘└┬─┘└┬─┘","   SW   SW   SW   SW","   └────┴────┴────┴─→ 電流を合計"],
+       fig:"c18_isrc",
        rows:[["単調性","<b>保証される</b>（温度計コード部分）"],
              ["グリッチ","<b>極小</b>（1 個ずつ増減）"],
              ["速度","<b>最速</b>（電流の切り替えだけ）"],
@@ -2337,7 +2340,7 @@
              ["用途","<b>オーディオ</b>"]],
        note:"<b>1 bit DAC は原理的に完全線形である</b>——出力が 2 点しかなく、2 点を結ぶ線は必ず直線だから。多ビット化すると素子ばらつきが非直線性になるので、<b>DEM（動的素子マッチング）</b>で誤差を雑音に変える。"},
       {n:"PWM + フィルタ",c:"--muted",
-       art:["  PWM ──[ R ]──┬── アナログ電圧","                │","              ═╪═ C","                │","               GND"],
+       fig:"c18_pwmrc",
        rows:[["分解能","<b>実力 8〜10 bit</b>"],
              ["精度","<b>V<sub>DD</sub> 精度がそのまま乗る</b>。R<sub>DS(on)</sub>・エッジ非対称も"],
              ["速度","リプルと整定のトレードオフで決まる"],
@@ -2346,8 +2349,7 @@
        note:"<b>組み込みで最もよく使われる「DAC」。</b>タイマがあれば追加部品ほぼゼロ。ただし <b>f<sub>PWM</sub> = f<sub>clk</sub>/2<sup>N</sup></b> なので、高分解能にすると周波数が落ちてフィルタが重くなる。"}
     ];
     picker(el,A,function(it){
-      var h=blk("構造",'<pre style="margin:0;font-family:var(--mono);font-size:.75rem;line-height:1.5;color:var(--muted);white-space:pre">'+
-        esc(it.art.join("\n"))+'</pre>',"--muted");
+      var h=blk("構造",figure(it.fig),"--muted");
       h+=tbl(["項目","内容"],it.rows);
       h+='<div style="border-left:3px solid var('+it.c+');padding-left:.6rem;margin-top:.5rem;color:var(--ink);font-size:.86rem">'+it.note+'</div>';
       return h;
@@ -3097,6 +3099,355 @@
           "<b>ライフサイクル状態（Active / NRND / EOL）を確認する</b>——NRND を新規設計に選ばない",
           "<b>組み込みの標準は工業品（−40〜85 ℃）</b>。民生品（0〜70 ℃）は屋外で使えない"]);
   };
+  /* ---------- 04: 整流と平滑（動く） ---------- */
+  REG.rectify=function(el){
+    head(el,"Rectifier","ダイオードで片側だけ通し、コンデンサで谷を埋める");
+    var r=ctrls(el);
+    var ty=select(r,"方式",["半波整流","全波（ブリッジ）整流"]);
+    var sV=slider(r,"入力振幅（ピーク）[V]",3,30,12,0.5);
+    var sF=slider(r,"周波数 [Hz]",10,400,50,1);
+    var sC=slider(r,"平滑コンデンサ [µF]",1,4700,470,1);
+    var sR=slider(r,"負荷 [Ω]",10,5000,220,10);
+    var cv=screen(el,260),cc=cctx(cv),out=readout(el);
+    function draw(){
+      var full=+ty.value===1,Vp=+sV.input.value,fq=+sF.input.value,
+          Cf=+sC.input.value*1e-6,RL=+sR.input.value;
+      sV.val.textContent=f(Vp,1)+" V";sF.val.textContent=f(fq,0)+" Hz";
+      sC.val.textContent=(Cf*1e6<1000?f(Cf*1e6,0)+" µF":f(Cf*1e3,2)+" mF");
+      sR.val.textContent=f(RL,0)+" Ω";
+      var Vf=0.7*(full?2:1), T=1/fq, N=1400, dt=3*T/N;
+      var v=0,vs=[],src=[],vmin=1e9,vmax=-1e9;
+      for(var i=0;i<=N;i++){
+        var t=3*T*i/N;
+        var s=Vp*Math.sin(TAU*fq*t);
+        var rect=full?Math.abs(s):Math.max(0,s);
+        var avail=rect-Vf;
+        if(avail>v)v=avail;                    /* ダイオード導通：追従 */
+        else v-=v/(RL*Cf)*dt;                  /* 放電 */
+        if(v<0)v=0;
+        vs.push([t,v]);src.push([t,s]);
+        if(t>T){vmin=Math.min(vmin,v);vmax=Math.max(vmax,v);}
+      }
+      var rip=vmax-vmin, Vdc=(vmax+vmin)/2;
+      var c=chart(cc,0,3*T*1000,-Vp*1.15,Vp*1.15,{l:54,b:44,t:22});
+      grid(c,4);axis(c);var ctx=c.ctx;
+      for(var q=-1;q<=1;q++)lab(ctx,f(q*Vp,0)+" V",c.p.l-6,c.Y(q*Vp)+4,C("--faint"),"right",10);
+      lab(ctx,"時間 [ms]",c.w-c.p.r,c.h-6,C("--muted"),"right",10);
+      for(var e=0;e<=3;e++)lab(ctx,f(e*T*1000,1),c.X(e*T*1000),c.h-c.p.b+16,C("--faint"),
+        e===3?"right":e===0?"left":"center",10);
+      line(c,src.map(function(p){return [p[0]*1000,p[1]];}),C("--faint"),1.6,[5,4]);
+      line(c,vs.map(function(p){return [p[0]*1000,p[1]];}),C("--signal"),2.8);
+      ctx.strokeStyle=C("--alias");ctx.lineWidth=1.2;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(c.p.l,c.Y(vmax));ctx.lineTo(c.w-c.p.r,c.Y(vmax));ctx.stroke();
+      ctx.beginPath();ctx.moveTo(c.p.l,c.Y(vmin));ctx.lineTo(c.w-c.p.r,c.Y(vmin));ctx.stroke();
+      ctx.setLineDash([]);
+      lab(ctx,"リプル "+f(rip,2)+" V",c.w-c.p.r-4,c.Y(vmax)-6,C("--alias"),"right",10);
+      lab(ctx,"破線 = 入力（交流）",c.p.l+8,c.h-c.p.b-8,C("--faint"),"left",10);
+      var est=Vdc/(RL*Cf*fq*(full?2:1));
+      out.innerHTML='出力の平均 <b>'+f(Vdc,2)+' V</b>（ピークから約 '+f(Vp-vmax,2)+' V 落ちる＝ダイオードの順方向電圧）'+
+        ' ／ リプル <b>'+f(rip,3)+' V<sub>p-p</sub></b>（'+f(100*rip/Math.max(Vdc,1e-9),1)+' %）'+
+        ' ／ 概算式 <b>ΔV ≈ I/(f·C) = '+f(est,3)+' V</b>'+
+        (full?'（全波なので実効的に 2f）':'')+
+        ' ／ <b>全波にするとリプルが半分になる</b>——谷を埋める回数が 2 倍になるから'+
+        ' ／ <b>C を増やすほどリプルは減るが、導通期間が短くなってピーク電流が跳ね上がる</b>'+
+        '（突入電流とダイオードの定格に効く）'+
+        ' ／ 負荷を重くする（R を小さくする）と放電が速くなり、リプルが増える';
+    }
+    ty.addEventListener("change",draw);
+    [sV,sF,sC,sR].forEach(function(s){s.input.addEventListener("input",draw);});
+    reg(cv,draw);draw();
+  };
+
+  /* ---------- 共有: アニメーション ---------- */
+  function anim(el,fn){
+    var run=true,t0=performance.now();
+    function step(now){
+      if(!run)return;
+      if(!document.hidden&&el.getBoundingClientRect().bottom>0&&
+         el.getBoundingClientRect().top<innerHeight){
+        try{fn((now-t0)/1000);}catch(e){run=false;}
+      }
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+    return {stop:function(){run=false;}};
+  }
+  /* 経路上を流れる点 */
+  function flow(ctx,pts,ph,col,n,r){
+    var seg=[],tot=0;
+    for(var i=1;i<pts.length;i++){
+      var dx=pts[i][0]-pts[i-1][0],dy=pts[i][1]-pts[i-1][1];
+      var L=Math.hypot(dx,dy);seg.push([pts[i-1],pts[i],L]);tot+=L;
+    }
+    if(tot<1)return;
+    for(var k=0;k<(n||6);k++){
+      var d=((ph+k/(n||6))%1)*tot,acc=0;
+      for(var j=0;j<seg.length;j++){
+        if(acc+seg[j][2]>=d){
+          var u=(d-acc)/seg[j][2];
+          var x=seg[j][0][0]+(seg[j][1][0]-seg[j][0][0])*u;
+          var y=seg[j][0][1]+(seg[j][1][1]-seg[j][0][1])*u;
+          ctx.beginPath();ctx.arc(x,y,r||3.4,0,TAU);ctx.fillStyle=col;ctx.fill();
+          break;
+        }
+        acc+=seg[j][2];
+      }
+    }
+  }
+
+  /* ---------- 15: トポロジと電流経路（動く） ---------- */
+  REG.topopath=function(el){
+    head(el,"Current Path","スイッチの状態で経路が入れ替わる");
+    var r=ctrls(el);
+    var ty=select(r,"トポロジ",["Buck（降圧）","Boost（昇圧）"]);
+    var sD=slider(r,"デューティ D [%]",5,95,40,1);
+    var sVi=slider(r,"V_IN [V]",3,48,12,0.5);
+    var mode=select(r,"表示",["自動でアニメーション","ON 期間で固定","OFF 期間で固定"]);
+    var cv=screen(el,280),cc=cctx(cv),out=readout(el);
+    var ph=0,tt=0;
+    function draw(){
+      var boost=+ty.value===1,D=+sD.input.value/100,Vi=+sVi.input.value,md=+mode.value;
+      sD.val.textContent=f(D*100,0)+" %";sVi.val.textContent=f(Vi,1)+" V";
+      var on;
+      if(md===1)on=true; else if(md===2)on=false; else on=((tt*1.1)%1)<D;
+      var Vo=boost?Vi/(1-D):Vi*D;
+      var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      var yT=68,yB=h-58,yM=(yT+yB)/2;
+      var xI=64,xS=Math.min(280,w*0.42),xO=Math.min(w-100,xS+180);
+      function box(x,y,bw,bh,t2,act){
+        ctx.fillStyle=act?C("--signal-soft"):C("--panel");
+        ctx.strokeStyle=act?C("--signal"):C("--line");ctx.lineWidth=act?2.2:1.4;
+        rrect(ctx,x-bw/2,y-bh/2,bw,bh,5);ctx.fill();ctx.stroke();
+        lab(ctx,t2,x,y+4,act?C("--signal"):C("--muted"),"center",10.5);
+      }
+      ctx.strokeStyle=C("--line");ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.moveTo(xI,yT);ctx.lineTo(xO,yT);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(xI,yB);ctx.lineTo(xO,yB);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(xI,yT);ctx.lineTo(xI,yB);ctx.stroke();
+      lab(ctx,"V_IN "+f(Vi,1)+" V",xI+4,yT-12,C("--muted"),"start",11);
+      lab(ctx,"GND",xI+4,yB+18,C("--faint"),"start",10);
+      var path,note;
+      if(!boost){
+        var y1=(yT+yM)/2, y2=(yM+yB)/2;
+        ctx.beginPath();ctx.moveTo(xS,yT);ctx.lineTo(xS,y1-16);ctx.stroke();
+        box(xS,y1,56,32,"SW1",on);
+        ctx.beginPath();ctx.moveTo(xS,y1+16);ctx.lineTo(xS,y2-16);ctx.stroke();
+        box(xS,y2,56,32,"SW2",!on);
+        ctx.beginPath();ctx.moveTo(xS,y2+16);ctx.lineTo(xS,yB);ctx.stroke();
+        ctx.beginPath();ctx.arc(xS,yM,3.6,0,TAU);ctx.fillStyle=C("--muted");ctx.fill();
+        lab(ctx,"SW ノード",xS-34,yM-10,C("--faint"),"end",10);
+        ctx.strokeStyle=C("--line");ctx.lineWidth=1.6;
+        ctx.beginPath();ctx.moveTo(xS,yM);ctx.lineTo(xO,yM);ctx.stroke();
+        box((xS+xO)/2,yM,48,26,"L",true);
+        box(xO,(yM+yB)/2,40,26,"C",true);
+        ctx.beginPath();ctx.arc(xO,yM,3.6,0,TAU);ctx.fillStyle=C("--muted");ctx.fill();
+        lab(ctx,"V_OUT "+f(Vo,2)+" V",xO+14,yM-10,C("--signal"),"start",11.5);
+        if(on)path=[[xI,yB],[xI,yT],[xS,yT],[xS,yM],[xO,yM],[xO,yB],[xI,yB]];
+        else  path=[[xS,yB],[xS,yM],[xO,yM],[xO,yB],[xS,yB]];
+        note=on?"SW1 ON：V_IN から L へ。v_L = V_IN − V_OUT > 0 → インダクタ電流が増える"
+               :"SW2 ON：L の電流が還流する。v_L = −V_OUT < 0 → インダクタ電流が減る";
+      }else{
+        ctx.beginPath();ctx.moveTo(xS,yT);ctx.lineTo(xS,yM-16);ctx.stroke();
+        box(xS,yM,56,32,"SW",on);
+        ctx.beginPath();ctx.moveTo(xS,yM+16);ctx.lineTo(xS,yB);ctx.stroke();
+        box((xI+xS)/2,yT,48,26,"L",true);
+        box((xS+xO)/2,yT,48,26,"D",!on);
+        box(xO,yM,40,26,"C",true);
+        ctx.beginPath();ctx.arc(xS,yT,3.6,0,TAU);ctx.fillStyle=C("--muted");ctx.fill();
+        ctx.beginPath();ctx.arc(xO,yT,3.6,0,TAU);ctx.fill();
+        ctx.strokeStyle=C("--line");ctx.lineWidth=1.6;
+        ctx.beginPath();ctx.moveTo(xO,yT);ctx.lineTo(xO,yB);ctx.stroke();
+        lab(ctx,"V_OUT "+f(Vo,2)+" V",xO+14,yT-12,C("--signal"),"start",11.5);
+        if(on)path=[[xI,yB],[xI,yT],[xS,yT],[xS,yB],[xI,yB]];
+        else  path=[[xI,yB],[xI,yT],[xO,yT],[xO,yB],[xI,yB]];
+        note=on?"SW ON：L の右端が GND に落ちる。v_L = V_IN > 0 → 電流が増える（充電）"
+               :"SW OFF：L が出力につながる。v_L = V_IN − V_OUT < 0 → 放電して出力へ流れる";
+      }
+      ctx.strokeStyle=C("--signal");ctx.lineWidth=4;ctx.globalAlpha=0.28;
+      ctx.beginPath();path.forEach(function(p,i){i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);});
+      ctx.stroke();ctx.globalAlpha=1;
+      flow(ctx,path,ph,C("--signal"),9,3.6);
+      lab(ctx,(on?"ON 期間":"OFF 期間"),w/2,30,C("--signal"),"center",14);
+      lab(ctx,note,w/2,h-12,C("--muted"),"center",10.5);
+      out.innerHTML=(boost?'<b>Boost: V_OUT = V_IN/(1−D) = '+f(Vo,2)+' V</b>'
+                          :'<b>Buck: V_OUT = D · V_IN = '+f(Vo,2)+' V</b>')+
+        ' ／ どちらも <b>ボルト秒平衡</b>（1 周期でインダクタ電圧の積分がゼロ）から出る'+
+        ' ／ <b>ON と OFF で経路が入れ替わることを見ること。</b>'+
+        'インダクタは「電流を続けたい」ので、スイッチが切れた瞬間に別の道を探す'+
+        (boost?' ／ <b>Boost では OFF 期間に V_IN から出力へ直結する経路ができる。</b>'+
+               'だからシャットダウンしても出力が消えず、短絡保護も効かない':'')+
+        ' ／ 表示を「ON 期間で固定」「OFF 期間で固定」に切り替えると、経路をじっくり見られる';
+    }
+    ty.addEventListener("change",draw);mode.addEventListener("change",draw);
+    [sD,sVi].forEach(function(s){s.input.addEventListener("input",draw);});
+    reg(cv,draw);
+    anim(el,function(t){tt=t;ph=(t*0.55)%1;draw();});
+    draw();
+  };
+
+  /* ---------- 22: H ブリッジの通電経路（動く） ---------- */
+  REG.hbstate=function(el){
+    head(el,"H-Bridge","4 つのスイッチで 4 つの状態を作る");
+    var r=ctrls(el);
+    var sV=slider(r,"V_M [V]",6,48,24,1);
+    var bar=mk("div");bar.style.cssText="display:flex;flex-wrap:wrap;gap:.35rem;margin:.55rem 0 .2rem";
+    el.appendChild(bar);
+    var cv=screen(el,300),cc=cctx(cv);
+    var out=readout(el);
+    var MODES=[
+      {n:"正転",on:[1,0,0,1],c:"--signal"},
+      {n:"逆転",on:[0,1,1,0],c:"--blue"},
+      {n:"ブレーキ",on:[0,1,0,1],c:"--muted"},
+      {n:"フリー",on:[0,0,0,0],c:"--faint"},
+      {n:"貫通（禁止）",on:[1,1,0,0],c:"--alias"}
+    ];
+    var sel=0,ph=0;
+    MODES.forEach(function(m,i){
+      var b=mk("button","btn",m.n);b.style.fontSize=".76rem";
+      b.addEventListener("click",function(){sel=i;draw();});bar.appendChild(b);
+    });
+    function draw(){
+      var VM=+sV.input.value;sV.val.textContent=f(VM,0)+" V";
+      var m=MODES[sel];
+      Array.prototype.forEach.call(bar.children,function(b,i){
+        var onb=(i===sel),col=C(MODES[i].c);
+        b.style.background=onb?col:"var(--panel)";
+        b.style.color=onb?"#fff":"var(--muted)";
+        b.style.borderColor=onb?col:"var(--line)";
+      });
+      var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      var cx=w/2,xL=cx-110,xR=cx+110,yT=54,yM=h/2,yB=h-58;
+      ctx.strokeStyle=C("--line");ctx.lineWidth=1.8;
+      ctx.beginPath();ctx.moveTo(xL,yT);ctx.lineTo(xR,yT);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(xL,yB);ctx.lineTo(xR,yB);ctx.stroke();
+      lab(ctx,"V_M "+f(VM,0)+" V",cx,yT-14,C("--muted"),"center",11.5);
+      lab(ctx,"GND",cx,yB+22,C("--faint"),"center",10.5);
+      function sw(x,y,name,onb,danger){
+        ctx.fillStyle=onb?(danger?C("--alias-soft"):C("--signal-soft")):C("--panel");
+        ctx.strokeStyle=onb?(danger?C("--alias"):C("--signal")):C("--line");
+        ctx.lineWidth=onb?2.2:1.4;
+        rrect(ctx,x-27,y-19,54,38,6);ctx.fill();ctx.stroke();
+        lab(ctx,name,x,y-1,onb?(danger?C("--alias"):C("--signal")):C("--muted"),"center",11.5);
+        lab(ctx,onb?"ON":"OFF",x,y+13,onb?(danger?C("--alias"):C("--signal")):C("--faint"),"center",9.5);
+      }
+      var danger=(sel===4);
+      var yQ1=(yT+yM)/2,yQ2=(yM+yB)/2;
+      ctx.strokeStyle=C("--line");ctx.lineWidth=1.8;
+      [[xL,yT,yQ1-19],[xL,yQ1+19,yM],[xL,yM,yQ2-19],[xL,yQ2+19,yB],
+       [xR,yT,yQ1-19],[xR,yQ1+19,yM],[xR,yM,yQ2-19],[xR,yQ2+19,yB]].forEach(function(s2){
+        ctx.beginPath();ctx.moveTo(s2[0],s2[1]);ctx.lineTo(s2[0],s2[2]);ctx.stroke();});
+      sw(xL,yQ1,"Q1",!!m.on[0],danger); sw(xR,yQ1,"Q3",!!m.on[1],false);
+      sw(xL,yQ2,"Q2",!!m.on[2],danger); sw(xR,yQ2,"Q4",!!m.on[3],false);
+      ctx.strokeStyle=C("--line");ctx.lineWidth=1.8;
+      ctx.beginPath();ctx.moveTo(xL,yM);ctx.lineTo(cx-26,yM);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(cx+26,yM);ctx.lineTo(xR,yM);ctx.stroke();
+      ctx.beginPath();ctx.arc(cx,yM,26,0,TAU);
+      ctx.fillStyle=C("--panel");ctx.fill();ctx.strokeStyle=C("--ink");ctx.lineWidth=1.8;ctx.stroke();
+      lab(ctx,"M",cx,yM+6,C("--muted"),"center",16);
+      var path=null,dir=0;
+      if(sel===0){path=[[xL,yB],[xL,yT],[xL,yM],[cx,yM],[xR,yM],[xR,yB],[xL,yB]];dir=1;}
+      else if(sel===1){path=[[xR,yB],[xR,yT],[xR,yM],[cx,yM],[xL,yM],[xL,yB],[xR,yB]];dir=-1;}
+      else if(sel===2){path=[[xL,yM],[cx,yM],[xR,yM],[xR,yB],[xL,yB],[xL,yM]];dir=1;}
+      else if(sel===4){path=[[xL,yT],[xL,yQ1],[xL,yQ2],[xL,yB]];dir=0;}
+      if(path){
+        ctx.strokeStyle=danger?C("--alias"):C("--signal");
+        ctx.lineWidth=4;ctx.globalAlpha=0.3;
+        ctx.beginPath();path.forEach(function(p,i){i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);});
+        ctx.stroke();ctx.globalAlpha=1;
+        flow(ctx,path,ph,danger?C("--alias"):C("--signal"),danger?14:8,danger?4.2:3.6);
+      }
+      if(dir!==0){
+        var a=ph*TAU*dir;
+        ctx.strokeStyle=C("--signal");ctx.lineWidth=2.4;
+        ctx.beginPath();ctx.arc(cx,yM,17,a,a+2.2);ctx.stroke();
+        ctx.beginPath();ctx.arc(cx,yM,17,a+Math.PI,a+Math.PI+2.2);ctx.stroke();
+      }
+      if(danger)lab(ctx,"電源が短絡している",cx,h-14,C("--alias"),"center",12.5);
+      var desc=[
+        '<b>正転</b>：Q1 + Q4。左から右へ電流が流れる',
+        '<b>逆転</b>：Q3 + Q2。右から左へ電流が流れる',
+        '<b>ブレーキ（ショートブレーキ）</b>：Q2 + Q4 でモータを短絡する。回転で生じた起電力が'+
+          'そのまま短絡電流になり、発電制動がかかる',
+        '<b>フリー（コースト）</b>：全部 OFF。モータは惰性で回り続ける。'+
+          'ただしインダクタンスの電流はボディダイオードを通って還流する',
+        '<b>貫通</b>：Q1 と Q2 が同時に ON。電源が短絡し、'+
+          '<span class="warn">電流を制限するものが配線抵抗しかない</span>'
+      ][sel];
+      out.innerHTML=desc+
+        ' ／ <b>縦（Q1-Q2、Q3-Q4）を同時に ON にしてはいけない。</b>'+
+        'これを防ぐのがデッドタイムで、上を切ってから下を入れるまでの空白期間を置く'+
+        ' ／ ブレーキとフリーは<b>止まり方が違う</b>——'+
+        'ブレーキは急停止、フリーは惰性。用途で選ぶ'+
+        ' ／ 実際には OFF 期間に対角の MOSFET を能動的に ON にする（同期整流）ことで、'+
+        'ボディダイオードの 0.8 V を R_DS(on) に置き換えて損失を十数分の一にする';
+    }
+    sV.input.addEventListener("input",draw);
+    reg(cv,draw);
+    anim(el,function(t){ph=(t*0.4)%1;draw();});
+    draw();
+  };
+
+  /* ---------- 25: グラウンドリードの共振 ---------- */
+  REG.probering=function(el){
+    head(el,"Probe Ground Lead","回路にないリンギングが画面に見える");
+    var r=ctrls(el);
+    var sL=slider(r,"グラウンドリード長 [cm]",0.3,30,15,0.1);
+    var sC=slider(r,"プローブ入力容量 [pF]",2,20,12,0.5);
+    var sT=slider(r,"信号の真の立ち上がり [ns]",0.3,20,2,0.1);
+    var sQ=slider(r,"減衰（配線の抵抗）[Ω]",0.5,30,3,0.5);
+    var cv=screen(el,250),cc=cctx(cv),out=readout(el);
+    function draw(){
+      var len=+sL.input.value,Cp=+sC.input.value*1e-12,tr=+sT.input.value*1e-9,Rd=+sQ.input.value;
+      sL.val.textContent=f(len,1)+" cm";sC.val.textContent=f(Cp*1e12,1)+" pF";
+      sT.val.textContent=f(tr*1e9,1)+" ns";sQ.val.textContent=f(Rd,1)+" Ω";
+      var Lp=len*1e-2*1e-6;                       /* 約 1 µH/m = 10 nH/cm */
+      var w0=1/Math.sqrt(Lp*Cp),f0=w0/TAU;
+      var z=Rd/2*Math.sqrt(Cp/Lp);
+      var T=Math.max(tr*6,12/(Math.max(z,0.02)*w0));
+      T=Math.min(T,tr*4+30/w0*8);
+      var c=chart(cc,0,T*1e9,-0.35,1.95,{l:52,b:44,t:22});
+      grid(c,4);axis(c);var ctx=c.ctx;
+      for(var q=0;q<=3;q++)lab(ctx,f(q*0.5,1),c.p.l-6,c.Y(q*0.5)+4,C("--faint"),"right",10);
+      lab(ctx,"時間 [ns]",c.w-c.p.r,c.h-6,C("--muted"),"right",10);
+      for(var e=0;e<=4;e++)lab(ctx,f(T*1e9*e/4,1),c.X(T*1e9*e/4),c.h-c.p.b+16,C("--faint"),
+        e===4?"right":e===0?"left":"center",10);
+      ctx.strokeStyle=C("--grid");ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.moveTo(c.p.l,c.Y(1));ctx.lineTo(c.w-c.p.r,c.Y(1));ctx.stroke();ctx.setLineDash([]);
+      /* 真の波形（台形） */
+      var PT=[];for(var i=0;i<=200;i++){var t=T*i/200;PT.push([t*1e9,Math.min(1,t/tr)]);}
+      line(c,PT,C("--faint"),1.8,[5,4]);
+      /* 測定波形：2 次系のステップ応答（入力はランプ） */
+      var PM=[],mx=0;
+      var N=600,dt=T/N,x=0,v=0;
+      for(var k=0;k<=N;k++){
+        var t2=T*k/N,u=Math.min(1,t2/tr);
+        var a=w0*w0*(u-x)-2*z*w0*v;
+        v+=a*dt;x+=v*dt;
+        mx=Math.max(mx,x);
+        PM.push([t2*1e9,x]);
+      }
+      line(c,PM,C("--signal"),2.6);
+      lab(ctx,"破線 = 回路の真の波形",c.p.l+8,c.p.t+14,C("--faint"),"left",10);
+      lab(ctx,"実線 = 画面に見える波形",c.p.l+8,c.p.t+28,C("--signal"),"left",10);
+      var os=Math.max(0,(mx-1)*100);
+      var visible=f0<1/(Math.PI*tr)*3;
+      out.innerHTML='リードのインダクタンス ≈ <b>'+f(Lp*1e9,0)+' nH</b>（約 10 nH/cm）'+
+        ' ／ プローブ容量と共振して <b>f₀ = 1/(2π√(L·C)) = '+
+        (f0<1e9?f(f0/1e6,0)+" MHz":f(f0/1e9,2)+" GHz")+'</b>'+
+        ' ／ 減衰係数 ζ = <b>'+f(z,3)+'</b> ／ オーバーシュート <b>'+f(os,1)+' %</b>'+
+        (os>15?' ／ <span class="warn">これは回路には存在しない。測定系が作っている</span>':
+                ' ／ <span class="ok">測定系の影響は小さい</span>')+
+        ' ／ <b>リード長を 15 cm → 0.5 cm にしてみること。</b>'+
+        '共振周波数が跳ね上がり、信号帯域から外れてリンギングが消える'+
+        ' ／ これが「バネ型グラウンドを使え」「基板に GND ピンを立てろ」と言われる理由である'+
+        ' ／ 逆に言えば、<b>グラウンドリードを付けたまま測ったリンギングは信用してはいけない</b>'+
+        ' ／ 確認法：プローブ先端を、そのグラウンドリードの根元に当てて GND-GND を測る。'+
+        'そこで何か見えたら全部測定系のノイズ';
+    }
+    [sL,sC,sT,sQ].forEach(function(s){s.input.addEventListener("input",draw);});
+    reg(cv,draw);draw();
+  };
+
   function init(){
     document.querySelectorAll("[data-widget]").forEach(function(el){
       if(el.dataset.done)return; el.dataset.done="1";

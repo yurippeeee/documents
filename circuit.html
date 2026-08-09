@@ -14,7 +14,7 @@
 <div class="lp">
   <p class="eyebrow">Embedded Circuits</p>
   <h1>動いて理解する組み込み回路</h1>
-  <p class="lede">回路の本には 2 つの型があります。<strong>教科書</strong>——理想の R・L・C で式は美しいが、実際の基板では通用しない。<strong>逆引きレシピ集</strong>——「この場合はこの回路」と書いてあるが、なぜそうなのか分からないので少しでも条件が違うと使えない。この全 25 章は、その間を通ります。<strong>素子の基礎から、オペアンプ・メモリ・LDO・DC-DC・ADC/DAC といった IC の内部回路まで</strong>を一本で繋ぎ、「データシートの数値がどこから来るのか」「なぜその失敗が起きるのか」を説明します。全章に、値を動かすと波形と数値が変わるデモ（<span style="color:var(--signal)">LIVE</span>・計 46 点）を埋め込みました。</p>
+  <p class="lede">回路の本には 2 つの型があります。<strong>教科書</strong>——理想の R・L・C で式は美しいが、実際の基板では通用しない。<strong>逆引きレシピ集</strong>——「この場合はこの回路」と書いてあるが、なぜそうなのか分からないので少しでも条件が違うと使えない。この全 25 章は、その間を通ります。<strong>素子の基礎から、オペアンプ・メモリ・LDO・DC-DC・ADC/DAC といった IC の内部回路まで</strong>を一本で繋ぎ、「データシートの数値がどこから来るのか」「なぜその失敗が起きるのか」を説明します。全章に、値を動かすと波形と数値が変わるデモ（<span style="color:var(--signal)">LIVE</span>・計 50 点）と、回路図・波形図・構造図（計 151 点）を入れました。図はすべて SVG で、ダーク／ライトの両方に追従します。</p>
 
   <h2>第 I 部 — 電気と素子</h2>
   <p class="part">ここを飛ばすと以降が全部曖昧になります。とくに「理想の素子は存在しない」という 02 章。</p>
@@ -22,7 +22,7 @@
     <a class="ch star" href="circuit/html/01.html"><span class="n">CH 01</span><span class="t">電圧・電流・抵抗</span><span class="d">回路を読むための最小限。分圧は「負荷を繋ぐと崩れる」。</span><span class="live">▶ LIVE</span></a>
     <a class="ch star" href="circuit/html/02.html"><span class="n">CH 02</span><span class="t">受動素子の実際</span><span class="d">ESR・ESL・DC バイアス。10 µF が 4 µF になる話。</span><span class="live">▶ LIVE ×2</span></a>
     <a class="ch star" href="circuit/html/03.html"><span class="n">CH 03</span><span class="t">過渡応答とフィルタ</span><span class="d">τ = RC。すべての「なまり」の正体。t_r × f_c ≈ 0.35。</span><span class="live">▶ LIVE ×3</span></a>
-    <a class="ch" href="circuit/html/04.html"><span class="n">CH 04</span><span class="t">ダイオードと PN 接合</span><span class="d">60 mV で 10 倍。だから並列接続してはいけない。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="circuit/html/04.html"><span class="n">CH 04</span><span class="t">ダイオードと PN 接合</span><span class="d">60 mV で 10 倍。だから並列接続してはいけない。</span><span class="live">▶ LIVE ×2</span></a>
   </div>
 
   <h2>第 II 部 — トランジスタ</h2>
@@ -53,7 +53,7 @@
   <p class="part">捨てるか（LDO）、運ぶか（DC-DC）。どちらもインピーダンスの設計です。</p>
   <div class="grid">
     <a class="ch star" href="circuit/html/14.html"><span class="n">CH 14</span><span class="t">LDO の内部回路</span><span class="d">誤差アンプ + パストランジスタ。ESR 範囲と発振の理由。</span><span class="live">▶ LIVE ×3</span></a>
-    <a class="ch star" href="circuit/html/15.html"><span class="n">CH 15</span><span class="t">スイッチングレギュレータ</span><span class="d">ボルト秒平衡ですべてが決まる。ホットループが EMI を決める。</span><span class="live">▶ LIVE ×2</span></a>
+    <a class="ch star" href="circuit/html/15.html"><span class="n">CH 15</span><span class="t">スイッチングレギュレータ</span><span class="d">ボルト秒平衡ですべてが決まる。電流の経路が入れ替わる。</span><span class="live">▶ LIVE ×3</span></a>
     <a class="ch star" href="circuit/html/16.html"><span class="n">CH 16</span><span class="t">電源設計の実際</span><span class="d">デカップリング・シーケンス・保護・熱・電池。</span><span class="live">▶ LIVE ×2</span></a>
   </div>
 
@@ -70,7 +70,7 @@
     <a class="ch star" href="circuit/html/19.html"><span class="n">CH 19</span><span class="t">GPIO とディジタル入出力</span><span class="d">保護ダイオードが「壊れた」の原因。プルアップの決め方。</span><span class="live">▶ LIVE</span></a>
     <a class="ch star" href="circuit/html/20.html"><span class="n">CH 20</span><span class="t">シリアル物理層</span><span class="d">UART / SPI / I2C / CAN / RS-485 / USB。I2C バスハング。</span><span class="live">▶ LIVE ×2</span></a>
     <a class="ch" href="circuit/html/21.html"><span class="n">CH 21</span><span class="t">アイソレータとドライバ</span><span class="d">絶縁の 2 つの目的。CMTI とブートストラップ。</span><span class="live">▶ LIVE</span></a>
-    <a class="ch" href="circuit/html/22.html"><span class="n">CH 22</span><span class="t">パワーデバイスとモータ</span><span class="d">H ブリッジ・デッドタイム・電流検出・回生。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="circuit/html/22.html"><span class="n">CH 22</span><span class="t">パワーデバイスとモータ</span><span class="d">H ブリッジ・デッドタイム・電流検出・回生。</span><span class="live">▶ LIVE ×2</span></a>
   </div>
 
   <h2>第 VIII 部 — 実装</h2>
@@ -78,7 +78,7 @@
   <div class="grid">
     <a class="ch star" href="circuit/html/23.html"><span class="n">CH 23</span><span class="t">基板とシグナルインテグリティ</span><span class="d">周波数ではなく t_r で決まる。GND は分割しない。</span><span class="live">▶ LIVE ×2</span></a>
     <a class="ch star" href="circuit/html/24.html"><span class="n">CH 24</span><span class="t">EMC とノイズ対策</span><span class="d">コモンモードは µA で限度値を超える。落ちる主因はケーブル。</span><span class="live">▶ LIVE</span></a>
-    <a class="ch" href="circuit/html/25.html"><span class="n">CH 25</span><span class="t">測定とデバッグ・部品選定</span><span class="d">グラウンドリードは、ないリンギングを見せる。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="circuit/html/25.html"><span class="n">CH 25</span><span class="t">測定とデバッグ・部品選定</span><span class="d">グラウンドリードは、ないリンギングを見せる。</span><span class="live">▶ LIVE ×2</span></a>
   </div>
 
   <h2>目的別の近道</h2>
@@ -94,7 +94,7 @@
     <div class="path"><b>ぜんぶ</b><span>01 → 25（推奨）</span></div>
   </div>
 
-  <footer class="lpf">本文中の具体的な数値（順方向電圧、閾値電圧、寄生成分、パッケージの熱抵抗、規格の限度値など）は、桁の感覚を掴むための代表値・目安です。実際の部品は品種・温度・製造ばらつきで大きく変わり、規格も改版されます。設計に使う値は必ず対象部品のデータシートと規格の原典で確認してください。／ GitHub Pages で配信。数式は KaTeX で描画、46 点のデモはすべて Canvas / DOM 実装・ダーク/ライト対応。外部 CDN への依存なし。</footer>
+  <footer class="lpf">本文中の具体的な数値（順方向電圧、閾値電圧、寄生成分、パッケージの熱抵抗、規格の限度値など）は、桁の感覚を掴むための代表値・目安です。実際の部品は品種・温度・製造ばらつきで大きく変わり、規格も改版されます。設計に使う値は必ず対象部品のデータシートと規格の原典で確認してください。／ GitHub Pages で配信。数式は KaTeX で描画、50 点のデモはすべて Canvas / DOM 実装、151 点の図版はインライン SVG。いずれもダーク／ライト対応。外部 CDN への依存なし。</footer>
 </div>
 <script src="site.js"></script>
 </body>
