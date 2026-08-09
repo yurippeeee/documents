@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>11. CMOS ロジック — インバータ 1 個からすべてが作られる — 組み込み回路</title>
+<link rel="stylesheet" href="circuit.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../circuit.html">組み込み回路</a>
+  <span class="cur">11 · CMOS ロジック — インバータ 1 個からすべてが作られる</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 11</p>
+  <h1 class="doctitle">CMOS ロジック — インバータ 1 個からすべてが作られる</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——デジタル回路は、全部これでできているから.</strong></p><p>MCU も、FPGA も、メモリも、ロジック IC も、 <strong>中身は CMOS のインバータとその変形の集まり</strong>である。</p><p>そして CMOS の構造を知ると、実務の疑問が一気に解ける。</p><ul><li>なぜ「使わない入力を開放にしてはいけない」のか</li><li>なぜ「スイッチング周波数を上げると消費電力が増える」のか</li><li>なぜ「ラッチアップ」が起きるのか</li><li>なぜ「立ち上がりを遅くするとノイズが減る」のか</li></ul></blockquote><h2>1. CMOS インバータ</h2><pre><code>        VDD
+         │
+      ┌──┴──┐
+      │ PMOS │  ← 入力 L でオン
+      └──┬──┘
+         ├──── 出力
+      ┌──┴──┐
+      │ NMOS │  ← 入力 H でオン
+      └──┬──┘
+         │
+        GND</code></pre><div class="tablewrap"><table><thead><tr><th>入力</th><th>PMOS</th><th>NMOS</th><th>出力</th></tr></thead><tbody><tr><td><strong>L (0 V)</strong></td><td><strong>オン</strong></td><td>オフ</td><td><strong>H（VDD に引っ張られる）</strong></td></tr><tr><td><strong>H (VDD)</strong></td><td>オフ</td><td><strong>オン</strong></td><td><strong>L（GND に引っ張られる）</strong></td></tr></tbody></table></div><blockquote><p><strong>これが CMOS の本質である: どちらか片方しかオンにならない.</strong></p><p>だから——<strong>定常状態では、VDD から GND への電流経路がない。</strong></p><p>$$P_{static} \approx 0$$</p><p>これが「CMOS は静的な消費電力がゼロ」と言われる理由である。 （実際にはリーク電流があるが、後述する。）</p></blockquote><h3>相補 (Complementary) の意味</h3><p><strong>CMOS = Complementary Metal-Oxide-Semiconductor</strong></p><p>「相補」とは、<strong>PMOS と NMOS が常に逆の状態になる</strong>ことを指す。</p><ul><li><strong>プルアップネットワーク (PUN)</strong>: PMOS で構成。出力を H にする</li><li><strong>プルダウンネットワーク (PDN)</strong>: NMOS で構成。出力を L にする</li><li><strong>PUN と PDN は、常にどちらか一方だけが導通する</strong></li></ul><h3>電圧伝達特性 (VTC)</h3><pre><code>Vout
+VDD ┤━━━━┓
+     │     ┃
+     │     ┃   ← 遷移領域（利得が大きい）
+VDD/2┤─────╂─────
+     │      ┃
+     │      ┗━━━━
+   0 └──────────────→ Vin
+     0    VDD/2    VDD</code></pre><div class="tablewrap"><table><thead><tr><th>領域</th><th>PMOS</th><th>NMOS</th></tr></thead><tbody><tr><td>\(V_{in} &lt; V_{th,n}\)</td><td>線形</td><td>オフ</td></tr><tr><td>遷移領域</td><td><strong>飽和</strong></td><td><strong>飽和</strong> ← 両方オン！</td></tr><tr><td>$`V_{in} &gt; V_{DD} -</td><td>V_{th,p}</td><td>`$</td><td>オフ</td><td>線形</td></tr></tbody></table></div><blockquote><p><strong>遷移領域では、PMOS と NMOS が両方オンになっている.</strong></p><p>ここで <strong>VDD から GND へ貫通電流（short-circuit current）が流れる。</strong></p><p>これが——</p><ul><li><strong>入力が中間電位で止まると、大電流が流れて発熱する</strong></li><li><strong>なまった波形を入力すると消費電力が増える</strong></li><li><strong>未使用入力を開放にしてはいけない</strong></li></ul><p>の理由である。</p></blockquote><h3>CMOS インバータの動作を見る</h3><div class="widget" data-widget="cmosinv"></div><p>\(V_{DD}\)・トランジスタのサイズ比・入力電圧を変えて、 VTC・貫通電流・遷移点を確かめられる。</p><h3>遷移点（スイッチング閾値）</h3><p><strong>PMOS と NMOS の駆動力が等しくなる入力電圧。</strong></p><div class="eqn">\[ V_M \approx \frac{V_{DD}}{2} \quad (\text{PMOS と NMOS の駆動力が等しいとき}) \]</div><p>05 章で見たとおり、PMOS の移動度は NMOS の 1/2〜1/3 なので、</p><div class="eqn">\[ \left(\frac{W}{L}\right)_p \approx 2 \sim 3 \times \left(\frac{W}{L}\right)_n \]</div><p><strong>にして駆動力を揃える。</strong> こうしないと \(V_M\) が \(V_{DD}/2\) からずれ、 立ち上がりと立ち下がりの遅延も非対称になる。</p><h2>2. 複合ゲート</h2><h3>NAND ゲート</h3><pre><code>        VDD
+         │
+    ┌────┴────┐
+   [PMOS-A] [PMOS-B]   ← 並列（どちらかがオンなら H）
+    └────┬────┘
+         ├──── 出力
+      [NMOS-A]
+         │              ← 直列（両方オンで L）
+      [NMOS-B]
+         │
+        GND</code></pre><div class="tablewrap"><table><thead><tr><th>A</th><th>B</th><th>出力</th></tr></thead><tbody><tr><td>L</td><td>L</td><td>H</td></tr><tr><td>L</td><td>H</td><td>H</td></tr><tr><td>H</td><td>L</td><td>H</td></tr><tr><td><strong>H</strong></td><td><strong>H</strong></td><td><strong>L</strong></td></tr></tbody></table></div><h3>NOR ゲート</h3><pre><code>        VDD
+         │
+      [PMOS-A]
+         │              ← 直列
+      [PMOS-B]
+         │
+         ├──── 出力
+    ┌────┴────┐
+   [NMOS-A] [NMOS-B]    ← 並列
+    └────┬────┘
+        GND</code></pre><h3>構成の規則</h3><blockquote><p><strong>PDN（NMOS）が論理式そのもの、PUN（PMOS）はその双対.</strong></p><div class="tablewrap"><table><thead><tr><th>論理</th><th>PDN（NMOS）</th><th>PUN（PMOS）</th></tr></thead><tbody><tr><td>AND</td><td><strong>直列</strong></td><td>並列</td></tr><tr><td>OR</td><td><strong>並列</strong></td><td>直列</td></tr></tbody></table></div><p>だから——</p><ul><li>\(\overline{A \cdot B}\)（NAND）→ NMOS 直列、PMOS 並列</li><li>\(\overline{A + B}\)（NOR）→ NMOS 並列、PMOS 直列</li></ul><p><strong>任意の論理式を、この規則で回路に変換できる。</strong></p></blockquote><h3>なぜ NAND / NOR が基本なのか</h3><p><strong>CMOS では、出力が必ず反転する。</strong> （PUN が上、PDN が下という構造上、非反転の単純な形は作れない。）</p><p>だから——</p><div class="tablewrap"><table><thead><tr><th>ゲート</th><th>構成</th></tr></thead><tbody><tr><td>NOT</td><td>インバータ 1 個（2 トランジスタ）</td></tr><tr><td><strong>NAND</strong></td><td><strong>4 トランジスタ</strong></td></tr><tr><td><strong>NOR</strong></td><td><strong>4 トランジスタ</strong></td></tr><tr><td>AND</td><td><strong>NAND + インバータ（6 トランジスタ）</strong></td></tr><tr><td>OR</td><td>NOR + インバータ（6 トランジスタ）</td></tr><tr><td>XOR</td><td>8〜12 トランジスタ</td></tr></tbody></table></div><blockquote><p><strong>NAND / NOR の方が AND / OR より少ないトランジスタで作れる.</strong></p><p>だから<strong>論理設計は NAND / NOR を基本に行う</strong>（ド・モルガンの法則で変換する）。</p><p>そして——<strong>NMOS の直列は PMOS の直列より速い</strong>（移動度が高い）ので、 <strong>NAND の方が NOR より高速で小さい。</strong> 標準セルライブラリでは NAND が優先的に使われる。</p></blockquote><h3>複合ゲートの構成を見る</h3><div class="widget" data-widget="cmosgate"></div><p>論理式を選ぶと、対応する CMOS 回路とトランジスタ数が表示される。</p><h3>AOI / OAI ゲート</h3><p><strong>複数の論理を 1 段で実現できる。</strong></p><pre><code>AOI21: 出力 = NOT( (A AND B) OR C )
+
+        VDD
+         │
+    ┌────┴────┐
+   [PA]     [PC]      ← A と B が直列、それと C が並列（PMOS 側）
+   [PB]        │
+    └────┬────┘
+         ├──── 出力
+    ┌────┴────┐
+   [NA][NB]  [NC]     ← A と B が並列… ではなく、A・B が並列、C が並列
+    └────┬────┘
+        GND</code></pre><p><strong>AND-OR-Invert（AOI）や OR-AND-Invert（OAI）は、 個別のゲートを組み合わせるより少ないトランジスタで済む。</strong></p><p><strong>論理合成ツールは、こうした複合ゲートを自動的に選択する。</strong></p><h2>3. 伝搬遅延</h2><h3>遅延の原因</h3><p><strong>出力に繋がった容量を、有限の電流で充放電するのにかかる時間。</strong></p><div class="eqn">\[ t_{pd} \approx \frac{C_L V_{DD}}{2 I_{on}} \approx \frac{C_L V_{DD}}{2 \cdot \frac{1}{2}k'\frac{W}{L}(V_{DD}-V_{th})^2} \]</div><div class="tablewrap"><table><thead><tr><th>要因</th><th>遅延への影響</th></tr></thead><tbody><tr><td><strong>負荷容量 \(C_L\)</strong></td><td><strong>比例して増える</strong></td></tr><tr><td><strong>駆動力（\(W/L\)）</strong></td><td>反比例して減る</td></tr><tr><td><strong>\(V_{DD}\)</strong></td><td>高いほど速い（\((V_{DD}-V_{th})^2\) が効く）</td></tr><tr><td><strong>温度</strong></td><td>高温で遅くなる（移動度が下がる）</td></tr><tr><td><strong>プロセスばらつき</strong></td><td>Fast / Typical / Slow コーナー</td></tr></tbody></table></div><h3>ファンアウトと遅延</h3><p><strong>1 つの出力が駆動するゲート数を「ファンアウト」という。</strong></p><div class="eqn">\[ C_L = \text{FO} \times C_{gate} + C_{wire} \]</div><p><strong>ファンアウトが大きいほど遅い。</strong></p><blockquote><p><strong>FO4 遅延という指標.</strong></p><p><strong>「自分と同じインバータを 4 個駆動したときの遅延」</strong>を プロセスの速度指標として使う。</p><div class="tablewrap"><table><thead><tr><th>プロセス</th><th>FO4 遅延の目安</th></tr></thead><tbody><tr><td>180 nm</td><td>約 90 ps</td></tr><tr><td>65 nm</td><td>約 30 ps</td></tr><tr><td>28 nm</td><td>約 15 ps</td></tr><tr><td>7 nm</td><td>約 5 ps</td></tr></tbody></table></div><p><strong>クロック周期を FO4 で割ると、1 サイクルで通せる論理段数が分かる。</strong> 一般的な設計では <strong>20〜40 FO4</strong> 程度である。</p></blockquote><h3>バッファチェーン</h3><p><strong>大きな容量を駆動するには、段階的にサイズを大きくする。</strong></p><pre><code>   小 → 中 → 大 → 特大 → 負荷</code></pre><p><strong>最適な段数と倍率:</strong></p><div class="eqn">\[ \text{倍率} \approx e \approx 2.7 \quad (\text{理論値}) \]</div><p>実際には、寄生容量を考慮して <strong>3〜4 倍</strong>が最適とされる。</p><div class="eqn">\[ N = \ln\left(\frac{C_L}{C_{in}}\right) / \ln(\text{倍率}) \]</div><blockquote><p><strong>これが「クロックツリー」の設計原理でもある.</strong></p><p>MCU の内部で、1 つのクロック源が数万個のフリップフロップを駆動する。 <strong>段階的にバッファを挿入して、遅延とスキューを制御する。</strong></p></blockquote><h2>4. 消費電力</h2><div class="eqn">\[ P_{total} = P_{dynamic} + P_{short} + P_{leak} \]</div><h3>動的電力（スイッチング電力）</h3><div class="eqn">\[ P_{dynamic} = \alpha \, C_L \, V_{DD}^2 \, f \]</div><div class="tablewrap"><table><thead><tr><th>記号</th><th>意味</th></tr></thead><tbody><tr><td>\(\alpha\)</td><td>スイッチング確率（活性化率）。0〜1</td></tr><tr><td>\(C_L\)</td><td>負荷容量</td></tr><tr><td>\(V_{DD}\)</td><td>電源電圧</td></tr><tr><td>\(f\)</td><td>周波数</td></tr></tbody></table></div><blockquote><p><strong>\(V_{DD}^2\) が効く、というのが最も重要な事実である.</strong></p><p>電源電圧を半分にすると、<strong>消費電力は 1/4</strong> になる。</p><p>だから低消費電力設計では——</p><ul><li><strong>動作電圧を下げる</strong>（DVS: Dynamic Voltage Scaling）</li><li><strong>周波数を下げる</strong>（DFS）</li><li><strong>両方（DVFS）</strong>——電圧を下げると最大周波数も下がるので、 <strong>必要な性能に対して最小の電圧を選ぶ</strong></li></ul><p>ただし電圧を下げると<strong>遅延が増え、リーク電流の比率が上がる</strong>（後述）。</p></blockquote><p><strong>なぜ \(V^2\) か:</strong> 容量を \(V_{DD}\) まで充電するのに必要なエネルギーは</p><div class="eqn">\[ E = C V_{DD}^2 \]</div><p>（半分は容量に蓄えられ、半分は PMOS で熱になる。放電時に残り半分が NMOS で熱になる。）</p><h3>貫通電流（短絡電流）</h3><p>遷移中に PMOS と NMOS が同時にオンになる期間の電流。</p><div class="eqn">\[ P_{short} \propto \frac{\tau_{rise}}{T} \cdot V_{DD} \cdot I_{peak} \cdot f \]</div><blockquote><p><strong>入力の立ち上がりが遅いほど、貫通電流が増える.</strong></p><p>遷移領域にいる時間が長くなるからである。</p><p>だから——</p><ul><li><strong>なまった信号をロジック入力に入れない</strong>（シュミット入力で受ける、09 章）</li><li><strong>配線が長いと立ち上がりが鈍り、消費電力が増える</strong></li><li>一般に貫通電流は全体の 5〜15 % だが、<strong>入力が悪いと数倍になる</strong></li></ul></blockquote><h3>リーク電流</h3><div class="tablewrap"><table><thead><tr><th>種類</th><th>内容</th></tr></thead><tbody><tr><td><strong>サブスレッショルド漏れ</strong></td><td>\(V_{GS} &lt; V_{th}\) でも流れる。<strong>\(V_{th}\) を下げるほど指数的に増える</strong></td></tr><tr><td><strong>ゲート漏れ（トンネル）</strong></td><td>酸化膜が薄いと、量子トンネルで漏れる</td></tr><tr><td><strong>接合漏れ</strong></td><td>PN 接合の逆方向漏れ</td></tr></tbody></table></div><div class="eqn">\[ I_{sub} \propto e^{(V_{GS}-V_{th})/(n V_T)} \]</div><blockquote><p><strong>微細化のジレンマ.</strong></p><p>微細化 → \(V_{DD}\) を下げたい → <strong>\(V_{th}\) も下げないと速度が出ない</strong> → <strong>サブスレッショルド漏れが指数的に増える</strong></p><p>だから現代のプロセスでは、<strong>リーク電力が全体の 30〜50 % を占める</strong>こともある。</p><p>対策:</p><ul><li><strong>マルチ \(V_{th}\)</strong>（速度が要る経路だけ低 \(V_{th}\) を使う）</li><li><strong>パワーゲーティング</strong>（使わないブロックの電源を切る）</li><li><strong>ボディバイアス</strong>（基板電位で \(V_{th}\) を制御）</li><li><strong>FinFET / GAA</strong>（ゲートの制御力を上げて漏れを減らす）</li></ul><p>組み込みでは——<strong>MCU のスリープモードで、 どのブロックの電源が切れるか</strong>がリーク電力を決める。</p></blockquote><h3>消費電力の内訳を見る</h3><div class="widget" data-widget="cmospower"></div><p>\(V_{DD}\)・周波数・活性化率・温度を変えて、 動的・貫通・リークの内訳を確かめられる。</p><h2>5. 実務上の注意点</h2><h3>未使用入力を開放にしてはいけない</h3><pre><code>【悪い】               【良い】
+   ┌───┐                  ┌───┐
+ ──┤   │                ──┤   │
+   │   │  出力          ──┤   │  出力
+ ×─┤   │              GND─┤   │
+   └───┘                  └───┘
+   開放                    固定</code></pre><p><strong>開放にすると:</strong></p><div class="tablewrap"><table><thead><tr><th>症状</th><th>原因</th></tr></thead><tbody><tr><td><strong>発熱</strong></td><td>中間電位で止まり、貫通電流が流れ続ける</td></tr><tr><td><strong>発振</strong></td><td>ノイズを拾って不定に切り替わる</td></tr><tr><td><strong>他の回路への干渉</strong></td><td>電源経由でノイズが伝わる</td></tr><tr><td><strong>消費電流の増大</strong></td><td>待機時に mA オーダーの電流が流れることも</td></tr></tbody></table></div><p><strong>MCU の GPIO も同じである。</strong> 未使用ピンは <strong>「入力プルアップ／プルダウン」か「出力ロー」</strong>に設定すること（19 章）。</p><h3>ラッチアップ</h3><p><strong>CMOS 構造には、寄生的な PNPN サイリスタが存在する。</strong></p><pre><code>   PMOS の p+ ── n ウェル ── p 基板 ── NMOS の n+
+        └── PNP ──┘  └── NPN ──┘
+              ↑         ↓
+           互いに正帰還を形成する</code></pre><p><strong>トリガされると、VDD から GND へ大電流が流れ続け、破壊に至る。</strong></p><div class="tablewrap"><table><thead><tr><th>トリガ条件</th><th>内容</th></tr></thead><tbody><tr><td><strong>入力が VDD より高い／GND より低い</strong></td><td>保護ダイオードが順バイアスされ、基板に電流が注入される</td></tr><tr><td>電源投入の順序</td><td>I/O 電源がコア電源より先に立つなど</td></tr><tr><td>過渡的なノイズ</td><td>ESD、サージ</td></tr></tbody></table></div><p><strong>対策:</strong></p><div class="tablewrap"><table><thead><tr><th>対策</th><th>内容</th></tr></thead><tbody><tr><td><strong>入力電圧を電源範囲内に保つ</strong></td><td>直列抵抗、クランプダイオード（04 章）</td></tr><tr><td><strong>電源シーケンスを守る</strong></td><td>データシートの規定に従う（16 章）</td></tr><tr><td><strong>入力電流を制限する</strong></td><td>多くの IC で「入力ピンあたり ±20 mA」などの規定がある</td></tr><tr><td>プロセス側の対策</td><td>ガードリング、エピタキシャル基板（設計者側では選べない）</td></tr></tbody></table></div><blockquote><p><strong>「MCU の電源を切っても動く」現象は、ほぼこれの入口である</strong>（04 章）。</p><p>信号線から保護ダイオード経由で VDD に電流が流れ込み、 <strong>MCU が中途半端に動作する（ファントム給電）。</strong> これがラッチアップに発展すると、<strong>発熱して壊れる。</strong></p><p><strong>必ず直列抵抗で電流を制限すること。</strong></p></blockquote><h3>入力の閾値とノイズマージン</h3><div class="tablewrap"><table><thead><tr><th>ロジックファミリ</th><th>\(V_{IH}\)（H と認識する最低）</th><th>\(V_{IL}\)（L と認識する最高）</th></tr></thead><tbody><tr><td><strong>CMOS (VDD=3.3 V)</strong></td><td>0.7 × VDD = 2.31 V</td><td>0.3 × VDD = 0.99 V</td></tr><tr><td><strong>TTL 互換 (LVTTL)</strong></td><td><strong>2.0 V</strong></td><td><strong>0.8 V</strong></td></tr><tr><td><strong>LVCMOS 1.8 V</strong></td><td>0.65 × VDD = 1.17 V</td><td>0.35 × VDD = 0.63 V</td></tr></tbody></table></div><p><strong>ノイズマージン:</strong></p><div class="eqn">\[ NM_H = V_{OH} - V_{IH}, \qquad NM_L = V_{IL} - V_{OL} \]</div><blockquote><p><strong>3.3 V の CMOS 出力を 5 V の CMOS 入力に入れると、H と認識されない.</strong></p><p>5 V CMOS の \(V_{IH} = 0.7 \times 5 = 3.5\) V。 3.3 V の出力（最大 3.3 V）では<strong>届かない。</strong></p><p><strong>対策: レベルシフタを使う</strong>（21 章）。 または <strong>TTL 閾値の品種（\(V_{IH} = 2.0\) V）を選ぶ。</strong></p><p>逆に <strong>5 V → 3.3 V は電圧が高すぎる</strong>ので、 <strong>5 V トレラント入力</strong>でなければ抵抗分圧かレベルシフタが要る。</p></blockquote><h2>6. ロジック IC のファミリ</h2><div class="tablewrap"><table><thead><tr><th>ファミリ</th><th>電源</th><th>特徴</th></tr></thead><tbody><tr><td><strong>74HC</strong></td><td>2〜6 V</td><td>汎用 CMOS。<strong>CMOS 閾値</strong></td></tr><tr><td><strong>74HCT</strong></td><td>5 V</td><td><strong>TTL 閾値</strong>（\(V_{IH}=2.0\) V）。5 V 系での 3.3 V 受け</td></tr><tr><td><strong>74LVC</strong></td><td>1.65〜3.6 V</td><td>低電圧・高速。<strong>5 V トレラント入力</strong>の品種が多い</td></tr><tr><td><strong>74AUP</strong></td><td>0.8〜3.6 V</td><td><strong>超低消費電力</strong>。電池駆動向け</td></tr><tr><td><strong>74AHC / 74AC</strong></td><td>—</td><td>高速版</td></tr><tr><td><strong>1G / 2G シリーズ</strong></td><td>—</td><td><strong>1 ゲートだけの小型パッケージ</strong>（SOT-23-5 など）。便利</td></tr></tbody></table></div><blockquote><p><strong>1 ゲート IC（74LVC1G シリーズなど）は非常に便利である.</strong></p><ul><li>インバータ 1 個（74LVC1G04）</li><li>バッファ 1 個（74LVC1G125、出力イネーブル付き）</li><li>AND / OR / NAND / XOR</li><li><strong>シュミットトリガ（74LVC1G17）</strong></li><li><strong>レベルシフタ</strong>（電源が分かれている品種）</li></ul><p>SOT-23-5 や SC-70-5 で数十円。 <strong>「ロジックを 1 つだけ足したい」場面で重宝する。</strong></p></blockquote><h2>7. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>CMOS の本質</td><td><strong>PMOS と NMOS のどちらか片方だけがオン</strong>。定常電流がゼロ</td></tr><tr><td>遷移領域</td><td><strong>両方オンになり、貫通電流が流れる</strong>。中間電位は危険</td></tr><tr><td>構成の規則</td><td><strong>PDN（NMOS）が論理式、PUN（PMOS）はその双対</strong></td></tr><tr><td>NAND / NOR</td><td><strong>AND / OR より少ないトランジスタ</strong>。NAND の方が速い</td></tr><tr><td>遅延</td><td>\(t_{pd} \propto C_L V_{DD} / I_{on}\)。<strong>ファンアウトに比例</strong></td></tr><tr><td>バッファチェーン</td><td>段ごとに <strong>3〜4 倍</strong>が最適</td></tr><tr><td>動的電力</td><td>\(P = \alpha C V_{DD}^2 f\)。<strong>\(V^2\) が効く</strong>（電圧半分で電力 1/4）</td></tr><tr><td>貫通電流</td><td><strong>入力の立ち上がりが遅いほど増える</strong>。シュミットで受ける</td></tr><tr><td>リーク</td><td>\(V_{th}\) を下げると<strong>指数的に増える</strong>。現代では全体の 30〜50 %</td></tr><tr><td>未使用入力</td><td><strong>絶対に開放にしない</strong>。発熱・発振・干渉の原因</td></tr><tr><td>ラッチアップ</td><td>寄生 PNPN。<strong>入力を電源範囲内に保ち、電流を制限する</strong></td></tr><tr><td>閾値</td><td>3.3 V → 5 V CMOS は <strong>H と認識されない</strong>。TTL 閾値品かレベルシフタ</td></tr><tr><td>1 ゲート IC</td><td>74LVC1G シリーズ。<strong>「1 つだけ足したい」ときに便利</strong></td></tr></tbody></table></div><p>次章では、ロジックを組み合わせたときに起きる問題—— タイミング・消費電力・メタステーブルを扱う。</p>
+  <nav class="chnav"><a class="pn" href="10.html"><span>←</span><b>電圧リファレンスと温度センサ — なぜ 1.2 V なのか</b></a><a class="pn nx" href="12.html"><b>タイミング・消費電力・メタステーブル</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>04. ダイオードと PN 接合 — 指数関数で効く素子 — 組み込み回路</title>
+<link rel="stylesheet" href="circuit.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../circuit.html">組み込み回路</a>
+  <span class="cur">04 · ダイオードと PN 接合 — 指数関数で効く素子</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 04</p>
+  <h1 class="doctitle">ダイオードと PN 接合 — 指数関数で効く素子</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——PN 接合は、すべての半導体の基本単位だから.</strong></p><p>ダイオードは PN 接合が 1 つ。 <strong>バイポーラトランジスタは PN 接合が 2 つ</strong>（06 章）。 <strong>MOSFET のボディダイオードも PN 接合</strong>（05 章）。 <strong>バンドギャップリファレンスは PN 接合の物理を使う</strong>（10 章）。</p><p>つまり——<strong>PN 接合の式を 1 つ理解すると、半導体の大半が繋がる。</strong></p></blockquote><h2>1. ダイオードの動作</h2><p><strong>一方向にしか電流を流さない素子。</strong></p><pre><code>   アノード ──▶|── カソード
+      (A)         (K)
+              ↑
+          帯のある側がカソード</code></pre><div class="tablewrap"><table><thead><tr><th>バイアス</th><th>状態</th></tr></thead><tbody><tr><td><strong>順方向</strong>（A が K より高電位）</td><td>電流が流れる。電圧降下は約 0.7 V（Si）</td></tr><tr><td><strong>逆方向</strong>（K が A より高電位）</td><td>ほぼ流れない（漏れ電流のみ）</td></tr></tbody></table></div><h2>2. ダイオードの式</h2><div class="eqn">\[ I = I_S \left( e^{V/(n V_T)} - 1 \right) \]</div><div class="tablewrap"><table><thead><tr><th>記号</th><th>意味</th><th>典型値</th></tr></thead><tbody><tr><td>\(I_S\)</td><td>飽和電流</td><td>\(10^{-15} \sim 10^{-12}\) A（小信号 Si ダイオード）</td></tr><tr><td>\(n\)</td><td>理想係数</td><td>1〜2（理想は 1）</td></tr><tr><td>\(V_T\)</td><td>熱電圧 \(kT/q\)</td><td><strong>約 25.9 mV @ 300 K</strong></td></tr></tbody></table></div><h3>熱電圧 \(V_T\)</h3><div class="eqn">\[ V_T = \frac{kT}{q} \]</div><p>\(k\) はボルツマン定数、\(T\) は絶対温度、\(q\) は電気素量。</p><div class="tablewrap"><table><thead><tr><th>温度</th><th>\(V_T\)</th></tr></thead><tbody><tr><td>0 °C (273 K)</td><td>23.5 mV</td></tr><tr><td><strong>25 °C (298 K)</strong></td><td><strong>25.7 mV</strong></td></tr><tr><td>85 °C (358 K)</td><td>30.9 mV</td></tr></tbody></table></div><p><strong>「常温で約 26 mV」と覚えておくこと。</strong> 10 章のバンドギャップで再登場する。</p><h3>指数関数の帰結</h3><p>順方向では \(e^{V/(nV_T)} \gg 1\) なので</p><div class="eqn">\[ I \approx I_S \, e^{V/(n V_T)} \]</div><p>逆に解くと</p><div class="eqn">\[ V = n V_T \ln \frac{I}{I_S} \]</div><p><strong>電流が 10 倍になると、電圧は \(n V_T \ln 10 \approx 60n\) mV しか上がらない。</strong></p><div class="tablewrap"><table><thead><tr><th>電流</th><th>順方向電圧（\(n=1\)、相対値）</th></tr></thead><tbody><tr><td>1 µA</td><td>基準</td></tr><tr><td>10 µA</td><td>+60 mV</td></tr><tr><td>100 µA</td><td>+120 mV</td></tr><tr><td>1 mA</td><td>+180 mV</td></tr><tr><td>10 mA</td><td>+240 mV</td></tr></tbody></table></div><blockquote><p><strong>これが「ダイオードは電圧をほぼ一定に保つ」ように見える理由である.</strong></p><p>電流が 4 桁変わっても、電圧は 240 mV しか変わらない。 だから「シリコンダイオードの順方向電圧は約 0.7 V」という近似が使える。</p><p>逆に言えば——<strong>電圧を少し上げただけで電流が爆発的に増える</strong>。 <strong>電圧源で直接駆動してはいけない。必ず電流を制限すること。</strong></p></blockquote><h3>ダイオードの I-V 特性を見る</h3><div class="widget" data-widget="diode"></div><p>飽和電流・理想係数・温度を変えて、I-V 特性がどう変わるかを確かめられる。</p><h2>3. 温度依存性</h2><p><strong>順方向電圧は、温度が上がると下がる。</strong></p><div class="eqn">\[ \frac{dV_F}{dT} \approx -2\ \text{mV}/^\circ\text{C} \]</div><p>一定電流で駆動したときの話である。</p><blockquote><p><strong>なぜ下がるのか（直感的な説明）.</strong></p><p>\(V = n V_T \ln (I/I_S)\) で、\(V_T\) は温度に比例して<strong>増える</strong>。 だが \(I_S\) は温度とともに<strong>指数的に急増する</strong>（バンドギャップに依存）。</p><p>\(I_S\) の増加の効果が勝つので、<strong>全体では電圧が下がる</strong>。</p><p>この <strong>−2 mV/°C</strong> という値は、 <strong>10 章のバンドギャップリファレンス</strong>と<strong>温度センサ</strong>で中心的な役割を果たす。 覚えておくこと。</p></blockquote><p><strong>実務での帰結:</strong></p><div class="tablewrap"><table><thead><tr><th>現象</th><th>内容</th></tr></thead><tbody><tr><td><strong>熱暴走</strong></td><td>温度上昇 → \(V_F\) 低下 → 電流増加 → さらに温度上昇（正帰還）</td></tr><tr><td><strong>並列接続の危険</strong></td><td>複数のダイオードを並列にすると、<strong>電流が 1 個に集中する</strong></td></tr><tr><td><strong>温度測定に使える</strong></td><td>一定電流で駆動して \(V_F\) を測れば温度が分かる</td></tr></tbody></table></div><blockquote><p><strong>ダイオードや BJT を並列接続してはいけない理由.</strong></p><p>2 個並列にして、片方がわずかに温度が高いとする。 → その個体の \(V_F\) が下がる → 電流がそちらに偏る → さらに発熱する → さらに偏る → <strong>1 個に全電流が集中して破壊</strong></p><p>どうしても並列にするなら、<strong>各素子に直列抵抗（バランス抵抗）を入れる</strong>。 これで負帰還がかかり、電流が均等化される。</p><p><strong>MOSFET は逆で、並列にしやすい</strong>（05 章）。オン抵抗が正の温度係数を持つため。</p></blockquote><h2>4. ダイオードの種類</h2><div class="tablewrap"><table><thead><tr><th>種類</th><th>\(V_F\)</th><th>特徴</th><th>用途</th></tr></thead><tbody><tr><td><strong>一般整流（Si）</strong></td><td>0.6〜1.1 V</td><td>安い。<strong>逆回復時間が長い</strong></td><td>低周波の整流</td></tr><tr><td><strong>ファストリカバリ</strong></td><td>0.8〜1.5 V</td><td>逆回復が速い</td><td>スイッチング電源</td></tr><tr><td><strong>ショットキー</strong></td><td><strong>0.2〜0.5 V</strong></td><td><strong>逆回復がほぼゼロ</strong>。低損失。<strong>逆漏れ電流が大きい</strong></td><td>高周波整流、逆流防止</td></tr><tr><td><strong>ツェナー</strong></td><td>—</td><td><strong>逆方向の降伏を利用</strong>して基準電圧を作る</td><td>電圧クランプ、簡易基準</td></tr><tr><td><strong>TVS（サージ保護）</strong></td><td>—</td><td>高速でサージを吸収</td><td>ESD / サージ保護（19 章）</td></tr><tr><td><strong>LED</strong></td><td>1.8〜3.4 V</td><td>発光。\(V_F\) は色で決まる</td><td>表示</td></tr><tr><td><strong>PIN</strong></td><td>—</td><td>高周波スイッチ、光検出</td><td>RF、フォトダイオード</td></tr></tbody></table></div><h3>ショットキーダイオード</h3><p><strong>金属と半導体の接合</strong>を使う。PN 接合ではない。</p><div class="tablewrap"><table><thead><tr><th>長所</th><th>短所</th></tr></thead><tbody><tr><td>\(V_F\) が低い（損失が小さい）</td><td><strong>逆漏れ電流が大きい</strong>（数 µA〜数百 µA）</td></tr><tr><td><strong>少数キャリアの蓄積がない → 逆回復がほぼゼロ</strong></td><td>逆耐圧が低い（〜200 V 程度）</td></tr><tr><td>高速スイッチングに最適</td><td>漏れ電流の温度依存が大きい</td></tr></tbody></table></div><blockquote><p><strong>逆回復（リバースリカバリ）とは.</strong></p><p>通常の PN 接合ダイオードは、順方向で流していた電流を切っても、 <strong>蓄積された少数キャリアが掃き出されるまで、逆方向に電流が流れ続ける</strong>。</p><pre><code>電流
+ │ ━━━━━┓
+ │       ┃         ← 逆方向に電流が流れる期間（trr）
+ │       ┗━━╲___／
+ └──────────────────→ t</code></pre><p>スイッチング電源（15 章）では、この期間が<strong>損失とノイズの主因</strong>になる。 だから<strong>ショットキーかファストリカバリを使う</strong>。</p><p><strong>一般整流ダイオード（1N400x など）を 100 kHz のスイッチング電源に使うのは誤り。</strong></p></blockquote><h3>ツェナーダイオード</h3><p><strong>逆方向に一定電圧以上をかけると、降伏して電流が流れる。</strong></p><pre><code>   I
+   │        順方向
+   │           ／
+───┼──────────────→ V
+   │  ／
+   │ ┃ ← ツェナー電圧 Vz で降伏
+   │ ┃</code></pre><div class="tablewrap"><table><thead><tr><th>ツェナー電圧</th><th>支配する現象</th><th>温度係数</th></tr></thead><tbody><tr><td>&lt; 5 V</td><td>ツェナー降伏</td><td><strong>負</strong>（−2 mV/°C 程度）</td></tr><tr><td>≈ 5.6 V</td><td>両方</td><td><strong>ほぼゼロ</strong></td></tr><tr><td>&gt; 6 V</td><td>アバランシェ降伏</td><td><strong>正</strong>（+2 mV/°C 程度）</td></tr></tbody></table></div><blockquote><p><strong>5.6 V 付近のツェナーは温度特性が最も良い.</strong></p><p>2 つの機構の温度係数が打ち消し合うためである。 高精度な基準が要るなら、<strong>5.6 V のツェナー + 順方向ダイオード</strong>という 組み合わせも古典的に使われる（−2 と +2 が相殺する）。</p><p>ただし現代では、<strong>バンドギャップリファレンス IC</strong>（10 章）の方が 低電圧・低消費電力・高精度で優れている。 ツェナーは<strong>クランプ（保護）</strong>用途が主になっている。</p></blockquote><h2>5. ダイオードの用途</h2><h3>用途 1: 整流</h3><pre><code>交流入力 ──▶|──┬── 直流出力
+                │
+               [C]  平滑コンデンサ
+                │
+               GND</code></pre><div class="tablewrap"><table><thead><tr><th>方式</th><th>特徴</th></tr></thead><tbody><tr><td><strong>半波整流</strong></td><td>ダイオード 1 個。効率が悪い。リプルが大きい</td></tr><tr><td><strong>全波（ブリッジ）整流</strong></td><td>ダイオード 4 個。両半サイクルを使う</td></tr><tr><td><strong>同期整流</strong></td><td>ダイオードの代わりに MOSFET を使う。<strong>損失が大幅に減る</strong>（15 章）</td></tr></tbody></table></div><blockquote><p><strong>同期整流はなぜ有利か.</strong></p><p>ショットキーの \(V_F\) が 0.4 V で、10 A 流すなら <strong>損失は 4 W</strong>。</p><p>MOSFET のオン抵抗が 5 mΩ なら、\(P = I^2 R = 100 \times 0.005 = \) <strong>0.5 W</strong>。 <strong>8 倍の差</strong>である。</p><p>だから大電流のスイッチング電源では、必ず同期整流が使われる。</p></blockquote><h3>用途 2: フライバック（還流）ダイオード</h3><p><strong>インダクタ性負荷（リレー・ソレノイド・モータ）の駆動に必須。</strong></p><pre><code>   VCC
+    │
+   [リレーコイル]
+    │
+    ├──▶|── VCC   ← フライバックダイオード（逆向きに接続）
+    │
+   [MOSFET]
+    │
+   GND</code></pre><p><strong>なぜ必要か:</strong></p><p>02 章で見たとおり、\(v = L \, di/dt\)。 MOSFET をオフにすると電流が急に切れ、<strong>\(di/dt\) が巨大になる</strong>。</p><div class="eqn">\[ v = L \frac{di}{dt} \quad \rightarrow \quad \text{数百〜数千 V のスパイク} \]</div><p><strong>MOSFET の耐圧を超えて破壊する。</strong></p><p>ダイオードを入れると、<strong>コイルの電流がダイオードを通って還流し</strong>、 電圧が \(V_{CC} + V_F\) にクランプされる。</p><blockquote><p><strong>ダイオードだけだと、リレーの応答が遅くなる.</strong></p><p>還流電流がゆっくり減衰するため、リレーの復帰時間が延びる。 速く切りたいなら——</p><div class="tablewrap"><table><thead><tr><th>方式</th><th>電圧クランプ</th><th>復帰速度</th></tr></thead><tbody><tr><td>ダイオードのみ</td><td>\(V_{CC} + 0.7\) V</td><td>遅い</td></tr><tr><td>ダイオード + 抵抗</td><td>\(V_{CC} + 0.7 + I R\)</td><td>中</td></tr><tr><td><strong>ダイオード + ツェナー</strong></td><td>\(V_{CC} + V_Z\)</td><td><strong>速い</strong></td></tr></tbody></table></div><p><strong>エネルギーを速く消費させるほど速く切れるが、電圧が高くなる。</strong> トランジスタの耐圧との兼ね合いで決める。</p></blockquote><h3>用途 3: 逆流防止・OR ing</h3><pre><code>  電源A ──▶|──┬── 負荷
+              │
+  電源B ──▶|──┘</code></pre><p><strong>電圧の高い方から給電される。</strong> バッテリと AC アダプタの切り替えなどに使う。</p><blockquote><p><strong>ショットキーでも \(V_F\) の損失は無視できない.</strong></p><p>5 V / 2 A なら、\(0.4 \times 2 = 0.8\) W の損失。 <strong>理想ダイオード IC</strong>（MOSFET + コントローラ）を使うと、 損失を 1/10 以下にできる。</p></blockquote><h3>用途 4: クランプ（保護）</h3><pre><code>        VCC
+         │
+        ▲| ← 上側クランプ
+         │
+  入力 ──┼── IC の入力ピン
+         │
+        ▲| ← 下側クランプ
+         │
+        GND</code></pre><p><strong>入力電圧を \(-V_F\) 〜 \(V_{CC}+V_F\) の範囲に制限する。</strong></p><p>MCU の GPIO には<strong>内蔵の ESD 保護ダイオード</strong>があるが、 これは<strong>静電気（数 ns）用</strong>であって、<strong>連続的な過電圧には耐えられない</strong>（19 章）。</p><blockquote><p><strong>内蔵保護ダイオードによる思わぬ事故.</strong></p><pre><code>  信号（5 V）──[R]── MCU の GPIO（VDD = 3.3 V）</code></pre><p>5 V の信号を 3.3 V の MCU に入れると、 <strong>内蔵ダイオードを通って VDD に電流が流れ込む</strong>。</p><p>これが十分大きいと——<strong>MCU の VDD が持ち上がる（ファントム給電）</strong>。 MCU の電源を切っても、信号線から電流が流れ込んで、 <strong>中途半端に動作する</strong>という不可解な現象になる。</p><p>対策: <strong>直列抵抗で電流を制限する</strong>（数 kΩ）か、 <strong>レベルシフタを使う</strong>（21 章）。</p></blockquote><h2>6. LED の駆動</h2><p>LED も PN 接合だが、\(V_F\) が材料（＝色）で決まる。</p><div class="tablewrap"><table><thead><tr><th>色</th><th>波長</th><th>\(V_F\) の目安</th></tr></thead><tbody><tr><td>赤</td><td>630 nm</td><td>1.8〜2.2 V</td></tr><tr><td>黄・橙</td><td>590 nm</td><td>2.0〜2.4 V</td></tr><tr><td>緑</td><td>525 nm</td><td>2.8〜3.4 V</td></tr><tr><td>青・白</td><td>460 nm</td><td>2.8〜3.6 V</td></tr></tbody></table></div><h3>電流制限抵抗の計算</h3><div class="eqn">\[ R = \frac{V_{CC} - V_F}{I_F} \]</div><p>例: 3.3 V 電源、赤 LED（\(V_F = 2.0\) V）、\(I_F = 5\) mA</p><div class="eqn">\[ R = \frac{3.3 - 2.0}{0.005} = 260\ \Omega \quad \rightarrow \quad 270\ \Omega\ (\text{E24}) \]</div><blockquote><p><strong>\(V_F\) のばらつきが電流に直結する.</strong></p><p>上の例で \(V_F\) が 1.8 V なら \(I = (3.3-1.8)/270 = 5.6\) mA、 2.2 V なら \(I = 4.1\) mA。<strong>±14 % のばらつき</strong>。</p><p>電源電圧が \(V_F\) に近いほど、この影響が大きくなる。 <strong>3.3 V 電源で青・白 LED（\(V_F = 3.2\) V）を駆動するのは危険である</strong>—— 抵抗にかかる電圧が 0.1 V しかなく、ばらつきで電流が数倍変わる。</p><p>対策: <strong>定電流ドライバ IC を使う</strong>。輝度を揃えたいなら必須である。</p></blockquote><h2>7. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>ダイオードの式</td><td>\(I = I_S(e^{V/(nV_T)} - 1)\)。<strong>\(V_T \approx 26\) mV @ 常温</strong></td></tr><tr><td>指数の帰結</td><td><strong>電流 10 倍で電圧 +60 mV</strong>。だから「約 0.7 V 一定」に見える</td></tr><tr><td>駆動</td><td><strong>電圧源で直接駆動しない</strong>。必ず電流制限を入れる</td></tr><tr><td>温度係数</td><td><strong>\(-2\) mV/°C</strong>。10 章のバンドギャップと温度センサの基礎</td></tr><tr><td>並列接続</td><td><strong>してはいけない</strong>（電流が集中して破壊）。するならバランス抵抗</td></tr><tr><td>ショットキー</td><td>\(V_F\) 低・<strong>逆回復ほぼゼロ</strong>。漏れ電流大・耐圧低</td></tr><tr><td>逆回復</td><td>一般整流ダイオードを高周波で使うと<strong>損失とノイズの主因</strong>になる</td></tr><tr><td>ツェナー</td><td><strong>5.6 V 付近が最も温度特性が良い</strong>（2 つの機構が相殺）</td></tr><tr><td>フライバック</td><td>インダクタ負荷には<strong>必須</strong>。ないとトランジスタが壊れる</td></tr><tr><td>速い復帰</td><td>ダイオード + ツェナーでクランプ電圧を上げる</td></tr><tr><td>内蔵保護ダイオード</td><td>5 V 信号を 3.3 V MCU に入れると<strong>ファントム給電</strong>が起きる</td></tr><tr><td>LED</td><td>\(V_F\) は色で決まる。<strong>電源が \(V_F\) に近いと電流が大きくばらつく</strong></td></tr></tbody></table></div><p>次章では、能動素子の中心——MOSFET を扱う。 これがすべての現代 IC の基本部品である。</p>
+  <nav class="chnav"><a class="pn" href="03.html"><span>←</span><b>過渡応答とフィルタ — RC の時定数がすべての「なまり」の正体</b></a><a class="pn nx" href="05.html"><b>MOSFET — 電圧で開閉するスイッチ</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>
