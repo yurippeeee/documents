@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """dsp/*.md -> dsp/html/NN.html (自己完結・KaTeX数式・図・章間ナビ)。"""
-import os, re, html
+import os, re, html, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from figures import F as FIGS
 
 SRC = "/home/user/documents/iotsec"
 OUT = "/home/user/documents/iotsec/html"
@@ -116,6 +118,12 @@ def convert_blocks(lines):
             while i < n and lines[i].strip() != "```":
                 body.append(lines[i]); i += 1
             i += 1
+            if lang == "fig":
+                name = (body[0].strip() if body else "")
+                if name not in FIGS:
+                    raise SystemExit("unknown figure: %r" % name)
+                out.append(FIGS[name])
+                continue
             cls = ' class="lang-%s"' % lang if lang else ""
             out.append("<pre><code%s>%s</code></pre>" % (cls, esc("\n".join(body))))
             continue

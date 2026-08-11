@@ -49,12 +49,8 @@ ESP32 のセキュリティ設定は、**すべて eFuse で制御される**（
 
 **各ブロックには「読み出し保護」と「書き込み保護」のビットがある。**
 
-```
-【鍵を焼くときの典型的な手順】
-  1. BLOCK_KEYn に鍵を書き込む
-  2. KEY_PURPOSE_n に用途を設定する（Secure Boot 用、Flash Encryption 用など）
-  3. ★ 読み出し保護ビットを焼く → CPU からも読めなくなる
-  4. ★ 書き込み保護ビットを焼く → 二度と変更できなくなる
+```fig
+s20_efuse
 ```
 
 > **`espefuse.py` の操作は、すべて不可逆である.**
@@ -95,15 +91,8 @@ ESP32 のセキュリティ設定は、**すべて eFuse で制御される**（
 | **検証の連鎖** | ROM → 第 2 段ブートローダ → アプリケーション |
 | **鍵の失効** | 3 個のダイジェストを個別に失効可能 |
 
-```
-【ブートの流れ】
-  [ROM ブートローダ]  ← Immutable RoT（04 章）
-       │ eFuse のダイジェストで、第 2 段ブートローダの署名を検証
-       ↓
-  [第 2 段ブートローダ]（フラッシュ上）
-       │ 同じ鍵で、アプリケーションの署名を検証
-       ↓
-  [アプリケーション]
+```fig
+s20_boot
 ```
 
 ### 有効化の手順
@@ -138,14 +127,13 @@ idf.py -p /dev/ttyUSB0 flash
 
 ### 見落としがちな設定
 
-```
-Secure Boot 有効化時に、必ず確認すべき eFuse:
-  ・SECURE_BOOT_EN                    セキュアブート有効
-  ・DIS_DOWNLOAD_MODE                 ★ シリアルダウンロードモードの無効化
-  ・DIS_DIRECT_BOOT / DIS_LEGACY_SPI_BOOT  代替ブート経路の無効化
-  ・SOFT_DIS_JTAG / HARD_DIS_JTAG     ★ JTAG の無効化
-  ・DIS_USB_JTAG / DIS_USB_SERIAL_JTAG  USB 経由の JTAG 無効化
-```
+| eFuse | 意味 |
+|---|---|
+| `SECURE_BOOT_EN` | セキュアブート有効 |
+| **`DIS_DOWNLOAD_MODE`** | **シリアルダウンロードモードの無効化** |
+| `DIS_DIRECT_BOOT` / `DIS_LEGACY_SPI_BOOT` | 代替ブート経路の無効化 |
+| **`SOFT_DIS_JTAG` / `HARD_DIS_JTAG`** | **JTAG の無効化** |
+| `DIS_USB_JTAG` / `DIS_USB_SERIAL_JTAG` | USB 経由の JTAG 無効化 |
 
 > **これが 11 章のチェックリストそのものである.**
 >
@@ -183,7 +171,7 @@ Secure Boot 有効化時に、必ず確認すべき eFuse:
 > Development モードでは、**攻撃者が UART 経由で平文を書き込める**。
 > つまり**任意のファームウェアを動かせる**。Flash Encryption の意味がない。
 >
-> ```
+> ```text
 > Security features
 >   → Enable flash encryption on boot
 >   → Enable usage mode = Release   ★ 必ず Release
@@ -214,13 +202,8 @@ Secure Boot 有効化時に、必ず確認すべき eFuse:
 
 ### HMAC ペリフェラル
 
-```
-【仕組み】
-  eFuse に HMAC 鍵を焼く（読み出し保護をかける）
-        ↓
-  ソフトウェアは「このメッセージの HMAC を計算して」と依頼するだけ
-        ↓
-  ★ 鍵は CPU に一度も現れない（06 章の「鍵の不可視化」）
+```fig
+s20_hmac
 ```
 
 | 用途 | 内容 |
@@ -233,15 +216,8 @@ Secure Boot 有効化時に、必ず確認すべき eFuse:
 
 **これが最も特徴的な機能である。**
 
-```
-【目的】RSA / ECDSA の秘密鍵を、ソフトウェアに見せずに署名させる
-
-【仕組み】
-  1. 秘密鍵を、eFuse の HMAC 鍵から導出した鍵で暗号化して
-     フラッシュに保存する（"encrypted private key parameters"）
-  2. 署名するとき、DS ペリフェラルに暗号化されたパラメータを渡す
-  3. ★ ペリフェラルが内部で復号し、署名を計算する
-  4. 平文の秘密鍵は CPU バスに現れない
+```fig
+s20_ds
 ```
 
 | 効果 | 内容 |

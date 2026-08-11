@@ -88,16 +88,8 @@
 
 ### SAU と IDAU の関係
 
-```
-アドレス X へのアクセス
-      ↓
-  ┌─────────┐   ┌──────────┐
-  │  IDAU   │   │   SAU    │
-  │（固定）  │   │（設定可）  │
-  └────┬────┘   └────┬─────┘
-       └──── より制限の強い方が勝つ ────┐
-                                        ↓
-                              Secure / NSC / Non-secure
+```fig
+s17_sau
 ```
 
 | ユニット | 誰が決めるか | 変更 |
@@ -109,9 +101,8 @@
 >
 > よくあるのは、**アドレスのビット 28（0x1000_0000）で Secure / Non-secure を分ける**方式である。
 >
-> ```
-> 0x0800_0000  Non-secure から見たフラッシュ
-> 0x0C00_0000  Secure から見た同じフラッシュ（エイリアス）
+> ```fig
+> s17_alias
 > ```
 >
 > つまり**同じ物理メモリが 2 つのアドレスに見える**。
@@ -192,19 +183,8 @@ PSA Certified Level 1 の質問票は、次の目標に沿っている。
 
 ### PSA-RoT と ARoT
 
-```
-┌─── NSPE（Non-secure Processing Environment）───┐
-│  アプリケーション、RTOS、通信スタック            │
-└──────────────────┬─────────────────────────────┘
-                   │ PSA Functional API
-┌──────────────────┴── SPE（Secure Processing Environment）──┐
-│  ARoT（Application Root of Trust）                          │
-│   ・アプリ固有のセキュアサービス（ベンダ・顧客が追加）        │
-│  ─────────────────────────────────────────                  │
-│  PSA-RoT（PSA Root of Trust）                               │
-│   ・Crypto、ITS、Attestation、Firmware Update               │
-│   ・最も特権が高い。最小限に保つ                              │
-└─────────────────────────────────────────────────────────────┘
+```fig
+s17_psa
 ```
 
 **PSA-RoT と ARoT を分けるのは、07 章の「Secure 側を小さく保つ」の実装である。**
@@ -263,12 +243,8 @@ psa_sign_hash(key_id, PSA_ALG_ECDSA(PSA_ALG_SHA_256),
 **PSA Crypto API は Mbed TLS の標準 API になった**（Mbed TLS 3.x 以降）。
 つまり **TrustZone がないチップでも、同じ API で書ける**。
 
-```
-【将来 TrustZone 付きに移行する予定がある場合】
-  今: Cortex-M4 + Mbed TLS（PSA Crypto API で書く）
-  後: Cortex-M33 + TF-M（同じ API のまま、実装が SPE 側に移る）
-        ↓
-  ★ アプリケーションコードを変えずに移行できる
+```fig
+s17_migrate
 ```
 
 **これは実務上、非常に大きな利点である。**
@@ -335,14 +311,8 @@ IoT ゲートウェイやエッジ AI 機器では Cortex-A が使われる。
 
 ### MTE — メモリ安全性への画期的なアプローチ
 
-```
-【仕組み】
-  メモリの 16 バイトごとに 4 ビットの「タグ」を付ける
-  ポインタの上位ビットにも同じタグを入れる
-        ↓
-  アクセス時にタグが一致しないと Fault
-        ↓
-  ★ Use-after-free、バッファオーバーフローが実行時に検出される
+```fig
+s17_mte
 ```
 
 > **MTE は、C/C++ のメモリ安全性問題への現実的な緩和策である.**
@@ -355,14 +325,8 @@ IoT ゲートウェイやエッジ AI 機器では Cortex-A が使われる。
 
 ### Armv9-A CCA
 
-```
-【従来】                        【CCA】
-Normal World                    Normal World
-  ├ ハイパーバイザ                ├ ハイパーバイザ
-  └ ゲスト VM                    └ ゲスト VM
-Secure World                    Secure World
-                                Realm World  ★ 新設
-                                  └ Realm（ハイパーバイザからも見えない）
+```fig
+s17_cca
 ```
 
 **クラウドやエッジで、「インフラ提供者からもデータを守る」ための機構である。**

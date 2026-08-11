@@ -122,3 +122,14 @@ figcaption{margin-top:.55rem;font-size:.85rem;color:var(--muted);text-align:left
 
 @media (max-width:520px){body{font-size:15.5px}.ctrl{flex-basis:100%}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+
+/* ---- インライン SVG 図版 ---- */
+.doc .dia{margin:1.6rem 0;padding:0;text-align:center}
+.doc .dia svg{max-width:100%;height:auto;display:block;margin:0 auto;
+  background:var(--screen);border:1px solid var(--line);border-radius:12px;padding:.5rem}
+.doc .dia figcaption{margin:.55rem auto 0;max-width:46rem;font-size:.83rem;line-height:1.7;
+  color:var(--muted);text-align:left}
+blockquote .dia{margin:1rem 0}
+blockquote .dia svg{background:var(--panel)}
+.wfig svg{max-width:100%;height:auto;display:block;margin:0 auto;
+  background:var(--screen);border:1px solid var(--line);border-radius:10px;padding:.4rem}
