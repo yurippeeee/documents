@@ -221,7 +221,7 @@ ECIES（ECDH + AES-KW）や RSA-OAEP による鍵配送をサポートしてい�
 | 標準 | 内容 |
 |---|---|
 | **IETF SUIT** (RFC 9019 / 9124 / 9459 など) | 組み込み向けのソフトウェア更新アーキテクチャとマニフェスト形式。CBOR/COSE ベース |
-| **TUF / Uptane** | The Update Framework。**鍵の危殆化に耐える**設計。Uptane は自動車向け |
+| **TUF / Uptane** | The Update Framework。**鍵の危殆化（漏洩して信頼できなくなること）に耐える**設計。Uptane は自動車向け |
 | **LwM2M Firmware Update** | OMA LwM2M のオブジェクト 5。制約デバイス向け |
 | **PSA Firmware Update API** | TF-M の一部（17 章） |
 | **OMA-DM / TR-069** | レガシーだが、通信機器で現役 |
