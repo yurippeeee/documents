@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>バイト列から意味を復元する — 組み込みバイナリ解析</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="toprow">
+  <a class="home" href="index.html">← トップ</a>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</div>
+<div class="lp" style="--accent:#556b8a">
+  <p class="eyebrow">Binary Analysis</p>
+  <h1>バイト列から意味を復元する</h1>
+  <p class="lede">フラッシュから吸い出したダンプ、ソースの失われた ELF、設定が化けた NVM3、巻き戻ったログ——組み込みの現場では「<strong>バイト列の意味を復元する</strong>」作業が絶えず必要になります。このシリーズは「バイト列には必ず構造がある」を出発点に、<strong>対象ごとの手順</strong>で構造を解き明かします。ダンプの取り方とバイトの読み方から始めて、ELF・HEX・Cortex-M イメージ・MCUboot・ファイルシステムという「入れ物」、NVM3・NVS・ログ・秘密情報という「データ領域」、Linux イメージ・逆アセンブル・動的解析、そして差分・自動化・ケーススタディまで一本でつなぎます。全 20 章に触って動かせるデモ（<span style="color:#556b8a">LIVE</span>・計 20 点。SHA-256・CRC-32・エントロピーは本物の計算、16 進ダンプは実際にパース）と SVG 図版 52 点。<strong>まず公式ツールを試し、なければ自分で解く。ライブラリのソースが最強の仕様書。</strong></p>
+
+  <h2>第 I 部 — 基礎と道具</h2>
+  <p class="part">どんな対象でも、最初の 5 手順と読み方の基礎は共通です。</p>
+  <div class="grid">
+    <a class="ch star" href="binary/html/01.html"><span class="n">CH 01</span><span class="t">バイナリ解析とは何か</span><span class="d">目的・法・「固定→眺める→地図→解く→記録」の 5 手順。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/02.html"><span class="n">CH 02</span><span class="t">道具箱</span><span class="d">hexdump・strings・binwalk・Python の 4 つを手足に。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/03.html"><span class="n">CH 03</span><span class="t">バイト列を読む基本</span><span class="d">エンディアン・整数・文字・マジック・CRC。0xFF は消去済み。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/04.html"><span class="n">CH 04</span><span class="t">ダンプを手に入れる</span><span class="d">SWD・SPI 直読み・ブートローダ。読み出し保護の見分け。</span><span class="live">▶ LIVE</span></a>
+  </div>
+
+  <h2>第 II 部 — ファームウェアの入れ物</h2>
+  <p class="part">コードとデータが、どの形式で、どこに、どう配置されるか。</p>
+  <div class="grid">
+    <a class="ch" href="binary/html/05.html"><span class="n">CH 05</span><span class="t">ELF ファイル</span><span class="d">セクションとセグメント、シンボル。生バイナリには戻せない。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="binary/html/06.html"><span class="n">CH 06</span><span class="t">HEX と SREC</span><span class="d">アドレス付きテキスト。上位アドレスは 04 レコード。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/07.html"><span class="n">CH 07</span><span class="t">Cortex-M のイメージ</span><span class="d">ベクタテーブルから素性を復元。Thumb ビットとロードアドレス。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/08.html"><span class="n">CH 08</span><span class="t">ブートローダとイメージ形式</span><span class="d">MCUboot のヘッダ・TLV・スロット状態。更新の段階を判定。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="binary/html/09.html"><span class="n">CH 09</span><span class="t">ファイルシステム</span><span class="d">FAT・LittleFS・SPIFFS。フラッシュ専用 FS の作り。</span><span class="live">▶ LIVE</span></a>
+  </div>
+
+  <h2>第 III 部 — データ領域</h2>
+  <p class="part">設定・記録・秘密が、どう残るか。追記型ストレージという共通の型。</p>
+  <div class="grid">
+    <a class="ch star" href="binary/html/10.html"><span class="n">CH 10</span><span class="t">NVM3</span><span class="d">Silicon Labs の追記型キー値ストア。古い値が履歴に残る。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/11.html"><span class="n">CH 11</span><span class="t">NVS 系ストレージ</span><span class="d">ESP-IDF NVS・Zephyr NVS。区画・世代・キーの共通パターン。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="binary/html/12.html"><span class="n">CH 12</span><span class="t">ログとリングバッファ</span><span class="d">巻き戻る記録を時系列に。シーケンス番号でソートが確実。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/13.html"><span class="n">CH 13</span><span class="t">秘密情報の捜索</span><span class="d">鍵・証明書・資格情報の自己監査。読めたら脆弱性。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="binary/html/14.html"><span class="n">CH 14</span><span class="t">圧縮と暗号化の見分け</span><span class="d">エントロピーで領域を分類。展開できれば圧縮、なければ暗号。</span><span class="live">▶ LIVE</span></a>
+  </div>
+
+  <h2>第 IV 部 — 実行ファイルと動的解析</h2>
+  <p class="part">Linux 機器、機械語、止まった瞬間のメモリ。</p>
+  <div class="grid">
+    <a class="ch" href="binary/html/15.html"><span class="n">CH 15</span><span class="t">Linux 組み込みイメージ</span><span class="d">U-Boot・カーネル・ルートFS。binwalk -e でまず割る。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/16.html"><span class="n">CH 16</span><span class="t">逆アセンブルの基礎</span><span class="d">Ghidra の 3 設定。文字列・周辺レジスタからとっかかりを。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="binary/html/17.html"><span class="n">CH 17</span><span class="t">動的解析</span><span class="d">gdb・エミュレータ・スタックからのコールスタック復元。</span><span class="live">▶ LIVE</span></a>
+  </div>
+
+  <h2>第 V 部 — 応用</h2>
+  <p class="part">比べる、仕組みにする、通しで追う。</p>
+  <div class="grid">
+    <a class="ch star" href="binary/html/18.html"><span class="n">CH 18</span><span class="t">差分と壊れたデータ</span><span class="d">操作前後の差分で未知の構造を解く。まず自分を疑う。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch" href="binary/html/19.html"><span class="n">CH 19</span><span class="t">自動化とパーサ</span><span class="d">struct・construct・Kaitai。検証を組み込んで再現可能に。</span><span class="live">▶ LIVE</span></a>
+    <a class="ch star" href="binary/html/20.html"><span class="n">CH 20</span><span class="t">ケーススタディ</span><span class="d">更新失敗・設定の化け・監査・素性不明の 4 つを通しで。</span><span class="live">▶ LIVE</span></a>
+  </div>
+
+  <h2>目的別の近道</h2>
+  <div class="paths">
+    <div class="path"><b>まず全体を掴む</b><span>01 → 02 → 03 → 04</span></div>
+    <div class="path"><b>ファームの中身を知りたい</b><span>04 → 07 → 08 → 16</span></div>
+    <div class="path"><b>設定・ログを調べたい</b><span>03 → 10 → 11 → 12 → 18</span></div>
+    <div class="path"><b>セキュリティ監査</b><span>04 → 13 → 14 → 19</span></div>
+    <div class="path"><b>Linux 機器</b><span>04 → 15 → 16 → 17</span></div>
+    <div class="path"><b>ソースのない古いファーム</b><span>04 → 07 → 16 → 17 → 19</span></div>
+    <div class="path"><b>現場で困っている</b><span>20 のケースから逆引き</span></div>
+    <div class="path"><b>ぜんぶ</b><span>01 → 20（推奨）</span></div>
+  </div>
+
+  <footer class="lpf">コマンド・オフセット・マジックナンバー・構造体の並びは、代表的なツール（binutils、srecord、binwalk、imgtool、Simplicity Commander、ESP-IDF、Zephyr、Ghidra）と実装バージョンに基づく代表値です。実際の解析対象では、そのライブラリのソースコードと、チップのリファレンスマニュアル・データシートで必ず裏を取ってください。本編はすべて自分（自社）の製品を調べる前提で書いています（01 章）。／ GitHub Pages で配信。数式は KaTeX で描画、20 点のデモはすべて Canvas / DOM 実装（SHA-256・CRC-32・エントロピー・16 進ダンプは実計算）、52 点の図版はインライン SVG。すべてダーク/ライト対応で、外部 CDN への依存なし。</footer>
+</div>
+<script src="site.js"></script>
+</body>
+</html>

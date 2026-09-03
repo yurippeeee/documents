@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>09. ファイルシステム — FAT・LittleFS・SPIFFS を読む — バイナリ解析</title>
+<link rel="stylesheet" href="binary.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../binary.html">Binary Analysis</a>
+  <span class="cur">09 · ファイルシステム — FAT・LittleFS・SPIFFS を読む</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 09</p>
+  <h1 class="doctitle">ファイルシステム — FAT・LittleFS・SPIFFS を読む</h1>
+  <blockquote><p><strong>この章のゴール.</strong></p><p>フラッシュ上のファイルシステムを<strong>種類ごとに見分け</strong>、 FAT・LittleFS・SPIFFS それぞれから、専用ツールでファイルを取り出せるようになること。 「フラッシュ向けファイルシステム」がなぜ普通の FAT と違う作りなのかを理解すること。</p></blockquote><h2>1. フラッシュとファイルシステムの相性</h2><p>外付けフラッシュや内蔵フラッシュの一部が、<strong>ファイルシステム</strong>として使われることがある（ログ、設定、Web の静的ファイル、音声データ）。 だが、PC の FAT や ext4 をそのまま載せると問題が起きる。フラッシュには 2 つの制約があるからだ。</p><ul><li><strong>消去はブロック単位</strong>（4 KB / 64 KB）でしかできず、書き込みは 1→0 の方向だけ。上書きは「ブロックごと消して書き直す」しかない</li><li><strong>書き換え回数に寿命</strong>がある（1 万〜10 万回）。同じ場所を何度も書くと壊れる</li></ul><p>そこで、<strong>書き込みを全域に分散する（ウェアレベリング）</strong>、<strong>電源断で壊れにくい（給電中断に強い）</strong>ように設計された、フラッシュ専用のファイルシステムが使われる。 LittleFS、SPIFFS、JFFS2、UBIFS、YAFFS などである。</p><figure class="dia"><svg viewBox="0 0 860 250" width="860" role="img" preserveAspectRatio="xMidYMid meet"><text x="430" y="26" text-anchor="middle" font-size="12.5" fill="var(--ink)" font-family="var(--sans)" font-weight="700">フラッシュの制約とファイルシステム</text><rect x="40" y="56" width="380" height="78" rx="8" fill="var(--alias-soft)" stroke="var(--alias)" stroke-width="1.6"/><text x="230" y="89.72" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="var(--sans)" font-weight="700">フラッシュの 2 つの制約</text><text x="230" y="105.08" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)" font-weight="400">① 消去はブロック単位（4KB/64KB）、書き込みは 1→0 だけ。上書</text><text x="230" y="117.44" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)" font-weight="400">きは「消して書き直す」  ② 書き換え回数に寿命（1万〜10万回）</text><rect x="440" y="56" width="380" height="78" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.6"/><text x="630" y="89.72" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="var(--sans)" font-weight="700">だから専用の FS</text><text x="630" y="105.08" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)" font-weight="400">書き込みを全域に分散（ウェアレベリング）、電源断に強い設計。L</text><text x="630" y="117.44" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)" font-weight="400">ittleFS / SPIFFS / JFFS2 / UBIFS</text><rect x="40" y="150" width="780" height="60" rx="6" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1.4"/><text x="430" y="179.425" text-anchor="middle" font-size="11.5" fill="var(--ink)" font-family="var(--sans)" font-weight="700">見分け: FAT は 55 AA と EB/E9、LittleFS は "littlefs" 文字列、squashfs は hsqs</text><text x="430" y="194.395" text-anchor="middle" font-size="9.5" fill="var(--muted)" font-family="var(--sans)" font-weight="400">binwalk / strings / xxd で先頭を見る</text></svg><figcaption>フラッシュは消去がブロック単位で寿命がある。だからウェアレベリングと電源断耐性を持つ専用 FS</figcaption></figure><h2>2. 種類を見分ける</h2><p>まずダンプの<strong>先頭とマジック</strong>で当たりをつける。</p><div class="tablewrap"><table><thead><tr><th>ファイルシステム</th><th>目印</th><th>用途</th></tr></thead><tbody><tr><td><strong>FAT12/16/32</strong></td><td>オフセット 0 に <code>EB</code>/<code>E9</code> のジャンプ、0x1FE に <code>55 AA</code>、<code>"FAT16 "</code>/<code>"FAT32 "</code> 文字列</td><td>SD カード、USB、大きめの外付け</td></tr><tr><td><strong>LittleFS</strong></td><td>ブロック内に <code>"littlefs"</code> 文字列、superblock の magic</td><td>マイコンの内蔵/外付け（Zephyr、Mbed、Arduino）</td></tr><tr><td><strong>SPIFFS</strong></td><td>明確なマジックが乏しい。4 バイトのオブジェクト索引が規則的に並ぶ</td><td>ESP8266/ESP32 の古い構成</td></tr><tr><td><strong>FatFs（ChaN）</strong></td><td>中身は FAT</td><td>マイコンで最も普及した FAT 実装</td></tr><tr><td><strong>JFFS2</strong></td><td><code>85 19</code>（ノードマジック 0x1985）</td><td>古い Linux 組み込み（15 章）</td></tr><tr><td><strong>UBIFS / UBI</strong></td><td><code>UBI#</code>（0x23494255）、<code>31 18 10 06</code></td><td>NAND の Linux 機器（15 章）</td></tr><tr><td><strong>squashfs</strong></td><td><code>hsqs</code>/<code>sqsh</code></td><td>読み取り専用ルート（15 章）</td></tr></tbody></table></div><pre><code class="lang-sh">binwalk fs.bin                          # 既知の FS を検出
+strings fs.bin | grep -i littlefs       # LittleFS の痕跡
+xxd -l 16 fs.bin                         # FAT なら EB/E9 で始まる</code></pre><h2>3. FAT を読む</h2><p>FAT は PC と同じなので、道具が豊富である。</p><pre><code class="lang-sh">file fs.bin                              # "DOS/MBR boot sector" など
+mdir -i fs.bin ::                        # mtools: ルートの一覧（マウント不要）
+mcopy -i fs.bin ::/LOG.TXT .             # ファイルを取り出す
+7z l fs.bin                              # 7-Zip でも一覧・展開できる
+# あるいはループバックマウント（Linux）
+sudo mount -o loop,ro fs.bin /mnt</code></pre><p><strong>パーティションがある</strong>場合（先頭が MBR、Master Boot Record——ディスクの先頭にある区画表）は、まず <code>fdisk -l fs.bin</code> でパーティションの開始オフセットを調べ、その位置から FAT が始まる。<code>mtools</code> は <code>-i fs.bin@@&lt;offset&gt;</code> でオフセットを指定できる。</p><p>FAT の構造（ブートセクタ → FAT テーブル → ルートディレクトリ → データ領域）を手で読む必要はめったにないが、<strong>壊れた FAT</strong> からファイルを救うときは、ディレクトリエントリ（32 バイト固定、ファイル名 + 開始クラスタ + サイズ）を直接拾う。日時はビット詰めの 2+2 バイトである（3 章）。</p><h2>4. LittleFS を読む</h2><p><strong>LittleFS</strong>（ARM が主導する、電源断に強い小型ファイルシステム）は、マイコンで今最も使われる。 専用の Python ツールで、ダンプからファイルを取り出せる。</p><pre><code class="lang-sh">pip install littlefs-python</code></pre><pre><code class="lang-python">from littlefs import LittleFS
+# ブロックサイズと個数はその機器の設定に合わせる（重要）
+fs = LittleFS(block_size=4096, block_count=256, mount=False)
+with open("lfs.bin","rb") as f:
+    fs.context.buffer = bytearray(f.read())
+fs.mount()
+for root, dirs, files in fs.walk("/"):
+    for name in files:
+        path = root.rstrip("/") + "/" + name
+        data = fs.open(path, "rb").read()
+        print(path, len(data))</code></pre><p><strong>block_size と block_count が合わないとマウントに失敗する</strong>。値は機器のソース（<code>lfs_config</code>）か、フラッシュ容量から推定する（block_count × block_size = 領域サイズ）。 <code>littlefs-fuse</code> を使えば <code>mount</code> して普通のファイルとして扱うこともできる。</p><p>LittleFS の内部は、各ブロックが<strong>メタデータペア</strong>（2 ブロックを交互に使い、片方が壊れてももう片方が残る）と <strong>CTZ スキップリスト</strong>（Count Trailing Zeros——ブロックを飛び飛びにたどってファイルデータをつなぐ仕組み）でできている。手で追うのは骨だが、「同じ内容が 2 か所にある」「ブロックの先頭に revision カウンタがある」ことを知っておくと、目視でも構造が見える。</p><figure class="dia"><svg viewBox="0 0 860 240" width="860" role="img" preserveAspectRatio="xMidYMid meet"><text x="430" y="26" text-anchor="middle" font-size="12.5" fill="var(--ink)" font-family="var(--sans)" font-weight="700">LittleFS — マイコンで最も使われる</text><rect x="40" y="56" width="380" height="80" rx="8" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1.6"/><text x="230" y="90.72" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="var(--sans)" font-weight="700">取り出し方</text><text x="230" y="106.08" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)" font-weight="400">littlefs-python でダンプからファイルを取り出す。block_size と</text><text x="230" y="118.44" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)" font-weight="400"> block_count を機器の設定に合わせる（合わないとマウント失敗）</text><rect x="440" y="56" width="380" height="80" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.6"/><text x="630" y="90.72" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="var(--sans)" font-weight="700">内部の勘どころ</text><text x="630" y="106.08" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)" font-weight="400">メタデータペア（2 ブロックを交互に使い、片方が壊れても残る）+</text><text x="630" y="118.44" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)" font-weight="400"> CTZ スキップリスト。ブロック先頭に revision カウンタ</text><text x="430" y="165" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="var(--sans)" font-weight="400">block_count × block_size = 領域サイズ。ソース（lfs_config）・データシート・繰り返し境界から求める</text><text x="430" y="190" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="var(--sans)" font-weight="400">littlefs-fuse でマウントもできる。SPIFFS は mkspiffs、FAT は mtools / 7z / マウント</text><text x="430" y="220" text-anchor="middle" font-size="10" fill="var(--faint)" font-family="var(--sans)" font-weight="400">「同じ内容が 2 か所にある」「revision カウンタ」が目視の手がかり</text></svg><figcaption>LittleFS は littlefs-python で取り出す。block_size / block_count を機器に合わせる</figcaption></figure><h2>5. SPIFFS を読む</h2><p><strong>SPIFFS</strong>（SPI Flash File System）は ESP8266 / 古い ESP32 で使われた。マジックが弱く見分けにくいが、ESP-IDF のツールで生成・展開できる。</p><pre><code class="lang-sh"># ESP-IDF 付属（バージョンにより名前が違う）
+python spiffsgen.py --help
+mkspiffs -u out_dir spiffs.bin          # 展開（page/block サイズを機器に合わせる）</code></pre><p>SPIFFS は flat（ディレクトリ階層を持たず、パスをファイル名に埋める）で、ページ単位のオブジェクト索引で管理する。新しい設計では LittleFS に置き換えられている。</p><h2>6. パラメータが分からないとき</h2><p>フラッシュ向け FS は、<strong>ブロックサイズ・ページサイズ・領域の開始オフセットと大きさ</strong>を知らないと読めない。手がかり:</p><ul><li>機器のソースコード / SDK の設定（<code>partitions.csv</code>、<code>lfs_config</code>、<code>fstab</code>、<code>storage_partition</code>）</li><li><strong>フラッシュチップのデータシート</strong>（消去ブロック 4 KB / 64 KB、ページ 256 バイト）</li><li>ダンプ内で<strong>規則的に繰り返す境界</strong>を探す。エントロピーや <code>binwalk</code> のオフセットが 0x1000（4 KB）や 0x10000（64 KB）の倍数に揃っていれば、それがブロック境界</li><li>LittleFS なら superblock 内にジオメトリが書かれていることがある</li></ul><pre><code class="lang-sh"># 4 KB ごとに先頭 16 バイトを見て、繰り返し構造を探す
+python3 -c "
+d=open('fs.bin','rb').read()
+for off in range(0,len(d),0x1000):
+    print(hex(off), d[off:off+16].hex())" | head -40</code></pre><h2>7. 取り出した後</h2><p>ファイルを取り出せたら、<strong>それ自体がまた解析対象</strong>になる。</p><ul><li>テキスト（JSON、INI、ログ）はそのまま読む</li><li>独自バイナリは 3 章の手順で構造を解く</li><li>さらに圧縮・暗号化されていれば 14 章</li><li>画像・音声・証明書は <code>file</code> で判定して専用ツールへ</li></ul><h2>8. 手を動かす</h2><h3>ファイルシステムを見分ける</h3><div class="widget" data-widget="fs"></div><hr><h2>この章のポイント</h2><ul><li>フラッシュ向け FS（LittleFS・SPIFFS）は、<strong>ウェアレベリングと電源断耐性</strong>のために普通の FAT と違う作り</li><li>見分けは<strong>マジックと文字列</strong>。FAT は <code>55 AA</code> と <code>EB/E9</code>、LittleFS は <code>"littlefs"</code></li><li>FAT は <code>mtools</code> / <code>7z</code> / マウント。<strong>LittleFS は <code>littlefs-python</code></strong>、SPIFFS は <code>mkspiffs</code></li><li>フラッシュ FS は<strong>ブロックサイズ・領域オフセット</strong>が分からないと読めない。ソース・データシート・繰り返し境界から求める</li><li>取り出したファイルは、また 3 章・14 章の対象になる</li></ul>
+  <nav class="chnav"><a class="pn" href="08.html"><span>←</span><b>ブートローダとイメージ形式 — MCUboot のヘッダとトレーラ</b></a><a class="pn nx" href="10.html"><b>NVM3 — Silicon Labs の設定ストレージを読む</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>
