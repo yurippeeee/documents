@@ -58,7 +58,7 @@ typedef struct xLIST
 各項目が「自分がいまどのリストにいるか」を知っている。だから——
 
 ```c
-void uxListRemove( ListItem_t * const pxItemToRemove )
+UBaseType_t uxListRemove( ListItem_t * const pxItemToRemove )
 {
     List_t * const pxList = pxItemToRemove->pvContainer;    /* 自分で分かる */
 

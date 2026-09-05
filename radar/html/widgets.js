@@ -210,7 +210,7 @@
     var sG=slider(row,"アンテナ利得 [dBi]",10,40,25,1);
     var sSg=slider(row,"RCS [dBsm]",-20,30,10,1);
     var sB=slider(row,"帯域 B [MHz]",1,100,10,1);
-    var sNF=slider(row,"雑音指数 NF [dB]",2,15,4,0.5);
+    var sNF=slider(row,"雑音指数 NF [dB]",2,15,12,0.5);
     var sN=slider(row,"積分数 MN（2 の冪）",0,16,12,1);
     var out=readout(el);
     function draw(){
@@ -771,7 +771,7 @@
     var cv=screen(el,260), cc=cctx(cv);
     var row=ctrls(el);
     var sB=slider(row,"帯域 B [MHz]",1,100,10,1);
-    var sNF=slider(row,"雑音指数 NF [dB]",3,15,6,0.5);
+    var sNF=slider(row,"雑音指数 NF [dB]",3,15,12,0.5);
     var sPt=slider(row,"送信電力 [dBm]",0,20,10,1);
     var out=readout(el);
     function draw(){

@@ -90,7 +90,7 @@ b11_zephyr
 ```
 
 Zephyr のソース（`subsys/fs/nvs/nvs.c`）に ATE 構造体（`struct nvs_ate`）の定義があり、これが仕様書になる。
-後継の **ZMS**（Zephyr Memory Storage）は、より大きな NAND / 高耐久フラッシュ向けに設計が拡張されている。
+後継の **ZMS**（Zephyr Memory Storage）は、消去操作を必要としないメモリ（RRAM・MRAM）や大容量フラッシュも扱えるように設計が拡張されている。
 
 ## 4. 追記型キー値ストアの共通パターン
 

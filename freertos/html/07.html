@@ -38,7 +38,7 @@ typedef struct xLIST
      ↓                                  │
   [xListEnd] ⇄ [ItemA] ⇄ [ItemB] ⇄ [ItemC]
      ↑                                  │
-     └──────────────────────────────────┘</code></pre><p>末尾の次は先頭に戻る。だから「末尾に追加」も「先頭を取る」も、 <strong>NULL チェックが要らない</strong>。分岐が減り、コードが短くなる。</p><p><strong>工夫 2: 番兵 (<code>xListEnd</code>) がある</strong></p><p><code>xListEnd.xItemValue = portMAX_DELAY</code>（最大値）に固定されている。 昇順ソートで挿入するとき、<strong>必ず番兵の手前で止まる</strong>ので、 「リストの終端に着いた」という特別扱いが不要になる。</p><p><strong>工夫 3: <code>pvContainer</code> を持っている</strong></p><p>各項目が「自分がいまどのリストにいるか」を知っている。だから——</p><pre><code class="lang-c">void uxListRemove( ListItem_t * const pxItemToRemove )
+     └──────────────────────────────────┘</code></pre><p>末尾の次は先頭に戻る。だから「末尾に追加」も「先頭を取る」も、 <strong>NULL チェックが要らない</strong>。分岐が減り、コードが短くなる。</p><p><strong>工夫 2: 番兵 (<code>xListEnd</code>) がある</strong></p><p><code>xListEnd.xItemValue = portMAX_DELAY</code>（最大値）に固定されている。 昇順ソートで挿入するとき、<strong>必ず番兵の手前で止まる</strong>ので、 「リストの終端に着いた」という特別扱いが不要になる。</p><p><strong>工夫 3: <code>pvContainer</code> を持っている</strong></p><p>各項目が「自分がいまどのリストにいるか」を知っている。だから——</p><pre><code class="lang-c">UBaseType_t uxListRemove( ListItem_t * const pxItemToRemove )
 {
     List_t * const pxList = pxItemToRemove-&gt;pvContainer;    /* 自分で分かる */
 

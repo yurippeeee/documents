@@ -247,7 +247,7 @@ $$
 $`L`$ 次のシェーピングなら:
 
 $$
-\text{SNR 改善} \approx (6L+3)\log_{10}(\text{OSR})\ \text{に比例}
+\text{SNR 改善} = (20L+10)\log_{10}(\text{OSR}) + \text{const}
 $$
 
 **OSR 2 倍で $`(6L+3)`$ dB。** 3 次なら 21 dB（3.5 bit）。

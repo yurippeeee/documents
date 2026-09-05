@@ -291,7 +291,7 @@
     function draw(){
       var N=+sN.input.value, D=+sD.input.value;
       sN.val.textContent=N+" セル/λ"; sD.val.textContent=D+" λ";
-      var ratio=Math.sin(2*Math.PI/N)/(2*Math.PI/N);   // k_eff/k
+      var ratio=Math.sin(Math.PI/N)/(Math.PI/N);   // k_eff/k（Yee 格子の半セル中心差分）
       var errDeg=Math.abs(1-ratio)*D*360;
       var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;
       ctx.clearRect(0,0,w,h);
@@ -326,7 +326,7 @@
       lab(ctx,"許容の目安 30°",thx+6,by+32,C("--alias"),"left",9.5);
       lab(ctx,"累積位相誤差 "+f(errDeg,1)+"°"+(sat?"（目盛りの上限 180° を振り切れている）":""),
           x0,by-24,C("--muted"),"left",10.5);
-      out.innerHTML="波数の相対誤差 = sin(2π/N)/(2π/N) − 1 = <b>"+f((ratio-1)*100,3)+" %</b>"+
+      out.innerHTML="波数の相対誤差 = sin(π/N)/(π/N) − 1 = <b>"+f((ratio-1)*100,3)+" %</b>"+
         " ／ "+D+" λ 進んだ後の累積位相誤差 <b>"+f(errDeg,1)+"°</b>"+
         (errDeg>30?' <span class="warn">← 大きすぎる。セル/波長を増やすこと</span>':"")+
         "<br>誤差は距離に比例して溜まる → <b>必要なセル数は構造が電気的に何波長あるかで決まる</b>";
