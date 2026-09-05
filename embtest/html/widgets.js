@@ -302,7 +302,7 @@
       var adc=Math.round(v/3.3*4095);
       out.innerHTML='電圧 '+f(v,2)+' V → ADC <b>'+adc+'</b> カウント → 温度 <b>'+f(disp,1)+' ℃</b>。'+
         (clip?'<b style="color:var(--alias)">飽和／範囲外</b>：クリップされる。範囲外を検知しているか要確認':
-        (v<0.5?'<span style="color:var(--muted)">0℃ 未満（負電圧に相当しない領域）</span>':'<b class="ok">正常範囲</b>'));
+        (v<0.5?'<span style="color:var(--muted)">0 ℃ 未満（−40 ℃ までは正常範囲）</span>':'<b class="ok">正常範囲</b>'));
     }
     reg(cv,draw);slV.input.addEventListener("input",draw);draw();
   };
@@ -345,11 +345,11 @@
     var pn=panel(el,150),out=readout(el);
     var CASES=[
       {adv:[["02 01 06","Flags","接続可能・BR/EDR非対応"],["0B 09 54 65 6D 70 4C 6F 67 67 65 72","Name","\"TempLogger\""],["03 03 09 18","Service UUID","0x1809 体温計"]],
-       gatt:[["0x1809 体温計","Service"],["0x2A1C 測定値","Read/Notify"],["0x2A1D しきい値","Read/Write"]],ok:1,note:"素直な設計。名前・サービスが素性を表す"},
+       gatt:[["0x1809 体温計","Service"],["0x2A1C 温度測定値","Read/Indicate"],["独自 128bit UUID しきい値","Read/Write"]],ok:1,note:"素直な設計。名前・サービスが素性を表す"},
       {adv:[["02 01 06","Flags",""],["12 09 54 4C 5F 64 65 76 6B 69 74 5F 53 4E 31 32 33 34 35","Name","\"TL_devkit_SN12345\""],["03 03 09 18","Service UUID","0x1809"]],
-       gatt:[["0x1809 体温計","Service"],["0x2A1C 測定値","Read/Notify"]],ok:0,note:"開発機の名前とシリアルが製品に残存。追跡・情報漏れの元"},
+       gatt:[["0x1809 体温計","Service"],["0x2A1C 温度測定値","Read/Indicate"]],ok:0,note:"開発機の名前とシリアルが製品に残存。追跡・情報漏れの元"},
       {adv:[["02 01 06","Flags",""],["05 FF 34 12 1C 0A","Manufacturer","生温度 25.8℃ を平文で"],["03 03 09 18","Service UUID","0x1809"]],
-       gatt:[["0x1809 体温計","Service"],["0x2A1C 測定値","Read（無認証）"]],ok:0,note:"接続不要で測定値が読める。秘匿すべき値がアドバタイズに漏れている"}
+       gatt:[["0x1809 体温計","Service"],["0x2A1C 温度測定値","Read（無認証）"]],ok:0,note:"接続不要で測定値が読める。秘匿すべき値がアドバタイズに漏れている"}
     ];
     function render(){
       var d=CASES[+sel.value];

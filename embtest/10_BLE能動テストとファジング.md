@@ -76,8 +76,9 @@ async def fuzz(addr, uuid, n=500):
                 await c.write_gatt_char(uuid, payload, response=True)
             except Exception as e:
                 print("REJECTED", length, e)           # 拒否は正常な防御
-            alive = await c.read_gatt_char(uuid)        # まだ応答するか＝生存確認
-            if alive is None:
+            try:                                         # 生存確認: 一定時間内に応答するか
+                await asyncio.wait_for(c.read_gatt_char(uuid), timeout=2.0)
+            except Exception:                            # タイムアウト/切断＝ハングとみなす
                 print("HANG after", payload.hex()); break
 ```
 
