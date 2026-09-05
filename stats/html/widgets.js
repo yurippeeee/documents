@@ -393,12 +393,12 @@
   REG.monty=function(el){
     head(el,"Monty Hall","変えれば 2/3、変えなければ 1/3");
     var cv=screen(el,200),cc=cctx(cv);var row=ctrls(el);
-    var sd=slider(row,"ドアの数",3,20,3,1);
+    var sdl=slider(row,"ドアの数",3,20,3,1);
     var sn=slider(row,"試行回数",100,20000,2000,100);
     var out=readout(el);
     function draw(){
-      var D=+sd.input.value,N=+sn.input.value;
-      sd.val.textContent=D;sn.val.textContent=N;
+      var D=+sdl.input.value,N=+sn.input.value;
+      sdl.val.textContent=D;sn.val.textContent=N;
       var rnd=rngOf(21),stay=0,sw=0,hist=[];
       for(var i=0;i<N;i++){
         var prize=Math.floor(rnd()*D),pick=Math.floor(rnd()*D);
@@ -422,7 +422,7 @@
         (D>3?'<span class="ok">ドアが多いほど「変える」の有利さが明白になる（'+D+' 枚なら '+f(th*100,1)+'%）</span>'
             :'司会者は中身を知っていて必ずハズレを開ける。その行動が情報を運んでいる');
     }
-    sd.input.addEventListener("input",draw);sn.input.addEventListener("input",draw);reg(cv,draw);
+    sdl.input.addEventListener("input",draw);sn.input.addEventListener("input",draw);reg(cv,draw);
   };
 
   /* ---------- 05: 検査の陽性的中率 ---------- */
@@ -644,10 +644,10 @@
   REG.tdist=function(el){
     head(el,"Student's t","σ を s で代用した代償 = 裾が重くなる");
     var cv=screen(el,230),cc=cctx(cv);var row=ctrls(el);
-    var sd=slider(row,"自由度 df = n − 1",1,60,5,1);
+    var sdl=slider(row,"自由度 df = n − 1",1,60,5,1);
     var out=readout(el);
     function draw(){
-      var df=+sd.input.value;sd.val.textContent=df;
+      var df=+sdl.input.value;sdl.val.textContent=df;
       var c=chart(cc,-5,5,0,0.45);
       grid(c,4);
       var pn=[],pt=[];
@@ -667,7 +667,7 @@
               :(df<30?'<span class="warn">まだ正規より少し広い</span>'
                      :'<span class="ok">df ≥ 30 で正規にほぼ一致（差 '+f((tc-1.96)/1.96*100,1)+'%）</span>'));
     }
-    sd.input.addEventListener("input",draw);reg(cv,draw);
+    sdl.input.addEventListener("input",draw);reg(cv,draw);
   };
 
   /* ---------- 09: 大数の法則 ---------- */
@@ -844,12 +844,12 @@
     head(el,"p-value","H₀ のもとで、観測以上に極端な値が出る確率");
     var cv=screen(el,230),cc=cctx(cv);var row=ctrls(el);
     var st=slider(row,"観測された t 値",0,5,2.1,0.05);
-    var sd=slider(row,"自由度",1,60,24,1);
+    var sdl=slider(row,"自由度",1,60,24,1);
     var sm=select(row,"表示",["棄却域と p 値","H₀ が真のときの p 値の分布"]);
     var out=readout(el);
     function draw(){
-      var t=+st.input.value,df=+sd.input.value,mode=+sm.value;
-      st.val.textContent=f(t,2);sd.val.textContent=df;
+      var t=+st.input.value,df=+sdl.input.value,mode=+sm.value;
+      st.val.textContent=f(t,2);sdl.val.textContent=df;
       var p=tp2(t,df),tc=tinv(0.975,df);
       if(mode===0){
         var c=chart(cc,-5,5,0,0.45);
@@ -893,7 +893,7 @@
         ' ／ '+(p<0.05?'5% 水準で棄却':'棄却できない')+
         ' ／ <span class="warn">p 値は「H₀ が正しい確率」ではない。H₀ を仮定した上での、データの珍しさである</span>';
     }
-    st.input.addEventListener("input",draw);sd.input.addEventListener("input",draw);
+    st.input.addEventListener("input",draw);sdl.input.addEventListener("input",draw);
     sm.addEventListener("change",draw);reg(cv,draw);
   };
 
@@ -901,13 +901,13 @@
   REG.power=function(el){
     head(el,"Power","本当に差があるとき、それを見つけられる確率");
     var cv=screen(el,230),cc=cctx(cv);var row=ctrls(el);
-    var sd=slider(row,"効果量 d",0,1.5,0.5,0.05);
+    var sdl=slider(row,"効果量 d",0,1.5,0.5,0.05);
     var sn=slider(row,"各群の n",4,400,30,2);
     var sa=slider(row,"有意水準 α",0.001,0.2,0.05,0.001);
     var out=readout(el);
     function draw(){
-      var d=+sd.input.value,n=+sn.input.value,al=+sa.input.value;
-      sd.val.textContent=f(d,2);sn.val.textContent=n;sa.val.textContent=f(al,3);
+      var d=+sdl.input.value,n=+sn.input.value,al=+sa.input.value;
+      sdl.val.textContent=f(d,2);sn.val.textContent=n;sa.val.textContent=f(al,3);
       var se=Math.sqrt(2/n),ncp=d/se;               // 非心度
       var zc=ninv(1-al/2);
       var pw=1-ncdf(zc-ncp)+ncdf(-zc-ncp);
@@ -939,7 +939,7 @@
         ' ／ '+(pw<0.5&&d>0?'<span class="warn">検出力が低い研究は、有意になった場合でも信用しにくい（効果量が過大に出る）</span>'
                           :'<span class="ok">n・効果量・α のどれかを上げれば検出力が上がる</span>');
     }
-    [sd,sn,sa].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
+    [sdl,sn,sa].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
   };
 
   /* ---------- 13: 2 標本 t 検定 ---------- */
@@ -1124,13 +1124,13 @@
   REG.permtest=function(el){
     head(el,"Permutation","ラベルを入れ替えて H₀ の分布を作る");
     var cv=screen(el,230),cc=cctx(cv);var row=ctrls(el);
-    var sd=slider(row,"真の群間差",0,15,6,0.5);
+    var sdl=slider(row,"真の群間差",0,15,6,0.5);
     var sn=slider(row,"各群の n",4,40,12,1);
     var sb=slider(row,"並べ替えの回数",200,20000,3000,200);
     var out=readout(el);
     function draw(){
-      var dm=+sd.input.value,n=+sn.input.value,B=+sb.input.value;
-      sd.val.textContent=f(dm,1);sn.val.textContent=n;sb.val.textContent=B;
+      var dm=+sdl.input.value,n=+sn.input.value,B=+sb.input.value;
+      sdl.val.textContent=f(dm,1);sn.val.textContent=n;sb.val.textContent=B;
       var rnd=rngOf(17),A=[],Bg=[];
       for(var i=0;i<n;i++){A.push(50+8*gauss(rnd));Bg.push(50+dm+8*gauss(rnd));}
       var obs=mean(Bg)-mean(A);
@@ -1165,7 +1165,7 @@
         ' ／ 参考: t 検定の p = '+f(tp2(tt,nu),4)+
         ' ／ <span class="ok">分布の形を一切仮定していない厳密検定。どんな統計量でも使える</span>';
     }
-    [sd,sn,sb].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
+    [sdl,sn,sb].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
   };
 
   /* ---------- 16: ブートストラップ ---------- */
@@ -1637,13 +1637,13 @@
   REG.roc=function(el){
     head(el,"ROC / AUC","AUC = 陽性のスコアが陰性より高い確率");
     var cv=screen(el,250),cc=cctx(cv);var row=ctrls(el);
-    var sd=slider(row,"2 群の分離度 d",0,3.5,1.4,0.05);
+    var sdl=slider(row,"2 群の分離度 d",0,3.5,1.4,0.05);
     var st=slider(row,"判定の閾値",-3,6,1,0.05);
     var sp=slider(row,"陽性の割合",1,50,20,1);
     var out=readout(el);
     function draw(){
-      var d=+sd.input.value,th=+st.input.value,pr=+sp.input.value/100;
-      sd.val.textContent=f(d,2);st.val.textContent=f(th,2);sp.val.textContent=(pr*100)+"%";
+      var d=+sdl.input.value,th=+st.input.value,pr=+sp.input.value/100;
+      sdl.val.textContent=f(d,2);st.val.textContent=f(th,2);sp.val.textContent=(pr*100)+"%";
       var c=chart(cc,0,1,0,1,{l:40,r:14,t:16,b:30});
       grid(c,4);
       var pts=[];
@@ -1672,14 +1672,14 @@
         ' ／ '+(pr<0.1?'<span class="warn">陽性が少ないと、AUC が高くても適合率は低いまま（不均衡データ）。正解率は無意味</span>'
                      :'<span class="ok">閾値を動かすと感度と特異度が入れ替わる。AUC は閾値に依存しない</span>');
     }
-    [sd,st,sp].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
+    [sdl,st,sp].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
   };
 
   /* ---------- 22: バイアス-バリアンス ---------- */
   REG.biasvar=function(el){
     head(el,"Bias-Variance","訓練誤差は下がり続け、汎化誤差は U 字になる");
     var cv=screen(el,250),cc=cctx(cv);var row=ctrls(el);
-    var sd=slider(row,"多項式の次数",1,14,3,1);
+    var sdl=slider(row,"多項式の次数",1,14,3,1);
     var sn=slider(row,"訓練データ数 n",8,60,15,1);
     var ss=slider(row,"ノイズ σ",0.05,1.2,0.35,0.05);
     var out=readout(el);
@@ -1699,8 +1699,8 @@
     function evalp(co,x){var s=0;for(var i=0;i<co.length;i++)s+=co[i]*Math.pow(x,i);return s;}
     function truef(x){return Math.sin(x*2.2)+0.3*x;}
     function draw(){
-      var deg=+sd.input.value,n=+sn.input.value,sg=+ss.input.value;
-      sd.val.textContent=deg;sn.val.textContent=n;ss.val.textContent=f(sg,2);
+      var deg=+sdl.input.value,n=+sn.input.value,sg=+ss.input.value;
+      sdl.val.textContent=deg;sn.val.textContent=n;ss.val.textContent=f(sg,2);
       var rnd=rngOf(12),X=[],Y=[],TX=[],TY=[];
       for(var i=0;i<n;i++){var x=i/(n-1)*3;X.push(x);Y.push(truef(x)+sg*gauss(rnd));}
       for(i=0;i<200;i++){var x2=rnd()*3;TX.push(x2);TY.push(truef(x2)+sg*gauss(rnd));}
@@ -1724,7 +1724,7 @@
                          :'<span class="ok">バランスが取れている</span>'))+
         ' ／ 誤差 = バイアス² + バリアンス + σ²（σ² = '+f(sg*sg,3)+' は減らせない）';
     }
-    [sd,sn,ss].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
+    [sdl,sn,ss].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
   };
 
   /* ---------- 22: 交差検証 ---------- */
@@ -2165,7 +2165,7 @@
     var sk=slider(row,"クラスタ数 k",1,7,3,1);
     var si=slider(row,"反復回数",0,20,20,1);
     var ss=slider(row,"初期値の種",1,20,1,1);
-    var sd=select(row,"データ",["3 つの丸い塊","2 つの三日月（k-means が苦手）","一様（構造なし）"]);
+    var sdl=select(row,"データ",["3 つの丸い塊","2 つの三日月（k-means が苦手）","一様（構造なし）"]);
     var out=readout(el);
     function gendata(m){
       var rnd=rngOf(37),P=[];
@@ -2182,7 +2182,7 @@
       return P;
     }
     function draw(){
-      var k=+sk.input.value,iters=+si.input.value,seed=+ss.input.value,m=+sd.value;
+      var k=+sk.input.value,iters=+si.input.value,seed=+ss.input.value,m=+sdl.value;
       sk.val.textContent=k;si.val.textContent=iters;ss.val.textContent=seed;
       var P=gendata(m),rnd=rngOf(seed*911);
       var cen=[];for(var i=0;i<k;i++)cen.push(P[Math.floor(rnd()*P.length)].slice());
@@ -2218,7 +2218,7 @@
                      :'<span class="ok">初期値の種を変えて結果が安定するか確認する（k-means++ 推奨）</span>'));
     }
     [sk,si,ss].forEach(function(s){s.input.addEventListener("input",draw);});
-    sd.addEventListener("change",draw);reg(cv,draw);
+    sdl.addEventListener("change",draw);reg(cv,draw);
   };
 
   function init(){

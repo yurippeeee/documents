@@ -1387,7 +1387,7 @@
     var sTau=slider(r,"時定数 τ [ps]",20,500,100,1);
     var sSt=slider(r,"シンクロナイザ段数",1,4,2,1);
     var cv=screen(el,230),cc=cctx(cv),out=readout(el);
-    var T0=1e-9;
+    var T0=1e-10;
     function draw(){
       var fc=+sF.input.value*1e6,fd=+sD.input.value*1e3,tr=+sT.input.value*1e-9,
           tau=+sTau.input.value*1e-12,st=+sSt.input.value;
@@ -1398,7 +1398,8 @@
       var Tclk=1/fc, ttot=tr+(st-1)*Tclk;
       function mtbf(t){return Math.exp(t/tau)/(T0*fc*fd);}
       var M=mtbf(ttot);
-      var ymax=Math.max(2,Math.log10(mtbf(ttot))*1.06);
+      var lM=Math.log10(M); if(!isFinite(lM))lM=300;
+      var ymax=Math.min(300,Math.max(2,lM*1.06));
       var c=chart(cc,0,Math.max(1,ttot*1e9*1.3),-6,ymax,{l:64,b:44,t:24});
       grid(c,6);axis(c);var ctx=c.ctx;
       var stepY=Math.max(2,Math.ceil((ymax+6)/6/2)*2);
