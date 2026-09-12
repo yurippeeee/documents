@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>21. デバッグとトレース — 見えないものは直せない — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">21 · デバッグとトレース — 見えないものは直せない</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 21</p>
+  <h1 class="doctitle">デバッグとトレース — 見えないものは直せない</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——RTOS のバグはブレークポイントで追えない.</strong></p><p>シングルスレッドのプログラムなら、ブレークポイントを置いて 1 行ずつ追えばよい。</p><p>だが RTOS では、<strong>止めた瞬間にタイミングが変わる</strong>。 レースコンディションは消え、デッドラインは全部破られ、 ウォッチドッグが発火し、通信相手はタイムアウトする。</p><p><strong>「止めずに見る」技術が要る。</strong> それがトレースである。</p></blockquote><h2>1. まず設定を正しくする</h2><p>デバッグの前に、<strong>カーネルが用意している検出機構を全部有効にする</strong>。</p><pre><code class="lang-c">/* 開発中は必ずこの構成にする */
+#define configASSERT( x )                    if( ( x ) == 0 ) { vAssertCalled( __FILE__, __LINE__ ); }
+#define configCHECK_FOR_STACK_OVERFLOW       2
+#define configUSE_MALLOC_FAILED_HOOK         1
+#define configUSE_TRACE_FACILITY             1
+#define configGENERATE_RUN_TIME_STATS        1
+#define configUSE_STATS_FORMATTING_FUNCTIONS 1
+#define configRECORD_STACK_HIGH_ADDRESS      1
+#define configQUEUE_REGISTRY_SIZE            10</code></pre><h3><code>configASSERT</code> の実装</h3><pre><code class="lang-c">void vAssertCalled( const char *pcFile, unsigned long ulLine )
+{
+    volatile unsigned long ul = 0;
+
+    taskENTER_CRITICAL();
+    {
+        /* デバッガで止まったら、pcFile と ulLine を見る。
+           ul に 0 以外を書き込めば処理を継続できる */
+        while( ul == 0 ) { __NOP(); }
+    }
+    taskEXIT_CRITICAL();
+}</code></pre><blockquote><p><strong><code>configASSERT</code> は「300 か所以上の無料のチェック」である.</strong></p><ul><li>ISR から非 ISR 版 API を呼んだ</li><li>割り込み優先度の設定が間違っている（18 章）</li><li>ハンドルが NULL</li><li><code>vTaskDelay</code> をスケジューラ停止中に呼んだ</li><li>ミューテックスを所有者以外が Give した</li></ul><p><strong>これらが即座に、原因の場所で捕まる。</strong> 定義しないと、全部が「後で起きる謎の暴走」に化ける。</p></blockquote><h2>2. 実行時間統計 — 誰が CPU を食っているか</h2><pre><code class="lang-c">#define configGENERATE_RUN_TIME_STATS  1
+
+/* 高分解能タイマを用意する（ティックの 10〜100 倍の分解能が目安） */
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()  vConfigureTimerForRunTimeStats()
+#define portGET_RUN_TIME_COUNTER_VALUE()          ulGetRunTimeCounterValue()</code></pre><pre><code class="lang-c">/* Cortex-M の DWT サイクルカウンタを使う例 */
+void vConfigureTimerForRunTimeStats( void )
+{
+    CoreDebug-&gt;DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT-&gt;CYCCNT = 0;
+    DWT-&gt;CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+uint32_t ulGetRunTimeCounterValue( void )
+{
+    return DWT-&gt;CYCCNT;
+}</code></pre><p>カーネルは、<strong>コンテキストスイッチのたびに</strong>タスクごとの実行時間を積算する。</p><pre><code class="lang-c">/* vTaskSwitchContext の中 */
+#if ( configGENERATE_RUN_TIME_STATS == 1 )
+{
+    ulTotalRunTime = portGET_RUN_TIME_COUNTER_VALUE();
+
+    if( ulTotalRunTime &gt; ulTaskSwitchedInTime ) {
+        pxCurrentTCB-&gt;ulRunTimeCounter += ( ulTotalRunTime - ulTaskSwitchedInTime );
+    }
+    ulTaskSwitchedInTime = ulTotalRunTime;
+}
+#endif</code></pre><h3>結果を見る</h3><pre><code class="lang-c">char buf[ 1024 ];
+vTaskGetRunTimeStats( buf );
+printf( "%s", buf );</code></pre><pre><code>Task            Abs Time        % Time
+------------------------------------------
+IDLE            48219341        72%
+Control          8721053        13%
+Comm             4102938         6%
+Display          3011882         4%
+Tmr Svc           892011         1%
+LogTask           610223         &lt;1%</code></pre><p><strong><code>IDLE</code> の割合が CPU の余裕である。</strong> 上の例では 72 % 空いている。</p><h3>実行時間統計を見る</h3><div class="widget" data-widget="runtimestats"></div><p>タスクの負荷を変えて、CPU 配分がどう変わるかを確かめられる。</p><blockquote><p><strong>カウンタのオーバーフローに注意.</strong></p><p>DWT のサイクルカウンタは 32 bit である。 168 MHz なら <strong>25.6 秒</strong>で折り返す。</p><p>長時間の統計を取りたいなら、 <strong>ティックの数倍程度の粗いタイマ</strong>を使うか、 <strong>定期的に統計をリセットする</strong>必要がある。</p><pre><code class="lang-c">/* 目安: ティック周波数の 10〜100 倍 */
+/* 1 kHz ティックなら 10〜100 kHz のタイマ */</code></pre></blockquote><h2>3. タスクの一覧を見る</h2><pre><code class="lang-c">char buf[ 512 ];
+vTaskList( buf );
+printf( "%s", buf );</code></pre><pre><code>Name          State  Priority  Stack  Num
+------------------------------------------
+Control         R        4       142    2
+Comm            B        3        88    3
+Display         B        2       210    4
+IDLE            R        0       112    1
+Tmr Svc         B        5       180    5</code></pre><div class="tablewrap"><table><thead><tr><th>列</th><th>意味</th></tr></thead><tbody><tr><td>State</td><td><code>R</code>=Ready, <code>B</code>=Blocked, <code>S</code>=Suspended, <code>D</code>=Deleted</td></tr><tr><td>Stack</td><td><strong>残りスタックの最小値</strong>（ワード。17 章の HWM）</td></tr><tr><td>Num</td><td>タスク番号（生成順）</td></tr></tbody></table></div><blockquote><p><strong><code>vTaskList()</code> と <code>vTaskGetRunTimeStats()</code> は本番で使ってはいけない.</strong></p><p>どちらも内部で <code>vTaskSuspendAll()</code> を呼び、<strong>全タスクを走査する</strong>。 タスクが 10 個あれば数百マイクロ秒かかる。その間、全タスクの起床が遅れる（10 章）。</p><p><strong>開発時のデバッグ用</strong>と割り切ること。 本番でも統計が欲しいなら、<code>uxTaskGetSystemState()</code> で生データを取り、 <strong>整形は別の場所（PC 側）で行う</strong>。</p></blockquote><h3>プログラムから取る</h3><pre><code class="lang-c">UBaseType_t n = uxTaskGetNumberOfTasks();
+TaskStatus_t *pxStatus = pvPortMalloc( n * sizeof( TaskStatus_t ) );
+uint32_t ulTotalRunTime;
+
+n = uxTaskGetSystemState( pxStatus, n, &amp;ulTotalRunTime );
+
+for( UBaseType_t i = 0; i &lt; n; i++ ) {
+    /* pxStatus[i].pcTaskName
+       pxStatus[i].eCurrentState
+       pxStatus[i].uxCurrentPriority
+       pxStatus[i].usStackHighWaterMark
+       pxStatus[i].ulRunTimeCounter          */
+}
+vPortFree( pxStatus );</code></pre><h2>4. トレースフック — カーネルの動きを記録する</h2><p>FreeRTOS には、<strong>カーネルの要所に空のマクロが埋め込まれている</strong>。 定義すれば、そこにコードを差し込める。</p><pre><code class="lang-c">/* FreeRTOSConfig.h か、専用のヘッダで定義する */
+#define traceTASK_SWITCHED_IN()     record_event( EV_SWITCH_IN,  pxCurrentTCB-&gt;uxTCBNumber )
+#define traceTASK_SWITCHED_OUT()    record_event( EV_SWITCH_OUT, pxCurrentTCB-&gt;uxTCBNumber )
+#define traceQUEUE_SEND( q )        record_event( EV_QSEND,      (uint32_t)(q) )
+#define traceQUEUE_RECEIVE( q )     record_event( EV_QRECV,      (uint32_t)(q) )
+#define traceTASK_DELAY()           record_event( EV_DELAY,      pxCurrentTCB-&gt;uxTCBNumber )
+#define traceTASK_CREATE( t )       record_event( EV_CREATE,     (uint32_t)(t) )</code></pre><h3>主なトレースフック</h3><div class="tablewrap"><table><thead><tr><th>フック</th><th>呼ばれるタイミング</th></tr></thead><tbody><tr><td><code>traceTASK_SWITCHED_IN</code></td><td>タスクが走り始める</td></tr><tr><td><code>traceTASK_SWITCHED_OUT</code></td><td>タスクが止まる</td></tr><tr><td><code>traceTASK_CREATE</code> / <code>traceTASK_DELETE</code></td><td>生成・削除</td></tr><tr><td><code>traceTASK_DELAY</code> / <code>traceTASK_DELAY_UNTIL</code></td><td>時間待ちに入る</td></tr><tr><td><code>traceQUEUE_SEND</code> / <code>traceQUEUE_RECEIVE</code></td><td>キュー操作</td></tr><tr><td><code>traceQUEUE_SEND_FAILED</code> / <code>traceQUEUE_RECEIVE_FAILED</code></td><td><strong>失敗</strong>（タイムアウト）</td></tr><tr><td><code>traceBLOCKING_ON_QUEUE_SEND</code> / <code>..._RECEIVE</code></td><td>キューでブロックする直前</td></tr><tr><td><code>traceTASK_PRIORITY_INHERIT</code> / <code>..._DISINHERIT</code></td><td><strong>優先度継承の発生</strong>（13 章）</td></tr><tr><td><code>traceMALLOC</code> / <code>traceFREE</code></td><td>ヒープ操作</td></tr><tr><td><code>traceISR_ENTER</code> / <code>traceISR_EXIT</code></td><td>割り込み（移植層が呼ぶ）</td></tr></tbody></table></div><blockquote><p><strong><code>traceTASK_PRIORITY_INHERIT</code> は非常に有用である.</strong></p><p>優先度継承が起きているということは、<strong>優先度逆転が発生している</strong>ということである。 これが頻繁に起きているなら、設計を見直す価値がある。</p><pre><code class="lang-c">volatile uint32_t g_inherit_count = 0;
+#define traceTASK_PRIORITY_INHERIT( pxTCB, uxPri )  g_inherit_count++</code></pre><p>この 1 行だけでも、有用な情報が得られる。</p></blockquote><h3>自前の簡易トレーサ</h3><pre><code class="lang-c">typedef struct { uint32_t ts; uint8_t ev; uint8_t id; uint16_t arg; } TraceRec_t;
+
+#define TRACE_DEPTH  512
+static TraceRec_t g_trace[ TRACE_DEPTH ];
+static volatile uint32_t g_trace_idx = 0;
+
+static inline void record_event( uint8_t ev, uint32_t arg )
+{
+    uint32_t i = g_trace_idx++ &amp; ( TRACE_DEPTH - 1 );    /* リングバッファ */
+    g_trace[ i ].ts  = DWT-&gt;CYCCNT;
+    g_trace[ i ].ev  = ev;
+    g_trace[ i ].arg = ( uint16_t ) arg;
+}</code></pre><blockquote><p><strong>記録処理は必ず「短く・ブロックせず・排他を使わず」書くこと.</strong></p><p>トレースはカーネルの深部（クリティカルセクションの中を含む）から呼ばれる。 ここで重い処理をすると、<strong>測定対象の挙動が変わってしまう</strong>（観測者効果）。</p><ul><li><strong>リングバッファに書くだけ</strong>にする</li><li><code>printf</code> は絶対に使わない</li><li>ミューテックスも使わない（インデックスは 2 の冪でマスクして、 多少の取りこぼしは許容する）</li></ul><p>記録したデータは、<strong>後から別のタスクでゆっくり吐き出す</strong>。</p></blockquote><h2>5. 市販のトレースツール</h2><div class="tablewrap"><table><thead><tr><th>ツール</th><th>提供元</th><th>特徴</th></tr></thead><tbody><tr><td><strong>Tracealyzer</strong></td><td>Percepio</td><td>FreeRTOS 公式が推奨。タイムライン表示が強力</td></tr><tr><td><strong>SystemView</strong></td><td>SEGGER</td><td>J-Link と統合。RTT で高速転送</td></tr><tr><td><strong>ITM / SWO トレース</strong></td><td>ARM 標準</td><td>Cortex-M3 以上。1 本の線で出力できる</td></tr><tr><td><strong>統合開発環境の RTOS ビュー</strong></td><td>各社</td><td>ブレーク時にタスク一覧を表示</td></tr></tbody></table></div><p>これらを使うと、こういう図が得られる。</p><pre><code>時間 →
+Control  ██░░░░░░░░██░░░░░░░░██░░░░░░░░
+Comm     ░░████░░░░░░░░████░░░░░░░░████
+Display  ░░░░░░████░░░░░░░░░░██░░░░░░░░
+IDLE     ░░░░░░░░░░██░░░░░░░░░░░░██░░░░
+ISR      ▌  ▌  ▌  ▌  ▌  ▌  ▌  ▌  ▌  ▌
+         ↑
+     ここで Comm が Control を待たせている</code></pre><blockquote><p><strong>タイムライン表示の価値は非常に大きい.</strong></p><p>「なぜか応答が遅い」という問題は、<strong>目で見れば一瞬で分かる</strong>ことが多い。</p><ul><li>誰が誰を待たせているか</li><li>どこで優先度逆転が起きているか</li><li>割り込みがどれだけ CPU を食っているか</li></ul><p><strong>数値の羅列より、1 枚の図の方が速い。</strong> 商用ツールは有償だが、難しい問題を 1 つ解決できれば元が取れる。</p></blockquote><h2>6. RTT（Real-Time Transfer）</h2><p>SEGGER が開発した、<strong>デバッグ用の高速な出力路</strong>である。</p><ul><li>対象のメモリ上にリングバッファを置く</li><li>デバッガ（J-Link）が<strong>動作中の CPU を止めずに</strong>そのメモリを読む</li><li><strong>UART より 100 倍以上速い</strong>（数 MB/s）</li></ul><pre><code class="lang-c">SEGGER_RTT_printf( 0, "value = %d\n", x );</code></pre><blockquote><p><strong><code>printf</code> によるデバッグの最大の問題は「遅い」ことである.</strong></p><p>115200 bps の UART で 80 文字を出すと、<strong>約 7 ms</strong> かかる。 1 ms 周期のタスクから呼んだら、<strong>システムが破綻する</strong>。</p><p>RTT なら数マイクロ秒で済むので、 <strong>リアルタイム性を大きく壊さずにログが出せる</strong>。</p><p>RTT が使えないなら、<strong>ログをキューに積んで、低優先度タスクで吐き出す</strong>。</p><pre><code class="lang-c">void log_msg( const char *s ) {
+    xQueueSend( xLogQueue, &amp;s, 0 );    /* ポインタだけ送る。失敗しても捨てる */
+}
+
+void vLogTask( void *pv ) {
+    const char *s;
+    for (;;) {
+        xQueueReceive( xLogQueue, &amp;s, portMAX_DELAY );
+        uart_puts( s );                /* ここでだけ時間を使う */
+    }
+}</code></pre></blockquote><h2>7. ハードフォールトの解析</h2><p>Cortex-M でクラッシュしたとき、<strong>フォールトハンドラで原因を特定できる</strong>。</p><pre><code class="lang-c">void HardFault_Handler( void )
+{
+    __asm volatile (
+        " tst lr, #4          \n"       /* どちらのスタックを使っていたか */
+        " ite eq              \n"
+        " mrseq r0, msp       \n"
+        " mrsne r0, psp       \n"
+        " b hard_fault_handler_c \n"
+    );
+}
+
+void hard_fault_handler_c( uint32_t *sp )
+{
+    volatile uint32_t r0  = sp[0];
+    volatile uint32_t r1  = sp[1];
+    volatile uint32_t r2  = sp[2];
+    volatile uint32_t r3  = sp[3];
+    volatile uint32_t r12 = sp[4];
+    volatile uint32_t lr  = sp[5];
+    volatile uint32_t pc  = sp[6];      /* ★ クラッシュした命令のアドレス */
+    volatile uint32_t psr = sp[7];
+
+    volatile uint32_t cfsr = SCB-&gt;CFSR;  /* 何が起きたか */
+    volatile uint32_t hfsr = SCB-&gt;HFSR;
+    volatile uint32_t mmar = SCB-&gt;MMFAR; /* MPU 違反のアドレス */
+    volatile uint32_t bfar = SCB-&gt;BFAR;  /* バスフォールトのアドレス */
+
+    ( void ) r0; ( void ) r1; ( void ) r2; ( void ) r3;
+    ( void ) r12; ( void ) lr; ( void ) psr;
+    ( void ) cfsr; ( void ) hfsr; ( void ) mmar; ( void ) bfar;
+
+    for( ;; );      /* デバッガで止めて上の変数を見る */
+}</code></pre><p><strong><code>pc</code> をマップファイルと突き合わせれば、クラッシュした関数が分かる。</strong></p><div class="tablewrap"><table><thead><tr><th>CFSR のビット</th><th>意味</th></tr></thead><tbody><tr><td><code>IACCVIOL</code></td><td>命令アクセス違反</td></tr><tr><td><code>DACCVIOL</code></td><td>データアクセス違反（MMFAR にアドレス）</td></tr><tr><td><code>IBUSERR</code> / <code>PRECISERR</code></td><td>バスエラー（BFAR にアドレス）</td></tr><tr><td><code>UNDEFINSTR</code></td><td>未定義命令。<strong>スタック破壊で PC が飛んだ典型</strong></td></tr><tr><td><code>UNALIGNED</code></td><td>非整列アクセス</td></tr><tr><td><code>DIVBYZERO</code></td><td>ゼロ除算</td></tr></tbody></table></div><blockquote><p><strong><code>UNDEFINSTR</code> が出たら、まずスタックオーバーフローを疑う（17 章）.</strong> スタックが壊れて戻りアドレスが化け、データ領域にジャンプした——というのが典型である。</p></blockquote><h3>FreeRTOS のどのタスクで落ちたか</h3><p><code>pxCurrentTCB</code> を見れば分かる。</p><pre><code class="lang-c">extern TCB_t * volatile pxCurrentTCB;
+/* デバッガで pxCurrentTCB-&gt;pcTaskName を見る */</code></pre><h2>8. デバッグの手順</h2><div class="tablewrap"><table><thead><tr><th>順</th><th>やること</th></tr></thead><tbody><tr><td>1</td><td><strong><code>configASSERT</code> を有効にして再現させる</strong>。多くはここで捕まる</td></tr><tr><td>2</td><td><strong>スタックオーバーフロー検出を <code>2</code> にする</strong>（17 章）</td></tr><tr><td>3</td><td><code>vTaskList()</code> で<strong>全タスクの状態とスタック余裕</strong>を見る</td></tr><tr><td>4</td><td><code>vTaskGetRunTimeStats()</code> で <strong>CPU の配分</strong>を見る</td></tr><tr><td>5</td><td>ハングなら、デバッガで止めて <strong><code>pxCurrentTCB</code> と全タスクの状態</strong>を見る</td></tr><tr><td>6</td><td>タイミング問題なら、<strong>トレースを取る</strong></td></tr><tr><td>7</td><td>クラッシュなら、<strong>フォールトハンドラで PC を特定する</strong></td></tr></tbody></table></div><h3>ハングしたときの見どころ</h3><div class="tablewrap"><table><thead><tr><th>全タスクの状態</th><th>疑うもの</th></tr></thead><tbody><tr><td>全部 Blocked</td><td><strong>デッドロック</strong>、または起こす人がいない</td></tr><tr><td>1 つが Running のまま</td><td><strong>ビジーウェイト</strong>、または無限ループ</td></tr><tr><td>IDLE が Running のまま</td><td>起こす割り込みが来ていない。<strong>割り込み設定を疑う</strong></td></tr><tr><td>Tmr Svc が Blocked のまま</td><td><strong>タイマコールバックでブロックした</strong>（15 章）</td></tr></tbody></table></div><h2>9. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>最初にやること</td><td><strong><code>configASSERT</code> を定義する</strong>。300 か所以上の無料のチェック</td></tr><tr><td>開発時の設定</td><td>スタック検出 <code>2</code>・malloc フック・トレース機能・実行時間統計</td></tr><tr><td>実行時間統計</td><td>高分解能タイマが要る。<strong>IDLE の割合が CPU の余裕</strong></td></tr><tr><td><code>vTaskList</code></td><td>状態とスタック余裕。<strong>本番で使わない</strong></td></tr><tr><td>トレースフック</td><td>カーネル要所の空マクロ。<strong>短く・ブロックせず・排他なしで</strong></td></tr><tr><td><code>traceTASK_PRIORITY_INHERIT</code></td><td>優先度逆転の発生を検出できる</td></tr><tr><td>ログ出力</td><td><strong>RTT</strong> を使うか、<strong>低優先度のログタスクに集約</strong></td></tr><tr><td>ハードフォールト</td><td>スタックから <strong>PC を復元</strong>して原因の場所を特定</td></tr><tr><td><code>UNDEFINSTR</code></td><td>まず<strong>スタックオーバーフロー</strong>を疑う</td></tr><tr><td>ハング時</td><td>全タスクの状態を見れば、原因の見当がつく</td></tr></tbody></table></div><p>次章は最終章である。ここまでの内容を設計指針としてまとめ、 他の OS との比較で FreeRTOS の位置づけを確認する。</p>
+  <nav class="chnav"><a class="pn" href="20.html"><span>←</span><b>リアルタイム性の解析 — 「間に合う」を計算で保証する</b></a><a class="pn nx" href="22.html"><b>設計指針と他の OS との比較</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

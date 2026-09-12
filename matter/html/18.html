@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>18. OTA ソフトウェア更新 — Provider / Requestor と BDX — Matter</title>
+<link rel="stylesheet" href="matter.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../matter.html">Matter</a>
+  <span class="cur">18 · OTA ソフトウェア更新 — Provider / Requestor と BDX</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 18</p>
+  <h1 class="doctitle">OTA ソフトウェア更新 — Provider / Requestor と BDX</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——出荷後に直せない製品は作ってはいけない.</strong></p><p>セキュリティ脆弱性、相互運用性の不具合、仕様の更新—— <strong>出荷後にファームウェアを更新できないことは、それ自体がリスク</strong>である。</p><p>Matter は OTA を標準の枠組みとして定義している。 エコシステム側が更新を配信してくれるので、 <strong>メーカーが独自のクラウドを持たなくてよい</strong>——これは大きな利点である。</p></blockquote><h2>1. 登場人物</h2><div class="tablewrap"><table><thead><tr><th>ロール</th><th>クラスタ</th><th>役割</th></tr></thead><tbody><tr><td><strong>OTA Provider</strong></td><td><code>0x0029</code></td><td>イメージを配布する側。ハブやクラウド連携ノード</td></tr><tr><td><strong>OTA Requestor</strong></td><td><code>0x002A</code></td><td>更新を受ける側。<strong>あなたの機器</strong></td></tr></tbody></table></div><pre><code>[OTA Provider]                          [OTA Requestor（機器）]
+（ハブ、または                              │
+  エコシステムのクラウド                     │
+  と連携したノード）                         │
+      │&lt;──── QueryImage ──────────────────│ 「更新ありますか？」
+      │────&gt; QueryImageResponse ─────────&gt;│ 「あります。バージョン X」
+      │&lt;──── BDX でイメージを転送 ─────────&gt;│
+      │&lt;──── ApplyUpdateRequest ──────────│ 「適用してよいですか？」
+      │────&gt; ApplyUpdateResponse ────────&gt;│ 「どうぞ」
+      │                                   │ ← 再起動して適用
+      │&lt;──── NotifyUpdateApplied ─────────│ 「適用しました」</code></pre><h2>2. Requestor 側の流れ</h2><div class="widget" data-widget="ota"></div><h3>(a) Provider を知る</h3><div class="tablewrap"><table><thead><tr><th>方法</th><th>内容</th></tr></thead><tbody><tr><td><code>DefaultOTAProviders</code> 属性</td><td>コミッショニング時などに設定される</td></tr><tr><td><code>AnnounceOTAProvider</code> コマンド</td><td>Provider が「私がいます」と通知</td></tr></tbody></table></div><h3>(b) QueryImage</h3><pre><code>QueryImage {
+    VendorID, ProductID,
+    SoftwareVersion,          ← 現在のバージョン
+    ProtocolsSupported,       ← BDX Synchronous など
+    HardwareVersion,          ← 任意
+    Location, RequestorCanConsent, MetadataForProvider
+}
+    ↓
+QueryImageResponse {
+    Status,                   ← UpdateAvailable / Busy / NotAvailable / DownloadProtocolNotSupported
+    DelayedActionTime,        ← Busy のとき、次に聞くまでの待ち時間
+    ImageURI,                 ← bdx:// または https://
+    SoftwareVersion,          ← 新しいバージョン
+    SoftwareVersionString,
+    UpdateToken,              ← このセッションの識別子
+    UserConsentNeeded,
+    MetadataForRequestor
+}</code></pre><blockquote><p><strong><code>Busy</code> と <code>DelayedActionTime</code> が重要である.</strong> 家中の機器が一斉に更新を要求すると、Provider が過負荷になる。 <code>Busy</code> + 待ち時間で<strong>更新を分散させる</strong>。</p><p><strong>Requestor 側は必ずこれを尊重すること。</strong> 無視して即座に再試行する実装は、 認証テストでも問題になるし、実運用でネットワークを詰まらせる。</p></blockquote><h3>(c) ダウンロード（BDX）</h3><p><strong>BDX</strong>（Bulk Data Exchange）は、Matter のセッション上で大きなデータを転送するプロトコル。</p><div class="tablewrap"><table><thead><tr><th>特徴</th><th>内容</th></tr></thead><tbody><tr><td>Matter のセッション上で動く</td><td><strong>暗号化・認証済み</strong></td></tr><tr><td>ブロック単位の転送</td><td>ブロックサイズを折衝</td></tr><tr><td>再開</td><td>一部の実装では途中から再開可能</td></tr><tr><td>フロー制御</td><td>受信側のペースに合わせる</td></tr></tbody></table></div><p><code>https://</code> の URI が返される場合もある（大きなイメージや、Wi-Fi 機器向け）。 その場合は通常の HTTPS でダウンロードする。</p><blockquote><p><strong>Thread 機器での BDX は遅い.</strong> 250 kbps、実効はさらに低い。<strong>1 MB のイメージに数分〜数十分</strong>かかる。</p><p>対策:</p><ul><li><strong>イメージを小さくする</strong>（差分更新の仕組みを独自に持つメーカーもある）</li><li>圧縮する</li><li>更新中も基本機能が動くようにする（A/B 面）</li><li>ユーザーに進捗を見せる</li></ul><p>「更新中は使えません」が 30 分続く製品は、ユーザーに嫌われる。</p></blockquote><h3>(d) 適用</h3><pre><code>ApplyUpdateRequest { UpdateToken, NewVersion }
+    ↓
+ApplyUpdateResponse {
+    Action,        ← Proceed / AwaitNextAction / Discontinue
+    DelayedActionTime
+}</code></pre><div class="tablewrap"><table><thead><tr><th>Action</th><th>意味</th></tr></thead><tbody><tr><td><strong>Proceed</strong></td><td>適用してよい</td></tr><tr><td><strong>AwaitNextAction</strong></td><td>待て（あとで再度聞け）</td></tr><tr><td><strong>Discontinue</strong></td><td>中止せよ</td></tr></tbody></table></div><blockquote><p><strong><code>AwaitNextAction</code> の使いどころ.</strong> 「ドアロックが施錠中は更新しない」「照明が点いている間は更新しない」 といった制御を Provider 側から行える。</p><p>Requestor 側でも、<strong>危険な状態での再起動を避ける</strong>判断が必要である。 調理家電が加熱中に再起動してはいけない。</p></blockquote><h3>(e) 適用後</h3><pre><code>NotifyUpdateApplied { UpdateToken, SoftwareVersion }</code></pre><p>これで Provider は更新の成功を知る。</p><h2>3. UpdateState の遷移</h2><p><code>OtaSoftwareUpdateRequestor</code> クラスタの <code>UpdateState</code> 属性で外部から観測できる。</p><div class="tablewrap"><table><thead><tr><th>状態</th><th>意味</th></tr></thead><tbody><tr><td><code>Unknown</code></td><td>不明</td></tr><tr><td><code>Idle</code></td><td>何もしていない</td></tr><tr><td><code>Querying</code></td><td>問い合わせ中</td></tr><tr><td><code>DelayedOnQuery</code></td><td>Busy を受けて待機中</td></tr><tr><td><code>Downloading</code></td><td>ダウンロード中</td></tr><tr><td><code>Applying</code></td><td>適用中</td></tr><tr><td><code>DelayedOnApply</code></td><td>適用待機中</td></tr><tr><td><code>RollingBack</code></td><td>ロールバック中</td></tr><tr><td><code>DelayedOnUserConsent</code></td><td>ユーザー同意待ち</td></tr></tbody></table></div><p><code>UpdateStateProgress</code> 属性でダウンロードの進捗（0〜100）も公開される。</p><blockquote><p><strong>これらを正しく更新すること.</strong> アプリが「更新中 45%」と表示できるかどうかは、この属性次第である。 ユーザー体験に直結する。</p></blockquote><h2>4. イメージのフォーマット</h2><p>Matter の OTA イメージには標準ヘッダが定義されている。</p><div class="tablewrap"><table><thead><tr><th>フィールド</th><th>内容</th></tr></thead><tbody><tr><td>File Identifier</td><td><strong><code>0x1BEEF11E</code></strong></td></tr><tr><td>Total Size</td><td>ヘッダ + ペイロードの全長</td></tr><tr><td>Header Size</td><td>ヘッダ長</td></tr><tr><td><strong>Vendor ID / Product ID</strong></td><td>対象製品</td></tr><tr><td><strong>Software Version</strong></td><td>新しいバージョン（数値）</td></tr><tr><td>Software Version String</td><td>表示用</td></tr><tr><td>Payload Size</td><td>本体のサイズ</td></tr><tr><td>Min/Max Applicable Version</td><td>適用可能な現行バージョンの範囲</td></tr><tr><td>Release Notes URL</td><td>任意</td></tr><tr><td>Image Digest / Digest Type</td><td>ハッシュ</td></tr></tbody></table></div><pre><code class="lang-bash"># SDK のツールでイメージを作る
+./src/app/ota_image_tool.py create \
+    -v 0xFFF1 -p 0x8000 -vn 2 -vs "2.0" -da sha256 \
+    firmware.bin firmware-ota.bin
+
+# 中身を確認
+./src/app/ota_image_tool.py show firmware-ota.bin</code></pre><blockquote><p><strong><code>Min/Max Applicable Version</code> が段階的更新を可能にする.</strong> 「v1 → v3 に直接は上げられない。まず v2 を経由せよ」という制約を表現できる。 データ形式の移行が必要な更新で使う。</p></blockquote><h2>5. セキュリティ</h2><blockquote><p><strong>OTA は最も危険な攻撃経路である.</strong> 任意のファームウェアを流し込めれば、機器を完全に乗っ取れる。</p></blockquote><div class="tablewrap"><table><thead><tr><th>対策</th><th>内容</th></tr></thead><tbody><tr><td><strong>転送路の保護</strong></td><td>BDX は Matter セッション上なので暗号化・認証済み</td></tr><tr><td><strong>イメージの署名検証</strong></td><td><strong>機器側で必ず検証する。最重要</strong></td></tr><tr><td><strong>セキュアブート</strong></td><td>署名されていないイメージは起動しない</td></tr><tr><td>バージョンのダウングレード防止</td><td>古い（脆弱な）版に戻せないようにする</td></tr><tr><td><strong>ロールバック</strong></td><td>起動に失敗したら旧イメージに戻る</td></tr></tbody></table></div><blockquote><p><strong>署名検証を SoC のセキュアブートに任せるのが定石である.</strong> アプリケーション層で検証してから書き込むより、 <strong>ブートローダが起動前に検証する</strong>方が強い（書き込み後に改竄されても防げる）。</p><p><strong>Matter の仕様は「転送の保護」までしか規定していない。</strong> <strong>イメージ自体の署名と検証はメーカーの責任</strong>である。 ここを実装しないと、Provider を偽装できれば任意コード実行になる。</p></blockquote><h3>A/B 更新とロールバック</h3><pre><code>[領域 A: 現在動作中]   [領域 B: 空き]
+        ↓ ダウンロード
+[領域 A: 現在動作中]   [領域 B: 新イメージ]
+        ↓ 再起動、B から起動
+[領域 A: 旧イメージ]   [領域 B: 動作中（試用期間）]
+        ↓ 正常に動作すれば確定
+        ↓ 起動に失敗すれば A に戻る</code></pre><blockquote><p><strong>「試用期間」の判定基準を決める必要がある.</strong></p><ul><li>起動しただけで成功とするか</li><li>ネットワークに繋がったら成功とするか</li><li>コントローラと通信できたら成功とするか</li></ul><p><strong>緩すぎると、起動はするが通信できないファームで文鎮化する。</strong> 「Matter のセッションが 1 回確立できたら確定」あたりが実用的な基準である。</p></blockquote><h2>6. Provider 側の実装</h2><p>自社でハブを作る、または開発時に検証する場合。</p><pre><code class="lang-bash"># SDK のサンプル Provider
+./out/ota-provider-app/chip-ota-provider-app --filepath firmware-ota.bin
+
+# コミッショニングして ACL を設定
+chip-tool pairing onnetwork 2 20202021
+chip-tool accesscontrol write acl '[{"privilege":5,"authMode":2,"subjects":[112233],"targets":null},{"privilege":3,"authMode":2,"subjects":null,"targets":null}]' 2 0
+
+# Requestor に Provider を教える
+chip-tool otasoftwareupdaterequestor announce-otaprovider 2 0 0 0 1 0
+
+# 状態を見る
+chip-tool otasoftwareupdaterequestor read update-state 1 0
+chip-tool otasoftwareupdaterequestor read update-state-progress 1 0</code></pre><blockquote><p><strong>Provider の ACL 設定が必要である.</strong> Requestor が Provider の <code>QueryImage</code> を呼べるように、 <strong>Provider 側の ACL に「誰でも Operate 可」のエントリ</strong>が要る （上の例の 2 番目のエントリ）。 ここを忘れると <code>UNSUPPORTED_ACCESS</code> で止まる（14 章）。</p></blockquote><h2>7. 運用上の考慮</h2><div class="tablewrap"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><td><strong>配信の分散</strong></td><td>全機器が同時に更新すると帯域を食い潰す</td></tr><tr><td><strong>バージョン管理</strong></td><td><code>SoftwareVersion</code> は単調増加の整数（08 章）</td></tr><tr><td><strong>DCL への登録</strong></td><td>OTA 情報を DCL に載せる方式もある（12 章）</td></tr><tr><td><strong>エコシステム経由</strong></td><td>各社が独自に配信する場合、それぞれに提出が必要</td></tr><tr><td><strong>失敗時の再試行</strong></td><td>指数バックオフ</td></tr><tr><td><strong>電源断への耐性</strong></td><td>更新中に電源が切れても壊れない設計</td></tr><tr><td><strong>ユーザー通知</strong></td><td>更新の有無・進捗・完了</td></tr></tbody></table></div><blockquote><p><strong>エコシステムごとに配信の仕組みが違う点に注意.</strong> Apple / Google / Amazon がそれぞれ独自のパイプラインを持つ。 <strong>どこにイメージを提出し、どう承認されるか</strong>は各社のプログラムに従う。 認証取得（22 章）とセットで確認すべき事項である。</p></blockquote><h2>8. 落とし穴</h2><div class="tablewrap"><table><thead><tr><th>落とし穴</th><th>対処</th></tr></thead><tbody><tr><td><strong>Flash 容量が足りない</strong></td><td>設計時に 2 面分を確保（17 章）</td></tr><tr><td><strong>イメージの署名検証を実装しない</strong></td><td><strong>重大な脆弱性</strong>。セキュアブートを使う</td></tr><tr><td>ロールバックがない</td><td>更新失敗で文鎮化</td></tr><tr><td><code>SoftwareVersion</code> が非単調</td><td>更新判定が壊れる</td></tr><tr><td>Provider の ACL 未設定</td><td><code>UNSUPPORTED_ACCESS</code></td></tr><tr><td>Busy / DelayedActionTime を無視</td><td>Provider を圧迫、テストで問題になる</td></tr><tr><td>Thread での転送時間を見積もらない</td><td>数十分かかる</td></tr><tr><td>更新中に機器が使えない</td><td>UX の悪化。A/B 面で回避</td></tr><tr><td>電源断への耐性がない</td><td>ブリックする</td></tr><tr><td>進捗属性を更新しない</td><td>アプリで進捗が見えない</td></tr><tr><td>危険な状態での再起動</td><td>加熱中・施錠動作中などは避ける</td></tr></tbody></table></div><h2>9. まとめ</h2><ul><li>OTA は <strong>Provider（配布）</strong> と <strong>Requestor（機器）</strong> の 2 者。 <code>QueryImage</code> → <strong>BDX でダウンロード</strong> → <code>ApplyUpdateRequest</code> → 適用 → <code>NotifyUpdateApplied</code>。</li><li><strong>BDX は Matter セッション上</strong>なので転送路は保護されている。 だが<strong>イメージ自体の署名検証はメーカーの責任</strong>。<strong>セキュアブートで検証するのが定石</strong>。</li><li><strong>A/B 更新とロールバック</strong>は必須。「試用期間の成功判定」を明確に決める。</li><li><strong>Thread では転送に数十分かかりうる</strong>。イメージを小さく、更新中も使えるように。</li><li><strong>Flash 容量は最初から 2 面分</strong>。後から足せない。</li><li><code>Busy</code> / <code>DelayedActionTime</code> を尊重して配信を分散させる。</li><li><code>UpdateState</code> / <code>UpdateStateProgress</code> を正しく更新する。ユーザー体験に直結する。</li></ul>
+  <nav class="chnav"><a class="pn" href="17.html"><span>←</span><b>デバイス実装の実際 — プラットフォーム・Factory Data・省電力・TLV</b></a><a class="pn nx" href="19.html"><b>ブリッジ — 既存機器を Matter に見せる</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

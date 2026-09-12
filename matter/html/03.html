@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>03. IPv6 の基礎 — Matter は IPv6 の上にしか存在しない — Matter</title>
+<link rel="stylesheet" href="matter.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../matter.html">Matter</a>
+  <span class="cur">03 · IPv6 の基礎 — Matter は IPv6 の上にしか存在しない</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 03</p>
+  <h1 class="doctitle">IPv6 の基礎 — Matter は IPv6 の上にしか存在しない</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「機器が見つからない」の原因の多くはここにある.</strong></p><p>Matter は <strong>IPv6 必須</strong>である。IPv4 は一切使わない。 これは設計上の妥協ではなく、明確な選択である。</p><p>そして開発現場で最も多いトラブルの 1 つが 「コミッショニングはできたのに、その後つながらない」—— その原因の大半は <strong>IPv6 のアドレス・ルーティング・マルチキャスト</strong>にある。</p><p>この章では、Matter に必要な範囲に絞って IPv6 を整理する。 IPv6 に詳しい人も、<strong>マルチキャストと ULA の節だけは目を通してほしい</strong>。</p></blockquote><h2>1. なぜ IPv6 なのか</h2><div class="tablewrap"><table><thead><tr><th>理由</th><th>内容</th></tr></thead><tbody><tr><td><strong>アドレスが枯渇しない</strong></td><td>家庭内に数百のセンサーがあっても NAT が要らない</td></tr><tr><td><strong>NAT がない</strong></td><td>端末どうしが直接通信できる。ローカル制御の前提</td></tr><tr><td><strong>リンクローカルが標準</strong></td><td>設定なしで同一リンク内の通信ができる</td></tr><tr><td><strong>マルチキャストが標準機能</strong></td><td>mDNS による探索が素直に書ける（IPv4 のブロードキャストと違い階層化されている）</td></tr><tr><td><strong>6LoWPAN との親和性</strong></td><td>Thread が IPv6 前提で設計されている</td></tr><tr><td><strong>アドレス自動設定 (SLAAC)</strong></td><td>DHCP サーバなしでアドレスが決まる</td></tr></tbody></table></div><blockquote><p><strong>決定的なのは NAT がないことである.</strong> IPv4 + NAT の世界では、家庭内の機器どうしが直接通信するのに UPnP や STUN のような回避策が必要だった。 IPv6 ではすべての機器がグローバルに一意なアドレスを持てるので、 <strong>「スマホから電球へ直接パケットを送る」が素直に書ける</strong>。 Matter のローカル制御は、この性質の上に成り立っている。</p></blockquote><h2>2. アドレスの形</h2><pre><code>2001:0db8:0000:0000:0000:8a2e:0370:7334
+└──────────┬──────────┘└──────────┬─────┘
+      ネットワーク部            インタフェース ID
+      （通常 64 bit）             （通常 64 bit）</code></pre><p>128 bit を 16 bit ずつ 8 グループに区切り、16 進で書く。省略規則:</p><div class="tablewrap"><table><thead><tr><th>規則</th><th>例</th></tr></thead><tbody><tr><td>各グループの先頭 0 は省略</td><td><code>0db8</code> → <code>db8</code></td></tr><tr><td>連続する 0 グループを <code>::</code> に（<strong>1 回だけ</strong>）</td><td><code>2001:db8:0:0:0:0:0:1</code> → <code>2001:db8::1</code></td></tr></tbody></table></div><h2>3. アドレスの種類 — ここを取り違えると詰まる</h2><div class="widget" data-widget="ipv6"></div><p>Matter の開発では、<strong>同じ機器が複数の IPv6 アドレスを同時に持つ</strong>のが普通である。 どれを使うべきかを知らないと、通信できない。</p><div class="tablewrap"><table><thead><tr><th>種類</th><th>プレフィックス</th><th>到達範囲</th><th>Matter での用途</th></tr></thead><tbody><tr><td><strong>リンクローカル (LLA)</strong></td><td><code>fe80::/10</code></td><td><strong>同一リンク内のみ</strong></td><td>近隣探索、同一リンク内の通信</td></tr><tr><td><strong>ユニークローカル (ULA)</strong></td><td><code>fc00::/7</code>（実質 <code>fd00::/8</code>）</td><td><strong>サイト内（家庭内）</strong></td><td><strong>Matter の主戦場</strong></td></tr><tr><td><strong>グローバル (GUA)</strong></td><td><code>2000::/3</code></td><td>インターネット全体</td><td>ISP から配られていれば使える</td></tr><tr><td><strong>マルチキャスト</strong></td><td><code>ff00::/8</code></td><td>指定スコープ</td><td>mDNS、グループ制御</td></tr><tr><td><strong>ループバック</strong></td><td><code>::1</code></td><td>自ノード</td><td>—</td></tr></tbody></table></div><h3>リンクローカルアドレス (LLA)</h3><p>すべての IPv6 インタフェースが必ず持つ。<code>fe80::</code> + インタフェース ID。</p><blockquote><p><strong>重要な性質: LLA はルータを越えない.</strong> だから「Wi-Fi の機器と Thread の機器」のように<strong>別リンクにいる相手には LLA では届かない</strong>。</p><p>また LLA を使うときは<strong>スコープ ID（インタフェース指定）が必須</strong>である。 <code>ping6 fe80::1</code> は失敗し、<code>ping6 fe80::1%eth0</code> が必要になる。 複数インタフェースがあると、どこへ送るか決まらないからだ。</p></blockquote><h3>ユニークローカルアドレス (ULA)</h3><p><code>fd</code> + 40 bit のランダムなグローバル ID + 16 bit のサブネット ID + 64 bit のインタフェース ID。</p><pre><code>fd11:2233:4455:0001:0011:2233:4455:6677
+└┬┘└──────┬─────┘└─┬┘└──────────┬───────┘
+ fd  グローバルID  サブネット   インタフェースID
+     （ランダム）</code></pre><p><strong>家庭内で閉じた、しかしリンクを越えられるアドレス。</strong> Matter が最も頼りにする種類である。</p><blockquote><p><strong>Thread の Mesh-Local プレフィックス</strong>は ULA である（<code>fd&lt;random&gt;/64</code>）。 Thread ネットワークの内部通信に使われる。</p><p>さらに Border Router は <strong>OMR プレフィックス</strong>（Off-Mesh-Routable、これも通常 ULA）を Thread ネットワークに配布し、<strong>Wi-Fi 側からも到達できるアドレス</strong>を機器に持たせる。 「Thread の電球にスマホから届く」のは、この OMR アドレスのおかげである（04 章）。</p></blockquote><h3>グローバルユニキャストアドレス (GUA)</h3><p>ISP から IPv6 プレフィックスが配られていれば、機器はこれも持つ。 Matter の動作に必須ではないが、あれば使われる。</p><blockquote><p><strong>GUA があると外から直接届いてしまうのでは？</strong> 到達可能性とアクセス許可は別である。 Matter の通信は<strong>必ず暗号化・認証されている</strong>（11 章）ので、 鍵を持たない相手はセッションを張れない。 とはいえ、家庭用ルータは通常デフォルトで外部からの着信を遮断する設定になっている。</p></blockquote><h2>4. マルチキャスト — 探索の要</h2><div class="widget" data-widget="mcast"></div><p>IPv6 にはブロードキャストがなく、<strong>マルチキャスト</strong>で代替する。</p><pre><code>ff  0  2      ...      :fb
+│   │  │
+│   │  └─ スコープ（2 = リンクローカル、5 = サイト）
+│   └──── フラグ
+└──────── マルチキャスト識別</code></pre><p>Matter に関係する主なアドレス:</p><div class="tablewrap"><table><thead><tr><th>アドレス</th><th>用途</th></tr></thead><tbody><tr><td><code>ff02::1</code></td><td>リンク内の全ノード</td></tr><tr><td><code>ff02::2</code></td><td>リンク内の全ルータ</td></tr><tr><td><code>ff02::fb</code></td><td><strong>mDNS</strong>（リンクローカルスコープ）</td></tr><tr><td><code>ff03::fb</code></td><td>mDNS（サイトローカルスコープ、Thread で使う）</td></tr><tr><td><code>ff02::1:ffXX:XXXX</code></td><td>Solicited-node（近隣探索用）</td></tr></tbody></table></div><blockquote><p><strong>mDNS のスコープが実務で最大の落とし穴である.</strong></p><p>Wi-Fi 側の機器は <code>ff02::fb</code>（リンクローカル）で mDNS を出す。 Thread 側の機器はメッシュ全体に届く必要があるので <code>ff03::fb</code>（サイトローカル）を使う。</p><p><strong>この 2 つは自動では繋がらない。</strong> Thread Border Router が<strong>両者を中継</strong>することで、初めて 「スマホ（Wi-Fi）が Thread の電球を見つけられる」状態になる。</p><p>「Thread の機器がスマホから見えない」というトラブルの多くは、 Border Router の mDNS 中継（あるいは SRP サーバ）が正しく動いていないことに起因する。</p></blockquote><h3>マルチキャストが届かない環境</h3><div class="tablewrap"><table><thead><tr><th>環境</th><th>問題</th></tr></thead><tbody><tr><td>企業ネットワーク</td><td>マルチキャストが遮断されていることが多い</td></tr><tr><td>ゲスト用 Wi-Fi</td><td>端末間通信（クライアント分離）が禁止されている</td></tr><tr><td>メッシュ Wi-Fi</td><td>中継機を跨ぐとマルチキャストが落ちることがある</td></tr><tr><td>VLAN 分割</td><td>IoT 用 VLAN を分けると mDNS が越えられない</td></tr></tbody></table></div><blockquote><p><strong>開発中は必ず、素直なフラットなネットワークで検証すること。</strong> 高機能なルータほど、IoT の探索を妨げる機能が有効になっている。</p></blockquote><h2>5. 近隣探索 (NDP) とアドレス自動設定</h2><p>IPv6 では ARP の代わりに <strong>NDP</strong>（Neighbor Discovery Protocol、ICMPv6 ベース）を使う。</p><div class="tablewrap"><table><thead><tr><th>メッセージ</th><th>役割</th></tr></thead><tbody><tr><td>Router Solicitation (RS)</td><td>「ルータはいますか」</td></tr><tr><td>Router Advertisement (RA)</td><td>「私がルータです。プレフィックスはこれです」</td></tr><tr><td>Neighbor Solicitation (NS)</td><td>「このアドレスの人、MAC は？」（ARP 相当）</td></tr><tr><td>Neighbor Advertisement (NA)</td><td>「私です」</td></tr></tbody></table></div><h3>SLAAC（ステートレスアドレス自動設定）</h3><ol><li>機器が LLA を自分で作る（インタフェース ID から）</li><li><strong>DAD</strong>（重複検出）で NS を送り、誰も応答しなければ確定</li><li>RS を送る → ルータが RA でプレフィックスを教える</li><li>プレフィックス + インタフェース ID で GUA / ULA を生成</li></ol><p><strong>DHCP サーバが要らない</strong>のが IPv6 の大きな利点である。</p><blockquote><p><strong>DAD の遅延に注意.</strong> アドレスが使えるようになるまで、DAD の待ち時間（通常 1 秒程度）がかかる。 起動直後にすぐ通信しようとして失敗する実装バグは実際に存在する。 <strong>「アドレスが確定してから通信を開始する」</strong>を守ること。</p></blockquote><h2>6. MTU とフラグメンテーション</h2><div class="tablewrap"><table><thead><tr><th>ネットワーク</th><th>実効ペイロード</th></tr></thead><tbody><tr><td>Ethernet / Wi-Fi</td><td>1500 bytes（IPv6 の最小 MTU は 1280）</td></tr><tr><td><strong>Thread (802.15.4)</strong></td><td><strong>物理フレーム 127 bytes</strong>。ヘッダ圧縮後の実効ペイロードは <strong>数十バイト</strong></td></tr></tbody></table></div><blockquote><p><strong>これが Matter の設計を大きく規定している.</strong></p><ul><li>ペイロードは <strong>TLV</strong> で極限まで小さくする（02 章・17 章）</li><li>IPv6 では<strong>中継ルータがフラグメントできない</strong>（送信元だけが行う）</li><li>6LoWPAN がヘッダ圧縮とフラグメント／再構成を担う</li></ul><p><strong>フラグメントは高価である。</strong> 802.15.4 上で 1 パケットが 5 フラグメントに割れると、 1 つ落ちるだけで全部再送になり、電池も食う。</p><p>実装上の含意: <strong>属性を一度に大量に読まない</strong>。 ワイルドカード読み出し（09 章）で数百の属性を一気に取ると、 Thread デバイスでは応答が巨大になり、失敗率が跳ね上がる。</p></blockquote><h2>7. 開発でよく使う確認コマンド</h2><pre><code class="lang-bash"># インタフェースの IPv6 アドレスを全部見る
+ip -6 addr show            # Linux
+ifconfig | grep inet6      # macOS
+
+# リンクローカルへの ping（スコープ必須）
+ping6 fe80::1234:5678:9abc:def0%en0
+
+# 全ノードマルチキャストで生存確認（同一リンクの IPv6 機器が一覧できる）
+ping6 -I en0 ff02::1
+
+# 近隣キャッシュ
+ip -6 neigh                # Linux
+ndp -an                    # macOS
+
+# 経路
+ip -6 route                # Linux
+netstat -rn -f inet6       # macOS
+
+# mDNS で Matter の機器を探す
+dns-sd -B _matter._tcp             # macOS（運用中の機器）
+dns-sd -B _matterc._udp            # macOS（コミッショニング待ちの機器）
+avahi-browse -r _matter._tcp       # Linux</code></pre><blockquote><p><strong><code>ping6 ff02::1</code> は最初にやるべき確認である.</strong> 同一リンクにいる IPv6 対応機器が全部応答する。 ここに目的の機器が出てこなければ、<strong>Matter 以前にネットワークの問題</strong>である。</p></blockquote><h2>8. よくあるトラブルと切り分け</h2><div class="tablewrap"><table><thead><tr><th>症状</th><th>疑うべきこと</th></tr></thead><tbody><tr><td>機器が発見できない</td><td>mDNS がブロックされている。マルチキャストが通っていない</td></tr><tr><td>Thread 機器だけ見えない</td><td>Border Router の中継。OMR プレフィックスが配られているか</td></tr><tr><td>コミッショニング後に繋がらない</td><td>運用アドレスが変わった。DNS-SD の再登録（SRP）が失敗している</td></tr><tr><td>一部の機器だけ不安定</td><td>Wi-Fi の省電力設定でマルチキャストが取りこぼされている</td></tr><tr><td>大きな読み出しだけ失敗</td><td>MTU / フラグメント（Thread で顕著）</td></tr><tr><td>ルータ再起動後につながらない</td><td>プレフィックスが変わり、機器が古いアドレスのまま</td></tr></tbody></table></div><h3>切り分けの順序</h3><pre><code>1. ping6 ff02::1 で相手が見えるか
+       ↓ 見えない → リンク層・IPv6 の問題（Matter 以前）
+2. dns-sd / avahi でサービスが見えるか
+       ↓ 見えない → mDNS・マルチキャスト・SRP の問題
+3. アドレスへ直接 ping6 が通るか
+       ↓ 通らない → ルーティング・プレフィックスの問題
+4. Matter のログでセッション確立を確認
+       ↓ 失敗 → 証明書・鍵・ACL の問題（12〜14 章）</code></pre><blockquote><p><strong>この順序を守ると、原因の特定が劇的に速くなる.</strong> 逆に、いきなり Matter のログを読み始めると、 実はネットワークの問題だったというケースで大量の時間を失う。</p></blockquote><h2>9. まとめ</h2><ul><li>Matter は <strong>IPv6 専用</strong>。IPv4 は使わない。NAT がないことがローカル制御の前提。</li><li>機器は <strong>LLA・ULA・GUA を同時に持つ</strong>。用途が違う。LLA はリンクを越えない。</li><li>Thread では <strong>Mesh-Local</strong>（内部用）と <strong>OMR</strong>（外部から到達可能）を区別する。</li><li>mDNS のスコープ（<code>ff02::fb</code> と <code>ff03::fb</code>）の橋渡しは <strong>Border Router の仕事</strong>。</li><li><strong>802.15.4 の 127 バイトフレーム</strong>が、TLV の採用と「一度に読みすぎない」設計を強いている。</li><li>トラブルは必ず <strong>下の層から順に</strong>切り分ける。<code>ping6 ff02::1</code> が最初の一手。</li></ul>
+  <nav class="chnav"><a class="pn" href="02.html"><span>←</span><b>アーキテクチャと用語の地図</b></a><a class="pn nx" href="04.html"><b>Thread — 低消費電力 IPv6 メッシュ</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

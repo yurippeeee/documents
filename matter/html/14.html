@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>14. 運用時のセキュリティとマルチアドミン — CASE・ACL・Fabric — Matter</title>
+<link rel="stylesheet" href="matter.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../matter.html">Matter</a>
+  <span class="cur">14 · 運用時のセキュリティとマルチアドミン — CASE・ACL・Fabric</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 14</p>
+  <h1 class="doctitle">運用時のセキュリティとマルチアドミン — CASE・ACL・Fabric</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「複数のエコシステムに同時対応」が Matter の売りだから.</strong></p><p>Apple Home と Google Home に同じ電球を登録できる—— これは Matter の最大の差別化要因である。</p><p>だが技術的には難しい。<strong>互いを信頼しない複数の管理者が、 同じ機器を同時に管理する</strong>からである。</p><p>そして実装で最も多いバグの源でもある。 「1 つ目のエコシステムでは動くが 2 つ目で失敗する」は定番の症状である。</p></blockquote><h2>1. CASE — 運用時のセッション確立</h2><p><strong>Certificate Authenticated Session Establishment</strong>。 双方が同じ Fabric の NOC を持っていることを相互に確認する。</p><pre><code>イニシエータ                            レスポンダ
+    │                                    │
+    │──── Sigma1 ──────────────────────&gt;│  乱数、エフェメラル公開鍵、
+    │                                    │  暗号化された宛先識別子
+    │&lt;─── Sigma2 ───────────────────────│  乱数、エフェメラル公開鍵、
+    │                                    │  暗号化された NOC と署名
+    │──── Sigma3 ──────────────────────&gt;│  暗号化された NOC と署名
+    │&lt;─── StatusReport (成功) ───────────│
+    │                                    │
+    └──── セッション鍵を導出、以降暗号化通信 ─┘</code></pre><div class="tablewrap"><table><thead><tr><th>特徴</th><th>内容</th></tr></thead><tbody><tr><td><strong>SIGMA プロトコル</strong></td><td>相互認証付き鍵交換。ECDH（P-256）+ ECDSA 署名</td></tr><tr><td><strong>アイデンティティ保護</strong></td><td>証明書は暗号化されて送られる。盗聴者に身元が漏れない</td></tr><tr><td><strong>前方秘匿性</strong></td><td>エフェメラル鍵を使うので、長期鍵が漏れても過去の通信は復号できない</td></tr><tr><td><strong>IPK の役割</strong></td><td>宛先識別子の生成に使われ、<strong>Fabric の一致を確認</strong>する</td></tr></tbody></table></div><blockquote><p><strong>なぜ証明書を暗号化するのか.</strong> 平文で NOC を送ると、盗聴者に「この家には Node ID 0x42 の機器がいる」と分かる。 <strong>プライバシーのため</strong>、Sigma2/Sigma3 の中身は暗号化される。</p></blockquote><h3>CASE Resumption</h3><p>一度確立したセッションの情報を保持しておき、<strong>次回は短縮した手順で再確立</strong>する。</p><div class="tablewrap"><table><thead><tr><th>効果</th><th>内容</th></tr></thead><tbody><tr><td>ECDSA 署名検証を省略</td><td><strong>組み込み機器では大きな節約</strong>（署名検証は重い）</td></tr><tr><td>ラウンドトリップの削減</td><td>応答が速い</td></tr><tr><td>電池の節約</td><td>特に SED で効く</td></tr></tbody></table></div><blockquote><p><strong>P-256 の署名検証は、Cortex-M クラスの MCU で数十〜数百 ms かかる.</strong> ハードウェアアクセラレータがなければ、CASE 確立に 1 秒近くかかることもある。 <strong>Resumption の実装は、体感速度に直結する。</strong></p></blockquote><h2>2. Fabric の構造</h2><pre><code>Fabric（1 つのエコシステムの管理ドメイン）
+ ├── Root CA 証明書（RCAC）      … この Fabric の信頼の根
+ ├── Fabric ID（64 bit）
+ ├── IPK（Identity Protection Key）
+ └── 所属する Node たち
+      └── 各 Node の NOC（Root CA が発行）</code></pre><p>機器側から見ると、Fabric ごとに以下を保持する。</p><div class="tablewrap"><table><thead><tr><th>保持するもの</th><th>サイズの目安</th></tr></thead><tbody><tr><td>RCAC</td><td>数百 byte</td></tr><tr><td>ICAC（任意）</td><td>数百 byte</td></tr><tr><td>NOC</td><td>数百 byte</td></tr><tr><td><strong>操作用秘密鍵</strong></td><td>32 byte（+ 保護のオーバーヘッド）</td></tr><tr><td>IPK</td><td>16 byte</td></tr><tr><td>ACL エントリ</td><td>数百 byte</td></tr><tr><td>グループ鍵</td><td>数十 byte × グループ数</td></tr><tr><td>Fabric Label</td><td>32 byte</td></tr></tbody></table></div><blockquote><p><strong>1 Fabric あたり 1〜2 KB は見ておく必要がある.</strong> 5 Fabric なら 5〜10 KB。RAM ではなく<strong>不揮発メモリ</strong>を消費する。 <code>SupportedFabrics</code> を大きく宣言するなら、フラッシュの余裕を確保すること（17 章）。</p></blockquote><h3>Fabric Index</h3><p>機器内部での Fabric の通し番号（1 から始まる 8 bit）。 Fabric-Scoped な属性（07 章）はこれで所属を区別する。</p><blockquote><p><strong>Fabric Index は機器のローカルな値である.</strong> 同じ Fabric でも、機器 A では Index 1、機器 B では Index 2 かもしれない。 <strong>グローバルな識別子ではない</strong>ので、コントローラ間で共有してはいけない。</p></blockquote><h2>3. ACL — アクセス制御リスト</h2><div class="widget" data-widget="acl"></div><p><code>AccessControl</code> クラスタ (<code>0x001F</code>) の <code>ACL</code> 属性。<strong>Fabric-Scoped</strong> である。</p><h3>エントリの構造</h3><div class="tablewrap"><table><thead><tr><th>フィールド</th><th>内容</th></tr></thead><tbody><tr><td><strong>Privilege</strong></td><td>View / ProxyView / Operate / Manage / Administer</td></tr><tr><td><strong>AuthMode</strong></td><td>PASE / <strong>CASE</strong> / Group</td></tr><tr><td><strong>Subjects</strong></td><td>対象の Node ID のリスト（または CAT、Group ID）。<strong>空 = 全員</strong></td></tr><tr><td><strong>Targets</strong></td><td>対象の {Cluster, Endpoint, DeviceType}。<strong>空 = すべて</strong></td></tr><tr><td>FabricIndex</td><td>所属 Fabric（自動設定）</td></tr></tbody></table></div><h3>判定のルール</h3><pre><code>要求（Subject, 操作対象のパス, 必要な特権）が来る
+   ↓
+その Fabric の ACL エントリを順に見る
+   ↓
+以下をすべて満たすエントリが 1 つでもあれば許可:
+   - AuthMode が一致
+   - Subjects が空、または要求元の Node ID を含む
+   - Targets が空、または対象のパスに一致
+   - Privilege が必要な特権以上
+   ↓
+1 つもなければ UNSUPPORTED_ACCESS (0x7E)</code></pre><blockquote><p><strong>「拒否」のエントリは存在しない.</strong> 許可リストだけである。 だから ACL が空なら<strong>誰も何もできない</strong>。</p><p>コミッショニング時に <code>AddNOC</code> の <code>CaseAdminSubject</code> から 自動生成される 1 件目のエントリが、この状態を脱するための入口である（13 章）。</p></blockquote><h3>特権の階層</h3><pre><code>Administer  ⊃  Manage  ⊃  Operate  ⊃  View</code></pre><p>上位は下位をすべて含む。<code>ProxyView</code> は View と同等の読み取りに使われる特殊な特権である。</p><h3>CAT（CASE Authenticated Tag）</h3><p>NOC の Subject に含められる<strong>タグ</strong>。個別の Node ID ではなく、 「このタグを持つ者」という単位で ACL を書ける。</p><pre><code>ACL エントリ: { Privilege: Operate, AuthMode: CASE, Subjects: [CAT 0x0001_0001] }
+   → CAT 0x0001_0001 を持つ NOC の保持者は誰でも Operate できる</code></pre><div class="tablewrap"><table><thead><tr><th>用途</th><th>内容</th></tr></thead><tbody><tr><td><strong>管理者の追加</strong></td><td>新しいコントローラに同じ CAT の NOC を発行すれば、ACL を変えずに権限が付く</td></tr><tr><td><strong>バージョン管理</strong></td><td>CAT の下位 16 bit がバージョン。古い版を無効化できる</td></tr></tbody></table></div><blockquote><p><strong>CAT は大規模なエコシステムで必須になる.</strong> 家族 5 人のスマホそれぞれに Node ID があるとき、 全機器の ACL に 5 つの Node ID を書くのは非現実的である。 <strong>CAT を 1 つ書いておけば、新しい端末は NOC の発行だけで参加できる。</strong></p></blockquote><h2>4. マルチアドミン — 2 つ目のエコシステムを追加する</h2><div class="widget" data-widget="fabric"></div><pre><code>[すでに Apple Home にコミッショニング済みの電球]
+   ↓
+1. ユーザーが Apple Home で「他のプラットフォームに追加」を選ぶ
+   ↓
+2. Apple Home が AdministratorCommissioning.OpenCommissioningWindow を送る
+      - 新しい PAKE 検証子（新しい一時的な passcode に対応）
+      - タイムアウト（最大 15 分）
+   ↓
+3. 新しい QR コード（またはコード）が Apple Home の画面に表示される
+   ↓
+4. ユーザーが Google Home でそれを読む
+   ↓
+5. Google Home が PASE → 認証 → 自分の Fabric の NOC を発行して AddNOC
+   ↓
+6. 機器が 2 つ目の Fabric に所属する</code></pre><div class="tablewrap"><table><thead><tr><th>コマンド</th><th>内容</th></tr></thead><tbody><tr><td><code>OpenCommissioningWindow</code></td><td>新しい検証子を渡してウィンドウを開く（<strong>推奨</strong>）</td></tr><tr><td><code>OpenBasicCommissioningWindow</code></td><td>元の passcode でウィンドウを開く（機器の対応は任意）</td></tr><tr><td><code>RevokeCommissioning</code></td><td>ウィンドウを閉じる</td></tr></tbody></table></div><blockquote><p><strong><code>OpenCommissioningWindow</code> が推奨される理由.</strong> 元の passcode（QR コードに印刷されている）を再利用すると、 <strong>箱や本体のラベルを見た人が誰でも参加できる</strong>。</p><p>新しい一時的な検証子を使えば、その場で表示された値を知る者だけが参加できる。 <strong>時間制限もあるので、より安全である。</strong></p></blockquote><h3>Enhanced Multi-Admin（1.4 以降）</h3><p>QR コードの手動読み取りを不要にし、<strong>エコシステム間で直接連携</strong>して機器を共有する仕組み。 ユーザー体験の改善が目的である。対応は各エコシステムの実装次第となる。</p><h2>5. Fabric の管理</h2><div class="tablewrap"><table><thead><tr><th>コマンド／属性</th><th>内容</th></tr></thead><tbody><tr><td><code>OperationalCredentials.Fabrics</code></td><td>所属している Fabric の一覧（<strong>Fabric-Sensitive</strong>）</td></tr><tr><td><code>OperationalCredentials.SupportedFabrics</code></td><td>対応可能な最大数</td></tr><tr><td><code>OperationalCredentials.CommissionedFabrics</code></td><td>現在の所属数</td></tr><tr><td><code>UpdateFabricLabel</code></td><td>ユーザー向けのラベルを設定</td></tr><tr><td><strong><code>RemoveFabric</code></strong></td><td>Fabric から離脱</td></tr></tbody></table></div><blockquote><p><strong><code>Fabrics</code> 属性は Fabric-Sensitive である.</strong> Apple Home から読むと、Google Home の Fabric の詳細（ラベルなど）は隠される。 <strong>「他にいくつ所属しているか」は分かるが、中身は見えない</strong>——これが仕様の意図である。</p></blockquote><h3>RemoveFabric の注意</h3><pre><code>RemoveFabric(fabricIndex)
+   ↓
+その Fabric の NOC・鍵・ACL・グループ鍵・サブスクリプションをすべて削除
+   ↓
+所属 Fabric が 0 になったら → ファクトリリセット相当の状態に戻る</code></pre><blockquote><p><strong>自分自身の Fabric を削除すると、応答が返らないことがある.</strong> セッションが即座に無効になるためである。 <strong>コントローラ側は「応答なし」を成功として扱う</strong>必要がある。</p></blockquote><h2>6. グループ通信のセキュリティ</h2><p>グループコマンド（09 章）はマルチキャストで、<strong>CASE セッションを使わない</strong>。 代わりに<strong>グループ鍵</strong>で保護する。</p><pre><code>Group Key Management クラスタ
+ ├── GroupKeySet（鍵の集合。Epoch キーを 3 世代まで持てる）
+ └── GroupKeyMap（Group ID ↔ GroupKeySet の対応）</code></pre><div class="tablewrap"><table><thead><tr><th>特徴</th><th>内容</th></tr></thead><tbody><tr><td>Fabric-Scoped</td><td>Fabric ごとに独立</td></tr><tr><td><strong>Epoch キー</strong></td><td>世代交代できる。古い鍵と新しい鍵を並行して受け入れる期間がある</td></tr><tr><td>対称鍵</td><td>グループの全メンバーが同じ鍵を持つ</td></tr></tbody></table></div><blockquote><p><strong>グループ鍵は「グループの誰か 1 台が漏れたら全部漏れる」構造である.</strong> 対称鍵なので原理的にこうなる。 だから<strong>グループ通信は重要度の低い操作に限る</strong>のが設計上の原則である。 ドアロックの解錠をグループコマンドで行うべきではない。</p><p>Epoch キーのローテーションは、この弱さを緩和するための仕組みである。</p></blockquote><h2>7. ファクトリリセット</h2><div class="tablewrap"><table><thead><tr><th>トリガ</th><th>例</th></tr></thead><tbody><tr><td>物理ボタンの長押し</td><td>最も一般的</td></tr><tr><td>全 Fabric の削除</td><td><code>RemoveFabric</code> の結果</td></tr><tr><td>特定の手順</td><td>電源の入切を N 回など</td></tr></tbody></table></div><p><strong>消すべきもの:</strong></p><ul><li><span class="task">☐</span> すべての Fabric（NOC、RCAC、ICAC、操作用秘密鍵、IPK）</li><li><span class="task">☐</span> ACL</li><li><span class="task">☐</span> グループ鍵</li><li><span class="task">☐</span> バインディング</li><li><span class="task">☐</span> ネットワーク認証情報（Wi-Fi パスワード、Thread Dataset）</li><li><span class="task">☐</span> サブスクリプション情報</li><li><span class="task">☐</span> ユーザー設定（NodeLabel など）</li></ul><p><strong>消してはいけないもの:</strong></p><ul><li>DAC / PAI / CD と DAC 秘密鍵（工場データ）</li><li>VID / PID / シリアル番号</li><li>SPAKE2+ 検証子（元の passcode に対応するもの）</li></ul><blockquote><p><strong>中古品・返品されて再販される機器で、これが決定的に重要になる.</strong> 前の持ち主の Wi-Fi パスワードが残っていたら重大な事故である。</p><p><strong>ファクトリリセットの完全性は、認証テストでも確認される。</strong> 「消したつもりで消えていない」を防ぐため、<strong>リセット後に実際にフラッシュを ダンプして確認する</strong>テストを開発工程に入れるべきである。</p></blockquote><h2>8. 落とし穴</h2><div class="tablewrap"><table><thead><tr><th>落とし穴</th><th>内容</th></tr></thead><tbody><tr><td><strong>ACL の設定漏れ</strong></td><td><code>UNSUPPORTED_ACCESS</code> (0x7E) の主因。最頻出</td></tr><tr><td>Fabric-Scoped の実装ミス</td><td>他 Fabric の設定を消す・見せてしまう</td></tr><tr><td>Fabric 数の見積り不足</td><td>2〜3 個目で <code>RESOURCE_EXHAUSTED</code></td></tr><tr><td>不揮発メモリの不足</td><td>Fabric 追加で書き込み失敗</td></tr><tr><td>CASE Resumption 未実装</td><td>再接続が遅い（特に電池機器）</td></tr><tr><td>ウィンドウを閉じ忘れる</td><td>誰でも参加できる状態が残る</td></tr><tr><td><code>RemoveFabric</code> の応答待ち</td><td>自分自身を削除すると応答が来ない</td></tr><tr><td>ファクトリリセットの不完全性</td><td>前の持ち主の情報が残る</td></tr><tr><td>グループ鍵の Epoch 管理ミス</td><td>鍵交代時に通信が途切れる</td></tr><tr><td>時刻のずれ</td><td>証明書の有効期限判定に影響しうる</td></tr></tbody></table></div><blockquote><p><strong>「1 つ目は動くが 2 つ目で失敗する」の診断.</strong></p><ol><li><code>CommissionedFabrics</code> と <code>SupportedFabrics</code> を読む → 上限に達していないか</li><li>不揮発メモリの空きを確認 → 書き込み失敗していないか</li><li>Fabric-Scoped 属性の実装を確認 → 1 つ目の設定を上書きしていないか</li><li>ACL を読む → 2 つ目の Fabric のエントリが作られているか</li><li>Fail-Safe の巻き戻しを確認 → 前回の失敗が残っていないか</li></ol><p><strong>開発中は必ず 3 つ以上の Fabric でテストすること。</strong> chip-tool は <code>--commissioner-name</code> で複数の Fabric を扱える。</p></blockquote><pre><code class="lang-bash"># 2 つ目の Fabric として追加する（chip-tool）
+# まず既存の管理者としてウィンドウを開く
+chip-tool pairing open-commissioning-window 1 1 300 1000 3840
+# → 表示された manual code / QR で別のコミッショナから参加
+chip-tool --commissioner-name beta pairing code 1 &lt;code&gt;
+
+# Fabric の一覧を確認
+chip-tool operationalcredentials read fabrics 1 0
+chip-tool operationalcredentials read commissioned-fabrics 1 0
+
+# ACL を確認
+chip-tool accesscontrol read acl 1 0</code></pre><h2>9. まとめ</h2><ul><li><strong>CASE</strong> が運用時のセッション。SIGMA ベースで、相互認証・前方秘匿性・ アイデンティティ保護を持つ。<strong>Resumption の実装が体感速度を左右する</strong>。</li><li><strong>Fabric</strong> はエコシステムの管理ドメイン。機器は複数所属でき、 <strong>それぞれに NOC・鍵・ACL・グループ鍵を持つ</strong>。1 つあたり 1〜2 KB の不揮発メモリ。</li><li><strong>ACL は許可リストのみ</strong>。空なら誰も何もできない。 <code>UNSUPPORTED_ACCESS</code> (0x7E) が出たらここを疑う。</li><li><strong>CAT</strong> で「タグ単位」の権限付与ができる。大規模エコシステムでは必須。</li><li>マルチアドミンは <strong><code>OpenCommissioningWindow</code></strong> で新しい一時検証子を使うのが安全。</li><li>グループ通信は<strong>対称鍵</strong>なので、重要な操作には使わない。</li><li><strong>ファクトリリセットの完全性</strong>は、中古流通を考えると極めて重要。</li><li><strong>開発中は必ず 3 つ以上の Fabric でテストする</strong>。</li></ul>
+  <nav class="chnav"><a class="pn" href="13.html"><span>←</span><b>コミッショニング — QR コードから Fabric 参加まで</b></a><a class="pn nx" href="15.html"><b>SDK とビルド — connectedhomeip をどう扱うか</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

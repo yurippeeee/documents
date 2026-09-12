@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>03. FreeRTOS の全体像 — カーネルの責務と、移植層との契約 — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">03 · FreeRTOS の全体像 — カーネルの責務と、移植層との契約</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 03</p>
+  <h1 class="doctitle">FreeRTOS の全体像 — カーネルの責務と、移植層との契約</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「どこまでが移植層の話か」を先に切り分ける.</strong></p><p>FreeRTOS のソースを開くと、<code>portmacro.h</code> や <code>portYIELD()</code> といった 見慣れないマクロがそこかしこに出てくる。ここで詰まる人が多い。</p><p>だが実は、<strong>移植層がやることは 5 つしかない</strong>。 その 5 つを「契約」として先に押さえてしまえば、 中身がアセンブラだろうと何だろうと、<strong>カーネルのロジックは完全に読める</strong>。 この章でその線を引く。</p></blockquote><h2>1. ソースの構成</h2><p>FreeRTOS カーネルのリポジトリは、こうなっている。</p><pre><code>FreeRTOS-Kernel/
+├── tasks.c              ← カーネルの心臓。タスク管理とスケジューラ
+├── queue.c              ← キュー・セマフォ・ミューテックス（全部これ 1 本）
+├── list.c               ← 双方向リンクリスト。全データ構造の土台
+├── timers.c             ← ソフトウェアタイマ
+├── event_groups.c       ← イベントグループ
+├── stream_buffer.c      ← ストリーム／メッセージバッファ
+├── croutine.c           ← コルーチン（今は非推奨。無視してよい）
+├── include/
+│   ├── FreeRTOS.h       ← 設定の解決と既定値
+│   ├── task.h  queue.h  semphr.h  list.h  ...
+│   └── projdefs.h       ← pdTRUE / pdMS_TO_TICKS など
+└── portable/
+    ├── GCC/ARM_CM4F/    ← ★ 移植層（CPU 依存）
+    │   ├── port.c
+    │   └── portmacro.h
+    ├── GCC/RISC-V/
+    ├── ...
+    └── MemMang/
+        ├── heap_1.c ... heap_5.c   ← メモリ確保の実装（5 つから選ぶ）</code></pre><p>行数の目安はこうである（v11 系、コメント込み）。</p><div class="tablewrap"><table><thead><tr><th>ファイル</th><th>行数の目安</th><th>役割の重み</th></tr></thead><tbody><tr><td><code>tasks.c</code></td><td>約 5,500</td><td>★★★★★</td></tr><tr><td><code>queue.c</code></td><td>約 3,000</td><td>★★★★★</td></tr><tr><td><code>timers.c</code></td><td>約 1,200</td><td>★★</td></tr><tr><td><code>event_groups.c</code></td><td>約 800</td><td>★★</td></tr><tr><td><code>stream_buffer.c</code></td><td>約 1,400</td><td>★★</td></tr><tr><td><code>list.c</code></td><td>約 250</td><td>★★★（短いが全部の土台）</td></tr><tr><td><code>port.c</code>（Cortex-M4F）</td><td>約 800</td><td>— <strong>本シリーズでは扱わない</strong></td></tr></tbody></table></div><blockquote><p><strong><code>tasks.c</code> と <code>queue.c</code> の 2 本で全体の 8 割.</strong> しかも <code>queue.c</code> は「キューを 1 つ理解すれば、セマフォもミューテックスも同じ実装」である。 <strong>実質的に読むべきものは、驚くほど少ない。</strong></p></blockquote><h2>2. カーネルの地図</h2><p>FreeRTOS が提供するものを、責務ごとに並べるとこうなる。</p><h3>カーネル全体の地図</h3><div class="widget" data-widget="kernelmap"></div><p>各層をクリックすると、その層が何をしていて、どの章で扱うかが表示される。</p><div class="tablewrap"><table><thead><tr><th>層</th><th>提供するもの</th><th>実装</th><th>章</th></tr></thead><tbody><tr><td><strong>アプリケーション</strong></td><td>あなたのタスク関数</td><td>—</td><td>—</td></tr><tr><td><strong>同期・通信</strong></td><td>キュー・セマフォ・ミューテックス・通知・イベントグループ</td><td><code>queue.c</code> <code>event_groups.c</code> <code>tasks.c</code></td><td>11〜14</td></tr><tr><td><strong>時間</strong></td><td>遅延・ソフトウェアタイマ</td><td><code>tasks.c</code> <code>timers.c</code></td><td>08, 15</td></tr><tr><td><strong>スケジューラ</strong></td><td>状態遷移・優先度判定・次タスク選択</td><td><code>tasks.c</code></td><td>04〜09</td></tr><tr><td><strong>データ構造</strong></td><td>双方向リンクリスト</td><td><code>list.c</code></td><td>07</td></tr><tr><td><strong>メモリ</strong></td><td>ヒープ確保・解放</td><td><code>heap_N.c</code></td><td>16</td></tr><tr><td><strong>移植層</strong></td><td>コンテキストスイッチ・ティック割り込み・クリティカルセクション</td><td><code>port.c</code></td><td><strong>扱わない</strong></td></tr><tr><td><strong>ハードウェア</strong></td><td>CPU・タイマ・割り込みコントローラ</td><td>—</td><td><strong>扱わない</strong></td></tr></tbody></table></div><h2>3. 移植層との契約 — これだけ知っていればよい</h2><p>移植層が提供するのは、<strong>次の 5 つだけ</strong>である。 これらの「何をするか」さえ分かれば、<code>port.c</code> の中身を一切見なくてもカーネルは読める。</p><h3>契約 1: コンテキストスイッチを起こす</h3><pre><code class="lang-c">portYIELD();                          /* いますぐ切り替えろ */
+portYIELD_FROM_ISR(xHigherPriorityTaskWoken);   /* ISR から要求する */</code></pre><p><strong>約束していること:</strong></p><ul><li>現在のタスクの全レジスタを、そのタスクのスタックに積む</li><li><code>pxCurrentTCB</code> が指すタスクのスタックポインタから、レジスタを復元する</li><li>そのタスクの続きから実行を再開する</li></ul><p><strong>約束していないこと:</strong> いつ切り替わるか。 <code>portYIELD()</code> は「切り替えを<strong>要求</strong>する」だけで、 実際の切り替えは（多くの移植で）割り込み優先度の都合により<strong>少し後</strong>で起きる。</p><blockquote><p><strong>カーネルから見た <code>portYIELD()</code> の意味は、たった一行で表せる.</strong></p><p>「<strong><code>pxCurrentTCB</code> が指すタスクに、実行を移せ</strong>」</p><p>つまりカーネル側の仕事は、<code>portYIELD()</code> を呼ぶ前に <code>pxCurrentTCB</code> を正しく更新しておくこと<strong>だけ</strong>である。 レジスタの積み方は移植層の問題であって、カーネルの問題ではない。</p></blockquote><h3>契約 2: 周期割り込みを起こす</h3><p>移植層は、<code>configTICK_RATE_HZ</code> の周期で <code>xTaskIncrementTick()</code> を呼ぶ。</p><p><strong>約束していること:</strong> 一定周期で呼ぶ。 <strong>約束していないこと:</strong> どのタイマを使うか（Cortex-M なら SysTick、RISC-V なら mtime など）。</p><h3>契約 3: クリティカルセクションを作る</h3><pre><code class="lang-c">taskENTER_CRITICAL();
+    /* ここは割り込みも他タスクも入ってこない */
+taskEXIT_CRITICAL();</code></pre><p><strong>約束していること:</strong> この区間で、カーネル管理下の割り込みが入らない。 <strong>約束していないこと:</strong> どうやって実現するか（<code>PRIMASK</code> を立てる、<code>BASEPRI</code> を上げる、など）。</p><blockquote><p><strong>ネストが数えられていることが重要である.</strong> <code>taskENTER_CRITICAL()</code> は入れ子にできる。 移植層がネスト回数を数えていて、<strong>一番外側を抜けたときにだけ</strong>割り込みを許可する。 これがないと、内側の <code>EXIT</code> で割り込みが開いてしまう。</p></blockquote><h3>契約 4: 新しいタスクのスタックを「使用済みに見せかける」</h3><pre><code class="lang-c">StackType_t *pxPortInitialiseStack(StackType_t *pxTopOfStack,
+                                   TaskFunction_t pxCode,
+                                   void *pvParameters);</code></pre><p>これが最も面白い契約である。</p><p>新しく作ったタスクは、<strong>まだ一度も実行されていない</strong>。 だからレジスタを「復元」しようにも、保存されたレジスタが存在しない。</p><p>そこで移植層は、<strong>「あたかも一度実行されて、直前に切り替えられたかのような偽のスタック」を組み立てる</strong>。</p><pre><code>新タスクのスタック（Cortex-M の例。中身は移植層の都合）
+高位アドレス ┌──────────────┐
+             │ xPSR         │ ← 「Thumb 状態」のフラグを立てておく
+             │ PC           │ ← タスク関数の先頭アドレス
+             │ LR           │ ← 「タスクが return したら」の処理先
+             │ R12, R3-R1   │
+             │ R0           │ ← pvParameters（第 1 引数）
+             │ R11-R4       │
+低位アドレス └──────────────┘ ← ここを返す（初期スタックポインタ）</code></pre><p>このスタックに対して<strong>普通の「復元」処理を行うと、 勝手にタスク関数の先頭にジャンプし、第 1 引数に <code>pvParameters</code> が入っている</strong>。</p><blockquote><p><strong>これが「タスクの起動」の正体である.</strong></p><p>起動のための特別な処理は<strong>存在しない</strong>。 「復元」しかない世界で、<strong>復元されるべき偽の過去を作っておく</strong>。 だからカーネルは、新しいタスクと走り慣れたタスクを<strong>まったく同じに扱える</strong>。</p><p>このアイデアは FreeRTOS 固有ではなく、<strong>あらゆる OS がやっている</strong>。 Linux の <code>copy_thread()</code> も、やっていることは同じである。</p></blockquote><h3>契約 5: 最高優先度ビットを求める（任意）</h3><pre><code class="lang-c">portGET_HIGHEST_PRIORITY(uxTopPriority, uxReadyPriorities);</code></pre><p>「立っているビットのうち最上位はどれか」を求める。 CPU に <code>CLZ</code>（先頭のゼロを数える）命令があれば 1 命令、なければ C のループで代替する。 <strong>あってもなくても動く</strong>（性能が変わるだけ）。詳しくは 07 章。</p><h3>5 つの契約のまとめ</h3><div class="tablewrap"><table><thead><tr><th>契約</th><th>マクロ／関数</th><th>カーネルから見た意味</th></tr></thead><tbody><tr><td>1. 切り替え</td><td><code>portYIELD()</code></td><td><code>pxCurrentTCB</code> のタスクに実行を移せ</td></tr><tr><td>2. 時間</td><td><code>xTaskIncrementTick()</code> を周期呼び出し</td><td>一定周期で呼ばれる</td></tr><tr><td>3. 排他</td><td><code>taskENTER/EXIT_CRITICAL()</code></td><td>この区間は誰も入ってこない</td></tr><tr><td>4. 初期化</td><td><code>pxPortInitialiseStack()</code></td><td>偽の「切り替えられた直後」を作る</td></tr><tr><td>5. 最上位ビット</td><td><code>portGET_HIGHEST_PRIORITY()</code></td><td>立っている最上位ビットを返す（任意）</td></tr></tbody></table></div><p><strong>これで全部である。</strong> 以降の章では、この 5 つを「与えられたもの」として扱う。</p><h2>4. 設定ファイル <code>FreeRTOSConfig.h</code></h2><p>FreeRTOS の挙動は、<strong>プリプロセッサマクロで決まる</strong>。 コンパイル時に確定するので、<strong>使わない機能はバイナリに入らない</strong>。</p><p>主要な設定を挙げる。</p><div class="tablewrap"><table><thead><tr><th>マクロ</th><th>意味</th><th>典型値</th><th>章</th></tr></thead><tbody><tr><td><code>configUSE_PREEMPTION</code></td><td>プリエンプションを使うか</td><td><code>1</code></td><td>06</td></tr><tr><td><code>configUSE_TIME_SLICING</code></td><td>同一優先度でタイムスライスするか</td><td><code>1</code></td><td>08</td></tr><tr><td><code>configTICK_RATE_HZ</code></td><td>ティック周波数</td><td><code>1000</code>（1 ms）</td><td>08</td></tr><tr><td><code>configMAX_PRIORITIES</code></td><td>優先度の段数</td><td><code>5</code>〜<code>32</code></td><td>06</td></tr><tr><td><code>configMINIMAL_STACK_SIZE</code></td><td>アイドルタスクのスタック</td><td><code>128</code> ワード</td><td>09</td></tr><tr><td><code>configTOTAL_HEAP_SIZE</code></td><td>ヒープ総量</td><td>数 KB〜数十 KB</td><td>16</td></tr><tr><td><code>configUSE_MUTEXES</code></td><td>ミューテックスを使うか</td><td><code>1</code></td><td>12</td></tr><tr><td><code>configUSE_TASK_NOTIFICATIONS</code></td><td>タスク通知を使うか</td><td><code>1</code></td><td>14</td></tr><tr><td><code>configCHECK_FOR_STACK_OVERFLOW</code></td><td>スタック溢れ検出</td><td><code>2</code>（開発時）</td><td>17</td></tr><tr><td><code>configASSERT</code></td><td>表明。<strong>必ず定義すること</strong></td><td>下記</td><td>21</td></tr><tr><td><code>configUSE_TRACE_FACILITY</code></td><td>トレース情報を持つか</td><td>開発時 <code>1</code></td><td>21</td></tr></tbody></table></div><blockquote><p><strong><code>configASSERT</code> は必ず定義すること.</strong></p><pre><code class="lang-c">#define configASSERT(x)  if((x)==0){ taskDISABLE_INTERRUPTS(); for(;;); }</code></pre><p>FreeRTOS のソースには <strong>300 か所以上</strong>の <code>configASSERT</code> が仕込まれている。 割り込み優先度の設定ミス、ISR から非 ISR 版 API を呼ぶミス、 ハンドルが NULL——<strong>ほとんどの初歩的なミスはこれで即座に捕まる</strong>。</p><p>定義しないと、これらが<strong>すべて無言で通過して、後で謎の暴走になる</strong>。 開発中に <code>configASSERT</code> を切る理由は 1 つもない。</p></blockquote><h2>5. カーネルが持っている状態</h2><p>カーネルの「頭の中身」は、<code>tasks.c</code> の中の静的変数である。 名前を先に覚えておくと、以降の章が読みやすい。</p><div class="tablewrap"><table><thead><tr><th>変数</th><th>型</th><th>意味</th><th>章</th></tr></thead><tbody><tr><td><code>pxCurrentTCB</code></td><td><code>TCB_t *</code></td><td><strong>いま走っているタスク</strong>。カーネルで最も重要な 1 個</td><td>05</td></tr><tr><td><code>pxReadyTasksLists[]</code></td><td><code>List_t[]</code></td><td>優先度ごとの Ready リスト</td><td>07</td></tr><tr><td><code>uxTopReadyPriority</code></td><td><code>UBaseType_t</code></td><td>Ready なタスクがいる最高優先度（またはビットマップ）</td><td>07</td></tr><tr><td><code>xDelayedTaskList1/2</code></td><td><code>List_t</code></td><td>時間待ちのタスク（2 本を交換して使う）</td><td>10</td></tr><tr><td><code>pxDelayedTaskList</code></td><td><code>List_t *</code></td><td>現在有効な遅延リスト</td><td>10</td></tr><tr><td><code>pxOverflowDelayedTaskList</code></td><td><code>List_t *</code></td><td>ティックが折り返した後の遅延リスト</td><td>10</td></tr><tr><td><code>xPendingReadyList</code></td><td><code>List_t</code></td><td>スケジューラ停止中に Ready になったタスク</td><td>10</td></tr><tr><td><code>xSuspendedTaskList</code></td><td><code>List_t</code></td><td>中断中・無期限待ちのタスク</td><td>04</td></tr><tr><td><code>xTasksWaitingTermination</code></td><td><code>List_t</code></td><td>削除されたが後片付け待ちのタスク</td><td>09</td></tr><tr><td><code>xTickCount</code></td><td><code>TickType_t</code></td><td>ティックの累積カウント</td><td>08</td></tr><tr><td><code>uxSchedulerSuspended</code></td><td><code>UBaseType_t</code></td><td>スケジューラ停止のネスト数</td><td>10</td></tr></tbody></table></div><p><strong>注目してほしい:</strong> ほとんどが <code>List_t</code>（双方向リンクリスト）である。 <strong>FreeRTOS のカーネルは、要するに「タスクをリストからリストへ動かす機械」である。</strong> 04 章から 10 章までは、ずっとこの話をする。</p><h2>6. 起動の流れ</h2><pre><code class="lang-c">int main(void)
+{
+    hardware_init();
+
+    xTaskCreate(vTaskA, "A", 256, NULL, 2, NULL);
+    xTaskCreate(vTaskB, "B", 256, NULL, 1, NULL);
+
+    vTaskStartScheduler();     /* ← ここから戻ってこない */
+
+    /* ここに来たらヒープ不足 */
+    for (;;);
+}</code></pre><p><code>vTaskStartScheduler()</code> の中では、こういうことが起きる。</p><div class="tablewrap"><table><thead><tr><th>順</th><th>処理</th><th>章</th></tr></thead><tbody><tr><td>1</td><td><strong>アイドルタスクを生成</strong>（優先度 0）</td><td>09</td></tr><tr><td>2</td><td>ソフトウェアタイマを使うなら<strong>タイマタスクを生成</strong></td><td>15</td></tr><tr><td>3</td><td>割り込みを禁止</td><td>—</td></tr><tr><td>4</td><td><code>xTickCount = 0</code>、<code>xSchedulerRunning = pdTRUE</code></td><td>08</td></tr><tr><td>5</td><td><code>xPortStartScheduler()</code> を呼ぶ（<strong>移植層</strong>）</td><td>—</td></tr><tr><td>6</td><td>移植層がティックタイマを起動し、最高優先度タスクに<strong>飛び込む</strong></td><td>—</td></tr></tbody></table></div><p>ステップ 6 の「飛び込む」が面白い。 移植層は、<strong>最高優先度タスクのコンテキストを「復元」する</strong>。 契約 4 で作った偽のスタックがここで効いてくる。 <strong>復元した結果、タスク関数の先頭から実行が始まる。</strong> <code>main()</code> に戻る道はもう存在しない。</p><blockquote><p><strong><code>vTaskStartScheduler()</code> から戻ってきたら、原因はほぼ 1 つ.</strong> <strong>ヒープ不足</strong>である。アイドルタスクかタイマタスクのスタックが確保できなかった。 <code>configTOTAL_HEAP_SIZE</code> を増やすか、静的確保に切り替える（16 章）。</p></blockquote><h2>7. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>実質的なソース</td><td><code>tasks.c</code> と <code>queue.c</code> の 2 本で 8 割</td></tr><tr><td>移植層の契約</td><td><strong>5 つだけ</strong>。切替・ティック・排他・スタック初期化・最上位ビット</td></tr><tr><td><code>portYIELD()</code> の意味</td><td>「<code>pxCurrentTCB</code> のタスクに実行を移せ」</td></tr><tr><td>新タスクの起動</td><td><strong>偽の「切り替えられた直後」のスタック</strong>を作る。起動処理は存在しない</td></tr><tr><td>設定</td><td>コンパイル時マクロ。<strong><code>configASSERT</code> は必ず定義する</strong></td></tr><tr><td>カーネルの状態</td><td>ほとんどが <code>List_t</code>。<strong>タスクをリスト間で動かす機械</strong></td></tr><tr><td>起動</td><td><code>vTaskStartScheduler()</code> は戻らない。戻ったらヒープ不足</td></tr></tbody></table></div><p>ここまでで準備は終わりである。 次章から、カーネルの心臓部——タスクの状態機械に入る。</p>
+  <nav class="chnav"><a class="pn" href="02.html"><span>←</span><b>タスクという抽象 — 「同時に動いている」ように見せる仕掛け</b></a><a class="pn nx" href="04.html"><b>タスクの状態機械 — Running / Ready / Blocked / Suspended</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

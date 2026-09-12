@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>06. スケジューリング方針 — 常に最高優先度が走る — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">06 · スケジューリング方針 — 常に最高優先度が走る</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 06</p>
+  <h1 class="doctitle">スケジューリング方針 — 常に最高優先度が走る</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——FreeRTOS の挙動は、たった 1 つの規則で決まる.</strong></p><p>「どのタスクがいつ走るか」は、複雑そうに見えて、実は<strong>一行の規則</strong>に従っている。 その規則を正確に理解すると、 「なぜこのタスクが動かないのか」の 9 割は考えるだけで分かるようになる。</p></blockquote><h2>1. 唯一の規則</h2><blockquote><p><strong>実行可能なタスクのうち、最も優先度の高いものが、必ず走っている。</strong></p></blockquote><p>これだけである。FreeRTOS のスケジューラはこの規則を<strong>例外なく</strong>守る。</p><p>正確に書くと、こうなる。</p><div class="eqn">\[ \text{Running} = \arg\max_{t \in \text{Ready}} \text{priority}(t) \]</div><p>同じ優先度が複数いる場合は、そのうち 1 つ（ラウンドロビンで順番に）。</p><p>この方式を <strong>固定優先度プリエンプティブスケジューリング (Fixed-Priority Preemptive Scheduling)</strong> と呼ぶ。</p><h3>3 つの構成要素</h3><div class="tablewrap"><table><thead><tr><th>要素</th><th>意味</th></tr></thead><tbody><tr><td><strong>固定優先度</strong></td><td>優先度はプログラマが決める。<strong>OS が勝手に変えない</strong></td></tr><tr><td><strong>プリエンプティブ</strong></td><td>高優先度タスクが Ready になった<strong>瞬間に</strong>低優先度タスクを止める</td></tr><tr><td><strong>（同一優先度は）ラウンドロビン</strong></td><td>同じ優先度どうしは順番に、タイムスライスで交代する</td></tr></tbody></table></div><blockquote><p><strong>「固定優先度」の意味を誤解しないこと.</strong></p><p>「固定」とは「<strong>OS が動的に調整しない</strong>」という意味である。 プログラマが <code>vTaskPrioritySet()</code> で変えるのは自由だし、 優先度継承（13 章）では<strong>カーネルが一時的に上げる</strong>。</p><p>対義語は Linux の <strong>CFS</strong>（完全公平スケジューラ）のような 「実行時間の履歴を見て OS が優先度を計算する」方式である。 FreeRTOS はそういうことを一切しない。<strong>だから挙動が完全に予測できる。</strong></p></blockquote><h2>2. 実際の動きを見る</h2><h3>スケジューリングのガントチャート</h3><div class="widget" data-widget="sched"></div><p>タスクの優先度・周期・実行時間を変えると、CPU がどう割り当てられるかを確かめられる。</p><h2>3. プリエンプションの威力と危険</h2><h3>威力: 応答時間が優先度だけで決まる</h3><p>高優先度タスクが Ready になれば、<strong>低優先度タスクの実行中でも即座に割り込む</strong>。</p><pre><code>時刻 →
+低優先度タスク: ████████░░░░░░░░████████
+高優先度タスク: ────────████████────────
+                        ↑
+                    ここで Ready になった瞬間に切り替わる</code></pre><p>このため、<strong>高優先度タスクの応答時間は、低優先度タスクが何をしていても悪化しない</strong>。 01 章で見たスーパーループの問題が、ここで完全に解決している。</p><h3>危険 1: 低優先度タスクが永久に走らない（スタベーション）</h3><pre><code class="lang-c">void vHighTask(void *pv)
+{
+    for (;;) {
+        do_work();       /* ← ブロックする API がない */
+    }
+}</code></pre><p>このタスクが優先度 5 なら、<strong>優先度 4 以下のタスクは二度と走らない</strong>。 アイドルタスクも走らないので、削除済みタスクの後片付けもされない（04 章）。</p><blockquote><p><strong>これを「スタベーション（飢餓）」と呼ぶ.</strong></p><p>Linux のような公平性重視のスケジューラでは、 低優先度タスクにも少しずつ CPU が回る仕組みがある（エイジング）。</p><p><strong>FreeRTOS にはそれがない。</strong> 規則に例外がないからである。 「高優先度が走れるなら、必ず高優先度が走る」——<strong>低優先度が飢えても、規則は規則</strong>である。</p><p>これは欠陥ではなく<strong>設計思想</strong>である。 リアルタイムシステムでは、公平性より<strong>予測可能性</strong>が重要だからである。 「たまに低優先度に譲る」ような仕組みがあると、 高優先度タスクの最悪応答時間が計算できなくなる。</p></blockquote><h3>危険 2: 共有データが壊れる</h3><p>プリエンプションは<strong>どの命令の間でも</strong>起きうる。</p><pre><code class="lang-c">/* 共有構造体 */
+struct { int x, y; } pos;
+
+/* タスク A（低優先度） */
+pos.x = 10;
+/* ← ここで切り替わりうる */
+pos.y = 20;
+
+/* タスク B（高優先度）が pos を読むと、x=10, y=（古い値）を見る */</code></pre><p>これが 19 章のテーマである。<strong>プリエンプションを有効にした瞬間、排他制御が必須になる。</strong></p><h2>4. 優先度の数と表現</h2><pre><code class="lang-c">#define configMAX_PRIORITIES  5</code></pre><p>優先度は <strong>0 から <code>configMAX_PRIORITIES - 1</code></strong> の範囲で、<strong>数値が大きいほど高優先度</strong>である。</p><blockquote><p><strong>これは OS によって逆である.</strong></p><div class="tablewrap"><table><thead><tr><th>OS</th><th>高優先度は</th></tr></thead><tbody><tr><td><strong>FreeRTOS</strong></td><td><strong>数値が大きい</strong></td></tr><tr><td>Zephyr</td><td>数値が<strong>小さい</strong>（負値が協調的スレッド）</td></tr><tr><td>Linux (RT)</td><td><code>sched_priority</code> は大きいほど高</td></tr><tr><td>Linux (nice)</td><td>nice 値は<strong>小さいほど高</strong></td></tr><tr><td>µITRON / TOPPERS</td><td>数値が<strong>小さい</strong>ほど高</td></tr></tbody></table></div><p><strong>移植のときに必ず事故が起きるポイントである。</strong></p></blockquote><h3>優先度 0 は特別</h3><p><strong>優先度 0 はアイドルタスクが使う</strong>。 アプリケーションのタスクを優先度 0 にすると、アイドルタスクと競合する。</p><ul><li>アイドルタスクの仕事（削除済みタスクの回収）が遅れる</li><li>省電力フック（<code>vApplicationIdleHook</code>）が呼ばれにくくなる</li></ul><p><strong>アプリケーションのタスクは優先度 1 以上にすること。</strong></p><h3><code>configMAX_PRIORITIES</code> を大きくするコスト</h3><div class="tablewrap"><table><thead><tr><th>コスト</th><th>内容</th></tr></thead><tbody><tr><td><strong>RAM</strong></td><td><code>pxReadyTasksLists[]</code> が優先度の数だけ必要。1 つあたり約 20 バイト</td></tr><tr><td><strong>探索時間</strong></td><td>ビットマップ最適化なし（<code>configUSE_PORT_OPTIMISED_TASK_SELECTION = 0</code>）なら、優先度の数に比例（07 章）</td></tr><tr><td><strong>設計の複雑さ</strong></td><td>段数が多いと、どこに置くべきか迷う</td></tr></tbody></table></div><blockquote><p><strong>実用上は 5〜8 段で足りることが多い.</strong></p><p>「タスクごとに違う優先度を割り当てなければならない」という思い込みは捨てるべきである。 <strong>同じ優先度に複数のタスクを置くのは正常</strong>であり、むしろ推奨される。</p><p>典型的な段構成:</p><div class="tablewrap"><table><thead><tr><th>優先度</th><th>用途</th></tr></thead><tbody><tr><td>0</td><td>アイドル（予約）</td></tr><tr><td>1</td><td>低優先度のバックグラウンド（ログ、統計）</td></tr><tr><td>2</td><td>通常のアプリケーションタスク（表示、UI）</td></tr><tr><td>3</td><td>通信タスク（UART、SPI、ネットワーク）</td></tr><tr><td>4</td><td>制御タスク（モータ、PID ループ）</td></tr><tr><td>5</td><td>ソフトウェアタイマタスク（<code>configTIMER_TASK_PRIORITY</code>）</td></tr><tr><td>6</td><td>緊急停止など、絶対に遅れてはいけないもの</td></tr></tbody></table></div><p><strong>ビットマップ最適化を使うなら、<code>configMAX_PRIORITIES</code> は 32 以下にすること</strong> （1 ワードのビットマップに収める必要があるため）。</p></blockquote><h2>5. <code>configUSE_PREEMPTION = 0</code> — 協調的スケジューリング</h2><p>プリエンプションを切ると、まったく違う OS になる。</p><pre><code class="lang-c">#define configUSE_PREEMPTION  0</code></pre><p>このとき、<strong>切り替えは次のタイミングでしか起きない</strong>。</p><ul><li>タスクがブロックする API を呼んだとき</li><li>タスクが <code>taskYIELD()</code> を明示的に呼んだとき</li></ul><p>高優先度タスクが Ready になっても、<strong>現在のタスクが自発的に譲るまで走らない</strong>。</p><h3>協調的スケジューリングの比較</h3><div class="tablewrap"><table><thead><tr><th>観点</th><th>プリエンプティブ</th><th>協調的</th></tr></thead><tbody><tr><td>応答時間</td><td>優先度で保証される</td><td><strong>他タスクの実行時間に依存する</strong></td></tr><tr><td>排他制御</td><td>必須</td><td><strong>ほぼ不要</strong>（切り替え点が分かっているため）</td></tr><tr><td>スタック使用量</td><td>割り込みのネスト分が必要</td><td>少なくて済む</td></tr><tr><td>デバッグ</td><td>難しい（再現しないバグが出る）</td><td><strong>容易</strong></td></tr><tr><td>バグの種類</td><td>レースコンディション</td><td><strong>譲り忘れによるフリーズ</strong></td></tr></tbody></table></div><blockquote><p><strong>協調的スケジューリングを選ぶ理由はあるか.</strong></p><p>ある。<strong>極端に RAM が少ない場合</strong>と、 <strong>既存のスーパーループコードを段階的に移行する場合</strong>である。</p><p>排他制御が不要になる利点は大きい。切り替え点が <code>taskYIELD()</code> と ブロック API だけなので、<strong>それ以外の場所は原子的に実行される</strong>とみなせる。</p><p>ただしリアルタイム性は失われる。 「高優先度なのに遅い」ということが普通に起きる。 <strong>リアルタイム性が要るなら、プリエンプティブ一択である。</strong></p></blockquote><h2>6. <code>vTaskSwitchContext()</code> の中身</h2><p>これが「誰を次に走らせるか」を決める関数の全体である。</p><pre><code class="lang-c">void vTaskSwitchContext( void )
+{
+    if( uxSchedulerSuspended != 0 ) {
+        /* スケジューラが停止中 → 切り替えを保留する */
+        xYieldPending = pdTRUE;
+    }
+    else {
+        xYieldPending = pdFALSE;
+
+        taskCHECK_FOR_STACK_OVERFLOW();          /* 17 章 */
+
+        /* 実行時間統計の更新（21 章） */
+        #if ( configGENERATE_RUN_TIME_STATS == 1 )
+            { ... }
+        #endif
+
+        taskSELECT_HIGHEST_PRIORITY_TASK();      /* ★ ここが本体（07 章） */
+
+        /* newlib の再入対応 */
+        #if ( configUSE_NEWLIB_REENTRANT == 1 )
+            { _impure_ptr = &amp;( pxCurrentTCB-&gt;xNewLib_reent ); }
+        #endif
+    }
+}</code></pre><p><strong>本質は <code>taskSELECT_HIGHEST_PRIORITY_TASK()</code> の 1 行だけ</strong>である。 残りはデバッグ支援と統計と標準ライブラリ対応である。</p><h3><code>uxSchedulerSuspended</code> — 切り替えを保留する</h3><pre><code class="lang-c">vTaskSuspendAll();
+    /* この区間では、どんなに優先度の高いタスクが Ready になっても切り替わらない */
+xTaskResumeAll();       /* ← ここで保留していた切り替えが実行される */</code></pre><p>これは<strong>割り込みを止めずに</strong>切り替えだけを止める仕組みである。</p><div class="tablewrap"><table><thead><tr><th>手段</th><th>割り込み</th><th>タスク切り替え</th><th>用途</th></tr></thead><tbody><tr><td><code>taskENTER_CRITICAL()</code></td><td><strong>止まる</strong></td><td>止まる</td><td>短い区間。ISR と共有するデータ</td></tr><tr><td><code>vTaskSuspendAll()</code></td><td><strong>止まらない</strong></td><td>止まる</td><td>長い区間。タスク間だけで共有するデータ</td></tr></tbody></table></div><blockquote><p><strong><code>vTaskSuspendAll()</code> の方が「行儀がよい」.</strong></p><p>割り込みを止めると、<strong>割り込みのレイテンシが悪化する</strong>。 通信の取りこぼしや、モータ制御の遅れにつながる。</p><p>タスク間の排他だけが目的なら、<code>vTaskSuspendAll()</code> を使うべきである。 ただし——<strong>この区間ではブロックする API を呼んではいけない</strong>。 切り替えができないので、ブロックしたら<strong>そこで永久に止まる</strong>。</p></blockquote><h2>7. <code>taskYIELD()</code> — 自発的に譲る</h2><pre><code class="lang-c">taskYIELD();      /* 同じ優先度の次のタスクに譲る */</code></pre><p>同じ優先度のタスクがいれば、そちらに切り替わる。いなければ何も起きない （<strong>自分より低い優先度には絶対に譲らない</strong>。規則は規則である）。</p><p>長い計算をするタスクで、同じ優先度の他のタスクを飢えさせないために使う。</p><pre><code class="lang-c">for (i = 0; i &lt; 1000000; i++) {
+    heavy_compute(i);
+    if ((i &amp; 0xFF) == 0) taskYIELD();    /* 256 回ごとに譲る */
+}</code></pre><blockquote><p><strong><code>taskYIELD()</code> を「待つ」代わりに使ってはいけない.</strong></p><pre><code class="lang-c">while (!flag) { taskYIELD(); }     /* ← アンチパターン */</code></pre><p>これは<strong>ポーリングにコンテキストスイッチのコストを足しただけ</strong>である。 しかも <code>flag</code> を立てるタスクが自分より低優先度なら、<strong>永久に立たない</strong>。</p><p>正しくはセマフォかタスク通知で待つ（12〜14 章）。 「待ちたい」と思ったら、必ず<strong>ブロックする API</strong> を探すこと。</p></blockquote><h2>8. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>唯一の規則</td><td><strong>実行可能な最高優先度タスクが、必ず走っている</strong></td></tr><tr><td>方式</td><td>固定優先度プリエンプティブ ＋ 同一優先度ラウンドロビン</td></tr><tr><td>「固定」の意味</td><td>OS が動的に調整しない。<strong>予測可能性を優先</strong></td></tr><tr><td>スタベーション</td><td>起きる。<strong>それが正しい動作</strong>である</td></tr><tr><td>優先度</td><td><strong>数値が大きいほど高</strong>。0 はアイドル専用</td></tr><tr><td>段数</td><td>実用は 5〜8 段。<strong>同一優先度に複数タスクは正常</strong></td></tr><tr><td>協調的</td><td>排他制御がほぼ不要になるが、リアルタイム性を失う</td></tr><tr><td><code>vTaskSuspendAll</code></td><td>割り込みを止めずに切り替えだけ止める。<strong>この区間でブロック禁止</strong></td></tr><tr><td><code>taskYIELD</code></td><td>同一優先度に譲る。<strong>待ちの代用にしてはいけない</strong></td></tr></tbody></table></div><p>次章では、「最高優先度のタスクを選ぶ」処理が <strong>なぜ O(1) でできるのか</strong>——Ready リストの実装を見る。</p>
+  <nav class="chnav"><a class="pn" href="05.html"><span>←</span><b>TCB とコンテキストスイッチ — 「実行の途中」を畳んで保存する</b></a><a class="pn nx" href="07.html"><b>Ready リストの実装 — なぜ O(1) で次のタスクが決まるのか</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

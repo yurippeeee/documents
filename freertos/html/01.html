@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>01. OS がない世界 — スーパーループはどこで破綻するのか — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">01 · OS がない世界 — スーパーループはどこで破綻するのか</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 01</p>
+  <h1 class="doctitle">OS がない世界 — スーパーループはどこで破綻するのか</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「OS を使う理由」を先に体で分かっておく.</strong></p><p>いきなり「タスクとは」「セマフォとは」と始めると、 覚えることばかりが増えて、なぜそんなものが必要なのかが分からなくなる。</p><p>だからまず、<strong>OS を使わずに書くとどうなるか</strong>を見る。 そして、それがどこで、どういう理由で破綻するかを具体的に確かめる。 <strong>OS が提供する機能は、すべてこの破綻に対する処方箋である。</strong></p></blockquote><h2>1. スーパーループ — 最も単純なプログラムの形</h2><p>組み込みのプログラムを OS なしで書くと、必ずこの形になる。</p><pre><code class="lang-c">int main(void)
+{
+    hardware_init();
+
+    for (;;) {          /* この無限ループを「スーパーループ」と呼ぶ */
+        read_sensor();
+        update_display();
+        handle_buttons();
+        send_uart();
+    }
+}</code></pre><p>これは<strong>ばかにしたものではない</strong>。</p><ul><li>OS がないので<strong>メモリを食わない</strong>（RAM 数百バイトのマイコンでも動く）</li><li>実行順序が完全に決まっているので<strong>動作が予測しやすい</strong></li><li><strong>デバッグが簡単</strong>。1 本の流れを追えばよい</li></ul><p>小さな機器なら、これで十分に完成する。実際、世の中の膨大な数の組み込み機器がこの形で動いている。</p><p><strong>問題は、処理が増えたときに起きる。</strong></p><h2>2. 何が起きるか — 応答が「待たされる」</h2><p>上のループで、<code>update_display()</code> が 50 ms かかるとしよう。 液晶に全画面を描き直すなら、それくらいはかかる。</p><p>このとき、<strong>ボタンを押してから <code>handle_buttons()</code> が呼ばれるまで、最悪 50 ms 以上待たされる</strong>。 なぜなら、ボタンを押した瞬間が <code>update_display()</code> の入口だった場合、 そこを抜けるまで誰もボタンを見ないからである。</p><p>処理を並べれば並べるほど、<strong>1 周にかかる時間（ループ周期）が延びる</strong>。 そして各処理の応答時間は、<strong>最悪でループ周期 1 周分</strong>になる。</p><blockquote><p><strong>ここが本質的な問題である.</strong></p><p>スーパーループでは、<strong>ある処理の実行時間が、無関係な他の処理の応答時間を悪化させる</strong>。 液晶の描画が遅いせいでボタンが効かなくなる。<strong>この 2 つには論理的な関係がまったくない</strong>のに。</p><p>これを「<strong>処理どうしが時間的に結合している</strong>」という。 機能を足すたびに、既に動いていた部分の応答が劣化していく。<strong>これは設計としてまずい。</strong></p></blockquote><h2>3. 応答遅延を実際に見る</h2><h3>スーパーループの応答時間</h3><div class="widget" data-widget="superloop"></div><p>各処理の実行時間を変えると、他の処理の応答がどうなるかを確かめられる。 「ボタン応答」の欄に注目してほしい。</p><h2>4. まず思いつく対策と、その限界</h2><h3>対策 A: 処理を細かく切る</h3><p>長い処理を分割して、1 周で全部やらないようにする。</p><pre><code class="lang-c">static int draw_step = 0;
+
+void update_display_step(void)
+{
+    switch (draw_step) {
+        case 0: draw_background(); draw_step = 1; break;
+        case 1: draw_graph();      draw_step = 2; break;
+        case 2: draw_text();       draw_step = 0; break;
+    }
+}</code></pre><p>これは確かに効く。ループ周期は短くなり、ボタンの応答は良くなる。</p><p><strong>しかし代償がある。</strong></p><ul><li><strong>処理の「途中の状態」を自分で変数に持たなければならない</strong>（上の <code>draw_step</code>）</li><li>処理が複雑になるほど、この状態変数が増える</li><li>ループの中で書けば自然だったコードが、<strong>状態機械にバラされて読めなくなる</strong></li></ul><p>これは実質的に、<strong>「関数の実行途中」を手で保存している</strong>ということである。 そして——後で見るとおり——<strong>それこそが OS がやっていることそのもの</strong>である。 OS は、この面倒な保存を<strong>自動で、しかも完全に</strong>やってくれる。</p><h3>対策 B: 割り込みに追い出す</h3><p>急ぎの処理を割り込みハンドラに移す。</p><pre><code class="lang-c">void BUTTON_IRQHandler(void)
+{
+    button_pressed = 1;    /* フラグを立てるだけ */
+}</code></pre><p>割り込みはメインループを中断して即座に走るので、応答は劇的に良くなる。<strong>これは正しい対策である。</strong></p><p>しかし、割り込みハンドラの中で長い処理をしてはいけない。</p><ul><li>割り込み中は<strong>他の割り込みが待たされる</strong>（割り込み禁止時間が延びる）</li><li>割り込みハンドラは<strong>ブロックできない</strong>（待つ手段がない）</li><li>結局「フラグを立てて、本体はメインループでやる」ことになり、<strong>応答は元通り</strong></li></ul><blockquote><p><strong>割り込みで解決できるのは「気づくのが速い」ところまで.</strong> 「気づいてから、実際に処理を終える」までの時間は、メインループの周期に縛られたままである。</p></blockquote><h3>対策 C: 状態機械にする</h3><p>各処理を状態機械として書き、毎周期 1 ステップだけ進める。</p><p>これは対策 A の徹底版であり、<strong>OS なしで書ける最も強力な形</strong>である。 実際、安全性が要求される分野（自動車・医療機器の一部）では、 「OS を使わず、全体を 1 つの巨大な状態機械にする」設計がいまも現役である。 <strong>動作が完全に決定的になる</strong>からである。</p><p>だが、機能が 10 個、20 個と増えると、状態の組み合わせが爆発する。 そして何より——</p><pre><code class="lang-c">/* こう書きたい */
+send_command();
+wait_ms(100);            /* ← ここで 100 ms 待ちたい */
+if (read_response() != OK) retry();</code></pre><p>この「<strong>途中で待つ</strong>」が書けない。 <code>wait_ms()</code> の中で回して待つと、その間ループ全体が止まってしまう。 状態機械に分解すると、上の 3 行が 3 つの状態と 2 つの変数に化ける。</p><p><strong>「途中で待てる」——これが OS の最大の価値である。</strong></p><h2>5. 破綻する 4 つのポイント</h2><p>スーパーループは、次の 4 つのどれかに当たった時点で限界を迎える。</p><div class="tablewrap"><table><thead><tr><th>破綻の形</th><th>具体的にどうなるか</th><th>OS での解決</th></tr></thead><tbody><tr><td><strong>応答時間が守れない</strong></td><td>機能を足すたびに他が遅くなる。最悪応答時間が読めない</td><td>優先度（06 章）</td></tr><tr><td><strong>待てない</strong></td><td>「100 ms 待つ」「データが来るまで待つ」が書けない</td><td>ブロック（10 章）</td></tr><tr><td><strong>状態爆発</strong></td><td>処理を分割した結果、状態変数だらけで保守できない</td><td>タスクごとのスタック（05 章）</td></tr><tr><td><strong>優先度が付けられない</strong></td><td>「モータ制御は液晶より絶対に優先」を表現する手段がない</td><td>プリエンプション（06 章）</td></tr></tbody></table></div><blockquote><p><strong>逆に言えば、この 4 つに当たらないならスーパーループで十分である.</strong> OS は無料ではない。RAM を数 KB 食い、コンテキストスイッチのオーバーヘッドがあり、 排他制御という新しいバグの種を持ち込む。<strong>必要ないなら使わないのが正しい。</strong></p><p>判断の目安は「<strong>待ちを含む独立した処理が 3 つ以上あるか</strong>」である。</p></blockquote><h2>6. OS が与える 1 つの発明</h2><p>ここまでの問題は、突き詰めると 1 つの欲求に集約される。</p><blockquote><p><strong>「この関数の実行を、途中で一時停止して、あとから続きから再開したい」</strong></p></blockquote><p>対策 A・C で手作業でやっていたのは、まさにこれだった。 そして OS は、これを<strong>完全に自動化する</strong>。</p><p>そのために必要なものは、実は 2 つしかない。</p><ol><li><strong>実行の途中の状態を保存する場所</strong> — CPU レジスタとスタックの内容</li><li><strong>誰を次に動かすか決める仕組み</strong> — スケジューラ</li></ol><p>この 2 つを備えたものを「<strong>マルチタスク OS</strong>」と呼ぶ。 FreeRTOS のカーネルは、要するにこの 2 つを実装しただけのものである。</p><h3>保存すべきもの</h3><p>「関数の実行途中」とは、具体的に何か。</p><div class="tablewrap"><table><thead><tr><th>保存対象</th><th>何が入っているか</th></tr></thead><tbody><tr><td><strong>プログラムカウンタ (PC)</strong></td><td>次に実行する命令のアドレス。「どこまで進んだか」</td></tr><tr><td><strong>汎用レジスタ</strong></td><td>計算途中の値</td></tr><tr><td><strong>スタックポインタ (SP)</strong></td><td>「どの関数から呼ばれてきたか」の履歴の先端</td></tr><tr><td><strong>スタックの中身</strong></td><td>ローカル変数、戻りアドレス、退避したレジスタ</td></tr><tr><td><strong>ステータスレジスタ</strong></td><td>条件フラグ、割り込み許可状態</td></tr></tbody></table></div><p>これらを全部まとめて「<strong>コンテキスト</strong>」と呼ぶ。 <strong>コンテキストを保存して差し替えることが、コンテキストスイッチである。</strong></p><p>そして重要なのは——<strong>スタックの中身は移動させなくてよい</strong>ということである。 タスクごとに別々のスタック領域を用意しておけば、 切り替えのときに差し替えるのは<strong>スタックポインタという 1 つの値だけ</strong>で済む。</p><blockquote><p><strong>ここが最初の「うまい」ところである.</strong> 「実行の途中」というつかみどころのないものが、 <strong>「レジスタ十数個＋スタックポインタ 1 個」という有限のデータに落ちる</strong>。 データに落ちれば、保存も復元もただのメモリコピーである。</p></blockquote><h2>7. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>スーパーループの問題</td><td>無関係な処理どうしが<strong>時間的に結合</strong>する</td></tr><tr><td>手作業の対策</td><td>分割・割り込み・状態機械。効くが<strong>状態管理が破綻する</strong></td></tr><tr><td>書けない構文</td><td>「途中で待つ」。これが決定打</td></tr><tr><td>OS の発明</td><td>実行の途中を<strong>コンテキスト</strong>として保存し、自動で切り替える</td></tr><tr><td>コンテキストの正体</td><td>レジスタ群 ＋ スタックポインタ。<strong>有限のデータ</strong></td></tr><tr><td>OS を使わない判断</td><td>待ちを含む独立処理が 2 つ以下なら不要</td></tr></tbody></table></div><p>次章では、この「コンテキストを持った実行の流れ」に <strong>タスク</strong> という名前を与え、 それがプログラマにとってどういう抽象なのかを整理する。</p>
+  <nav class="chnav"><span class="pn dis"></span><a class="pn nx" href="02.html"><b>タスクという抽象 — 「同時に動いている」ように見せる仕掛け</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

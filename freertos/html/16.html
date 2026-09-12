@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>16. メモリ管理 — heap_1〜heap_5 のどれを選ぶか — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">16 · メモリ管理 — heap_1〜heap_5 のどれを選ぶか</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 16</p>
+  <h1 class="doctitle">メモリ管理 — heap_1〜heap_5 のどれを選ぶか</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——標準の <code>malloc</code> が使えないから.</strong></p><p>C 標準ライブラリの <code>malloc</code> には、組み込みで困る性質がある。</p><ul><li><strong>スレッドセーフとは限らない</strong>（実装依存。多くは非対応）</li><li><strong>実行時間が予測できない</strong>（リアルタイム性が壊れる）</li><li><strong>断片化する</strong>（長時間動作で失敗するようになる）</li><li><strong>どれだけ使ったか分からない</strong></li></ul><p>FreeRTOS は <code>malloc</code> を使わず、<strong>用途に応じて選べる 5 つの実装</strong>を用意している。 <strong>どれを選ぶかは、システムの設計そのものである。</strong></p></blockquote><h2>1. FreeRTOS のメモリ確保 API</h2><pre><code class="lang-c">void *pvPortMalloc( size_t xWantedSize );
+void  vPortFree( void *pv );
+size_t xPortGetFreeHeapSize( void );
+size_t xPortGetMinimumEverFreeHeapSize( void );</code></pre><p>タスク・キュー・セマフォなどのカーネルオブジェクトは、 すべてこの <code>pvPortMalloc()</code> からメモリを取る。</p><p><strong>アプリケーションからも直接使える</strong>（そして <code>malloc</code> の代わりに使うべきである）。</p><h2>2. ヒープの領域はどこにあるか</h2><pre><code class="lang-c">#define configTOTAL_HEAP_SIZE  ( 20 * 1024 )</code></pre><p>heap_1〜heap_4 では、<strong>この大きさの静的配列が確保される</strong>。</p><pre><code class="lang-c">static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];</code></pre><blockquote><p><strong>これは「.bss にある巨大な配列」である.</strong></p><p>つまり、<code>configTOTAL_HEAP_SIZE</code> を増やすと<strong>リンク時に RAM が消費される</strong>。 実行時に足りなくなるのではなく、<strong>ビルド時にリンカが「RAM が足りない」と怒る</strong>。</p><p>これは良いことである。<strong>実行してみないと分からない、という状況を避けられる。</strong></p></blockquote><p>heap_5 だけは例外で、<strong>複数の領域を実行時に登録する</strong>（後述）。</p><h2>3. 5 つの実装</h2><h3>heap_1 — 解放できない、最も単純</h3><pre><code class="lang-c">void *pvPortMalloc( size_t xWantedSize )
+{
+    /* 単に次の空き位置を返して、ポインタを進めるだけ */
+    pvReturn = pucAlignedHeap + xNextFreeByte;
+    xNextFreeByte += xWantedSize;
+    return pvReturn;
+}
+
+void vPortFree( void *pv ) { /* 何もしない */ }</code></pre><div class="tablewrap"><table><thead><tr><th>観点</th><th>評価</th></tr></thead><tbody><tr><td>実行時間</td><td><strong>完全に一定</strong>（数命令）</td></tr><tr><td>断片化</td><td><strong>起こりえない</strong></td></tr><tr><td>解放</td><td><strong>できない</strong></td></tr><tr><td>コードサイズ</td><td>最小</td></tr></tbody></table></div><blockquote><p><strong>これが最も安全な選択肢である場合が多い.</strong></p><p>起動時に全タスク・全キューを作り、以後は解放しない—— これは組み込みシステムの<strong>最も推奨される設計</strong>である。 その場合、heap_1 で完璧に足りる。</p><p><strong>「解放できない」は欠点ではなく、「解放しない設計を強制する」という利点である。</strong> IEC 61508 などの機能安全規格では、動的確保そのものが制限されることが多い。</p></blockquote><h3>heap_2 — 解放できるが、結合しない（<strong>非推奨</strong>）</h3><p>空きブロックのリンクリストを持ち、<strong>最適合 (best fit)</strong> で探す。 解放したブロックはリストに戻すが、<strong>隣接する空きブロックを結合しない</strong>。</p><pre><code>確保: [64][128][64] を確保して、真ん中を解放
+空き: [64][----128 空き----][64][残り]
+
+次に 200 バイト要求すると→ 128 の空きは使えず、残りから取る
+128 バイトは永久に使われないかもしれない</code></pre><p><strong>これが断片化である。</strong></p><blockquote><p><strong>heap_2 は FreeRTOS 公式で「非推奨 (deprecated)」とされている.</strong> heap_4 が上位互換なので、新規開発で選ぶ理由はない。 古いプロジェクトで見かけたら、heap_4 に移行を検討すること。</p></blockquote><h3>heap_4 — 結合する。最も一般的</h3><p>heap_2 と同じくリンクリストだが、<strong>隣接する空きブロックを自動的に結合する (coalescence)</strong>。</p><pre><code class="lang-c">static void prvInsertBlockIntoFreeList( BlockLink_t *pxBlockToInsert )
+{
+    /* アドレス順に空きリストへ挿入する */
+    for( pxIterator = &amp;xStart;
+         pxIterator-&gt;pxNextFreeBlock &lt; pxBlockToInsert;
+         pxIterator = pxIterator-&gt;pxNextFreeBlock ) {}
+
+    /* ★ 直前のブロックと連続しているなら結合 */
+    puc = ( uint8_t * ) pxIterator;
+    if( ( puc + pxIterator-&gt;xBlockSize ) == ( uint8_t * ) pxBlockToInsert ) {
+        pxIterator-&gt;xBlockSize += pxBlockToInsert-&gt;xBlockSize;
+        pxBlockToInsert = pxIterator;
+    }
+
+    /* ★ 直後のブロックと連続しているなら結合 */
+    puc = ( uint8_t * ) pxBlockToInsert;
+    if( ( puc + pxBlockToInsert-&gt;xBlockSize ) == ( uint8_t * ) pxIterator-&gt;pxNextFreeBlock ) {
+        if( pxIterator-&gt;pxNextFreeBlock != pxEnd ) {
+            pxBlockToInsert-&gt;xBlockSize += pxIterator-&gt;pxNextFreeBlock-&gt;xBlockSize;
+            pxBlockToInsert-&gt;pxNextFreeBlock = pxIterator-&gt;pxNextFreeBlock-&gt;pxNextFreeBlock;
+        }
+        ...
+    }
+    ...
+}</code></pre><p><strong>確保は最初適合 (first fit)</strong> である（アドレス順のリストを先頭から見て、最初に入るところ）。</p><div class="tablewrap"><table><thead><tr><th>観点</th><th>評価</th></tr></thead><tbody><tr><td>実行時間</td><td><strong>一定ではない</strong>（リストの長さに依存）</td></tr><tr><td>断片化</td><td>起きるが、結合により<strong>大幅に軽減される</strong></td></tr><tr><td>解放</td><td>できる</td></tr><tr><td>用途</td><td><strong>最も一般的な選択</strong></td></tr></tbody></table></div><h3>heap_3 — 標準 <code>malloc</code> のラッパー</h3><pre><code class="lang-c">void *pvPortMalloc( size_t xWantedSize )
+{
+    vTaskSuspendAll();
+    {
+        pvReturn = malloc( xWantedSize );      /* 標準ライブラリを呼ぶ */
+    }
+    ( void ) xTaskResumeAll();
+    return pvReturn;
+}</code></pre><p><strong><code>vTaskSuspendAll()</code> で囲むことでスレッドセーフにしている</strong>だけである。</p><div class="tablewrap"><table><thead><tr><th>観点</th><th>評価</th></tr></thead><tbody><tr><td>ヒープの場所</td><td><strong>リンカスクリプトで決まる</strong>（<code>configTOTAL_HEAP_SIZE</code> は使われない）</td></tr><tr><td>実行時間</td><td>標準ライブラリ次第。<strong>予測不能</strong></td></tr><tr><td>用途</td><td>既存コードが <code>malloc</code> を多用していて、統一したい場合</td></tr></tbody></table></div><blockquote><p><strong>heap_3 は積極的に選ぶものではない.</strong> 標準 <code>malloc</code> の欠点（予測不能な実行時間、断片化）をそのまま引き継ぐ。 しかも <code>vTaskSuspendAll()</code> の区間が長くなるので、全タスクの起床が遅れる（10 章）。</p></blockquote><h3>heap_5 — 複数の領域を扱える</h3><p>heap_4 と同じアルゴリズムだが、<strong>連続していない複数のメモリ領域</strong>を 1 つのヒープとして扱える。</p><pre><code class="lang-c">static const HeapRegion_t xHeapRegions[] =
+{
+    { ( uint8_t * ) 0x20000000UL, 0x00010000 },   /* 内蔵 SRAM 64 KB */
+    { ( uint8_t * ) 0x60000000UL, 0x00100000 },   /* 外付け SDRAM 1 MB */
+    { NULL, 0 }                                    /* 終端 */
+};
+
+int main( void )
+{
+    vPortDefineHeapRegions( xHeapRegions );    /* ★ 他の何よりも先に呼ぶ */
+    ...
+}</code></pre><blockquote><p><strong><code>vPortDefineHeapRegions()</code> は最優先で呼ぶこと.</strong></p><p>これを呼ぶ前に <code>pvPortMalloc()</code> が呼ばれると失敗する。 <strong><code>xTaskCreate()</code> を含む、あらゆる FreeRTOS API の前</strong>に呼ぶ必要がある。</p><p>また、<strong>領域はアドレスの昇順に並べる</strong>必要がある。順序が違うと正しく動かない。</p></blockquote><h2>4. 5 つの比較表</h2><div class="tablewrap"><table><thead><tr><th></th><th>heap_1</th><th>heap_2</th><th>heap_3</th><th>heap_4</th><th>heap_5</th></tr></thead><tbody><tr><td>解放</td><td><strong>不可</strong></td><td>可</td><td>可</td><td>可</td><td>可</td></tr><tr><td>結合</td><td>—</td><td><strong>しない</strong></td><td>ライブラリ次第</td><td><strong>する</strong></td><td><strong>する</strong></td></tr><tr><td>実行時間</td><td><strong>一定</strong></td><td>可変</td><td>不定</td><td>可変</td><td>可変</td></tr><tr><td>断片化</td><td>なし</td><td><strong>大きい</strong></td><td>あり</td><td>小さい</td><td>小さい</td></tr><tr><td>複数領域</td><td>不可</td><td>不可</td><td>不可</td><td>不可</td><td><strong>可</strong></td></tr><tr><td>コードサイズ</td><td>最小</td><td>小</td><td>最小</td><td>中</td><td>中</td></tr><tr><td>推奨度</td><td>★★★</td><td><strong>非推奨</strong></td><td>★</td><td>★★★</td><td>★★（必要なとき）</td></tr></tbody></table></div><h3>ヒープの動作を見る</h3><div class="widget" data-widget="heap"></div><p>確保と解放を繰り返して、断片化がどう進むか、結合がどう効くかを確かめられる。</p><h2>5. 選び方の指針</h2><div class="tablewrap"><table><thead><tr><th>状況</th><th>選択</th></tr></thead><tbody><tr><td>起動時に全部作り、解放しない</td><td><strong>heap_1</strong>（または静的確保）</td></tr><tr><td>動的な確保・解放がある</td><td><strong>heap_4</strong></td></tr><tr><td>外付け RAM も使う</td><td><strong>heap_5</strong></td></tr><tr><td>既存の <code>malloc</code> 依存が多い</td><td>heap_3（暫定）</td></tr><tr><td>認証が必要（動的確保禁止）</td><td><strong>静的確保のみ</strong>（次節）</td></tr></tbody></table></div><blockquote><p><strong>迷ったら heap_4 を選ぶ.</strong> 汎用性が高く、断片化にも強い。</p></blockquote><h2>6. 静的確保 — ヒープを使わない</h2><pre><code class="lang-c">#define configSUPPORT_STATIC_ALLOCATION   1
+#define configSUPPORT_DYNAMIC_ALLOCATION  0     /* 動的を完全に禁止 */</code></pre><p>すべてのカーネルオブジェクトに、<strong>静的確保版の API がある</strong>。</p><pre><code class="lang-c">/* タスク */
+StaticTask_t xTaskBuffer;
+StackType_t  xStack[ 256 ];
+TaskHandle_t h = xTaskCreateStatic( vTask, "T", 256, NULL, 2, xStack, &amp;xTaskBuffer );
+
+/* キュー */
+StaticQueue_t xQueueBuffer;
+uint8_t ucStorage[ 10 * sizeof( int ) ];
+QueueHandle_t q = xQueueCreateStatic( 10, sizeof( int ), ucStorage, &amp;xQueueBuffer );
+
+/* セマフォ */
+StaticSemaphore_t xSemBuffer;
+SemaphoreHandle_t s = xSemaphoreCreateBinaryStatic( &amp;xSemBuffer );
+
+/* タイマ */
+StaticTimer_t xTimerBuffer;
+TimerHandle_t t = xTimerCreateStatic( "T", 100, pdTRUE, NULL, cb, &amp;xTimerBuffer );</code></pre><p><code>configSUPPORT_STATIC_ALLOCATION = 1</code> にすると、 <strong>アイドルタスクとタイマタスクのメモリも自分で提供する必要がある</strong>。</p><pre><code class="lang-c">void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
+                                    StackType_t **ppxIdleTaskStackBuffer,
+                                    uint32_t *pulIdleTaskStackSize )
+{
+    static StaticTask_t xIdleTaskTCB;
+    static StackType_t  uxIdleTaskStack[ configMINIMAL_STACK_SIZE ];
+
+    *ppxIdleTaskTCBBuffer   = &amp;xIdleTaskTCB;
+    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+    *pulIdleTaskStackSize   = configMINIMAL_STACK_SIZE;
+}
+
+void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer,
+                                     StackType_t **ppxTimerTaskStackBuffer,
+                                     uint32_t *pulTimerTaskStackSize )
+{
+    static StaticTask_t xTimerTaskTCB;
+    static StackType_t  uxTimerTaskStack[ configTIMER_TASK_STACK_DEPTH ];
+
+    *ppxTimerTaskTCBBuffer   = &amp;xTimerTaskTCB;
+    *ppxTimerTaskStackBuffer = uxTimerTaskStack;
+    *pulTimerTaskStackSize   = configTIMER_TASK_STACK_DEPTH;
+}</code></pre><blockquote><p><strong>これを定義し忘れるとリンクエラーになる.</strong> 忘れようがないので安心してよい。</p></blockquote><h3>静的確保の利点</h3><div class="tablewrap"><table><thead><tr><th>利点</th><th>内容</th></tr></thead><tbody><tr><td><strong>失敗しない</strong></td><td>ヒープ不足で NULL が返ることがない</td></tr><tr><td><strong>ビルド時に分かる</strong></td><td>RAM が足りなければリンカが教えてくれる</td></tr><tr><td><strong>断片化しない</strong></td><td>ヒープを使わないので当然</td></tr><tr><td><strong>静的解析できる</strong></td><td>メモリマップが完全に確定する</td></tr><tr><td><strong>認証に通りやすい</strong></td><td>動的確保の禁止要件を満たせる</td></tr></tbody></table></div><blockquote><p><strong>新規プロジェクトでは静的確保を既定にすることを強く推奨する.</strong></p><p>「起動時に作って、以後解放しない」設計なら、動的確保を使う理由が 1 つもない。 記述が少し冗長になるだけで、得られる安心感は大きい。</p></blockquote><h2>7. ヒープの監視</h2><pre><code class="lang-c">size_t free_now = xPortGetFreeHeapSize();                 /* 現在の空き */
+size_t free_min = xPortGetMinimumEverFreeHeapSize();      /* 過去最小の空き */</code></pre><p><strong><code>xPortGetMinimumEverFreeHeapSize()</code> が最も重要である。</strong> 「これまでで最も苦しかったとき、どれだけ残っていたか」を教えてくれる。</p><pre><code class="lang-c">/* 起動から十分に時間が経った後で確認する */
+if( xPortGetMinimumEverFreeHeapSize() &lt; 1024 ) {
+    log_warn( "heap margin too small" );
+}</code></pre><blockquote><p><strong>注意: heap_1 と heap_3 では <code>xPortGetMinimumEverFreeHeapSize()</code> が使えない.</strong> heap_1 は解放がないので「最小」に意味がなく、heap_3 は標準ライブラリの内部を見られない。</p></blockquote><h3>確保失敗を捕まえる</h3><pre><code class="lang-c">#define configUSE_MALLOC_FAILED_HOOK  1
+
+void vApplicationMallocFailedHook( void )
+{
+    /* ヒープが足りなかった。ここで止めるか、ログを残す */
+    taskDISABLE_INTERRUPTS();
+    for( ;; );
+}</code></pre><p><strong>開発中は必ず有効にすること。</strong> これがないと、<code>xTaskCreate()</code> が静かに失敗して、後で「なぜかタスクが動かない」になる。</p><pre><code class="lang-c">/* 戻り値を必ず確認する習慣も重要 */
+if( xTaskCreate( vTask, "T", 256, NULL, 2, NULL ) != pdPASS ) {
+    log_error( "task create failed" );
+}</code></pre><h2>8. アラインメントとオーバーヘッド</h2><pre><code class="lang-c">#define portBYTE_ALIGNMENT  8       /* Cortex-M では 8 */</code></pre><p><code>pvPortMalloc()</code> は、<strong>必ずこの境界に揃ったアドレス</strong>を返す。</p><p>heap_4 の場合、1 回の確保あたりのオーバーヘッドはこうなる。</p><div class="tablewrap"><table><thead><tr><th>項目</th><th>サイズ</th></tr></thead><tbody><tr><td><code>BlockLink_t</code> 構造体</td><td>8 バイト（32 bit CPU）</td></tr><tr><td>アラインメント調整</td><td>0〜7 バイト</td></tr></tbody></table></div><blockquote><p><strong>小さな確保を大量に行うと、オーバーヘッドが無視できない.</strong></p><p>8 バイトを 100 回確保すると、実際に消費されるのは \((8 + 8) \times 100 = 1600\) バイト——<strong>要求の 2 倍</strong>である。</p><p>小さなオブジェクトを大量に扱うなら、 <strong>自前の固定サイズプールを作る</strong>方が効率的である。</p><pre><code class="lang-c">/* 固定サイズプールの例: カウンティングセマフォで個数を管理 */
+static Item_t pool[ 32 ];
+static SemaphoreHandle_t xPoolSem;    /* Counting(32, 32) */
+static StackType_t freeList[ 32 ];</code></pre></blockquote><h2>9. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>標準 <code>malloc</code> の問題</td><td>非スレッドセーフ・予測不能・断片化・可視性なし</td></tr><tr><td>heap_1</td><td>解放不可。<strong>一定時間・断片化なし</strong>。最も安全</td></tr><tr><td>heap_2</td><td>結合しない。<strong>非推奨</strong></td></tr><tr><td>heap_3</td><td>標準 <code>malloc</code> のラッパー。積極的には選ばない</td></tr><tr><td>heap_4</td><td><strong>結合する</strong>。最も一般的な選択</td></tr><tr><td>heap_5</td><td>複数領域。<code>vPortDefineHeapRegions()</code> を<strong>最優先で呼ぶ</strong></td></tr><tr><td>静的確保</td><td><strong>新規プロジェクトの既定にすべき</strong>。失敗しない・解析できる</td></tr><tr><td>監視</td><td><strong><code>xPortGetMinimumEverFreeHeapSize()</code></strong> が最重要</td></tr><tr><td>フック</td><td><code>configUSE_MALLOC_FAILED_HOOK</code> は開発中必須</td></tr><tr><td>オーバーヘッド</td><td>1 確保あたり 8 バイト＋アラインメント</td></tr></tbody></table></div><p>次章では、ヒープと並ぶもう 1 つのメモリ—— スタックと、その溢れによる事故を扱う。</p>
+  <nav class="chnav"><a class="pn" href="15.html"><span>←</span><b>ソフトウェアタイマ — タイマタスクという「専用のスタッフ」</b></a><a class="pn nx" href="17.html"><b>スタックとオーバーフロー — 最も多い「原因不明のクラッシュ」の正体</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

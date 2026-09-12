@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>15. ソフトウェアタイマ — タイマタスクという「専用のスタッフ」 — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">15 · ソフトウェアタイマ — タイマタスクという「専用のスタッフ」</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 15</p>
+  <h1 class="doctitle">ソフトウェアタイマ — タイマタスクという「専用のスタッフ」</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「タイマ」という言葉が 3 つのものを指している.</strong></p><p>ハードウェアタイマ、ティック割り込み、そしてソフトウェアタイマ。 この 3 つは全く別物である。</p><p>そして FreeRTOS のソフトウェアタイマには、<strong>独特の制約</strong>がある。 コールバックは「割り込みの中」ではなく「<strong>タイマタスクという普通のタスクの中</strong>」で走る。 ここを理解しないと、応答時間の見積りが根本から狂う。</p></blockquote><h2>1. 3 つの「タイマ」の違い</h2><div class="tablewrap"><table><thead><tr><th>種類</th><th>実体</th><th>精度</th><th>コールバックの実行場所</th></tr></thead><tbody><tr><td><strong>ハードウェアタイマ</strong></td><td>CPU 内蔵のペリフェラル</td><td>ns〜µs</td><td><strong>割り込みハンドラ</strong></td></tr><tr><td><strong>ティック</strong></td><td>ハードウェアタイマ 1 本を OS が占有</td><td>ティック周期</td><td>カーネル内部</td></tr><tr><td><strong>ソフトウェアタイマ</strong></td><td>ティックの上に<strong>ソフトで実装</strong></td><td>ティック周期</td><td><strong>タイマタスク（普通のタスク）</strong></td></tr></tbody></table></div><p>ソフトウェアタイマは「ハードウェアを消費せずに、いくつでもタイマが持てる」のが利点である。 100 個作っても、使うハードウェアタイマは<strong>ティック用の 1 本だけ</strong>である。</p><blockquote><p><strong>代わりに、精度と即時性を捨てている.</strong></p><p>ハードウェアタイマなら µs 精度で、割り込みで即座にコールバックが走る。 ソフトウェアタイマは<strong>ティック周期の精度</strong>で、しかも<strong>タイマタスクが走るまで実行されない</strong>。</p><p><strong>正確なタイミングが要るならハードウェアタイマを使うこと。</strong> ソフトウェアタイマは「だいたい 1 秒後に何かする」用途のものである。</p></blockquote><h2>2. タイマタスク（デーモンタスク）</h2><pre><code class="lang-c">#define configUSE_TIMERS               1
+#define configTIMER_TASK_PRIORITY      3      /* タイマタスクの優先度 */
+#define configTIMER_QUEUE_LENGTH       10     /* コマンドキューの長さ */
+#define configTIMER_TASK_STACK_DEPTH   configMINIMAL_STACK_SIZE</code></pre><p><code>vTaskStartScheduler()</code> の中で、<strong>タイマタスクが自動的に生成される</strong>（03 章）。</p><p>このタスクがやることは、たった 2 つである。</p><pre><code class="lang-c">static portTASK_FUNCTION( prvTimerTask, pvParameters )
+{
+    for( ;; )
+    {
+        /* (1) 次に期限が来るタイマの時刻を調べる */
+        xNextExpireTime = prvGetNextExpireTime( &amp;xListWasEmpty );
+
+        /* (2) その時刻まで寝る。起きたら期限が来たタイマを処理する */
+        prvProcessTimerOrBlockTask( xNextExpireTime, xListWasEmpty );
+
+        /* (3) コマンドキューに溜まった要求を処理する */
+        prvProcessReceivedCommands();
+    }
+}</code></pre><h3>構造の全体像</h3><pre><code>   アプリケーションのタスク / ISR
+              │
+              │ xTimerStart() / xTimerStop() / xTimerChangePeriod()
+              ↓
+       ┌──────────────────┐
+       │ タイマコマンドキュー │  ← ただのキュー（11 章）
+       └──────────────────┘
+              │
+              ↓
+       ┌──────────────────┐
+       │   タイマタスク      │  ← 普通のタスク。優先度 configTIMER_TASK_PRIORITY
+       │  (デーモンタスク)   │
+       └──────────────────┘
+              │
+              ├─→ アクティブタイマリスト（期限の昇順ソート）
+              │
+              └─→ 期限が来たら pxCallbackFunction() を呼ぶ</code></pre><blockquote><p><strong>これが最も重要な事実である.</strong></p><p><strong><code>xTimerStart()</code> はタイマを開始しない。「開始してくれ」というコマンドをキューに送るだけである。</strong></p><p>実際に開始されるのは、タイマタスクがそのコマンドを取り出したときである。 だから——</p><ul><li>タイマタスクより優先度の高いタスクが走っている間、<strong>コマンドは処理されない</strong></li><li>コールバックも、タイマタスクが走るまで<strong>実行されない</strong></li></ul><p><strong><code>configTIMER_TASK_PRIORITY</code> の設定が、タイマの応答性を決める。</strong></p></blockquote><h2>3. タイマの作り方と使い方</h2><pre><code class="lang-c">TimerHandle_t xTimer = xTimerCreate(
+    "MyTimer",                     /* 名前（デバッグ用） */
+    pdMS_TO_TICKS( 1000 ),         /* 周期 */
+    pdTRUE,                        /* pdTRUE = 自動リロード、pdFALSE = ワンショット */
+    ( void * ) 0,                  /* タイマ ID（ユーザ任意） */
+    vTimerCallback );              /* コールバック関数 */
+
+xTimerStart( xTimer, 0 );          /* 開始（第 2 引数はコマンドキューの待ち時間） */
+
+void vTimerCallback( TimerHandle_t xTimer )
+{
+    /* ここはタイマタスクのコンテキスト */
+    uint32_t id = ( uint32_t ) pvTimerGetTimerID( xTimer );
+    ...
+}</code></pre><h3>主な API</h3><div class="tablewrap"><table><thead><tr><th>API</th><th>動作</th><th>ISR 版</th></tr></thead><tbody><tr><td><code>xTimerStart</code></td><td>開始（既に動いていればリセット）</td><td><code>xTimerStartFromISR</code></td></tr><tr><td><code>xTimerStop</code></td><td>停止</td><td><code>xTimerStopFromISR</code></td></tr><tr><td><code>xTimerReset</code></td><td>現時刻から周期を数え直す</td><td><code>xTimerResetFromISR</code></td></tr><tr><td><code>xTimerChangePeriod</code></td><td>周期を変えて開始</td><td><code>xTimerChangePeriodFromISR</code></td></tr><tr><td><code>xTimerDelete</code></td><td>削除</td><td>なし</td></tr><tr><td><code>xTimerIsTimerActive</code></td><td>動いているか（<strong>キュー経由でない、即座に返る</strong>）</td><td>—</td></tr><tr><td><code>pvTimerGetTimerID</code></td><td>ID を取得</td><td>—</td></tr></tbody></table></div><h3>ソフトウェアタイマの動作を見る</h3><div class="widget" data-widget="swtimer"></div><p>タイマの周期・モード・タイマタスクの優先度を変えて、 コールバックが実際にいつ走るかを確かめられる。</p><h3>2 つのモード</h3><div class="tablewrap"><table><thead><tr><th>モード</th><th>第 3 引数</th><th>動作</th></tr></thead><tbody><tr><td><strong>自動リロード</strong></td><td><code>pdTRUE</code></td><td>周期的に呼ばれ続ける</td></tr><tr><td><strong>ワンショット</strong></td><td><code>pdFALSE</code></td><td>1 回だけ呼ばれて停止する</td></tr></tbody></table></div><blockquote><p><strong><code>xTimerReset()</code> はワンショットで真価を発揮する.</strong></p><p>「最後の入力から 3 秒間何もなかったら実行する」—— デバウンスやアイドル検出の典型パターンである。</p><pre><code class="lang-c">/* 入力があるたびに呼ぶ */
+void on_input( void ) {
+    xTimerReset( xIdleTimer, 0 );      /* 3 秒を数え直す */
+}
+
+/* 3 秒間 on_input が呼ばれなければ、これが実行される */
+void vIdleTimeout( TimerHandle_t t ) {
+    enter_sleep_mode();
+}</code></pre></blockquote><h2>4. コールバックの掟</h2><p><strong>コールバックはタイマタスクのコンテキストで実行される。</strong> つまり「<strong>タイマタスクという 1 つのタスクの中で、全タイマのコールバックが順に実行される</strong>」。</p><p>このことから、2 つの絶対的な掟が導かれる。</p><h3>掟 1: 絶対にブロックしてはいけない</h3><pre><code class="lang-c">void vTimerCallback( TimerHandle_t t )
+{
+    vTaskDelay( 100 );                         /* ← 絶対にダメ */
+    xSemaphoreTake( xMutex, portMAX_DELAY );   /* ← 絶対にダメ */
+}</code></pre><p>ブロックすると<strong>タイマタスクが止まる</strong>。 その間、<strong>すべてのタイマのコールバックが実行されず、すべてのコマンドが処理されない</strong>。</p><p>システム全体のタイマ機能が停止する。<strong>これは非常に見つけにくい不具合になる。</strong></p><h3>掟 2: 短く済ませる</h3><pre><code class="lang-c">void vTimerCallback( TimerHandle_t t )
+{
+    heavy_computation();       /* ← 他のタイマが全部遅れる */
+}</code></pre><p>タイマタスクは 1 本しかない。<strong>長い処理は他のタイマの期限を遅らせる。</strong></p><p><strong>正しくは、通知を送って別のタスクに処理させる。</strong></p><pre><code class="lang-c">void vTimerCallback( TimerHandle_t t )
+{
+    xTaskNotifyGive( xWorkerTask );    /* 通知するだけ。すぐ戻る */
+}</code></pre><blockquote><p><strong>タイマタスクのスタックサイズにも注意.</strong></p><pre><code class="lang-c">#define configTIMER_TASK_STACK_DEPTH  configMINIMAL_STACK_SIZE</code></pre><p>既定値は最小サイズである。コールバックの中で深い関数を呼ぶと<strong>溢れる</strong>。 実際、<code>printf</code> を 1 行入れただけで落ちることがある。</p><p>コールバックに何か書くなら、<strong>このサイズを見直すこと</strong>（17 章）。</p></blockquote><h2>5. <code>xTimerPendFunctionCall()</code> — 遅延実行</h2><p>タイマ機能のもう 1 つの顔である。<strong>「この関数を、タイマタスクに実行してもらう」</strong>。</p><pre><code class="lang-c">BaseType_t xTimerPendFunctionCallFromISR( PendedFunction_t xFunctionToPend,
+                                          void *pvParameter1,
+                                          uint32_t ulParameter2,
+                                          BaseType_t *pxHigherPriorityTaskWoken );</code></pre><p>これは <strong>ISR の中で長い処理をしたくないとき</strong>に使う。</p><pre><code class="lang-c">void vDeferredHandler( void *pvParam1, uint32_t ulParam2 )
+{
+    /* ここはタイマタスクのコンテキスト。ブロックしなければ何でもできる */
+    process_packet( (uint8_t*)pvParam1, ulParam2 );
+}
+
+void DMA_IRQHandler( void )
+{
+    BaseType_t woken = pdFALSE;
+    xTimerPendFunctionCallFromISR( vDeferredHandler, dma_buffer, dma_len, &amp;woken );
+    portYIELD_FROM_ISR( woken );
+}</code></pre><blockquote><p><strong>これが「遅延割り込み処理 (deferred interrupt processing)」の FreeRTOS 版である.</strong></p><p>Linux では<strong>下半分 (bottom half)</strong> ／ <strong>ワークキュー</strong>と呼ばれる仕組みに相当する。 「割り込みの中では最小限のことだけして、残りは後で普通のコンテキストでやる」—— これは OS 設計の普遍的なパターンである。</p><p>14 章で見た <code>xEventGroupSetBitsFromISR()</code> も、内部でこれを使っている。</p></blockquote><h3>専用タスクとの比較</h3><div class="tablewrap"><table><thead><tr><th>方法</th><th>利点</th><th>欠点</th></tr></thead><tbody><tr><td><strong><code>xTimerPendFunctionCall</code></strong></td><td>タスクを追加しなくてよい</td><td>タイマタスクを共有するので<strong>互いに遅らせ合う</strong></td></tr><tr><td><strong>専用のワーカータスク</strong></td><td>優先度を独立に設定できる</td><td>タスク 1 つ分の RAM を使う</td></tr></tbody></table></div><p><strong>頻度が低く軽い処理</strong>なら前者、<strong>頻度が高いか重い処理</strong>なら後者である。</p><h2>6. 内部実装 — アクティブタイマリスト</h2><p>タイマも、<strong>期限の昇順にソートされたリスト</strong>で管理される（10 章の遅延リストと同じ発想）。</p><pre><code class="lang-c">static List_t xActiveTimerList1;
+static List_t xActiveTimerList2;
+static List_t *pxCurrentTimerList;
+static List_t *pxOverflowTimerList;</code></pre><p><strong>ティックの折り返し対策も、遅延リストと同じ「リスト 2 本の交換」である。</strong></p><pre><code class="lang-c">static void prvProcessTimerOrBlockTask( const TickType_t xNextExpireTime,
+                                        BaseType_t xListWasEmpty )
+{
+    vTaskSuspendAll();
+    {
+        xTimeNow = prvSampleTimeNow( &amp;xTimerListsWereSwitched );
+
+        if( xTimerListsWereSwitched == pdFALSE )
+        {
+            if( ( xListWasEmpty == pdFALSE ) &amp;&amp; ( xNextExpireTime &lt;= xTimeNow ) ) {
+                ( void ) xTaskResumeAll();
+                prvProcessExpiredTimer( xNextExpireTime, xTimeNow );   /* 期限到来 */
+            }
+            else {
+                /* 次の期限まで、コマンドキューで待つ */
+                vQueueWaitForMessageRestricted( xTimerQueue,
+                                                ( xNextExpireTime - xTimeNow ),
+                                                xListWasEmpty );
+                if( xTaskResumeAll() == pdFALSE ) { portYIELD_WITHIN_API(); }
+            }
+        }
+        else { ( void ) xTaskResumeAll(); }
+    }
+}</code></pre><blockquote><p><strong><code>vQueueWaitForMessageRestricted()</code> という工夫.</strong></p><p>タイマタスクは、<strong>2 つのことを同時に待つ</strong>必要がある。</p><ol><li>次のタイマの期限が来ること（時間待ち）</li><li>コマンドキューに要求が届くこと（イベント待ち）</li></ol><p>この関数は「<strong>キューに対して、指定時間だけ待つ。ただし受信はしない</strong>」という 特殊な待ち方をする。10 章で見た「2 つのリストへの同時登録」がそのまま効いている。</p><ul><li>期限が来たら → 遅延リスト経由で起きる</li><li>コマンドが届いたら → イベントリスト経由で起きる</li></ul><p><strong>どちらでも起きて、起きてから何が起きたか判断する。</strong> きれいな設計である。</p></blockquote><h3>自動リロードの再登録</h3><pre><code class="lang-c">static void prvProcessExpiredTimer( const TickType_t xNextExpireTime,
+                                    const TickType_t xTimeNow )
+{
+    TIMER_t * const pxTimer = listGET_OWNER_OF_HEAD_ENTRY( pxCurrentTimerList );
+
+    ( void ) uxListRemove( &amp;( pxTimer-&gt;xTimerListItem ) );
+
+    if( ( pxTimer-&gt;ucStatus &amp; tmrSTATUS_IS_AUTORELOAD ) != 0 )
+    {
+        /* ★ 期限「基準」で再登録する。実行時刻基準ではない */
+        if( prvInsertTimerInActiveList( pxTimer,
+                                        xNextExpireTime + pxTimer-&gt;xTimerPeriodInTicks,
+                                        xTimeNow, xNextExpireTime ) != pdFALSE )
+        { ... }
+    }
+    else {
+        pxTimer-&gt;ucStatus &amp;= ~tmrSTATUS_IS_ACTIVE;
+    }
+
+    pxTimer-&gt;pxCallbackFunction( ( TimerHandle_t ) pxTimer );    /* コールバック */
+}</code></pre><blockquote><p><strong>再登録が「実行時刻 + 周期」ではなく「前回の期限 + 周期」である点に注目.</strong></p><p>これは 08 章の <code>vTaskDelayUntil()</code> と同じ考え方である。 コールバックの実行が遅れても、<strong>期限の格子はずれない</strong>。</p><pre><code>期限:     0 ─── 100 ─── 200 ─── 300     ← 常に 100 刻み
+実行:     5     108     205     310      ← 遅れるが、期限は動かない</code></pre><p><strong>だから長期的な累積誤差が生じない。</strong> よくできている。</p></blockquote><h2>7. よくある落とし穴</h2><div class="tablewrap"><table><thead><tr><th>落とし穴</th><th>症状</th><th>対策</th></tr></thead><tbody><tr><td><code>configTIMER_TASK_PRIORITY</code> が低すぎる</td><td>タイマが遅れる・止まる</td><td>高優先度タスクより上に置く</td></tr><tr><td><code>configTIMER_QUEUE_LENGTH</code> が小さい</td><td><code>xTimerStart</code> が失敗する</td><td>長くする。戻り値を確認する</td></tr><tr><td>コールバックでブロック</td><td><strong>全タイマが停止</strong></td><td>通知して別タスクで処理する</td></tr><tr><td>タイマタスクのスタック不足</td><td>原因不明のクラッシュ</td><td><code>configTIMER_TASK_STACK_DEPTH</code> を増やす</td></tr><tr><td><code>xTimerStart</code> の戻り値を見ない</td><td>静かに失敗している</td><td>必ず確認する</td></tr><tr><td>スケジューラ開始前に <code>xTimerStart</code></td><td>コマンドは溜まるが処理されない</td><td>開始後に呼ぶ（09 章のデーモン起動フックが便利）</td></tr></tbody></table></div><pre><code class="lang-c">if( xTimerStart( xTimer, pdMS_TO_TICKS( 10 ) ) != pdPASS ) {
+    /* コマンドキューが満杯だった */
+    log_error( "timer start failed" );
+}</code></pre><blockquote><p><strong><code>configTIMER_TASK_PRIORITY</code> をどこに置くか.</strong></p><p>悩ましい判断である。</p><ul><li><strong>高くする</strong> → タイマの応答が良い。だがコールバックが他のタスクを止める</li><li><strong>低くする</strong> → 他のタスクを邪魔しない。だがタイマが遅れる</li></ul><p><strong>原則としては、高めに置いて、コールバックを極端に軽くする</strong>のがよい。 コールバックが軽ければ、高優先度でも実害がない。</p><p>典型的には「アプリケーションの最高優先度タスクと同じか、1 段上」に置く。</p></blockquote><h2>8. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>実体</td><td><strong>タイマタスク（デーモンタスク）</strong> という普通のタスク</td></tr><tr><td>API の正体</td><td><code>xTimerStart()</code> は<strong>コマンドキューに要求を送るだけ</strong></td></tr><tr><td>応答性</td><td><code>configTIMER_TASK_PRIORITY</code> が決める</td></tr><tr><td>コールバックの掟</td><td><strong>ブロック禁止・短く済ませる</strong>。全タイマが道連れになる</td></tr><tr><td>重い処理</td><td>通知を送って別タスクで処理する</td></tr><tr><td><code>xTimerPendFunctionCall</code></td><td>ISR からの<strong>遅延実行</strong>。Linux の下半分に相当</td></tr><tr><td>内部構造</td><td><strong>期限の昇順リスト ＋ 2 本交換によるオーバーフロー対策</strong></td></tr><tr><td>同時待ち</td><td><code>vQueueWaitForMessageRestricted</code> で「時間 or コマンド」を待つ</td></tr><tr><td>再登録</td><td><strong>前回の期限 + 周期</strong>。累積誤差が出ない</td></tr><tr><td>精度が要るなら</td><td><strong>ハードウェアタイマを使うこと</strong></td></tr></tbody></table></div><p>次章では、これまで何度も出てきた「ヒープ」—— FreeRTOS のメモリ管理を見る。</p>
+  <nav class="chnav"><a class="pn" href="14.html"><span>←</span><b>タスク通知とイベントグループ — キューより 45 % 速い通知路</b></a><a class="pn nx" href="16.html"><b>メモリ管理 — heap_1〜heap_5 のどれを選ぶか</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

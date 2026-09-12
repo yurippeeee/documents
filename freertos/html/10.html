@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>10. ブロックと遅延リスト — 待っているタスクを O(1) で起こす — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">10 · ブロックと遅延リスト — 待っているタスクを O(1) で起こす</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 10</p>
+  <h1 class="doctitle">ブロックと遅延リスト — 待っているタスクを O(1) で起こす</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——「待つ」は OS の最大の価値だった.</strong></p><p>01 章で「途中で待てること」が OS の決定打だと述べた。 その「待つ」を、カーネルはどう実装しているのか。</p><p>難しいのは<strong>起こす側</strong>である。 毎ティック全タスクを調べていたら、タスク数に比例した時間がかかる。 それではリアルタイム OS を名乗れない。</p><p>FreeRTOS は<strong>ソート済みリスト＋次回起床時刻のキャッシュ</strong>でこれを解く。 そして 49.7 日ごとに来るティックの折り返しを、<strong>リスト 2 本の交換</strong>で乗り切る。</p></blockquote><h2>1. 遅延リスト — 起床時刻でソートされたリスト</h2><pre><code class="lang-c">static List_t xDelayedTaskList1;
+static List_t xDelayedTaskList2;
+static List_t * volatile pxDelayedTaskList;              /* いま使っている方 */
+static List_t * volatile pxOverflowDelayedTaskList;      /* 折り返し後の方 */</code></pre><p>遅延リストには、時間待ちのタスクが<strong>起床時刻（絶対ティック）の昇順</strong>で並ぶ。</p><pre><code>xTickCount = 1000 のとき
+
+pxDelayedTaskList:
+  [TaskA: 起床 1005] → [TaskB: 起床 1010] → [TaskC: 起床 1100] → [番兵: MAX]
+       ↑
+   次に起きるのはこれ。先頭を見るだけで分かる</code></pre><h3>なぜソートするのか</h3><p>08 章で見た <code>xTaskIncrementTick()</code> の判定を思い出してほしい。</p><pre><code class="lang-c">if( xConstTickCount &gt;= xNextTaskUnblockTime ) {
+    /* 起こす処理 */
+}</code></pre><p><code>xNextTaskUnblockTime</code> は<strong>遅延リストの先頭の起床時刻</strong>である。</p><ul><li>大多数のティックでは、この比較が偽 → <strong>リストを一切触らない</strong></li><li>真になったときだけ、<strong>先頭から順に、時刻が来たものだけ</strong>を起こす</li></ul><pre><code class="lang-c">for( ;; ) {
+    pxTCB = listGET_OWNER_OF_HEAD_ENTRY( pxDelayedTaskList );
+    xItemValue = listGET_LIST_ITEM_VALUE( &amp;( pxTCB-&gt;xStateListItem ) );
+
+    if( xConstTickCount &lt; xItemValue ) {
+        xNextTaskUnblockTime = xItemValue;    /* 次回のためにキャッシュ更新 */
+        break;                                 /* 以降は全部まだ先 */
+    }
+    /* 起こす */
+}</code></pre><p>ソートされているので、<strong>「先頭がまだなら、以降も全部まだ」</strong>と言い切れる。 これが <code>break</code> を可能にしている。</p><blockquote><p><strong>計算量の設計を整理する.</strong></p><div class="tablewrap"><table><thead><tr><th>操作</th><th>頻度</th><th>計算量</th></tr></thead><tbody><tr><td>遅延リストへの挿入（寝るとき）</td><td>タスクが寝るたび</td><td><strong>O(n)</strong> ソート挿入</td></tr><tr><td>ティックごとの判定</td><td><strong>毎ティック</strong></td><td><strong>O(1)</strong> 比較 1 回</td></tr><tr><td>起床（時刻が来たとき）</td><td>起きるタスク数だけ</td><td>O(起きる数)</td></tr></tbody></table></div><p><strong>頻度の最も高い「毎ティックの判定」を O(1) にした</strong>。 挿入が O(n) なのは受け入れる。これがトレードオフの取り方である。</p></blockquote><h3>遅延リストの動作</h3><div class="widget" data-widget="delaylist"></div><p>タスクを寝かせたり、時間を進めたりして、リストの並びと起床の様子を確かめられる。</p><h2>2. ティックの折り返し — リスト 2 本の交換</h2><p><code>xTickCount</code> は 32 bit なので、1 kHz なら <strong>49.7 日</strong>で 0 に戻る。</p><p>このとき、遅延リストはどうなるか。</p><pre><code>xTickCount = 0xFFFFFFF0 (折り返し直前)
+
+TaskA が vTaskDelay(5)  → 起床時刻 = 0xFFFFFFF5   （折り返さない）
+TaskB が vTaskDelay(30) → 起床時刻 = 0x0000000E   （折り返す！）</code></pre><p>同じリストに入れると、<strong>0x0000000E は 0xFFFFFFF5 より小さい</strong>ので、 ソートの結果 TaskB が先頭に来てしまう。 すると <code>xTickCount = 0xFFFFFFF1</code> の時点で「TaskB の起床時刻を過ぎている」と判定され、 <strong>29 ティック早く起こされる</strong>。</p><h3>解決: リストを 2 本使う</h3><pre><code class="lang-c">/* prvAddCurrentTaskToDelayedList() の中 */
+xTimeToWake = xConstTickCount + xTicksToWait;
+
+if( xTimeToWake &lt; xConstTickCount ) {
+    /* 折り返した → オーバーフロー用のリストへ */
+    vListInsert( pxOverflowDelayedTaskList, &amp;( pxCurrentTCB-&gt;xStateListItem ) );
+}
+else {
+    /* 折り返さない → 通常のリストへ */
+    vListInsert( pxDelayedTaskList, &amp;( pxCurrentTCB-&gt;xStateListItem ) );
+
+    if( xTimeToWake &lt; xNextTaskUnblockTime ) {
+        xNextTaskUnblockTime = xTimeToWake;
+    }
+}</code></pre><p>判定は <code>xTimeToWake &lt; xConstTickCount</code> の一行である。 符号なし整数の加算が折り返すと、結果は元より小さくなる。<strong>それが検出条件になる。</strong></p><h3>交換</h3><p><code>xTickCount</code> が 0 に戻った瞬間、<strong>2 本のリストのポインタを入れ替える</strong>。</p><pre><code class="lang-c">#define taskSWITCH_DELAYED_LISTS()                                     \
+{                                                                       \
+    List_t *pxTemp;                                                     \
+    configASSERT( ( listLIST_IS_EMPTY( pxDelayedTaskList ) ) );         \
+    pxTemp = pxDelayedTaskList;                                         \
+    pxDelayedTaskList = pxOverflowDelayedTaskList;                      \
+    pxOverflowDelayedTaskList = pxTemp;                                 \
+    xNumOfOverflows++;                                                  \
+    prvResetNextTaskUnblockTime();                                      \
+}</code></pre><pre><code>折り返し前:
+  pxDelayedTaskList         → List1  [起床 0xFFFFFFF5 の TaskA]
+  pxOverflowDelayedTaskList → List2  [起床 0x0000000E の TaskB]
+
+xTickCount が 0 に戻る → ポインタを交換
+
+折り返し後:
+  pxDelayedTaskList         → List2  [起床 0x0000000E の TaskB]  ← 正しく先頭
+  pxOverflowDelayedTaskList → List1  （空）</code></pre><blockquote><p><strong><code>configASSERT( listLIST_IS_EMPTY( pxDelayedTaskList ) )</code> に注目.</strong></p><p>交換する時点で、<strong>古いリストは空になっているはず</strong>である。 なぜなら、そこにいたタスクの起床時刻はすべて <code>0xFFFFFFFF</code> 以下であり、 <code>xTickCount</code> がそこまで進んだ時点で全員起こされているからである。</p><p>もし空でなければ、それは<strong>カーネルの状態が壊れている</strong>ということである。 だからここで止める。</p><p><strong>たった 3 行のポインタ交換で、49.7 日ごとの折り返しを完全に扱えている。</strong> これは非常にうまい設計である。「特別な日を、特別扱いせずに済ませる」—— リストを 2 本用意しておくだけで、比較のロジックは一切変えなくてよい。</p></blockquote><h2>3. イベント待ち — 2 つのリストに同時登録</h2><p>04 章で触れたとおり、<code>xQueueReceive(q, &amp;buf, timeout)</code> のような待ちは、 <strong>イベント（データ到着）と時間（タイムアウト）の両方</strong>を待つ。</p><pre><code>TCB_t
+├── xStateListItem  ──→ 遅延リスト（起床時刻 = now + timeout）
+└── xEventListItem  ──→ キューの xTasksWaitingToReceive リスト</code></pre><h3>起きる経路が 2 つある</h3><div class="tablewrap"><table><thead><tr><th>経路</th><th>誰が起こすか</th><th>やること</th></tr></thead><tbody><tr><td><strong>イベント発生</strong></td><td>データを送ったタスク／ISR</td><td>イベントリストから外す <strong>＋ 遅延リストからも外す</strong></td></tr><tr><td><strong>タイムアウト</strong></td><td>ティック割り込み</td><td>遅延リストから外す <strong>＋ イベントリストからも外す</strong></td></tr></tbody></table></div><p><strong>どちらの経路でも、両方のリストから外す必要がある。</strong> 片方だけ外すと、リストに幽霊のような項目が残り、後で暴走する。</p><p>これが 07 章の <code>pvContainer</code> が効くところである。</p><pre><code class="lang-c">/* ティック割り込みの中（タイムアウト経路） */
+( void ) uxListRemove( &amp;( pxTCB-&gt;xStateListItem ) );
+
+if( listLIST_ITEM_CONTAINER( &amp;( pxTCB-&gt;xEventListItem ) ) != NULL ) {
+    ( void ) uxListRemove( &amp;( pxTCB-&gt;xEventListItem ) );   /* 探索不要で O(1) */
+}</code></pre><pre><code class="lang-c">/* xTaskRemoveFromEventList()（イベント経路） */
+pxUnblockedTCB = listGET_OWNER_OF_HEAD_ENTRY( pxEventList );
+( void ) uxListRemove( &amp;( pxUnblockedTCB-&gt;xEventListItem ) );
+
+if( uxSchedulerSuspended == ( UBaseType_t ) pdFALSE ) {
+    ( void ) uxListRemove( &amp;( pxUnblockedTCB-&gt;xStateListItem ) );
+    prvAddTaskToReadyList( pxUnblockedTCB );
+}
+else {
+    /* スケジューラ停止中 → 保留リストへ */
+    vListInsertEnd( &amp;( xPendingReadyList ), &amp;( pxUnblockedTCB-&gt;xEventListItem ) );
+}</code></pre><blockquote><p><strong><code>xTaskRemoveFromEventList()</code> の戻り値が重要である.</strong></p><pre><code class="lang-c">BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList );</code></pre><p>「起こしたタスクが、現在のタスクより優先度が高いか」を返す。 呼び出し側（<code>queue.c</code> など）はこれを見て、<strong>切り替えが必要かを判断する</strong>。</p><pre><code class="lang-c">if( xTaskRemoveFromEventList( &amp;( pxQueue-&gt;xTasksWaitingToReceive ) ) != pdFALSE ) {
+    queueYIELD_IF_USING_PREEMPTION();
+}</code></pre><p>これが「<strong>キューに送った瞬間、待っていた高優先度タスクに切り替わる</strong>」の実体である。</p></blockquote><h2>4. <code>xPendingReadyList</code> — スケジューラ停止中の起床</h2><p><code>vTaskSuspendAll()</code> の区間では、切り替えができない（06 章）。 だが<strong>割り込みは動いている</strong>ので、その中でタスクが Ready になることはありうる。</p><p>そのとき、Ready リストに直接入れると危険である。 なぜなら <code>vTaskSuspendAll()</code> の目的の 1 つが「Ready リストを安全に触ること」だからである。</p><p>そこで、<strong>保留用のリスト</strong>にいったん退避する。</p><pre><code class="lang-c">static List_t xPendingReadyList;</code></pre><p><code>xTaskResumeAll()</code> で、まとめて Ready リストへ移す。</p><pre><code class="lang-c">BaseType_t xTaskResumeAll( void )
+{
+    --uxSchedulerSuspended;
+
+    if( uxSchedulerSuspended == 0 ) {
+        /* 保留されていたタスクを全部 Ready にする */
+        while( listLIST_IS_EMPTY( &amp;xPendingReadyList ) == pdFALSE ) {
+            pxTCB = listGET_OWNER_OF_HEAD_ENTRY( &amp;xPendingReadyList );
+            ( void ) uxListRemove( &amp;( pxTCB-&gt;xEventListItem ) );
+            ( void ) uxListRemove( &amp;( pxTCB-&gt;xStateListItem ) );
+            prvAddTaskToReadyList( pxTCB );
+
+            if( pxTCB-&gt;uxPriority &gt;= pxCurrentTCB-&gt;uxPriority ) {
+                xYieldPending = pdTRUE;
+            }
+        }
+
+        /* 停止中に溜まったティックをまとめて処理する */
+        if( xPendedTicks &gt; 0 ) {
+            do {
+                if( xTaskIncrementTick() != pdFALSE ) { xYieldPending = pdTRUE; }
+                --xPendedTicks;
+            } while( xPendedTicks &gt; 0 );
+        }
+
+        if( xYieldPending != pdFALSE ) {
+            taskYIELD_IF_USING_PREEMPTION();
+            xAlreadyYielded = pdTRUE;
+        }
+    }
+    return xAlreadyYielded;
+}</code></pre><blockquote><p><strong><code>xPendedTicks</code> の処理に注目.</strong></p><p><code>vTaskSuspendAll()</code> 中もティック割り込みは来る。だがスケジューラが止まっているので、 <code>xTaskIncrementTick()</code> は <code>++xPendedTicks</code> するだけで帰る（08 章）。</p><p><code>xTaskResumeAll()</code> で、<strong>溜まった分をまとめて処理する</strong>。 だから時間は失われない。ただし<strong>遅れる</strong>。</p><p>つまり——<strong><code>vTaskSuspendAll()</code> の区間が長いと、全タスクの起床が遅れる</strong>。 ここが 06 章で「長い区間には使うが、長すぎてはいけない」と言った理由である。</p></blockquote><h2>5. 待つ側の全体像</h2><p>タスクが <code>vTaskDelay()</code> するときの流れを、最初から最後まで追う。</p><pre><code class="lang-c">void vTaskDelay( const TickType_t xTicksToDelay )
+{
+    BaseType_t xAlreadyYielded = pdFALSE;
+
+    if( xTicksToDelay &gt; ( TickType_t ) 0U )
+    {
+        configASSERT( uxSchedulerSuspended == 0 );    /* 停止中は禁止 */
+
+        vTaskSuspendAll();
+        {
+            prvAddCurrentTaskToDelayedList( xTicksToDelay, pdFALSE );
+        }
+        xAlreadyYielded = xTaskResumeAll();
+    }
+
+    if( xAlreadyYielded == pdFALSE ) {
+        portYIELD_WITHIN_API();
+    }
+}</code></pre><p><code>prvAddCurrentTaskToDelayedList()</code> の中身:</p><pre><code class="lang-c">static void prvAddCurrentTaskToDelayedList( TickType_t xTicksToWait,
+                                            const BaseType_t xCanBlockIndefinitely )
+{
+    const TickType_t xConstTickCount = xTickCount;
+
+    /* (1) いま Ready リストにいるので、そこから外す */
+    if( uxListRemove( &amp;( pxCurrentTCB-&gt;xStateListItem ) ) == 0 ) {
+        portRESET_READY_PRIORITY( pxCurrentTCB-&gt;uxPriority, uxTopReadyPriority );
+    }
+
+    /* (2) 無期限待ちなら Suspended リストへ（最適化） */
+    #if ( INCLUDE_vTaskSuspend == 1 )
+    {
+        if( ( xTicksToWait == portMAX_DELAY ) &amp;&amp; ( xCanBlockIndefinitely != pdFALSE ) ) {
+            vListInsertEnd( &amp;xSuspendedTaskList, &amp;( pxCurrentTCB-&gt;xStateListItem ) );
+            return;
+        }
+    }
+    #endif
+
+    /* (3) 起床時刻を計算 */
+    xTimeToWake = xConstTickCount + xTicksToWait;
+    listSET_LIST_ITEM_VALUE( &amp;( pxCurrentTCB-&gt;xStateListItem ), xTimeToWake );
+
+    /* (4) 折り返すかどうかで入れるリストを選ぶ */
+    if( xTimeToWake &lt; xConstTickCount ) {
+        vListInsert( pxOverflowDelayedTaskList, &amp;( pxCurrentTCB-&gt;xStateListItem ) );
+    }
+    else {
+        vListInsert( pxDelayedTaskList, &amp;( pxCurrentTCB-&gt;xStateListItem ) );
+
+        if( xTimeToWake &lt; xNextTaskUnblockTime ) {
+            xNextTaskUnblockTime = xTimeToWake;
+        }
+    }
+}</code></pre><p><strong>5 ステップに整理できる。</strong></p><div class="tablewrap"><table><thead><tr><th>#</th><th>処理</th></tr></thead><tbody><tr><td>1</td><td>Ready リストから外す（＋ビットマップを更新）</td></tr><tr><td>2</td><td>無期限なら Suspended リストへ入れて終わり</td></tr><tr><td>3</td><td>起床時刻 = 現在 + 待ち時間</td></tr><tr><td>4</td><td>折り返すかで、通常／オーバーフローのリストを選ぶ</td></tr><tr><td>5</td><td>呼び出し元が <code>portYIELD()</code> で切り替える</td></tr></tbody></table></div><blockquote><p><strong><code>portRESET_READY_PRIORITY</code> に注目.</strong></p><p><code>uxListRemove()</code> の戻り値は<strong>残りの項目数</strong>である。 それが 0 なら、その優先度の Ready リストが空になったということなので、 <strong>ビットマップの該当ビットを落とす</strong>（07 章）。</p><p>ビットマップ最適化を使っていない場合、このマクロは<strong>何もしない</strong>。 <code>uxTopReadyPriority</code> は「ヒント」なので、下げなくても正しく動くからである（07 章）。</p></blockquote><h2>6. 待ちのタイムアウト管理 — <code>xTaskCheckForTimeOut</code></h2><p>キューやセマフォは、「待っている途中で一度起きて、また待ち直す」ことがある。 このとき、<strong>残りのタイムアウト時間を正しく減らす</strong>必要がある。</p><pre><code class="lang-c">TimeOut_t xTimeOut;
+TickType_t xTicksToWait = pdMS_TO_TICKS( 100 );
+
+vTaskSetTimeOutState( &amp;xTimeOut );      /* 開始時刻を記録 */
+
+for( ;; ) {
+    /* 何か待つ */
+    if( xTaskCheckForTimeOut( &amp;xTimeOut, &amp;xTicksToWait ) != pdFALSE ) {
+        break;      /* タイムアウトした */
+    }
+    /* xTicksToWait は残り時間に更新されている */
+}</code></pre><p><code>xTaskCheckForTimeOut()</code> の中身は、<strong>折り返しを考慮した引き算</strong>である。</p><pre><code class="lang-c">BaseType_t xTaskCheckForTimeOut( TimeOut_t * const pxTimeOut,
+                                 TickType_t * const pxTicksToWait )
+{
+    const TickType_t xConstTickCount = xTickCount;
+    const TickType_t xElapsedTime = xConstTickCount - pxTimeOut-&gt;xTimeOnEntering;
+
+    if( *pxTicksToWait == portMAX_DELAY ) {
+        xReturn = pdFALSE;      /* 無期限は絶対にタイムアウトしない */
+    }
+    else if( ( xNumOfOverflows != pxTimeOut-&gt;xOverflowCount ) &amp;&amp;
+             ( xConstTickCount &gt;= pxTimeOut-&gt;xTimeOnEntering ) ) {
+        /* 折り返しをまたいで、しかも追い越した → タイムアウト */
+        xReturn = pdTRUE;
+        *pxTicksToWait = 0;
+    }
+    else if( xElapsedTime &lt; *pxTicksToWait ) {
+        /* まだ残っている */
+        *pxTicksToWait -= xElapsedTime;
+        vTaskInternalSetTimeOutState( pxTimeOut );    /* 基準時刻を更新 */
+        xReturn = pdFALSE;
+    }
+    else {
+        *pxTicksToWait = 0;
+        xReturn = pdTRUE;
+    }
+    return xReturn;
+}</code></pre><p><code>xNumOfOverflows</code> は、折り返しが何回起きたかのカウンタである（<code>taskSWITCH_DELAYED_LISTS()</code> で加算）。 これを比較することで、<strong>「折り返しをまたいだかどうか」を確実に判定できる</strong>。</p><h2>7. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>遅延リスト</td><td><strong>起床時刻の昇順</strong>にソート。先頭が次に起きるタスク</td></tr><tr><td>計算量の設計</td><td>挿入 O(n)、<strong>毎ティックの判定 O(1)</strong>。頻度の高い方を速く</td></tr><tr><td><code>xNextTaskUnblockTime</code></td><td>大多数のティックで<strong>リストを触らない</strong>ためのキャッシュ</td></tr><tr><td>ティック折り返し</td><td><strong>リスト 2 本のポインタ交換</strong>で解決。比較ロジックは変えない</td></tr><tr><td>折り返しの検出</td><td><code>xTimeToWake &lt; xConstTickCount</code>（符号なし加算の性質）</td></tr><tr><td>イベント待ち</td><td><strong>2 つのリストに同時登録</strong>。どちらの経路でも両方から外す</td></tr><tr><td><code>xPendingReadyList</code></td><td>スケジューラ停止中の起床を退避。<code>xTaskResumeAll</code> でまとめて処理</td></tr><tr><td><code>xPendedTicks</code></td><td>停止中のティックは溜まる。<strong>区間が長いと全タスクの起床が遅れる</strong></td></tr><tr><td>タイムアウト管理</td><td><code>xNumOfOverflows</code> の比較で折り返しをまたいだかを判定</td></tr></tbody></table></div><p>次章では、この「待つ・起こす」の仕組みを使って作られた、 FreeRTOS で最も重要なオブジェクト——キューを見る。</p>
+  <nav class="chnav"><a class="pn" href="09.html"><span>←</span><b>アイドルタスクとフック — 「何もしない」タスクが必要な理由</b></a><a class="pn nx" href="11.html"><b>キュー — FreeRTOS の中核データ構造</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>

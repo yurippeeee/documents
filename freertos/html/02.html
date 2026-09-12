@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>02. タスクという抽象 — 「同時に動いている」ように見せる仕掛け — FreeRTOS</title>
+<link rel="stylesheet" href="rtos.css">
+<link rel="stylesheet" href="katex/katex.min.css">
+<script defer src="katex/katex.min.js"></script>
+<script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="widgets.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="home" href="../../freertos.html">FreeRTOS</a>
+  <span class="cur">02 · タスクという抽象 — 「同時に動いている」ように見せる仕掛け</span>
+  <span class="sp"></span>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</header>
+<main class="doc">
+  <p class="chno">Chapter 02</p>
+  <h1 class="doctitle">タスクという抽象 — 「同時に動いている」ように見せる仕掛け</h1>
+  <blockquote><p><strong>この章がなぜ必要なのか——タスクは「並列に走るもの」ではない.</strong></p><p>タスクを「同時に動くもの」と説明されると、なんとなく分かった気になる。 だが単一コアの CPU は、<strong>どの瞬間も 1 つの命令しか実行していない</strong>。 では「同時」とは何なのか。</p><p>ここを曖昧にしたまま進むと、排他制御（19 章）で必ず躓く。 <strong>タスクとは何であって、何ではないのか</strong>をはっきりさせておく。</p></blockquote><h2>1. 並行 (Concurrency) と並列 (Parallelism)</h2><p>この 2 つは日本語ではどちらも「同時」と訳されがちだが、まったく別のものである。</p><div class="tablewrap"><table><thead><tr><th>用語</th><th>意味</th><th>単一コアで可能か</th></tr></thead><tbody><tr><td><strong>並列 (Parallelism)</strong></td><td><strong>物理的に同じ瞬間に</strong>複数の処理が進む</td><td><strong>不可能</strong>（コアが 1 つなので）</td></tr><tr><td><strong>並行 (Concurrency)</strong></td><td>複数の処理が<strong>論理的に進行中</strong>である。実行は交互でよい</td><td><strong>可能</strong></td></tr></tbody></table></div><p>FreeRTOS が単一コアで提供するのは、<strong>並行性だけ</strong>である。</p><p>具体的には、こういうことが起きている。</p><pre><code>実際の CPU の動き（時間軸）:
+  [タスクA][タスクB][タスクA][タスクC][タスクB][タスクA] ...
+  どの瞬間も走っているのは 1 つだけ
+
+プログラマから見える世界:
+  タスクA ━━━━━━━━━━━━━━━━━━━→  ずっと動いている
+  タスクB ━━━━━━━━━━━━━━━━━━━→  ずっと動いている
+  タスクC ━━━━━━━━━━━━━━━━━━━→  ずっと動いている</code></pre><p>切り替えが十分に速ければ（1 ms 単位）、人間から見ても、 そして<strong>多くの場合プログラムから見ても</strong>、同時に動いているのと区別がつかない。</p><h3>並行と並列の見え方</h3><div class="widget" data-widget="concurrency"></div><p>切り替え周期を変えると、「同時に見えるかどうか」がどう変わるかを確かめられる。</p><blockquote><p><strong>ここに罠がある.</strong></p><p>「区別がつかない」のは<strong>多くの場合</strong>であって、<strong>常に</strong>ではない。 共有変数を触るとき、この違いは牙をむく。</p><pre><code class="lang-c">counter = counter + 1;     /* この 1 行の途中で切り替わりうる */</code></pre><p>この行は機械語では「読む・足す・書く」の 3 命令になる。 「読む」と「書く」の<strong>間</strong>で切り替えが起きると、更新が消える。 <strong>並行であるだけで、並列でなくても、この問題は起きる。</strong> 19 章まで、この事実を頭の隅に置いておいてほしい。</p></blockquote><h2>2. タスクとは何か</h2><p>FreeRTOS における<strong>タスク</strong>とは、次の 3 点セットである。</p><div class="tablewrap"><table><thead><tr><th>構成要素</th><th>実体</th><th>サイズの目安</th></tr></thead><tbody><tr><td><strong>関数</strong></td><td>無限ループを含む C 関数。タスクの「本体」</td><td>—</td></tr><tr><td><strong>スタック</strong></td><td>このタスク専用のスタック領域</td><td>数百バイト〜数 KB</td></tr><tr><td><strong>TCB</strong></td><td>Task Control Block。カーネルが管理する制御構造体</td><td>約 100 バイト</td></tr></tbody></table></div><p><strong>この 3 つが揃ったものが「タスク」である。</strong> それ以上でも以下でもない。</p><pre><code class="lang-c">void vBlinkTask(void *pvParameters)
+{
+    for (;;) {                       /* タスクは基本的に無限ループ */
+        led_toggle();
+        vTaskDelay(pdMS_TO_TICKS(500));   /* ← ここで「待てる」 */
+    }
+}
+
+/* 生成 */
+xTaskCreate(vBlinkTask,      /* 関数 */
+            "Blink",          /* 名前（デバッグ用） */
+            128,              /* スタックサイズ（ワード単位） */
+            NULL,             /* 引数 */
+            2,                /* 優先度 */
+            NULL);            /* ハンドル受け取り先 */</code></pre><p><code>vTaskDelay()</code> の行が、01 章で「書けない」と言った<strong>「途中で待つ」</strong>である。 ここでタスクは実行を止め、500 ms 後に<strong>この行の次から</strong>再開する。 その間、CPU は他のタスクが使う。</p><blockquote><p><strong>たったこれだけのことが、設計を根本から変える.</strong></p><p>スーパーループなら、この 500 ms の待ちを状態変数とタイムスタンプ比較で書く必要があった。 タスクなら、<strong>上から下に読める素直なコードのまま</strong>書ける。</p><p>「上から下に読める」は美的な話ではない。<strong>バグの数が実際に減る</strong>。</p></blockquote><h2>3. タスク関数の 3 つの掟</h2><h3>掟 1: 戻ってはいけない</h3><pre><code class="lang-c">void vBadTask(void *pv)
+{
+    do_something();
+    /* ← ここで関数が終わる。これは禁止 */
+}</code></pre><p>タスク関数から <code>return</code> すると、<strong>戻る先がない</strong>。 呼び出し元は存在せず、スタックの底に積んであるのはカーネルが仕込んだ番人だけである。 FreeRTOS ではこの場合 <code>configASSERT</code> で止まるか、未定義動作になる。</p><p>どうしても終わりたいなら、<strong>自分を削除する</strong>。</p><pre><code class="lang-c">void vOneShotTask(void *pv)
+{
+    do_something();
+    vTaskDelete(NULL);      /* NULL = 自分自身。これ以降は実行されない */
+}</code></pre><h3>掟 2: 待たないループを書いてはいけない</h3><pre><code class="lang-c">void vBadTask(void *pv)
+{
+    for (;;) {
+        if (flag) { handle(); }     /* ← 待ちがない。CPU を独占する */
+    }
+}</code></pre><p>これを「<strong>ビジーウェイト</strong>」と呼ぶ。 このタスクより優先度の低いタスクは、<strong>永遠に実行されない</strong>（06 章）。 同じ優先度でもタイムスライスを食い潰し、消費電力も跳ね上がる。</p><p>タスクのループには、<strong>必ずブロックする API を入れる</strong>。</p><pre><code class="lang-c">for (;;) {
+    xQueueReceive(q, &amp;item, portMAX_DELAY);   /* 来るまで寝る */
+    handle(item);
+}</code></pre><h3>掟 3: スタックを使いすぎてはいけない</h3><pre><code class="lang-c">void vBadTask(void *pv)
+{
+    uint8_t buffer[4096];      /* ← タスクのスタックに 4 KB 積む */
+    ...
+}</code></pre><p>タスクのスタックは生成時に固定サイズで確保される。 超えると<strong>隣のメモリを踏む</strong>。これが 17 章で扱う最頻出のバグである。</p><h2>4. タスクは「関数」ではなく「実行の流れ」である</h2><p>ここが最も誤解されるところなので、はっきり書く。</p><p><strong>同じ関数から、複数のタスクを作れる。</strong></p><pre><code class="lang-c">void vSensorTask(void *pv)
+{
+    int ch = (int)pv;                 /* 引数でチャネルを受け取る */
+    for (;;) {
+        int v = adc_read(ch);
+        xQueueSend(q, &amp;v, 0);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+xTaskCreate(vSensorTask, "S0", 128, (void*)0, 2, NULL);
+xTaskCreate(vSensorTask, "S1", 128, (void*)1, 2, NULL);
+xTaskCreate(vSensorTask, "S2", 128, (void*)2, 2, NULL);</code></pre><p>この 3 つは<strong>同じコードを共有しているが、別のタスクである</strong>。 なぜなら、<strong>スタックが別々</strong>だからである。</p><ul><li><code>ch</code> はそれぞれのスタックにある → 別の値を持てる</li><li>「いまどこまで実行したか」もそれぞれのスタックにある → 別々の場所を実行できる</li></ul><blockquote><p><strong>タスクの同一性を決めるのはコードではなく、スタックと TCB である.</strong></p><p>これを飲み込むと、次のことが自然に理解できる。</p><ul><li><code>static</code> 変数は<strong>全タスクで共有される</strong>（スタックにないから）</li><li>グローバル変数も共有される（同上）</li><li>ローカル変数だけが<strong>タスク固有</strong>である</li><li>だから<strong>再入可能 (reentrant) な関数</strong>とは「static とグローバルを書かない関数」のことである</li></ul></blockquote><h2>5. タスクに分ける基準</h2><p>「どういう単位でタスクに分けるか」は設計の勘所である。原則はこうである。</p><blockquote><p><strong>「独立して待つもの」を 1 つのタスクにする。</strong></p></blockquote><div class="tablewrap"><table><thead><tr><th>良い分け方</th><th>理由</th></tr></thead><tbody><tr><td>UART 受信タスク</td><td>UART の到着を待つ。他とは無関係に待てる</td></tr><tr><td>センサ取得タスク（周期）</td><td>一定周期で寝る。周期が固有</td></tr><tr><td>表示更新タスク</td><td>更新要求を待つ。遅くても他に迷惑をかけない</td></tr><tr><td>制御ループタスク</td><td>厳密な周期で走る。優先度を高くしたい</td></tr></tbody></table></div><div class="tablewrap"><table><thead><tr><th>悪い分け方</th><th>理由</th></tr></thead><tbody><tr><td>関数ごとに 1 タスク</td><td>スタックと TCB でメモリが尽きる</td></tr><tr><td>「なんとなく機能が違うから」</td><td>待ちが共通なら 1 タスクでよい。分けると排他制御が要る</td></tr><tr><td>ステップごとに 1 タスク</td><td>順番に実行するだけなら 1 タスクの中で順に呼べばよい</td></tr></tbody></table></div><h3>タスク分割の効果</h3><div class="widget" data-widget="tasksplit"></div><p>処理をタスクに分けたとき、応答時間がどう変わるかを 01 章のスーパーループと比較できる。</p><blockquote><p><strong>タスクを増やすコストは意外に大きい.</strong></p><p>1 タスクあたり、<strong>TCB（約 100 バイト）＋ スタック（最低でも 256 バイト、実用は 512〜2048 バイト）</strong>。 RAM 32 KB のマイコンなら、<strong>現実的に置けるのは 10〜15 個程度</strong>である。</p><p>「タスクを増やせば設計がきれいになる」は幻想である。 <strong>タスク間でデータをやり取りする仕組み（キュー、セマフォ）が必要になり、そこにバグが生まれる。</strong> 分けるべき理由がないなら分けない。</p></blockquote><h2>6. FreeRTOS のタスクと、他の OS の用語の対応</h2><div class="tablewrap"><table><thead><tr><th>FreeRTOS</th><th>Linux / POSIX</th><th>Zephyr</th><th>意味</th></tr></thead><tbody><tr><td><strong>タスク</strong></td><td>スレッド (pthread)</td><td>スレッド</td><td>スタックを持った実行の流れ</td></tr><tr><td>（相当なし）</td><td>プロセス</td><td>（相当なし）</td><td>独立したアドレス空間</td></tr><tr><td>TCB</td><td><code>task_struct</code></td><td><code>k_thread</code></td><td>制御構造体</td></tr><tr><td><code>xTaskCreate</code></td><td><code>pthread_create</code></td><td><code>k_thread_create</code></td><td>生成</td></tr><tr><td><code>vTaskDelay</code></td><td><code>usleep</code> / <code>nanosleep</code></td><td><code>k_sleep</code></td><td>時間待ち</td></tr></tbody></table></div><blockquote><p><strong>FreeRTOS に「プロセス」はない.</strong></p><p>プロセスとは「独立したアドレス空間を持った実行単位」である。 これには MMU（メモリ管理ユニット）が要る。マイコンには普通ない。</p><p>つまり FreeRTOS では、<strong>全タスクが同じアドレス空間を共有する</strong>。 あるタスクのポインタバグが、別のタスクのスタックを壊せる。 <strong>保護がない。</strong> これが Linux との最大の違いであり、 17 章と 19 章で神経を使う理由でもある。</p><p>（FreeRTOS-MPU という MPU を使う派生はあるが、本シリーズでは扱わない。）</p></blockquote><h2>7. この章のまとめ</h2><div class="tablewrap"><table><thead><tr><th>ポイント</th><th>内容</th></tr></thead><tbody><tr><td>並行 ≠ 並列</td><td>単一コアで得られるのは<strong>並行性のみ</strong>。それでも共有変数の問題は起きる</td></tr><tr><td>タスクの実体</td><td><strong>関数 ＋ スタック ＋ TCB</strong> の 3 点セット</td></tr><tr><td>掟</td><td>戻らない・必ず待つ・スタックを溢れさせない</td></tr><tr><td>タスクの同一性</td><td>コードではなく<strong>スタックと TCB</strong> が決める</td></tr><tr><td>分割の基準</td><td>「<strong>独立して待つもの</strong>」を 1 タスクに</td></tr><tr><td>分割のコスト</td><td>1 タスクあたり数百バイト〜数 KB。10〜15 個が現実的な上限</td></tr><tr><td>FreeRTOS の特徴</td><td>プロセスがない ＝ <strong>メモリ保護がない</strong></td></tr></tbody></table></div><p>次章では、FreeRTOS のカーネル全体を俯瞰し、 「カーネルが担う部分」と「移植層に押し込められた部分」の境界を引く。</p>
+  <nav class="chnav"><a class="pn" href="01.html"><span>←</span><b>OS がない世界 — スーパーループはどこで破綻するのか</b></a><a class="pn nx" href="03.html"><b>FreeRTOS の全体像 — カーネルの責務と、移植層との契約</b><span>→</span></a></nav>
+</main>
+<script>
+(function(){
+  var root=document.documentElement,b=document.getElementById('themeBtn'),lbl=document.getElementById('themeLbl'),ic=document.getElementById('themeIcon');
+  var sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>';
+  var moon='<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+  function dark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme:dark)').matches;}
+  function sync(){var d=dark();lbl.textContent=d?'ダーク':'ライト';ic.innerHTML=d?moon:sun;}
+  b.addEventListener('click',function(){root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){sync();window.dispatchEvent(new Event('themechange'));});
+  sync();
+})();
+</script>
+</body>
+</html>
