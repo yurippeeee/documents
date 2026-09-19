@@ -6,6 +6,9 @@
 > 非セキュア側から PSA API を呼ぶときに**何が起きているか**、
 > ビルドの主要オプション、そして TF-M 固有のエラー（`PROGRAMMER_ERROR`、メモリ検査、クライアント ID）を説明できるようになること。
 
+> **この章で使う既出の用語（定義は各リンク先）.**
+> セキュア領域（[01 章 §3](01_PSAとは何か.md#コードはどこで動くのか-2-つの配置)）、ビット（[02 章 §4](02_APIの共通作法.md#出力バッファの流儀-サイズ-と-長さ-のペア)）、type（[03 章 §11](03_鍵と属性.md#この章のポイント)）、import（[04 章 §10](04_鍵の作成と破棄.md#この章のポイント)）、対称暗号（[07 章 §1](07_対称暗号.md#対称暗号と-モード)）、認証（[09 章 §1](09_署名と検証.md#署名とは何か-mac-との違い)）、ITS（[13 章 §1](13_セキュアストレージ.md#2-つのストレージ-api)）、IAK（[14 章 §4](14_アテステーション.md#署名鍵-iak)）、Profile（[14 章 §3](14_アテステーション.md#トークンの中身)）、TF-PSA-Crypto（[15 章 §1](15_MbedTLSでの実装.md#mbed-tls-と-psa-の関係の変遷)）
+
 ## 1. TF-M とは
 
 **TF-M**（Trusted Firmware-M）は、Arm が主導する **Cortex-M 向けセキュアファームウェアの参照実装**である。
@@ -13,7 +16,7 @@ PSA Certified の「PSA-RoT」（PSA Root of Trust、信頼の起点となる最
 **PSA Functional API のサーバ側**——Crypto、ITS、PS、Initial Attestation、Firmware Update、Platform の各サービス——を提供する。
 
 前提となるハードウェアは **Armv8-M の TrustZone**（Cortex-M23 / M33 / M35P / M55 / M85）である。
-CPU がセキュア状態と非セキュア状態を持ち、メモリと周辺機器を SAU / IDAU（セキュリティ属性ユニット）で 2 つの世界に分ける（iotsec 編 7 章）。
+CPU がセキュア状態と非セキュア状態を持ち、メモリと周辺機器を SAU / IDAU（セキュリティ属性ユニット）で 2 つの世界に分ける（iotsec 編 [07 章](../iotsec/07_分離.md)）。
 TrustZone のないコア（Cortex-M4 など）でも、デュアルコア（CPU コアが 2 つある構成）で片方をセキュア専用にする構成（PSoC 64、LPC55S69 の一部構成）で動く。
 
 ```fig
@@ -101,7 +104,7 @@ cmake --build build -- install
 | `TFM_PARTITION_*` | 各サービスの有無。切ればフラッシュが減る |
 | `CRYPTO_ASYM_SIGN_MODULE_ENABLED` など | Crypto パーティション内の機能単位の ON/OFF |
 | `TFM_MBEDCRYPTO_CONFIG_PATH` / `TFM_MBEDCRYPTO_PSA_CRYPTO_CONFIG_PATH` | Mbed TLS の設定ヘッダ（`PSA_WANT_*`）を差し替える |
-| `ITS_MAX_ASSET_SIZE` / `PS_MAX_ASSET_SIZE` | ストレージの 1 オブジェクトの最大サイズ（13 章） |
+| `ITS_MAX_ASSET_SIZE` / `PS_MAX_ASSET_SIZE` | ストレージの 1 オブジェクトの最大サイズ（[13 章](13_セキュアストレージ.md#2-つのストレージ-api)） |
 | `CRYPTO_ENGINE_BUF_SIZE` | Crypto パーティションのヒープ。RSA を使うなら増やす（既定 0x2000 前後） |
 | `TFM_NS_MANAGE_NSID` | 複数の NS クライアント ID を RTOS が管理する |
 | `CONFIG_TFM_ENABLE_FP` | セキュア側で FPU（浮動小数点演算ユニット）を使うか |
@@ -149,7 +152,7 @@ TF-M には FreeRTOS / RTX / Zephyr 向けのこの実装が同梱されてい�
 
 TF-M は、呼び出し元ごとに**クライアント ID**（`int32_t`）を持つ。セキュアパーティションは正、非セキュア側は負（既定 −1）である。
 PSA 鍵は「作ったクライアント」の所有になり、**他のクライアントは同じ鍵 ID を指定しても使えない**（`PSA_ERROR_INVALID_HANDLE`）。
-ITS の UID も同様に名前空間が分かれる（13 章）。
+ITS の UID も同様に名前空間が分かれる（[13 章](13_セキュアストレージ.md#ps-の関数)）。
 
 非セキュア側の RTOS が複数のスレッドやプロセスを別クライアントとして扱う（`TFM_NS_MANAGE_NSID`）と、スレッド A が作った鍵はスレッド B から見えなくなる。
 既定では非セキュア側全体が 1 つのクライアント（−1）なので、通常は気にしなくてよい。

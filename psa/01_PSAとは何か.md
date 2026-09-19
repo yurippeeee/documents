@@ -44,12 +44,12 @@ PSA 機能 API は、用途ごとに独立した仕様書として公開され�
 
 | API | ヘッダ | 何をするか | 本シリーズ |
 |---|---|---|---|
-| **Crypto API** | `psa/crypto.h` | 鍵管理、ハッシュ、MAC、暗号、AEAD、署名、鍵導出、鍵合意、乱数 | **03〜12 章**（中心） |
-| **Secure Storage API** | `psa/internal_trusted_storage.h`、`psa/protected_storage.h` | 小さなデータを改ざん・漏洩から守って保存する | **13 章** |
-| **Attestation API** | `psa/initial_attestation.h` | 「このデバイスは何者で、どんなソフトが動いているか」の署名付き証明書を作る | **14 章** |
-| Firmware Update API | `psa/update.h` | ファームウェア更新の受け取り・検証・切り替えを標準化 | 18 章で概要のみ |
-| Secure Partition / Firmware Framework（FF-M） | `psa/service.h`、`psa/client.h` | セキュア側のサービスを部屋（パーティション）に分けて動かす仕組み | 16 章で必要な分だけ |
-| Status codes | `psa/error.h` | 全 API 共通の戻り値 `psa_status_t` | **02 章** |
+| **Crypto API** | `psa/crypto.h` | 鍵管理、ハッシュ、MAC、暗号、AEAD、署名、鍵導出、鍵合意、乱数 | **[03 章](03_鍵と属性.md)〜[12 章](12_永続鍵とライフタイム.md)**（中心） |
+| **Secure Storage API** | `psa/internal_trusted_storage.h`、`psa/protected_storage.h` | 小さなデータを改ざん・漏洩から守って保存する | **[13 章](13_セキュアストレージ.md)** |
+| **Attestation API** | `psa/initial_attestation.h` | 「このデバイスは何者で、どんなソフトが動いているか」の署名付き証明書を作る | **[14 章](14_アテステーション.md)** |
+| Firmware Update API | `psa/update.h` | ファームウェア更新の受け取り・検証・切り替えを標準化 | [18 章](18_落とし穴とチェックリスト.md)で概要のみ |
+| Secure Partition / Firmware Framework（FF-M） | `psa/service.h`、`psa/client.h` | セキュア側のサービスを部屋（パーティション）に分けて動かす仕組み | [16 章](16_TF-Mでの実装.md)で必要な分だけ |
+| Status codes | `psa/error.h` | 全 API 共通の戻り値 `psa_status_t` | **[02 章](02_APIの共通作法.md)** |
 
 **API の数で圧倒される必要はない**。
 実際のアプリケーションが日常的に呼ぶ関数は、Crypto API の中でも 20〜30 個に収まる。
@@ -91,7 +91,7 @@ s01_where
 **重要なのは、どちらの配置でもアプリケーションのソースコードが同じ**だということである。
 PSA API は「関数の呼び方」だけを決め、「どこで実行されるか」は決めない。
 だから、まず Mbed TLS 単体で API を覚え、製品では TF-M に載せ替える、という進め方ができる。
-本シリーズの 03〜14 章は配置に依存しない書き方をし、15 章と 16 章で 2 つの配置それぞれの具体的な作り方を扱う。
+本シリーズの [03 章](03_鍵と属性.md)〜[14 章](14_アテステーション.md)は配置に依存しない書き方をし、[15 章](15_MbedTLSでの実装.md)と [16 章](16_TF-Mでの実装.md)で 2 つの配置それぞれの具体的な作り方を扱う。
 
 ## 4. 「鍵が外に出ない」という設計思想
 
@@ -113,7 +113,7 @@ memset(key_bytes, 0, 16);             /* 預けたので、手元の値はもう
 psa_cipher_encrypt(key, PSA_ALG_CTR, plain, plain_len, out, sizeof out, &out_len);
 ```
 
-この設計が、3 章で扱う「属性」という概念につながる。
+この設計が、[03 章](03_鍵と属性.md)で扱う「属性」という概念につながる。
 鍵を預けるときに「この鍵は AES-CTR の暗号化にしか使えない」「エクスポート（値の取り出し）は禁止」と**用途を宣言**し、
 以後ライブラリがそれを強制する。
 用途を宣言し忘れると、後で `PSA_ERROR_NOT_PERMITTED` というエラーで止まる——初心者が最初に踏む地雷である。
@@ -148,7 +148,7 @@ s01_handle
 
 API を覚えるだけなら、PC 上の Mbed TLS で十分である。
 PSA Crypto API は Mbed TLS 2.x 系の後半から入り、3.x 系で成熟し、**Mbed TLS 4.0（2025 年末）からは PSA が唯一の暗号 API**になった
-（暗号部分は TF-PSA-Crypto という別リポジトリに切り出された。15 章）。
+（暗号部分は TF-PSA-Crypto という別リポジトリに切り出された。[15 章](15_MbedTLSでの実装.md)）。
 
 ```sh
 git clone https://github.com/Mbed-TLS/mbedtls.git

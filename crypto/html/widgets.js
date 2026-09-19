@@ -666,7 +666,7 @@
       h+='</table>';
       // 各元の位数
       var orders=G.map(function(a){var k=1,v=a;while(v!==e&&k<200){v=op(v,a);k++;}return k;});
-      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">各元の位数（e に戻るまでの回数）</div>';
+      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">各元の位数（繰り返し演算して初めて単位元 e に戻る回数。乗法群なら e = 1、加法群なら e = 0）</div>';
       h+='<table style="border-collapse:collapse"><tr><th style="padding:.1rem .5rem;color:var(--muted);text-align:right">元</th>'+
         G.map(function(a){return '<td style="padding:.1rem .5rem;text-align:right">'+a+'</td>';}).join("")+'</tr>'+
         '<tr><th style="padding:.1rem .5rem;color:var(--muted);text-align:right">位数</th>'+

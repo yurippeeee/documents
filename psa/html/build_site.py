@@ -2,6 +2,28 @@
 # -*- coding: utf-8 -*-
 """psa/*.md -> psa/html/NN.html (自己完結・KaTeX数式・図・章間ナビ)。"""
 import os, re, html, sys
+def slugify(raw):
+    s = raw
+    s = re.sub(r"\$`(.+?)`\$", r"\1", s)
+    s = s.replace("**", "").replace("`", "")
+    s = re.sub(r"^\d+(\.\d+)*[.．]?\s*", "", s)
+    s = re.sub(r"[\\{}^_$<>|&]", "", s)
+    s = re.sub(r"[（）()「」『』\[\]:：,、。・—–\-―!?！？/\"'’“”…]+", " ", s)
+    s = re.sub(r"\s+", "-", s.strip())
+    return s.lower() or "sec"
+
+_SEEN_SLUGS = {}
+def heading_id(raw):
+    b = slugify(raw)
+    n = _SEEN_SLUGS.get(b, 0) + 1
+    _SEEN_SLUGS[b] = n
+    return b if n == 1 else "%s-%d" % (b, n)
+def fix_href(h):
+    m = re.match(r"^(\d\d)_[^#)]*\.md(#.*)?$", h)
+    if m: return m.group(1) + ".html" + (m.group(2) or "")
+    m = re.match(r"^\.\./(\w+)/(\d\d)_[^#)]*\.md(#.*)?$", h)
+    if m: return "../../%s/html/%s.html%s" % (m.group(1), m.group(2), m.group(3) or "")
+    return h
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from figures import F as FIGS
 
@@ -65,7 +87,7 @@ def convert_inline(s):
     s = re.sub(r"`([^`]+?)`", lambda m: stash("<code>" + esc(m.group(1)) + "</code>"), s)
     s = esc(s)
     s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
-    s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", lambda m: '<a href="%s">%s</a>' % (m.group(2), m.group(1)), s)
+    s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", lambda m: '<a href="%s">%s</a>' % (fix_href(m.group(2)), m.group(1)), s)
     s = re.sub("\x00(\\d+)\x00", lambda m: ph[int(m.group(1))], s)
     return s
 
@@ -131,7 +153,7 @@ def convert_blocks(lines):
         m = re.match(r"^(#{1,6})\s+(.*)$", st)
         if m:
             lv = len(m.group(1)); txt = convert_inline(m.group(2))
-            out.append("<h%d>%s</h%d>" % (lv, txt, lv))
+            out.append(("<h%d id=\"%s\">%s</h%d>" % (lv, heading_id(m.group(2)), txt, lv)) if lv in (2, 3) else ("<h%d>%s</h%d>" % (lv, txt, lv)))
             i += 1; continue
         # horizontal rule
         if re.match(r"^-{3,}$", st):
@@ -229,13 +251,14 @@ def inject_widgets(num, body):
                 body = body[:end] + widget_div + body[end:]
             continue
         # 最初に見つかった見出しの直後に widget を挿入
-        pat = re.compile(r"(<h[23]>[^<]*" + re.escape(key) + r"[^<]*</h[23]>)")
+        pat = re.compile(r"(<h[23][^>]*>[^<]*" + re.escape(key) + r"[^<]*</h[23]>)")
         def repl(m):
             return m.group(1) + '<div class="widget" data-widget="%s"></div>' % wname
         body, cnt = pat.subn(repl, body, count=1)
     return body
 
 def parse_file(path):
+    _SEEN_SLUGS.clear()
     raw = open(path, encoding="utf-8").read().split("\n")
     # 先頭 h1 をタイトルに
     title = ""

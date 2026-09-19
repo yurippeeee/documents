@@ -6,6 +6,9 @@
 > **戻り値、初期化、定数の作り方、出力バッファの渡し方、操作オブジェクトの寿命**——
 > を覚え、初めて見る関数でも引数の意味が推測できるようになること。
 
+> **この章で使う既出の用語（定義は各リンク先）.**
+> PSA（[01 章 §1](01_PSAとは何か.md#psa-は-1-つの物ではない)）
+
 ## 1. すべての関数は `psa_status_t` を返す
 
 PSA API の関数は、ほぼ例外なく **`psa_status_t`**（32 ビット符号付き整数）を返す。
@@ -26,14 +29,14 @@ if (st != PSA_SUCCESS) {
 |---|---|---|---|
 | `PSA_SUCCESS` | 0 | 成功 | — |
 | `PSA_ERROR_BAD_STATE` | −137 | 呼ぶ順番が違う | `psa_crypto_init()` を忘れた。分割操作で `setup` の前に `update` を呼んだ |
-| `PSA_ERROR_NOT_SUPPORTED` | −134 | この実装はそのアルゴリズム・鍵種別に対応していない | ビルド設定で無効。`PSA_WANT_ALG_*` を確認（15 章） |
+| `PSA_ERROR_NOT_SUPPORTED` | −134 | この実装はそのアルゴリズム・鍵種別に対応していない | ビルド設定で無効。`PSA_WANT_ALG_*` を確認（[15 章](15_MbedTLSでの実装.md#アルゴリズムの選択-psawant*)） |
 | `PSA_ERROR_NOT_PERMITTED` | −133 | 鍵の用途（usage）や方針が許していない | 鍵属性に `PSA_KEY_USAGE_SIGN_HASH` を付け忘れた。書き込み専用ストレージに再書き込み |
 | `PSA_ERROR_INVALID_ARGUMENT` | −135 | 引数の組み合わせが不正 | 鍵種別とアルゴリズムが合わない。鍵長が不正。ハッシュ長が違う |
 | `PSA_ERROR_BUFFER_TOO_SMALL` | −138 | 出力バッファが足りない | サイズマクロを使わずに決め打ちした |
 | `PSA_ERROR_INVALID_HANDLE` | −136 | 鍵 ID が無効 | 破棄済みの鍵、未初期化の `psa_key_id_t`（値 0） |
 | `PSA_ERROR_INVALID_SIGNATURE` | −149 | 署名・MAC・AEAD タグの検証に失敗 | 改ざんされた、または鍵・データ・アルゴリズムのどれかが一致しない |
-| `PSA_ERROR_ALREADY_EXISTS` | −139 | 同じ ID の永続鍵がすでにある | 前回の実行で作った鍵が残っている（12 章） |
-| `PSA_ERROR_DOES_NOT_EXIST` | −140 | 指定した ID のデータがない | ストレージの UID（保存データの識別番号。13 章）間違い。鍵が未作成 |
+| `PSA_ERROR_ALREADY_EXISTS` | −139 | 同じ ID の永続鍵がすでにある | 前回の実行で作った鍵が残っている（[12 章](12_永続鍵とライフタイム.md)） |
+| `PSA_ERROR_DOES_NOT_EXIST` | −140 | 指定した ID のデータがない | ストレージの UID（保存データの識別番号。[13 章](13_セキュアストレージ.md)）間違い。鍵が未作成 |
 | `PSA_ERROR_INSUFFICIENT_MEMORY` | −141 | メモリ不足 | ヒープが小さい。鍵スロット（実装が鍵を保持する枠）数の上限（`MBEDTLS_PSA_KEY_SLOT_COUNT`） |
 | `PSA_ERROR_INSUFFICIENT_STORAGE` | −142 | 不揮発ストレージの空きがない | ITS/PS の領域が満杯 |
 | `PSA_ERROR_INSUFFICIENT_ENTROPY` | −148 | 乱数の種が足りない | エントロピー源（乱数の元になる物理的なゆらぎの供給源）が未設定 |
@@ -74,10 +77,10 @@ psa_status_t psa_crypto_init(void);
 ```
 
 - **何度呼んでも安全**（2 回目以降は何もせず `PSA_SUCCESS`）。ライブラリの各モジュールの先頭で気軽に呼んでよい
-- 失敗する主な理由は**エントロピー源がない**こと。PC では OS の乱数を使うので失敗しないが、マイコンでは乱数のハードウェア（TRNG、真性乱数生成器）かそれに代わる仕組みを設定する必要がある（15 章）
+- 失敗する主な理由は**エントロピー源がない**こと。PC では OS の乱数を使うので失敗しないが、マイコンでは乱数のハードウェア（TRNG、真性乱数生成器）かそれに代わる仕組みを設定する必要がある（[15 章](15_MbedTLSでの実装.md)）
 - TF-M 環境では非セキュア側からも呼べるが、実体はセキュア側の初期化がすでに済んでいることの確認である
 
-ストレージ API（13 章）とアテステーション API（14 章）には初期化関数が**ない**。
+ストレージ API（[13 章](13_セキュアストレージ.md#2-つのストレージ-api)）とアテステーション API（[14 章](14_アテステーション.md#アテステーションとは何か)）には初期化関数が**ない**。
 実装の起動時に準備されている前提である。
 
 ```fig
@@ -226,7 +229,7 @@ psa_status_t do_something(const uint8_t *in, size_t in_len,
     st = psa_crypto_init();
     if (st != PSA_SUCCESS) goto cleanup;
 
-    /* 鍵の属性を宣言して鍵を用意する（03・04 章） */
+    /* 鍵の属性を宣言して鍵を用意する（[03 章](03_鍵と属性.md)・[04 章](04_鍵の作成と破棄.md)） */
     psa_set_key_type(&attr, ...);
     psa_set_key_usage_flags(&attr, ...);
     psa_set_key_algorithm(&attr, ...);
@@ -240,7 +243,7 @@ psa_status_t do_something(const uint8_t *in, size_t in_len,
 
 cleanup:
     psa_xxx_abort(&op);                 /* 無条件。inactive なら何もしない */
-    psa_reset_key_attributes(&attr);    /* 属性構造体の後片付け（4 章） */
+    psa_reset_key_attributes(&attr);    /* 属性構造体の後片付け（[04 章](04_鍵の作成と破棄.md)） */
     if (key != PSA_KEY_ID_NULL) psa_destroy_key(key);
     return st;
 }
