@@ -666,11 +666,14 @@
       h+='</table>';
       // 各元の位数
       var orders=G.map(function(a){var k=1,v=a;while(v!==e&&k<200){v=op(v,a);k++;}return k;});
-      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">各元の位数（繰り返し演算して初めて単位元 e に戻る回数。乗法群なら e = 1、加法群なら e = 0）</div>';
+      var invs=G.map(function(a){for(var j=0;j<G.length;j++){if(op(a,G[j])===e)return G[j];}return "?";});
+      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">各元の位数 = その元を<b>自分自身に</b>繰り返し'+(mulmode?'掛けて':'足して')+'（a, a'+(mulmode?'²':'+a')+', …）初めて単位元 e = '+e+' に戻る<b>回数</b>。逆元（a '+(mulmode?'×':'+')+' ? = '+e+' となる<b>相手</b>）とは別物なので並べて示す</div>';
       h+='<table style="border-collapse:collapse"><tr><th style="padding:.1rem .5rem;color:var(--muted);text-align:right">元</th>'+
         G.map(function(a){return '<td style="padding:.1rem .5rem;text-align:right">'+a+'</td>';}).join("")+'</tr>'+
         '<tr><th style="padding:.1rem .5rem;color:var(--muted);text-align:right">位数</th>'+
-        orders.map(function(k){return '<td style="padding:.1rem .5rem;text-align:right;color:'+(ord%k===0?'var(--signal)':'var(--alias)')+';font-weight:700">'+k+'</td>';}).join("")+'</tr></table>';
+        orders.map(function(k){return '<td style="padding:.1rem .5rem;text-align:right;color:'+(ord%k===0?'var(--signal)':'var(--alias)')+';font-weight:700">'+k+'</td>';}).join("")+'</tr>'+
+        '<tr><th style="padding:.1rem .5rem;color:var(--muted);text-align:right">逆元</th>'+
+        invs.map(function(v){return '<td style="padding:.1rem .5rem;text-align:right;color:var(--muted)">'+v+'</td>';}).join("")+'</tr></table>';
       out.innerHTML=h;
       var divs=[]; for(var d=1;d<=ord;d++) if(ord%d===0) divs.push(d);
       var allok=orders.every(function(k){return ord%k===0;});
