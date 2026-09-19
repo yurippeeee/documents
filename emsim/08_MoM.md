@@ -111,6 +111,9 @@ $$
 
 **Step 2: 試験関数を掛けて積分する（モーメントを取る）。**
 
+ここで$`\mathcal{L}\{\mathbf{J}\}`$は「電流$`\mathbf{J}`$からそれが作る電界を計算する積分」（上の積分方程式の左辺そのもの）を表す記号、
+$`\langle \mathbf{a}, \mathbf{b} \rangle = \int \mathbf{a}\cdot\mathbf{b}\, dS`$は面上での内積である。
+
 $$
 \left\langle \mathbf{f}_m,\ \mathcal{L}\{\mathbf{J}\}\right\rangle = \left\langle \mathbf{f}_m,\ \mathbf{E}^{\text{入射}}\right\rangle
 $$
