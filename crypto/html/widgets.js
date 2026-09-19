@@ -655,7 +655,7 @@
       var op=mulmode?function(a,b){return (a*b)%n;}:function(a,b){return (a+b)%n;};
       var e=mulmode?1:0, ord=G.length;
       // 演算表
-      var h='<div style="color:var(--muted);margin-bottom:.3rem">'+(mulmode?"乗法":"加法")+'表 mod '+n+'（要素数 '+ord+'）</div>';
+      var h='<div style="color:var(--muted);margin-bottom:.3rem">'+(mulmode?"乗法":"加法")+'表 mod '+n+'（要素数 '+ord+'）。色付きのマスは a '+(mulmode?'×':'+')+' b = '+e+'（単位元）になる組、すなわち<b>逆元の組</b>。位数の計算には使わない</div>';
       h+='<table style="border-collapse:collapse"><tr><th style="padding:.1rem .4rem;color:var(--muted)">'+(mulmode?"×":"+")+'</th>'+
         G.map(function(b){return '<th style="padding:.1rem .4rem;color:var(--muted)">'+b+'</th>';}).join("")+'</tr>';
       G.forEach(function(a){
@@ -667,7 +667,14 @@
       // 各元の位数
       var orders=G.map(function(a){var k=1,v=a;while(v!==e&&k<200){v=op(v,a);k++;}return k;});
       var invs=G.map(function(a){for(var j=0;j<G.length;j++){if(op(a,G[j])===e)return G[j];}return "?";});
-      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">各元の位数 = その元を<b>自分自身に</b>繰り返し'+(mulmode?'掛けて':'足して')+'（a, a'+(mulmode?'²':'+a')+', …）初めて単位元 e = '+e+' に戻る<b>回数</b>。逆元（a '+(mulmode?'×':'+')+' ? = '+e+' となる<b>相手</b>）とは別物なので並べて示す</div>';
+      // 位数の計算過程: a を 1 個, 2 個, … と並べて初めて e になる個数
+      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">各元の位数の計算: a を 1 個、2 個、3 個…と'+(mulmode?'掛け合わせ':'足し合わせ')+'、<b>初めて単位元 e = '+e+' になったときの a の個数</b>が位数（演算記号の数ではなく a の個数を数える）</div>';
+      h+='<table style="border-collapse:collapse;font-size:.78rem">'+G.map(function(a,i){
+        var seq=[],v=a,k=1; while(v!==e&&k<200){seq.push(v);v=op(v,a);k++;} seq.push(v);
+        return '<tr><th style="padding:.1rem .5rem;color:var(--muted);text-align:right">'+a+'</th><td style="padding:.1rem .5rem">'+
+          seq.map(function(x,j){return '<span style="'+(j===seq.length-1?'color:var(--signal);font-weight:700':'')+'">'+x+'</span><sub style="color:var(--muted)">'+(j+1)+'個</sub>';}).join('<span style="color:var(--muted)"> '+(mulmode?'×'+a+'→':'+'+a+'→')+' </span>')+
+          ' <span style="color:var(--muted)">⇒ 位数</span> <b>'+seq.length+'</b></td></tr>';}).join("")+'</table>';
+      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">まとめ（逆元は a '+(mulmode?'×':'+')+' ? = '+e+' となる<b>相手</b>で、位数とは別物）</div>';
       h+='<table style="border-collapse:collapse"><tr><th style="padding:.1rem .5rem;color:var(--muted);text-align:right">元</th>'+
         G.map(function(a){return '<td style="padding:.1rem .5rem;text-align:right">'+a+'</td>';}).join("")+'</tr>'+
         '<tr><th style="padding:.1rem .5rem;color:var(--muted);text-align:right">位数</th>'+
