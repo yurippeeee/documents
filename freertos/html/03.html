@@ -20,7 +20,7 @@
 <main class="doc">
   <p class="chno">Chapter 03</p>
   <h1 class="doctitle">FreeRTOS の全体像 — カーネルの責務と、移植層との契約</h1>
-  <blockquote><p><strong>この章がなぜ必要なのか——「どこまでが移植層の話か」を先に切り分ける.</strong></p><p>FreeRTOS のソースを開くと、<code>portmacro.h</code> や <code>portYIELD()</code> といった 見慣れないマクロがそこかしこに出てくる。ここで詰まる人が多い。</p><p>だが実は、<strong>移植層がやることは 5 つしかない</strong>。 その 5 つを「契約」として先に押さえてしまえば、 中身がアセンブラだろうと何だろうと、<strong>カーネルのロジックは完全に読める</strong>。 この章でその線を引く。</p><p><strong>この章で使う既出の用語（定義は各リンク先）.</strong> コンテキスト（<a href="01.html#os-が与える-1-つの発明">01 章 §6</a>）、TCB（<a href="02.html#タスクとは何か">02 章 §2</a>）、スタック（<a href="02.html#タスクとは何か">02 章 §2</a>）、タスク（<a href="02.html#タスクとは何か">02 章 §2</a>）</p></blockquote><h2 id="ソースの構成">1. ソースの構成</h2><p>FreeRTOS カーネルのリポジトリは、こうなっている。</p><pre><code>FreeRTOS-Kernel/
+  <blockquote><p><strong>この章がなぜ必要なのか——「どこまでが移植層の話か」を先に切り分ける.</strong></p><p>FreeRTOS のソースを開くと、<code>portmacro.h</code> や <code>portYIELD()</code> といった 見慣れないマクロがそこかしこに出てくる。ここで詰まる人が多い。</p><p>だが実は、<strong>移植層がやることは 5 つしかない</strong>。 その 5 つを「契約」として先に押さえてしまえば、 中身がアセンブラだろうと何だろうと、<strong>カーネルのロジックは完全に読める</strong>。 この章でその線を引く。</p><p><strong>この章で使う既出の用語（定義は各リンク先）.</strong> コンテキスト（<a href="01.html#os-が与える-1-つの発明">01 章 6 節</a>）、TCB（<a href="02.html#タスクとは何か">02 章 2 節</a>）、スタック（<a href="02.html#タスクとは何か">02 章 2 節</a>）、タスク（<a href="02.html#タスクとは何か">02 章 2 節</a>）</p></blockquote><h2 id="ソースの構成">1. ソースの構成</h2><p>FreeRTOS カーネルのリポジトリは、こうなっている。</p><pre><code>FreeRTOS-Kernel/
 ├── tasks.c              ← カーネルの心臓。タスク管理とスケジューラ
 ├── queue.c              ← キュー・セマフォ・ミューテックス（全部これ 1 本）
 ├── list.c               ← 双方向リンクリスト。全データ構造の土台

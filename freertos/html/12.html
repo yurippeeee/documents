@@ -20,7 +20,7 @@
 <main class="doc">
   <p class="chno">Chapter 12</p>
   <h1 class="doctitle">セマフォとミューテックス — 中身はキュー、違いは「所有者」</h1>
-  <blockquote><p><strong>この章がなぜ必要なのか——この 2 つの混同が、バグの温床になっている.</strong></p><p>「バイナリセマフォとミューテックスは同じようなもの」と説明されることがある。 <strong>これは誤りである。</strong> 使い分けを間違えると、 優先度逆転（<a href="13.html#優先度逆転を見る">13 章</a>）が起き、システムが止まる。</p><p>FreeRTOS では実装が共通なので、なおさら混同しやすい。 <strong>何が同じで、何が決定的に違うのか</strong>をはっきりさせる。</p><p><strong>この章で使う既出の用語（定義は各リンク先）.</strong> TCB（<a href="02.html#タスクとは何か">02 章 §2</a>）、タスク（<a href="02.html#タスクとは何か">02 章 §2</a>）、Blocked（<a href="04.html#4-つの状態">04 章 §1</a>）、Ready（<a href="04.html#4-つの状態">04 章 §1</a>）、FreeRTOS（<a href="06.html#優先度の数と表現">06 章 §4</a>）、追加（<a href="07.html#ready-リスト-優先度ごとの配列">07 章 §2</a>）</p></blockquote><h2 id="実装はすべてキュー">1. 実装はすべてキュー</h2><pre><code class="lang-c">/* semphr.h より（マクロで queue.c の関数に落ちる） */
+  <blockquote><p><strong>この章がなぜ必要なのか——この 2 つの混同が、バグの温床になっている.</strong></p><p>「バイナリセマフォとミューテックスは同じようなもの」と説明されることがある。 <strong>これは誤りである。</strong> 使い分けを間違えると、 優先度逆転（<a href="13.html#優先度逆転を見る">13 章</a>）が起き、システムが止まる。</p><p>FreeRTOS では実装が共通なので、なおさら混同しやすい。 <strong>何が同じで、何が決定的に違うのか</strong>をはっきりさせる。</p><p><strong>この章で使う既出の用語（定義は各リンク先）.</strong> TCB（<a href="02.html#タスクとは何か">02 章 2 節</a>）、タスク（<a href="02.html#タスクとは何か">02 章 2 節</a>）、Blocked（<a href="04.html#4-つの状態">04 章 1 節</a>）、Ready（<a href="04.html#4-つの状態">04 章 1 節</a>）、FreeRTOS（<a href="06.html#優先度の数と表現">06 章 4 節</a>）、追加（<a href="07.html#ready-リスト-優先度ごとの配列">07 章 2 節</a>）</p></blockquote><h2 id="実装はすべてキュー">1. 実装はすべてキュー</h2><pre><code class="lang-c">/* semphr.h より（マクロで queue.c の関数に落ちる） */
 #define xSemaphoreCreateBinary()                                  \
     xQueueGenericCreate( 1, semSEMAPHORE_QUEUE_ITEM_LENGTH, queueQUEUE_TYPE_BINARY_SEMAPHORE )
 
