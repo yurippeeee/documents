@@ -132,7 +132,7 @@
       for(var a=1;a<p;a++){var found=false;for(var b=1;b<p;b++)if((a*b)%p===1)found=true;if(!found)noinv.push(a);}
       rd.innerHTML='m = <b>'+p+'</b> ／ '+(isPrime(p)
         ? '<span class="ok">素数 → 0 以外の全要素が逆元を持つ（乗法表の各行に緑の 1 がある）= 体 GF('+p+')</span>'
-        : '<span class="warn">合成数 → 逆元を持たない要素: '+noinv.join(", ")+' → 体でない（GF('+p+') は Z_'+p+' としては作れない）</span>');
+        : '<span class="warn">合成数 → 逆元を持たない要素: '+noinv.join(", ")+' → Z_'+p+' は体でない</span>');
     }
     sp.input.addEventListener("input",run);reg(null,run);run();
   };
