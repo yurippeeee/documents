@@ -102,9 +102,9 @@
 
   /* ---------- 03: GF(p) 演算表 ---------- */
   REG.gftable=function(el){
-    head(el,"GF(p)","乗法表の各行に 1 が現れる = 逆元が存在する");
+    head(el,"Z_m の演算表","法 m が素数のときだけ乗法表の各行に 1 が現れる = 体になる");
     var row=ctrls(el);
-    var sp=slider(row,"法 p",2,17,5,1);
+    var sp=slider(row,"法 m",2,17,5,1);
     var out=panel(el), rd=readout(el);
     function isPrime(n){if(n<2)return false;for(var i=2;i*i<=n;i++)if(n%i===0)return false;return true;}
     function run(){
@@ -130,9 +130,9 @@
       out.innerHTML=h;
       var noinv=[];
       for(var a=1;a<p;a++){var found=false;for(var b=1;b<p;b++)if((a*b)%p===1)found=true;if(!found)noinv.push(a);}
-      rd.innerHTML='p = <b>'+p+'</b> ／ '+(isPrime(p)
-        ? '<span class="ok">素数 → 0 以外の全要素が逆元を持つ（乗法表の各行に緑の 1 がある）= 体</span>'
-        : '<span class="warn">合成数 → 逆元を持たない要素: '+noinv.join(", ")+' → 体でない</span>');
+      rd.innerHTML='m = <b>'+p+'</b> ／ '+(isPrime(p)
+        ? '<span class="ok">素数 → 0 以外の全要素が逆元を持つ（乗法表の各行に緑の 1 がある）= 体 GF('+p+')</span>'
+        : '<span class="warn">合成数 → 逆元を持たない要素: '+noinv.join(", ")+' → 体でない（GF('+p+') は Z_'+p+' としては作れない）</span>');
     }
     sp.input.addEventListener("input",run);reg(null,run);run();
   };
