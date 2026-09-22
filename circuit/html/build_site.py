@@ -290,7 +290,8 @@ KATEX = (
  '<link rel="stylesheet" href="katex/katex.min.css">\n'
  '<script defer src="katex/katex.min.js"></script>\n'
  '<script defer src="katex/contrib/auto-render.min.js" '
- 'onload="renderMathInElement(document.body,{delimiters:[{left:\'$$\',right:\'$$\',display:true},{left:\'\\\\[\',right:\'\\\\]\',display:true},{left:\'\\\\(\',right:\'\\\\)\',display:false}],throwOnError:false});"></script>'
+ 'onload="renderMathInElement(document.body,{delimiters:[{left:\'$$\',right:\'$$\',display:true},{left:\'\\\\[\',right:\'\\\\]\',display:true},{left:\'\\\\(\',right:\'\\\\)\',display:false}],throwOnError:false});"></script>\n'
+ '<script defer src="katex/contrib/copy-tex.min.js"></script>'
 )
 
 def page(num, title, body, prev_c, next_c):
