@@ -289,7 +289,7 @@ def page(num, title, body, prev_c, next_c):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{esc(title)} — 暗号と誤り訂正</title>
-<link rel="stylesheet" href="crypto.css">
+<link rel="stylesheet" href="crypto.css?v={_ver('crypto.css')}">
 {KATEX}
 {wscript}
 </head>

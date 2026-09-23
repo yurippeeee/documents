@@ -78,7 +78,7 @@ td .katex{font-size:.95em}
 
 /* code blocks / ascii diagrams */
 pre{background:var(--screen);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;overflow-x:auto;margin:1.2rem 0;line-height:1.5}
-pre code{background:none;border:0;padding:0;font-size:.86rem;color:var(--ink);white-space:pre}
+.doc pre code,pre code{background:none;border:0;padding:0;font-size:.86rem;color:var(--ink);white-space:pre}
 
 /* figures */
 figure{margin:1.4rem 0;text-align:center}
