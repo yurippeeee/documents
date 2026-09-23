@@ -171,31 +171,59 @@
     var row=ctrls(el);
     var ia=textin(row,"被除数（2進）","1101000","150px"), ib=textin(row,"除数（2進）","1011","110px");
     var out=panel(el), rd=readout(el);
+    function poly(bits){
+      var d=bits.length-1, t=[];
+      bits.forEach(function(v,k){if(v){var e=d-k;t.push(e===0?"1":e===1?"x":"x<sup>"+e+"</sup>");}});
+      return t.length?t.join(" + "):"0";
+    }
     function run(){
       var A=(ia.value||"").replace(/[^01]/g,""), B=(ib.value||"").replace(/[^01]/g,"");
       if(!A||!B||B.indexOf("1")<0){out.innerHTML="0/1 で入力してください";rd.innerHTML="";return;}
       var a=A.split("").map(Number), b=B.split("").map(Number);
       while(b[0]===0)b.shift();
-      var n=a.length, m=b.length, work=a.slice(), q=[], lines=[];
-      lines.push([work.join(""),""]);
+      var n=a.length, m=b.length, work=a.slice(), q=[], rows=[], first=true;
+      /* rows: {c:列→文字, cls:列→class, lab:左ラベル} */
+      function blank(){return {c:{},cls:{},lab:""};}
       for(var i=0;i+m<=n;i++){
         if(work[i]===1){
           q.push(1);
-          var sub=new Array(n).fill(0);
-          for(var j=0;j<m;j++)sub[i+j]=b[j];
-          for(var k=0;k<n;k++)work[k]^=sub[k];
-          lines.push([sub.join(""),"XOR"]);
-          lines.push([work.join(""),"→"]);
+          if(!first){var R=blank();for(var k=i;k<i+m;k++)R.c[k]=work[k];rows.push(R);}
+          first=false;
+          var S=blank();S.lab="⊕";
+          for(var k2=0;k2<m;k2++){S.c[i+k2]=b[k2];S.cls[i+k2]="pd-sub";}
+          rows.push(S);
+          for(var j=0;j<m;j++)work[i+j]^=b[j];
         } else q.push(0);
       }
-      var rem=work.slice(n-m+1);
-      var h='';
-      lines.forEach(function(L){
-        h+='<div><span style="color:var(--faint);display:inline-block;width:2.6em">'+L[1]+'</span>'+
-           '<span style="letter-spacing:.22em">'+L[0]+'</span></div>';
+      var rs=Math.max(0,n-m+1), rem=work.slice(rs);
+      var F=blank();F.lab="余り";for(var r=rs;r<n;r++){F.c[r]=work[r];F.cls[r]="pd-rem";}
+      if(rem.length)rows.push(F);
+      var cell='display:inline-block;width:1.5em;text-align:center;';
+      function line(labHtml,labSty,cells){
+        return '<div style="display:flex;align-items:stretch;white-space:nowrap">'+
+          '<span style="display:inline-block;min-width:'+(m*1.5+1.2)+'em;text-align:right;padding-right:.35em;'+labSty+'">'+labHtml+'</span>'+cells+'</div>';
+      }
+      var h='', qc='', qstart=q.indexOf(1);
+      for(var c=0;c<n;c++){
+        var qi=c-(m-1), v=(qi>=0&&qi<q.length&&qstart>=0&&qi>=qstart)?q[qi]:"";
+        qc+='<span style="'+cell+'color:var(--blue);font-weight:700">'+v+'</span>';
+      }
+      h+=line('<span style="color:var(--faint)">商</span>','',qc);
+      var dc='';
+      for(var c2=0;c2<n;c2++)dc+='<span style="'+cell+'border-top:1.5px solid var(--ink)">'+a[c2]+'</span>';
+      h+=line(b.join("")+' <span style="display:inline-block;transform:scaleY(1.35);font-weight:300">)</span>','',dc);
+      rows.forEach(function(R){
+        var cs='';
+        for(var c3=0;c3<n;c3++){
+          var has=(c3 in R.c), st=cell;
+          if(R.cls[c3]==="pd-sub")st+='border-bottom:1.5px solid var(--ink);color:var(--muted);';
+          if(R.cls[c3]==="pd-rem")st+='color:var(--signal);font-weight:700;';
+          cs+='<span style="'+st+'">'+(has?R.c[c3]:"")+'</span>';
+        }
+        h+=line(R.lab,'color:var(--faint)',cs);
       });
       out.innerHTML=h;
-      rd.innerHTML='商 = <b>'+(q.join("")||"0")+'</b> ／ 余り = <b class="ok">'+rem.join("")+'</b>'+
+      rd.innerHTML='商 = <b>'+(q.slice(Math.max(0,qstart)).join("")||"0")+'</b>（'+poly(q.slice(Math.max(0,qstart)))+'） ／ 余り = <b class="ok">'+(rem.join("")||"0")+'</b>（'+poly(rem)+'）'+
         (rem.indexOf(1)<0?' ／ <span class="ok">割り切れた（= 正しい符号語）</span>':' ／ <span class="warn">余りが 0 でない（= 誤りあり）</span>');
     }
     ia.addEventListener("input",run);ib.addEventListener("input",run);reg(null,run);run();
