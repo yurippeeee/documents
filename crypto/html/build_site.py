@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """dsp/*.md -> dsp/html/NN.html (自己完結・KaTeX数式・図・章間ナビ)。"""
-import os, re, html
+import os, re, html, hashlib
+def _ver(name):
+    """キャッシュ対策: ファイル内容のハッシュを ?v= に付ける。"""
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), name), 'rb') as f:
+        return hashlib.sha1(f.read()).hexdigest()[:8]
 def slugify(raw):
     s = raw
     s = re.sub(r"\$`(.+?)`\$", r"\1", s)
@@ -276,7 +280,7 @@ def page(num, title, body, prev_c, next_c):
     nav_prev = ('<a class="pn" href="%s.html"><span>←</span><b>%s</b></a>' % (prev_c[0], prev_c[1])) if prev_c else '<span class="pn dis"></span>'
     nav_next = ('<a class="pn nx" href="%s.html"><b>%s</b><span>→</span></a>' % (next_c[0], next_c[1])) if next_c else '<span class="pn dis"></span>'
     has_widget = 'data-widget' in body
-    wscript = '<script defer src="widgets.js"></script>' if has_widget else ''
+    wscript = '<script defer src="widgets.js?v=%s"></script>' % _ver("widgets.js") if has_widget else ''
     tshort = re.sub(r'^[0-9]+[.\s]*', '', title)
     tshort_html = convert_inline(tshort)
     return f"""<!DOCTYPE html>
