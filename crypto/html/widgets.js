@@ -229,6 +229,41 @@
     ia.addEventListener("input",run);ib.addEventListener("input",run);reg(null,run);run();
   };
 
+  /* ---------- 04: 既約判定（既約多項式で順に割る） ---------- */
+  REG.irred=function(el){
+    head(el,"Irreducibility","低い次数の既約多項式で順に割ってみる");
+    var row=ctrls(el);
+    var ia=textin(row,"f（2進）","10101","150px");
+    var out=panel(el), rd=readout(el);
+    function deg(a){return a.toString(2).length-1;}
+    function mod(a,b){var db=deg(b);while(a&&deg(a)>=db)a^=b<<(deg(a)-db);return a;}
+    function div(a,b){var q=0,db=deg(b);while(a&&deg(a)>=db){var s=deg(a)-db;q|=1<<s;a^=b<<s;}return q;}
+    function poly(a){if(!a)return "0";var d=deg(a),t=[];for(var e=d;e>=0;e--)if((a>>e)&1)t.push(e===0?"1":e===1?"x":"x<sup>"+e+"</sup>");return t.join("+");}
+    function irrUpTo(D){var L=[];for(var d=1;d<=D;d++)for(var g=1<<d;g<(1<<(d+1));g++){
+      if(L.every(function(h){return deg(h)*2>d||mod(g,h)!==0;}))L.push(g);}return L;}
+    var th='style="padding:.15rem .7rem;text-align:right;color:var(--muted);font-weight:600"', td='style="padding:.15rem .7rem;text-align:right"';
+    function run(){
+      var A=(ia.value||"").replace(/[^01]/g,"").replace(/^0+/,"");
+      if(!A||A.length<2||A.length>21){out.innerHTML="次数 1〜20 の多項式を 0/1 で入力してください";rd.innerHTML="";return;}
+      var f=parseInt(A,2), n=deg(f), D=Math.floor(n/2);
+      var cand=irrUpTo(D), found=null;
+      var h='<div style="margin-bottom:.4rem">f = '+poly(f)+'（次数 '+n+'）→ 次数 '+D+' 以下の既約多項式 '+cand.length+' 個で割る</div>';
+      h+='<table style="border-collapse:collapse"><tr><th '+th+'>割る多項式 g</th><th '+th+'>ビット</th><th '+th+'>余り</th><th '+th+'>結果</th></tr>';
+      cand.forEach(function(g){
+        var r=mod(f,g), hit=(r===0);
+        if(hit&&!found)found=g;
+        h+='<tr><td '+td+'>'+poly(g)+'</td><td '+td+'>'+g.toString(2)+'</td><td '+td+'>'+poly(r)+'</td><td '+td+'>'+
+          (hit?'<span style="color:var(--alias);font-weight:700">割り切れる</span>':'<span style="color:var(--faint)">割り切れない</span>')+'</td></tr>';
+      });
+      h+='</table>';
+      if(!cand.length)h='<div>次数 1 の多項式は常に既約（試す相手が無い）</div>';
+      out.innerHTML=h;
+      rd.innerHTML=found?'<span class="warn">可約</span>: f = ('+poly(found)+') × ('+poly(div(f,found))+')'
+                        :'<span class="ok">既約</span>: どれでも割り切れない';
+    }
+    ia.addEventListener("input",run);reg(null,run);run();
+  };
+
   /* ---------- 05: GF(2^m) のべき表 ---------- */
   REG.gf2m=function(el){
     head(el,"GF(2^m)","α のべき乗が全要素を巡る");
