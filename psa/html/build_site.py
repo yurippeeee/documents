@@ -296,6 +296,7 @@ def page(num, title, body, prev_c, next_c):
 <link rel="stylesheet" href="psa.css">
 {KATEX}
 {wscript}
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{{"token": "7b6e9d2633b64a6bba9a294bb612c422"}}'></script><!-- End Cloudflare Web Analytics -->
 </head>
 <body>
 <header class="top">
