@@ -166,67 +166,80 @@
   };
 
   /* ---------- 04: 多項式除算 ---------- */
+  /* 多項式の筆算を HTML にする（polydiv と本文中の静的な筆算 longdiv で共用） */
+  function longDiv(A,B){
+    var a=A.split("").map(Number), b=B.split("").map(Number);
+    while(b[0]===0)b.shift();
+    var n=a.length, m=b.length, work=a.slice(), q=[], rows=[], first=true;
+    /* rows: {c:列→文字, cls:列→class, lab:左ラベル} */
+    function blank(){return {c:{},cls:{},lab:""};}
+    for(var i=0;i+m<=n;i++){
+      if(work[i]===1){
+        q.push(1);
+        if(!first){var R=blank();for(var k=i;k<i+m;k++)R.c[k]=work[k];rows.push(R);}
+        first=false;
+        var S=blank();S.lab="⊕";
+        for(var k2=0;k2<m;k2++){S.c[i+k2]=b[k2];S.cls[i+k2]="pd-sub";}
+        rows.push(S);
+        for(var j=0;j<m;j++)work[i+j]^=b[j];
+      } else q.push(0);
+    }
+    var rs=Math.max(0,n-m+1), rem=work.slice(rs);
+    var F=blank();F.lab="余り";
+    if(rem.length){for(var r=rs;r<n;r++){F.c[r]=work[r];F.cls[r]="pd-rem";}}
+    else{F.c[n-1]=0;F.cls[n-1]="pd-rem";}
+    rows.push(F);
+    var cell='display:inline-block;width:1.5em;text-align:center;';
+    function line(labHtml,labSty,cells){
+      return '<div style="display:flex;align-items:stretch;white-space:nowrap">'+
+        '<span style="display:inline-block;min-width:'+Math.max(m*1.5+1.2,3.4)+'em;text-align:right;padding-right:.35em;'+labSty+'">'+labHtml+'</span>'+cells+'</div>';
+    }
+    var h='', qc='', qstart=q.indexOf(1);
+    for(var c=0;c<n;c++){
+      var qi=c-(m-1), v=(qi>=0&&qi<q.length&&qstart>=0&&qi>=qstart)?q[qi]:"";
+      qc+='<span style="'+cell+'color:var(--blue);font-weight:700">'+v+'</span>';
+    }
+    h+=line('<span style="color:var(--faint)">商</span>','',qc);
+    var dc='';
+    for(var c2=0;c2<n;c2++)dc+='<span style="'+cell+'border-top:1.5px solid var(--ink)">'+a[c2]+'</span>';
+    h+=line(b.join("")+' <span style="display:inline-block;transform:scaleY(1.35);font-weight:300">)</span>','',dc);
+    rows.forEach(function(R){
+      var cs='';
+      for(var c3=0;c3<n;c3++){
+        var has=(c3 in R.c), st=cell;
+        if(R.cls[c3]==="pd-sub")st+='border-bottom:1.5px solid var(--ink);color:var(--muted);';
+        if(R.cls[c3]==="pd-rem")st+='color:var(--signal);font-weight:700;';
+        cs+='<span style="'+st+'">'+(has?R.c[c3]:"")+'</span>';
+      }
+      h+=line(R.lab,'color:var(--faint)',cs);
+    });
+    return {html:h, q:q.slice(Math.max(0,qstart)), rem:rem};
+  }
+  function polyStr(bits){
+    var d=bits.length-1, t=[];
+    bits.forEach(function(v,k){if(v){var e=d-k;t.push(e===0?"1":e===1?"x":"x<sup>"+e+"</sup>");}});
+    return t.length?t.join(" + "):"0";
+  }
   REG.polydiv=function(el){
     head(el,"Poly Division","GF(2) 上の割り算 = XOR の筆算");
     var row=ctrls(el);
     var ia=textin(row,"被除数（2進）","1101000","150px"), ib=textin(row,"除数（2進）","1011","110px");
     var out=panel(el), rd=readout(el);
-    function poly(bits){
-      var d=bits.length-1, t=[];
-      bits.forEach(function(v,k){if(v){var e=d-k;t.push(e===0?"1":e===1?"x":"x<sup>"+e+"</sup>");}});
-      return t.length?t.join(" + "):"0";
-    }
     function run(){
       var A=(ia.value||"").replace(/[^01]/g,""), B=(ib.value||"").replace(/[^01]/g,"");
       if(!A||!B||B.indexOf("1")<0){out.innerHTML="0/1 で入力してください";rd.innerHTML="";return;}
-      var a=A.split("").map(Number), b=B.split("").map(Number);
-      while(b[0]===0)b.shift();
-      var n=a.length, m=b.length, work=a.slice(), q=[], rows=[], first=true;
-      /* rows: {c:列→文字, cls:列→class, lab:左ラベル} */
-      function blank(){return {c:{},cls:{},lab:""};}
-      for(var i=0;i+m<=n;i++){
-        if(work[i]===1){
-          q.push(1);
-          if(!first){var R=blank();for(var k=i;k<i+m;k++)R.c[k]=work[k];rows.push(R);}
-          first=false;
-          var S=blank();S.lab="⊕";
-          for(var k2=0;k2<m;k2++){S.c[i+k2]=b[k2];S.cls[i+k2]="pd-sub";}
-          rows.push(S);
-          for(var j=0;j<m;j++)work[i+j]^=b[j];
-        } else q.push(0);
-      }
-      var rs=Math.max(0,n-m+1), rem=work.slice(rs);
-      var F=blank();F.lab="余り";for(var r=rs;r<n;r++){F.c[r]=work[r];F.cls[r]="pd-rem";}
-      if(rem.length)rows.push(F);
-      var cell='display:inline-block;width:1.5em;text-align:center;';
-      function line(labHtml,labSty,cells){
-        return '<div style="display:flex;align-items:stretch;white-space:nowrap">'+
-          '<span style="display:inline-block;min-width:'+(m*1.5+1.2)+'em;text-align:right;padding-right:.35em;'+labSty+'">'+labHtml+'</span>'+cells+'</div>';
-      }
-      var h='', qc='', qstart=q.indexOf(1);
-      for(var c=0;c<n;c++){
-        var qi=c-(m-1), v=(qi>=0&&qi<q.length&&qstart>=0&&qi>=qstart)?q[qi]:"";
-        qc+='<span style="'+cell+'color:var(--blue);font-weight:700">'+v+'</span>';
-      }
-      h+=line('<span style="color:var(--faint)">商</span>','',qc);
-      var dc='';
-      for(var c2=0;c2<n;c2++)dc+='<span style="'+cell+'border-top:1.5px solid var(--ink)">'+a[c2]+'</span>';
-      h+=line(b.join("")+' <span style="display:inline-block;transform:scaleY(1.35);font-weight:300">)</span>','',dc);
-      rows.forEach(function(R){
-        var cs='';
-        for(var c3=0;c3<n;c3++){
-          var has=(c3 in R.c), st=cell;
-          if(R.cls[c3]==="pd-sub")st+='border-bottom:1.5px solid var(--ink);color:var(--muted);';
-          if(R.cls[c3]==="pd-rem")st+='color:var(--signal);font-weight:700;';
-          cs+='<span style="'+st+'">'+(has?R.c[c3]:"")+'</span>';
-        }
-        h+=line(R.lab,'color:var(--faint)',cs);
-      });
-      out.innerHTML=h;
-      rd.innerHTML='商 = <b>'+(q.slice(Math.max(0,qstart)).join("")||"0")+'</b>（'+poly(q.slice(Math.max(0,qstart)))+'） ／ 余り = <b class="ok">'+(rem.join("")||"0")+'</b>（'+poly(rem)+'）'+
-        (rem.indexOf(1)<0?' ／ <span class="ok">割り切れた（= 正しい符号語）</span>':' ／ <span class="warn">余りが 0 でない（= 誤りあり）</span>');
+      var R=longDiv(A,B);
+      out.innerHTML=R.html;
+      rd.innerHTML='商 = <b>'+(R.q.join("")||"0")+'</b>（'+polyStr(R.q)+'） ／ 余り = <b class="ok">'+(R.rem.join("")||"0")+'</b>（'+polyStr(R.rem)+'）'+
+        (R.rem.indexOf(1)<0?' ／ <span class="ok">割り切れた（= 正しい符号語）</span>':' ／ <span class="warn">余りが 0 でない（= 誤りあり）</span>');
     }
     ia.addEventListener("input",run);ib.addEventListener("input",run);reg(null,run);run();
+  };
+  /* 本文中の静的な筆算（build_site.py が ```longdiv ブロックから data-a/data-b 付きで出力） */
+  REG.longdiv=function(el){
+    var out=panel(el);
+    out.style.display="inline-block";
+    out.innerHTML=longDiv(el.getAttribute("data-a"),el.getAttribute("data-b")).html;
   };
 
   /* ---------- 04: 既約判定（既約多項式で順に割る） ---------- */

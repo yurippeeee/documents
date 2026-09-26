@@ -132,6 +132,13 @@ def convert_blocks(lines):
             while i < n and lines[i].strip() != "```":
                 body.append(lines[i]); i += 1
             i += 1
+            if lang == "longdiv":
+                # ASCII の筆算から「除数 ) 被除数」の行を読み、HTML では図として描く
+                row = next(l for l in body if ")" in l)
+                dv, dd = row.split(")", 1)
+                out.append('<div class="longdiv" data-widget="longdiv" data-a="%s" data-b="%s"></div>'
+                           % (re.sub(r"[^01]", "", dd), re.sub(r"[^01]", "", dv)))
+                continue
             cls = ' class="lang-%s"' % lang if lang else ""
             out.append("<pre><code%s>%s</code></pre>" % (cls, esc("\n".join(body))))
             continue
