@@ -60,19 +60,19 @@ WIDGETS = {
     "02": [("ラグランジュの定理", "grouptable")],
     "03": [("GF(p) の構成と演算表", "gftable"), ("原始元（生成元）と離散対数", "primroot")],
     "04": [("多項式の除算", "polydiv"), ("判定法（低次の場合）", "irred")],
-    "05": [("GF(2^3) を手で作る", "gf2m")],
+    "05": [],
     "06": [("検出能力と訂正能力", "hamdist")],
-    "07": [("生成行列", "linear")],
+    "07": [],
     "08": [("復号 — シンドロームが誤り位置を直接指す", "hamming")],
     "09": [("CRC の手順", "crc"), ("CRC の検出能力", "crcburst")],
-    "10": [("生成多項式の作り方", "bch")],
+    "10": [],
     "11": [("復号アルゴリズム", "rs")],
     "12": [("古典暗号とその破り方", "caesar")],
-    "13": [("LFSR (線形帰還シフトレジスタ)", "lfsr")],
+    "13": [],
     "14": [("SubBytes", "aesbox")],
     "15": [("オイラーの φ 関数", "phi"), ("中国剰余定理", "crt")],
     "16": [("暗号化と復号", "rsa")],
-    "17": [("ディフィー・ヘルマン鍵交換 (DH)", "dh"), ("楕円曲線 — 「点の足し算」で群を作る", "ecc")],
+    "17": [("ディフィー・ヘルマン鍵交換 (DH)", "dh"), ],
     "18": [("誕生日攻撃", "birthday")],
 }
 
@@ -123,6 +123,11 @@ def convert_blocks(lines):
             i += 1; continue
         # skip trailing nav
         if st.startswith("→ 次"):
+            i += 1; continue
+        # 本文中の好きな位置に図を置く: <!-- widget:NAME -->（GitHub 上の Markdown では表示されない）
+        m = re.match(r"^<!--\s*widget:(\w+)\s*-->$", st)
+        if m:
+            out.append('<div class="widget" data-widget="%s"></div>' % m.group(1))
             i += 1; continue
         # code fence
         if st.startswith("```"):
