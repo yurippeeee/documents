@@ -104,6 +104,8 @@ def _f07_loop():
     o.append(RECT(660, top + 10, 80, bot - top - 10, 0, ASOFT, "none", 0))
     o.append(T(700, 100, "G", "middle", 15, ALI, True))
     o.append(T(700, 118, "隙間", "middle", 10.5, ALI))
+    o.append(W(L - 18, top, R + 18, top, c=MUT, lw=1, dash="4,4"))
+    o.append(T((L + R) / 2, top - 8, "ふた（この図では省略）", "middle", 10.5, MUT))
     o.append(T(R + 30, 60, "筐体の壁", "start", 10.5, MUT))
     # ループ図
     y1, y2 = 248, 290

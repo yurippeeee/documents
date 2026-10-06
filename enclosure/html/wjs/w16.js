@@ -1,7 +1,7 @@
   /* ============ 16. button — ヒンジ式ボタンの押し荷重とひずみ ============ */
   REG.button=function(el){
     head(el,"16","ヒンジ式ボタンの押し荷重とひずみ");
-    var MAT=[["ABS",2200],["PC",2300],["PC/ABS",2400],["POM",2800],["PP",1400]];
+    var MAT=[["ABS",2300],["PC",2300],["PC/ABS",2300],["POM",2800],["PP",1500]];
     var row=ctrls(el);
     var sL=slider(row,"ヒンジの長さ L",3,15,8,0.5), sT=slider(row,"厚さ t",0.4,1.5,0.8,0.05),
         sB=slider(row,"幅 b",2,8,4,0.5), sD=slider(row,"押し込み量 δ",0.1,1.0,0.5,0.05),

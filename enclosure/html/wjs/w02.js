@@ -2,7 +2,7 @@
   REG.cantilever=function(el){
     head(el,"02","片持ちはりのたわみと根元の応力");
     // [名前, E [MPa], 降伏応力（代表値）[MPa]]
-    var MAT=[["ABS",2300,40],["PC",2400,60],["PC/ABS",2300,50],["PP",1500,30],["POM",2800,60],
+    var MAT=[["ABS",2300,40],["PC",2300,60],["PC/ABS",2300,50],["PP",1500,30],["POM",2800,60],
              ["PA66-GF30（乾燥）",9000,180],["アルミ A5052",70000,200],["鋼板 SPCC",205000,200],["SUS304",193000,250]];
     var row=ctrls(el);
     var sm=select(row,"材料（E・降伏応力は代表値）",MAT.map(function(m){return m[0]+"  E="+m[1].toLocaleString()+" MPa";}));
