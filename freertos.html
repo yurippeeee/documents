@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>動いて理解する OS — FreeRTOS で読み解くカーネルの論理</title>
+<title>動かして理解する OS — FreeRTOS で読み解くカーネルの論理</title>
 <link rel="stylesheet" href="site.css">
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "7b6e9d2633b64a6bba9a294bb612c422"}'></script><!-- End Cloudflare Web Analytics -->
 </head>
@@ -14,7 +14,7 @@
 </div>
 <div class="lp">
   <p class="eyebrow">Operating Systems / FreeRTOS</p>
-  <h1>動いて理解する OS</h1>
+  <h1>動かして理解する OS</h1>
   <p class="lede">OS の教科書の多くは Linux のような大きな OS を扱いますが、それらは中身が大きすぎて<strong>「OS の芯」が見えにくい</strong>という問題があります。FreeRTOS のカーネルは <strong>C 言語で 1 万行に満たない</strong>のに、OS が OS であるための中核——タスクとスケジューラ、ブロックと起床、排他制御、時間の管理——をすべて備えています。この全22章は、その 1 万行を<strong>下から順に読み切る</strong>ためのものです。<strong>CPU 固有の移植層は扱いません</strong>。移植層が約束する 5 つの契約だけ先に定義してしまえば、カーネルのロジックは完全に追えるからです。全章に触って動かせるデモ（<span style="color:var(--signal)">LIVE</span>・計26点）を埋め込みました。</p>
 
   <h2>第 I 部 — なぜ OS が要るのか</h2>
