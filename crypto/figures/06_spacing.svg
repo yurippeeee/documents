@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="900" height="420" font-family="IPAGothic, 'Hiragino Sans', 'Noto Sans JP', sans-serif">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f2937"/></marker>
+<marker id="arb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+<marker id="aro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d9480f"/></marker></defs>
+<rect width="900" height="420" fill="#fff"/>
+<text x="190" y="34" font-size="16" fill="#d9480f" text-anchor="middle" font-weight="bold" dominant-baseline="middle">近い配置（悪い例）</text>
+<text x="190" y="56" font-size="13" fill="#6b7280" text-anchor="middle" font-weight="normal" dominant-baseline="middle">符号語 000 と 001 は 1 ビットしか違わない</text>
+<line x1="80" y1="330" x2="150" y2="275" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="80" y1="330" x2="80" y2="180" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="80" y1="330" x2="230" y2="330" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="230" y1="330" x2="300" y2="275" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="230" y1="330" x2="230" y2="180" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="80" y1="180" x2="150" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="80" y1="180" x2="230" y2="180" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="230" y1="180" x2="300" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="150" y1="275" x2="150" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="150" y1="275" x2="300" y2="275" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="300" y1="275" x2="300" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="150" y1="125" x2="300" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="104.0" y1="320.0" x2="204.0" y2="320.0" stroke="#d9480f" stroke-width="2.2" marker-end="url(#aro)"/>
+<circle cx="80" cy="330" r="22" fill="#2563eb" stroke="#2563eb"/>
+<text x="80" y="330" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold" dominant-baseline="middle">000</text>
+<circle cx="230" cy="330" r="22" fill="#2563eb" stroke="#2563eb"/>
+<text x="230" y="330" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold" dominant-baseline="middle">001</text>
+<circle cx="80" cy="180" r="20" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="80" y="180" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">010</text>
+<circle cx="230" cy="180" r="20" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="230" y="180" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">011</text>
+<circle cx="150" cy="275" r="20" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="150" y="275" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">100</text>
+<circle cx="300" cy="275" r="20" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="300" y="275" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">101</text>
+<circle cx="150" cy="125" r="20" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="150" y="125" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">110</text>
+<circle cx="300" cy="125" r="20" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="300" y="125" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">111</text>
+<text x="640" y="34" font-size="16" fill="#2b8a3e" text-anchor="middle" font-weight="bold" dominant-baseline="middle">遠い配置（良い例）</text>
+<text x="640" y="56" font-size="13" fill="#6b7280" text-anchor="middle" font-weight="normal" dominant-baseline="middle">符号語 000 と 111 は 3 ビットすべて違う</text>
+<line x1="530" y1="330" x2="600" y2="275" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="530" y1="330" x2="530" y2="180" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="530" y1="330" x2="680" y2="330" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="680" y1="330" x2="750" y2="275" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="680" y1="330" x2="680" y2="180" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="530" y1="180" x2="600" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="530" y1="180" x2="680" y2="180" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="680" y1="180" x2="750" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="600" y1="275" x2="600" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="600" y1="275" x2="750" y2="275" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="750" y1="275" x2="750" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="600" y1="125" x2="750" y2="125" stroke="#cbd5e1" stroke-width="2"/>
+<line x1="750.0" y1="139.0" x2="750.0" y2="239.0" stroke="#d9480f" stroke-width="2.2" marker-end="url(#aro)"/>
+<circle cx="530" cy="330" r="22" fill="#2563eb" stroke="#2563eb"/>
+<text x="530" y="330" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold" dominant-baseline="middle">000</text>
+<circle cx="680" cy="330" r="20" fill="#e8f0fe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="680" y="330" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">001</text>
+<circle cx="530" cy="180" r="20" fill="#e8f0fe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="530" y="180" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">010</text>
+<circle cx="680" cy="180" r="20" fill="#fff1e6" stroke="#d9480f" stroke-width="1.5"/>
+<text x="680" y="180" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">011</text>
+<circle cx="600" cy="275" r="20" fill="#e8f0fe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="600" y="275" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">100</text>
+<circle cx="750" cy="275" r="20" fill="#fff1e6" stroke="#d9480f" stroke-width="1.5"/>
+<text x="750" y="275" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">101</text>
+<circle cx="600" cy="125" r="20" fill="#fff1e6" stroke="#d9480f" stroke-width="1.5"/>
+<text x="600" y="125" font-size="12" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">110</text>
+<circle cx="750" cy="125" r="22" fill="#2563eb" stroke="#2563eb"/>
+<text x="750" y="125" font-size="13" fill="#fff" text-anchor="middle" font-weight="bold" dominant-baseline="middle">111</text>
+<text x="190" y="372" font-size="13" fill="#d9480f" text-anchor="middle" font-weight="normal" dominant-baseline="middle">1 ビットの誤りで 000 が 001 に化けると、</text>
+<text x="190" y="392" font-size="13" fill="#d9480f" text-anchor="middle" font-weight="normal" dominant-baseline="middle">受信語も符号語なので誤りに気づけない</text>
+<text x="640" y="372" font-size="13" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">1 ビットの誤りでは符号語にならない。青は 000 に、</text>
+<text x="640" y="392" font-size="13" fill="#1f2937" text-anchor="middle" font-weight="normal" dominant-baseline="middle">橙は 111 に近いので、近いほうに直せる（例 111 → 101 → 111）</text></svg>
