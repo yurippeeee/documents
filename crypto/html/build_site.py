@@ -1,7 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """dsp/*.md -> dsp/html/NN.html (自己完結・KaTeX数式・図・章間ナビ)。"""
-import os, re, html, hashlib
+import os, re, html, hashlib, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from figures import F as FIGS
+def _merge_widgets():
+    """wjs/*.js を widgets.js の CHAPTER WIDGETS 区間へ流し込む"""
+    import glob
+    here = os.path.dirname(os.path.abspath(__file__))
+    p = os.path.join(here, "widgets.js")
+    s = open(p, encoding="utf-8").read()
+    a = "  /* ===== CHAPTER WIDGETS (build_site.py が wjs/*.js から生成) ===== */\n"
+    e = "  /* ===== END CHAPTER WIDGETS ===== */"
+    i, j = s.index(a) + len(a), s.index(e)
+    body = "".join(open(q, encoding="utf-8").read().rstrip() + "\n\n"
+                   for q in sorted(glob.glob(os.path.join(here, "wjs", "w*.js"))))
+    t = s[:i] + body + s[j:]
+    if t != s:
+        tmp = p + ".%d.tmp" % os.getpid()
+        open(tmp, "w", encoding="utf-8").write(t)
+        os.replace(tmp, p)
+_merge_widgets()
 def _ver(name):
     """キャッシュ対策: ファイル内容のハッシュを ?v= に付ける。"""
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), name), 'rb') as f:
@@ -61,7 +80,7 @@ WIDGETS = {
     "03": [("GF(p) の構成と演算表", "gftable"), ("原始元（生成元）と離散対数", "primroot")],
     "04": [("多項式の除算", "polydiv"), ("判定法（低次の場合）", "irred")],
     "05": [],
-    "06": [("検出能力と訂正能力", "hamdist")],
+    "06": [],
     "07": [],
     "08": [("復号 — シンドロームが誤り位置を直接指す", "hamming")],
     "09": [("CRC の手順", "crc"), ("CRC の検出能力", "crcburst")],
@@ -137,6 +156,12 @@ def convert_blocks(lines):
             while i < n and lines[i].strip() != "```":
                 body.append(lines[i]); i += 1
             i += 1
+            if lang == "fig":
+                name = (body[0].strip() if body else "")
+                if name not in FIGS:
+                    raise SystemExit("unknown figure: %r" % name)
+                out.append(FIGS[name])
+                continue
             if lang == "longdiv":
                 # ASCII の筆算から「除数 ) 被除数」の行を読み、HTML では図として描く
                 row = next(l for l in body if ")" in l)
