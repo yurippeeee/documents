@@ -1174,8 +1174,10 @@
     function draw(){
       var m=+sm.input.value,a=+sa.input.value; sm.val.textContent=m; sa.val.textContent=ns(a);
       var q=Math.floor(a/m),r=md(a,m);
+      var bw=cv.getBoundingClientRect().width, wide=bw>=560, want=wide?300:Math.round(2*Math.min(78,(bw-40)/2)+190);
+      if(cv.parentElement.style.height!==want+"px")cv.parentElement.style.height=want+"px";
       var s=cc.fit(),w=s.w,h=s.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
-      var wide=w>=560, R=wide?Math.min(112,(h-40)/2):Math.min(78,(w-40)/2);
+      var R=wide?Math.min(112,(h-40)/2):Math.min(78,(w-40)/2);
       var cx=wide?R+34:w/2, cy=wide?h/2:R+22;
       function ang(t){return -Math.PI/2+TAU*t/m;}
       // 文字盤
@@ -1346,13 +1348,13 @@
       function ok(t){return '<span style="color:var(--signal);font-weight:700">✓</span> '+t;}
       function ng(t){return '<span style="color:var(--alias);font-weight:700">✗</span> '+t;}
       var rows=[
-        ["1. 閉性",clos?ng(clos[0]+' '+sym+' '+clos[1]+' = '+clos[2]+' が集合の外'):ok('どの結果も集合の中')],
-        ["2. 結合律",asc?ng('('+asc[0]+' '+sym+' '+asc[1]+') '+sym+' '+asc[2]+' = '+op(op(asc[0],asc[1]),asc[2])+' だが '+
+        ['<span style="white-space:nowrap">'+"1. 閉性"+'</span>',clos?ng(clos[0]+' '+sym+' '+clos[1]+' = '+clos[2]+' が集合の外'):ok('どの結果も集合の中')],
+        ['<span style="white-space:nowrap">'+"2. 結合律"+'</span>',asc?ng('('+asc[0]+' '+sym+' '+asc[1]+') '+sym+' '+asc[2]+' = '+op(op(asc[0],asc[1]),asc[2])+' だが '+
           asc[0]+' '+sym+' ('+asc[1]+' '+sym+' '+asc[2]+') = '+op(asc[0],op(asc[1],asc[2]))):ok('どの 3 つの組でも成り立つ')],
-        ["3. 単位元",e!==null?ok('e = '+e):ng('どの要素を選んでも、すべての a で e '+sym+' a = a '+sym+' e = a にはならない')],
-        ["4. 逆元",e===null?'<span style="color:var(--faint)">— 単位元が無いので調べられない</span>':
+        ['<span style="white-space:nowrap">'+"3. 単位元"+'</span>',e!==null?ok('e = '+e):ng('どの要素を選んでも、すべての a で e '+sym+' a = a '+sym+' e = a にはならない')],
+        ['<span style="white-space:nowrap">'+"4. 逆元"+'</span>',e===null?'<span style="color:var(--faint)">— 単位元が無いので調べられない</span>':
           (noinv!==null?ng(noinv+' '+sym+' x = '+e+' となる x が集合の中に無い'):ok('どの要素にも逆元がある'))],
-        ["（参考）交換律",com?ng(com[0]+' '+sym+' '+com[1]+' ≠ '+com[1]+' '+sym+' '+com[0]):ok('どの組でも a '+sym+' b = b '+sym+' a')]];
+        ['<span style="white-space:nowrap">'+"（参考）交換律"+'</span>',com?ng(com[0]+' '+sym+' '+com[1]+' ≠ '+com[1]+' '+sym+' '+com[0]):ok('どの組でも a '+sym+' b = b '+sym+' a')]];
       h+='<div style="margin-top:.7rem">'+tbl(["条件","結果"],rows,["left","left"])+'</div>';
       out.innerHTML=h;
       var bad=[];if(clos)bad.push("閉性");if(asc)bad.push("結合律");if(e===null)bad.push("単位元");else if(noinv!==null)bad.push("逆元");
@@ -1370,7 +1372,7 @@
     var sg=select(row,"群 G",["Z_n と足し算","Z_n* と掛け算"]);
     var sn=slider(row,"n",2,16,8,1);
     var row2=ctrls(el);
-    var sh=select(row2,"H の作り方",["a が生成する部分群 ⟨a⟩","要素を自分で入力する"]);
+    var sh=select(row2,"H の作り方",["a が生成する部分群 〈a〉","要素を自分で入力する"]);
     var sa=slider(row2,"a（G の要素）",0,7,4,1);
     var ti=textin(row2,"H の要素（カンマ区切り）","0,1");
     var out=panel(el), ro=readout(el);
@@ -1389,7 +1391,7 @@
       if(!own){
         var a=G[+sa.input.value]; sa.val.textContent=a;
         var v=a;H.push(v);var guard=0;while(v!==e&&guard++<64){v=op(v,a);H.push(v);}
-        note='⟨'+a+'⟩ = {'+H.join(", ")+'}（'+a+' を 1 個、2 個、… と並べて'+(mul?'掛けた':'足した')+'もの）';
+        note='〈'+a+'〉 = {'+H.join(", ")+'}（'+a+' を 1 個、2 個、… と並べて'+(mul?'掛けた':'足した')+'もの）';
       }else{
         var seen={};
         ti.value.split(",").forEach(function(s){var t=s.trim();if(!/^-?\d+$/.test(t))return;var x=((parseInt(t,10)%n)+n)%n;
@@ -1417,7 +1419,7 @@
           var st={};B.forEach(function(v){st[v]=1;});blocks.push({key:key,set:st,g:g});}
         else{var st2={};B.forEach(function(v){st2[v]=1;});blocks.push({key:key,set:st2,g:g});chips='var(--signal)';
           tag='<span style="color:var(--signal);font-weight:700">新しい塊 '+lab[blocks.length-1]+'</span>';}
-        rowsH+='<tr><td style="padding:.12rem .5rem;white-space:nowrap">'+g+' '+sym+' H =</td><td style="padding:.12rem .5rem">'+
+        rowsH+='<tr><td style="padding:.12rem .5rem;white-space:nowrap">'+g+' '+sym+' H =</td><td style="padding:.12rem .5rem;white-space:nowrap">'+
           B.map(function(v){return '<span style="display:inline-block;min-width:1.7em;text-align:center;margin:0 .12rem;padding:0 .2rem;border:1.5px solid '+chips+';border-radius:5px">'+v+'</span>';}).join("")+
           '</td><td style="padding:.12rem .5rem">'+tag+'</td></tr>';
       });
@@ -2302,7 +2304,7 @@
     head(el,"Parameters","検査ビット数 m と、符号の長さ・符号化率・2 個以上の誤りが入る確率");
     var row=ctrls(el);
     var sm=slider(row,"検査ビット数 m",2,10,3,1), sp=slider(row,"ビットの反転確率 p",-6,-2,-4,0.5);
-    var cv=screen(el,190),cc=cctx(cv), ro=readout(el);
+    var cv=screen(el,165),cc=cctx(cv), ro=readout(el);
     function binom(n,r){var v=1;for(var i=1;i<=r;i++)v=v*(n-r+i)/i;return v;}
     function draw(){
       var m=+sm.input.value,p=Math.pow(10,+sp.input.value),n=Math.pow(2,m)-1,k=n-m;
@@ -3006,7 +3008,8 @@
           h+='<tr><td '+tds+'>'+rw.j+'</td><td '+tds+'>'+F.name(rw.d)+'</td><td '+tds+'>'+F.pasc(rw.Lam)+'</td><td '+tds+'>'+rw.L+(rw.grow?'（増やす）':'')+'</td></tr>';
         });
         h+='</table>';
-        h+=RS11.hd("③ チェン探索 Λ(α⁻ⁱ)、④ フォニー（Ω(x) = "+(D.fo?F.pasc(D.fo.Om):"—")+"、Λ′(x) = "+(D.fo?F.pasc(D.fo.dL):"—")+"）、⑤ 訂正");
+        h+=RS11.hd(D.status==="ok"?"③ チェン探索 Λ(α⁻ⁱ)、④ フォニー（Ω(x) = "+F.pasc(D.fo.Om)+"、Λ′(x) = "+F.pasc(D.fo.dL)+"）、⑤ 訂正":
+          "③ チェン探索 Λ(α⁻ⁱ)（"+(D.L>t?"L が t を超えている":"根の個数が L と合わない")+"ので、④ と ⑤ は行わない）");
         h+='<table style="'+RS11.TB+'"><tr>'+RS11.th("位置");
         for(p=n-1;p>=0;p--)h+='<td style="'+RS11.CL+'text-align:center;color:var(--muted)">'+p+'</td>';
         h+='</tr><tr>'+RS11.th("③ Λ(α⁻ⁱ)");
@@ -3111,7 +3114,7 @@
       var z=cc.fit(),w=z.w,ctx=cc.ctx;ctx.clearRect(0,0,w,z.h);
       var cols=[C("--blue"),C("--signal"),C("--alias"),C("--muted"),C("--blue"),C("--signal"),C("--alias"),C("--muted")];
       /* 上: 送る順のバイト列（先頭から表示できる分だけ） */
-      lab(ctx,"送る順のバイト（色 = どの符号語のシンボルか、赤枠 = バーストがかかったバイト）",10,16,C("--muted"),"left");
+      lab(ctx,w>=560?"送る順のバイト（色 = どの符号語のシンボルか、赤枠 = バーストがかかったバイト）":"送る順のバイト（赤枠 = バースト）",10,16,C("--muted"),"left");
       var show=Math.min(Math.max(B+4,24),160),cw=(w-20)/show;
       for(j=0;j<show;j++){
         var x=10+j*cw,hit=j<B;
@@ -3216,7 +3219,8 @@
         lab(ctx,"汚れがかかった: "+nh+" 個",lx,oy+108,C("--ink"),"left");
         lab(ctx,"（情報 "+nd+"・検査 "+(nh-nd)+"）",lx,oy+126,C("--muted"),"left");}
       var levels=[["L",7,3],["M",10,5],["Q",13,6],["H",17,8]];
-      var warn=fhit.finder||fhit.timing?"位置検出・タイミングのパターンが隠れていて、読み取り自体ができない":(fhit.format1&&fhit.format2?"形式情報が 2 か所とも隠れている":"");
+      var warn=fhit.finder?"位置検出パターンが隠れている（RS 符号では守られない部分で、隠すと読み取りに失敗しやすい）":
+        (fhit.format1>3&&fhit.format2>3?"形式情報が 2 か所とも 4 モジュール以上隠れている（BCH(15,5) で直せるのは 3 ビットまで）":"");
       /* レベル M で実際に復号: 汚れのかかったシンボルを別の値に置き換える */
       var rcv=SYM.slice();hs.forEach(function(v){rcv[v]^=0xA5;});
       var r=rcv.slice().reverse(),D=RS11.decode(F,r,10,0),res;
@@ -3225,7 +3229,7 @@
         res=same?'<b class="ok">復号成功 → "'+txt+'"</b>':'<span class="warn">誤訂正（別の符号語を出力）</span>';}
       ro.innerHTML='汚れがかかったシンボル <b>'+nh+'</b> 個（情報 '+nd+'・検査 '+(nh-nd)+'。すべて誤りとみなす） ／ '+
         levels.map(function(L){var ok=nh<=L[2];return L[0]+'（t = '+L[2]+'）'+(ok?'<b class="ok">○</b>':'<span class="warn">×</span>');}).join(" ")+
-        '<br>"HELLO WORLD"（レベル M、RS(26,16)）を実際に復号: '+res+(warn?' ／ <span class="warn">'+warn+'</span>':'');
+        '<br>"HELLO WORLD"（レベル M、RS(26,16)）を実際に復号: '+res+(warn?'<br><span class="warn">注意: '+warn+'</span>':'');
     }
     [sx,sy,sw,sh].forEach(function(o){o.input.addEventListener("input",draw);});reg(cv,draw);
   };
@@ -3576,7 +3580,7 @@
   REG.lfsrstep=function(el){
     head(el,"LFSR","タップと初期状態を決めて、1 クロックずつ進める");
     var row=ctrls(el);
-    var tt=textin(row,"タップ c₁ … c_L（0 と 1。最後は 1）","0011");
+    var tt=textin(row,"タップ c₁ c₂ …（0 と 1 を L 個。最後は 1）","0011");
     var ts=textin(row,"初期状態（左が新しい）","1000");
     var row2=ctrls(el);
     var b1=button(row2,"1 クロック進める"), b2=button(row2,"自動で進める"), b3=button(row2,"最初に戻す");
@@ -3606,7 +3610,7 @@
       // バス
       var yb=y0+ch+56,taps=[];for(i=0;i<L;i++)if(c[i])taps.push(xs[i]+cw/2-2);
       ctx.strokeStyle=C("--ink");ctx.lineWidth=1.4;
-      taps.forEach(function(x){ctx.beginPath();ctx.moveTo(x,y0+ch);ctx.lineTo(x,yb);ctx.stroke();});
+      taps.forEach(function(x){ctx.beginPath();ctx.moveTo(x,y0+ch);ctx.lineTo(x,y0+ch+4);ctx.moveTo(x,y0+ch+21);ctx.lineTo(x,yb);ctx.stroke();});
       if(taps.length){ctx.beginPath();ctx.moveTo(taps[taps.length-1],yb);ctx.lineTo(36,yb);ctx.lineTo(36,y0+ch/2);ctx.lineTo(xs[0]-6,y0+ch/2);
         ctx.strokeStyle=C("--alias");ctx.lineWidth=1.8;ctx.stroke();
         ctx.fillStyle=C("--alias");ctx.beginPath();ctx.moveTo(xs[0]-2,y0+ch/2);ctx.lineTo(xs[0]-10,y0+ch/2-5);ctx.lineTo(xs[0]-10,y0+ch/2+5);ctx.closePath();ctx.fill();}
@@ -3618,7 +3622,7 @@
         ctx.fillStyle=c[i]?C("--signal-soft"):C("--panel");ctx.strokeStyle=c[i]?C("--signal"):C("--line");ctx.lineWidth=1.6;
         rrect(ctx,xs[i],y0,cw-4,ch,6);ctx.fill();ctx.stroke();
         ctx.font="bold 16px "+C("--mono");ctx.fillStyle=C("--ink");ctx.textAlign="center";ctx.fillText(String(st[i]),xs[i]+cw/2-2,y0+ch/2+6);
-        lab(ctx,"c"+(i+1)+"="+c[i],xs[i]+cw/2-2,y0+ch+16,c[i]?C("--signal"):C("--faint"),"center");}
+        lab(ctx,"c"+(i+1)+"="+c[i],xs[i]+cw/2-2,y0+ch+16,c[i]?C("--signal"):C("--muted"),"center");}
       var xo=pl+L*cw;ctx.strokeStyle=C("--blue");ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(xo,y0+ch/2);ctx.lineTo(xo+40,y0+ch/2);ctx.stroke();
       ctx.fillStyle=C("--blue");ctx.beginPath();ctx.moveTo(xo+46,y0+ch/2);ctx.lineTo(xo+38,y0+ch/2-5);ctx.lineTo(xo+38,y0+ch/2+5);ctx.closePath();ctx.fill();
       lab(ctx,"次の出力 "+st[L-1],xo+4,y0+ch/2-10,C("--blue"),"left");
@@ -3728,7 +3732,7 @@
       var s=c13seq(sec.c,sec.init,m+40),obs=s.slice(0,m);
       var R=solve(s,L,m),neq=R.rows.length,nsol=R.cons?Math.pow(2,L-R.rank):0;
       var h='<div style="color:var(--muted)">観測したビット s₀ … s<sub>'+(m-1)+'</sub></div><div style="letter-spacing:.12em;word-break:break-all">'+obs.join("").replace(/(.{4})/g,"$1 ")+'</div>';
-      if(neq>0&&L<=6){h+='<div style="color:var(--muted);margin-top:.4rem">式（係数 [c₁ … c'+L+'] | 右辺）</div><div>'+
+      if(neq>0&&L<=6){h+='<div style="color:var(--muted);margin-top:.4rem">式（係数 [c<sub>1</sub> … c<sub>'+L+'</sub>] | 右辺 s<sub>n+'+L+'</sub>）</div><div>'+
         R.rows.slice(0,8).map(function(r,n){return 'n='+n+': ['+r.slice(0,L).join(" ")+' | '+r[L]+']';}).join("　")+(R.rows.length>8?" …":"")+'</div>';}
       var pred=[],act=s.slice(m,m+32),hit=0;
       if(neq>0&&R.cons){var t=obs.slice();for(var k=0;k<32;k++){var n0=t.length-L,v=0;for(var i=0;i<L;i++)v^=R.c[i]&t[n0+L-1-i];t.push(v);pred.push(v);if(v===act[k])hit++;}
@@ -4538,7 +4542,7 @@
     var row=ctrls(el);
     var sc=select(row,"曲線（法 p）",CUR.map(function(c){return 'p = '+c.p+': y² = x³ + '+c.a+'x + '+c.b+'、G = ('+c.G[0]+', '+c.G[1]+')';}));
     var row2=ctrls(el);
-    var ia=textin(row2,"Alice の秘密 d_A","3"),ib=textin(row2,"Bob の秘密 d_B","7");
+    var ia=textin(row2,"<span>Alice の秘密 d<sub>A</sub></span>","3"),ib=textin(row2,"<span>Bob の秘密 d<sub>B</sub></span>","7");
     var out=panel(el),ro=readout(el),cache={};
     function info(c){var key=c.p;if(!cache[key])cache[key]={pts:E17.points(c.a,c.b,c.p),n:E17.ord(c.G,c.a,c.p)};return cache[key];}
     function draw(){
@@ -4617,11 +4621,11 @@
         '<div style="color:var(--muted);font-size:.72rem;margin-top:.4rem">H(メッセージ 2)</div>'+colored(h2,h1)+'</div>';
       var b1=bits(h1),b2=bits(h2),nd=0;for(var i=0;i<256;i++)if(b1[i]!==b2[i])nd++;
       var s=cc.fit(),w=s.w,hgt=s.h,ctx=cc.ctx;ctx.clearRect(0,0,w,hgt);
-      var cols=32,rows=8,cell=Math.min((w-16)/cols,(hgt-28)/rows),x0=(w-cell*cols)/2,y0=6;
-      lab(ctx,"値が違うビット（赤）",x0,y0-2<10?12:y0,C("--muted"),"left");
+      var cols=32,rows=8,y0=24,cell=Math.min((w-16)/cols,(hgt-y0-8)/rows),x0=(w-cell*cols)/2;
+      lab(ctx,"値が違うビット（赤）。1 行 32 ビット × 8 行 = 256 ビット",x0,16,C("--muted"),"left");
       for(i=0;i<256;i++){var r=Math.floor(i/cols),c2=i%cols,diff=b1[i]!==b2[i];
         ctx.fillStyle=diff?C("--alias"):C("--screen");ctx.strokeStyle=C("--line");ctx.lineWidth=.5;
-        ctx.fillRect(x0+c2*cell,y0+6+r*cell,cell-1,cell-1);ctx.strokeRect(x0+c2*cell,y0+6+r*cell,cell-1,cell-1);}
+        ctx.fillRect(x0+c2*cell,y0+r*cell,cell-1,cell-1);ctx.strokeRect(x0+c2*cell,y0+r*cell,cell-1,cell-1);}
       ro.innerHTML=(i1.value===i2.value?'<span class="warn">2 つのメッセージが同じ</span>':
         'ハミング距離 = <b>'+nd+'</b> / 256 ビット（<b>'+Math.round(nd*100/256)+'%</b>）が違う ／ '+
         (Math.abs(nd-128)<40?'<b class="ok">約半分。入力と無関係なでたらめに見える</b>':''));
