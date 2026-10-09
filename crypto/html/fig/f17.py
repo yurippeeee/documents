@@ -4,7 +4,7 @@
 import re as _e17_re
 
 _E17_BL = "var(--blue)"
-_E17_BS = "rgba(47,111,158,.14)"
+_E17_BS = "var(--blue-soft)"
 
 
 def _e17_T(x, y, s, a="middle", sz=11.5, c=MUT, b=False, mono=False):

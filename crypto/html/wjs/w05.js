@@ -110,7 +110,7 @@
       h+='<div style="display:grid;grid-template-columns:repeat('+cols+','+cw+'em);gap:2px">';
       for(var i=0;i<N;i++){
         var c=i===k?'var(--signal)':((i===la||i===lb)?'var(--blue)':'var(--line)');
-        var bg=i===k?'var(--signal-soft)':((i===la||i===lb)?'rgba(47,111,158,.16)':'var(--panel)');
+        var bg=i===k?'var(--signal-soft)':((i===la||i===lb)?'var(--blue-soft)':'var(--panel)');
         h+='<div title="i = '+i+'" style="border:1.5px solid '+c+';background:'+bg+';border-radius:4px;text-align:center;line-height:1.25;padding:.1rem 0">'+
           '<div style="font-size:.62rem;color:var(--muted)">'+i+'</div><div style="font-size:'+(M===8?'.7rem':'.78rem')+';'+
           ((i===k||i===la||i===lb)?'font-weight:700;color:var(--ink)':'')+'">'+(M===8?("0"+EXP[i].toString(16).toUpperCase()).slice(-2):g5bin(EXP[i],M))+'</div></div>';

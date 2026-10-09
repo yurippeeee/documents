@@ -2,7 +2,7 @@
 # 他章の fNN.py と同じ名前空間で実行されるので、補助関数・定数には _f03 / _F03 を付ける。
 
 _F03B = "var(--blue)"
-_F03BS = "rgba(47,111,158,.14)"
+_F03BS = "var(--blue-soft)"
 
 
 def _f03_node(x, y, s, r=16, c=INK, fill=PAN, tc=INK, b=True, sz=13, lw=1.5, dash=None):

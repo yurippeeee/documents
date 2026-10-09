@@ -31,7 +31,7 @@
       return P;
     }
     function cellsHTML(s,st){
-      var STY={n:"",c:"background:color-mix(in srgb,var(--blue) 16%,transparent);",e:"background:var(--alias-soft);color:var(--alias);font-weight:700;",
+      var STY={n:"",c:"background:var(--blue-soft);",e:"background:var(--alias-soft);color:var(--alias);font-weight:700;",
                z:"color:var(--faint);",h:"background:var(--signal-soft);color:var(--signal);font-weight:700;"};
       if(!st)st="n";if(st.length===1)st=new Array(s.length+1).join(st);
       var h="";for(var i=0;i<s.length;i++)h+='<span style="display:inline-block;min-width:1.35em;text-align:center;border-radius:4px;margin:0 1px;'+(STY[st[i]]||"")+'">'+s[i]+'</span>';

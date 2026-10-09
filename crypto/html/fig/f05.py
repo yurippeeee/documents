@@ -2,7 +2,7 @@
 import math as _m5
 
 _B5 = "var(--blue)"
-_B5S = "rgba(47,111,158,.14)"
+_B5S = "var(--blue-soft)"
 _SUP5 = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 

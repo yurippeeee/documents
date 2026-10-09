@@ -32,7 +32,7 @@
     var STY={
       n:"",
       d:"background:var(--signal-soft);",
-      c:"background:color-mix(in srgb,var(--blue) 16%,transparent);",
+      c:"background:var(--blue-soft);",
       e:"background:var(--alias-soft);color:var(--alias);font-weight:700;",
       z:"color:var(--faint);",
       h:"background:var(--signal-soft);color:var(--signal);font-weight:700;"

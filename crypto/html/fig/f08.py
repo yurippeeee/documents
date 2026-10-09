@@ -2,7 +2,7 @@
 import math as _m8
 
 _BL8 = "var(--blue)"
-_BS8 = "rgba(47,111,158,.14)"
+_BS8 = "var(--blue-soft)"
 
 _ST8 = {
     "n": (PAN, LIN, INK, False),       # ふつう

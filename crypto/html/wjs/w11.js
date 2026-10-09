@@ -104,7 +104,7 @@
     }
     /* ---- 表示の部品 ---- */
     var STY={
-      info:["var(--blue)","color-mix(in srgb,var(--blue) 14%,transparent)","var(--ink)"],
+      info:["var(--blue)","var(--blue-soft)","var(--ink)"],
       check:["var(--signal)","var(--signal-soft)","var(--ink)"],
       err:["var(--alias)","var(--alias-soft)","var(--alias)"],
       hit:["var(--alias)","var(--alias-soft)","var(--ink)"],

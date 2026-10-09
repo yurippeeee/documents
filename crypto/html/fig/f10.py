@@ -2,7 +2,7 @@
 # 他の章のファイルと同じ名前空間で exec されるので、補助関数・定数は名前に 10 を付ける。
 
 _B10 = "var(--blue)"
-_BS10 = "color-mix(in srgb, var(--blue) 15%, transparent)"
+_BS10 = "var(--blue-soft)"
 _SUP10 = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
 
 

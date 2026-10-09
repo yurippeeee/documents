@@ -112,38 +112,6 @@
     ia.addEventListener("input",run);ib.addEventListener("input",run);reg(null,run);run();
   };
 
-  /* ---------- 01: 繰り返し二乗法 ---------- */
-  REG.powmod=function(el){
-    head(el,"Fast Power","べき乗を O(log e) で計算する");
-    var row=ctrls(el);
-    var ib=textin(row,"底 a",7,"90px"), ie=textin(row,"指数 e",560,"90px"), im=textin(row,"法 n",561,"90px");
-    var out=panel(el), rd=readout(el);
-    function run(){
-      var a=parseInt(ib.value)||0, e=parseInt(ie.value)||0, n=parseInt(im.value)||1;
-      if(n<2||e<0){out.innerHTML="n≥2, e≥0 を入力";return;}
-      var bits=e.toString(2), res=1, base=a%n, steps=[];
-      var ee=e, i=0;
-      while(ee>0){
-        var bit=ee&1;
-        steps.push([i, bit, base, bit?((res*base)%n):res]);
-        if(bit)res=(res*base)%n;
-        base=(base*base)%n; ee>>=1; i++;
-      }
-      var h='<div style="margin-bottom:.4rem">e = '+e+' = <b>'+bits+'</b>₂ （'+bits.length+' ビット → 掛け算は約 '+bits.length+' 回）</div>';
-      h+='<table style="border-collapse:collapse"><tr>'+
-        ["i","eのbit","a^(2^i) mod n","積算結果"].map(function(t){return '<th style="padding:.2rem .6rem;text-align:right;color:var(--muted)">'+t+'</th>';}).join("")+'</tr>';
-      steps.forEach(function(s){
-        h+='<tr'+(s[1]?' style="color:var(--signal)"':' style="opacity:.5"')+'>'+
-          s.map(function(v){return '<td style="padding:.15rem .6rem;text-align:right">'+v+'</td>';}).join("")+'</tr>';
-      });
-      h+='</table>';
-      out.innerHTML=h;
-      var naive=e;
-      rd.innerHTML=a+'^'+e+' mod '+n+' = <b>'+res+'</b> ／ 素朴に掛けると <b>'+naive+'</b> 回、繰り返し二乗法なら <b class="ok">'+bits.length+'</b> 回'+
-        (res===1&&e===n-1?' ／ <span class="ok">a^(n-1)≡1: フェルマー・テスト通過</span>':'');
-    }
-    [ib,ie,im].forEach(function(x){x.addEventListener("input",run);});reg(null,run);run();
-  };
 
   /* ---------- 03: GF(p) 演算表 ---------- */
   REG.gftable=function(el){
@@ -265,21 +233,7 @@
     bits.forEach(function(v,k){if(v){var e=d-k;t.push(e===0?"1":e===1?"x":"x<sup>"+e+"</sup>");}});
     return t.length?t.join(" + "):"0";
   }
-  REG.polydiv=function(el){
-    head(el,"Poly Division","GF(2) 上の割り算 = XOR の筆算");
-    var row=ctrls(el);
-    var ia=textin(row,"被除数（2進）","1101000","150px"), ib=textin(row,"除数（2進）","1011","110px");
-    var out=panel(el), rd=readout(el);
-    function run(){
-      var A=(ia.value||"").replace(/[^01]/g,""), B=(ib.value||"").replace(/[^01]/g,"");
-      if(!A||!B||B.indexOf("1")<0){out.innerHTML="0/1 で入力してください";rd.innerHTML="";return;}
-      var R=longDiv(A,B);
-      out.innerHTML=R.html;
-      rd.innerHTML='商 = <b>'+(R.q.join("")||"0")+'</b>（'+polyStr(R.q)+'） ／ 余り = <b class="ok">'+(R.rem.join("")||"0")+'</b>（'+polyStr(R.rem)+'）'+
-        (R.rem.indexOf(1)<0?' ／ <span class="ok">割り切れた（= 正しい符号語）</span>':' ／ <span class="warn">余りが 0 でない（= 誤りあり）</span>');
-    }
-    ia.addEventListener("input",run);ib.addEventListener("input",run);reg(null,run);run();
-  };
+
   /* 本文中の静的な筆算（build_site.py が ```longdiv ブロックから data-a/data-b 付きで出力） */
   REG.longdiv=function(el){
     var out=panel(el);
@@ -358,38 +312,6 @@
     sl.addEventListener("change",run);reg(null,run);run();
   };
 
-  /* ---------- 06: ハミング距離と球 ---------- */
-  REG.hamdist=function(el){
-    head(el,"Distance","距離が離れているほど直せる");
-    var cv=screen(el,230),cc=cctx(cv);var row=ctrls(el);
-    var sd=slider(row,"最小距離 d",1,9,5,1);
-    var out=readout(el);
-    function draw(){
-      var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
-      var dm=+sd.input.value; sd.val.textContent=dm;
-      var t=Math.floor((dm-1)/2), det=dm-1;
-      var cy=h/2, x1=w*0.28, x2=w*0.72, R=(x2-x1)/dm*t;
-      // 2つの符号語
-      [[x1,"c₁"],[x2,"c₂"]].forEach(function(p){
-        if(R>0){ctx.fillStyle=C("--signal-soft");ctx.beginPath();ctx.arc(p[0],cy,R,0,TAU);ctx.fill();
-          ctx.strokeStyle=C("--signal");ctx.setLineDash([4,3]);ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(p[0],cy,R,0,TAU);ctx.stroke();ctx.setLineDash([]);}
-        ctx.fillStyle=C("--signal");ctx.beginPath();ctx.arc(p[0],cy,6,0,TAU);ctx.fill();
-        lab(ctx,p[1],p[0],cy+24,C("--signal"),"center");
-      });
-      // 距離の目盛り
-      ctx.strokeStyle=C("--line");ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(x1,cy-R-22);ctx.lineTo(x2,cy-R-22);ctx.stroke();
-      for(var i=0;i<=dm;i++){var xx=x1+(x2-x1)*i/dm;
-        ctx.beginPath();ctx.moveTo(xx,cy-R-26);ctx.lineTo(xx,cy-R-18);ctx.stroke();
-        if(i>0&&i<dm){ctx.fillStyle=C("--faint");ctx.beginPath();ctx.arc(xx,cy,2.5,0,TAU);ctx.fill();}
-      }
-      lab(ctx,"d = "+dm+" ビット離れている",(x1+x2)/2,cy-R-32,C("--muted"),"center");
-      if(R>0)lab(ctx,"半径 t="+t+" の球",x1,cy-R-6,C("--signal"),"center");
-      out.innerHTML='d = <b>'+dm+'</b> ／ 検出 <b class="ok">'+det+'</b> ビットまで ／ 訂正 <b class="ok">'+t+'</b> ビットまで（t=⌊(d−1)/2⌋）'+
-        (t===0?' ／ <span class="warn">球が作れないので訂正不可（検出のみ）</span>':' ／ 2 つの球が重ならないので、球の中に落ちた受信語は中心へ訂正できる');
-    }
-    sd.input.addEventListener("input",draw);reg(cv,draw);
-  };
 
   /* ---------- 08: ハミング符号 ---------- */
   REG.hamming=function(el){
@@ -436,49 +358,6 @@
     im.addEventListener("input",run);se.input.addEventListener("input",run);reg(null,run);run();
   };
 
-  /* ---------- 09: CRC ---------- */
-  REG.crc=function(el){
-    head(el,"CRC","データを多項式で割った余りを付ける");
-    var row=ctrls(el);
-    var im=textin(row,"データ（2進）","1101","120px");
-    var ig=textin(row,"生成多項式 g","1011","110px");
-    var out=panel(el), rd=readout(el);
-    function divide(bits,g){
-      var n=bits.length,m=g.length,work=bits.slice(),steps=[];
-      for(var i=0;i+m<=n;i++){
-        if(work[i]===1){
-          var sub=new Array(n).fill(0);
-          for(var j=0;j<m;j++)sub[i+j]=g[j];
-          for(var k=0;k<n;k++)work[k]^=sub[k];
-          steps.push([i,sub.join(""),work.join("")]);
-        }
-      }
-      return {rem:work.slice(n-m+1),steps:steps,work:work};
-    }
-    function run(){
-      var M=(im.value||"").replace(/[^01]/g,""), G=(ig.value||"").replace(/[^01]/g,"");
-      if(!M||!G||G[0]!=="1"){out.innerHTML="データと g を 2 進で入力（g の先頭は 1）";rd.innerHTML="";return;}
-      var g=G.split("").map(Number), r=g.length-1;
-      var padded=M.split("").map(Number).concat(new Array(r).fill(0));
-      var res=divide(padded,g);
-      var rem=res.rem.join("");
-      var T=M+rem;
-      var chk=divide(T.split("").map(Number),g);
-      var h='<div style="color:var(--muted)">① データを '+r+' ビット左シフト</div>';
-      h+='<div style="letter-spacing:.2em;margin-bottom:.4rem">'+M+'<span style="color:var(--alias)">'+"0".repeat(r)+'</span></div>';
-      h+='<div style="color:var(--muted)">② g で割る（XOR の筆算）</div>';
-      res.steps.forEach(function(s){
-        h+='<div><span style="color:var(--faint)">XOR </span><span style="letter-spacing:.2em">'+s[1]+'</span></div>';
-        h+='<div><span style="color:var(--faint)">  → </span><span style="letter-spacing:.2em">'+s[2]+'</span></div>';
-      });
-      h+='<div style="color:var(--muted);margin-top:.4rem">③ 余りをデータの後ろに付ける</div>';
-      h+='<div style="letter-spacing:.2em;font-weight:700">'+M+'<span style="color:var(--signal)">'+rem+'</span></div>';
-      out.innerHTML=h;
-      rd.innerHTML='CRC = <b class="ok">'+rem+'</b>（'+r+' ビット）／ 送信符号語 = <b>'+T+'</b> ／ 受信側で g で割ると余り = <b>'+chk.rem.join("")+'</b> '+
-        (chk.rem.indexOf(1)<0?'<span class="ok">✓ 割り切れる</span>':'');
-    }
-    im.addEventListener("input",run);ig.addEventListener("input",run);reg(null,run);run();
-  };
 
   /* ---------- 09: バースト誤りの検出 ---------- */
   REG.crcburst=function(el){
@@ -522,189 +401,10 @@
     ig.addEventListener("input",run);sp.input.addEventListener("input",run);sb.input.addEventListener("input",run);reg(null,run);run();
   };
 
-  /* ---------- 13: LFSR ---------- */
-  REG.lfsr=function(el){
-    head(el,"LFSR","特性多項式が原始なら最長周期");
-    var row=ctrls(el);
-    var polys=[["x⁴+x+1（原始）",0b10011,4],["x⁴+x³+x²+x+1（既約・非原始）",0b11111,4],["x⁴+x²+1（可約）",0b10101,4],["x⁵+x²+1（原始）",0b100101,5]];
-    var sel=mk("div","ctrl");
-    sel.innerHTML='<label>特性多項式</label><select style="font-family:var(--mono);font-size:.8rem;padding:.35rem;border:1px solid var(--line);border-radius:7px;background:var(--screen);color:var(--ink)">'+
-      polys.map(function(p,i){return '<option value="'+i+'">'+p[0]+'</option>';}).join("")+'</select>';
-    row.appendChild(sel); var sl=sel.querySelector("select");
-    var out=panel(el), rd=readout(el);
-    function run(){
-      var P=polys[+sl.value], poly=P[1], L=P[2], mask=(1<<L)-1;
-      // 状態は L ビット。bit0 = 最も古い = 今回の出力、bit(L-1) = 最新。
-      // 帰還ビット = Σ c_j s_{n+j} (j=0..L-1)、c_j は特性多項式の係数 = poly の bit j。
-      var fbmask = poly & mask;
-      var state=1, seen={}, seq=[], states=[], period=0, guard=0;
-      while(guard++ < 300){
-        if(seen[state]){period=guard-1;break;}
-        seen[state]=true;
-        states.push(state.toString(2).padStart(L,"0"));
-        var v=fbmask & state, fb=0;
-        while(v){fb^=v&1;v>>=1;}
-        seq.push(state&1);
-        state=((state>>1)|(fb<<(L-1)))&mask;
-      }
-      var maxp=(1<<L)-1;
-      var h='<div style="color:var(--muted);margin-bottom:.3rem">状態の遷移（初期 '+"0".repeat(L-1)+'1）</div>';
-      h+='<div style="display:flex;flex-wrap:wrap;gap:.25rem">';
-      states.forEach(function(s,i){h+='<span style="padding:.15rem .4rem;border-radius:5px;background:var(--signal-soft);letter-spacing:.1em">'+s+'</span>';});
-      h+='</div><div style="color:var(--muted);margin-top:.5rem">出力ビット列</div><div style="letter-spacing:.2em;word-break:break-all">'+seq.join("")+'</div>';
-      out.innerHTML=h;
-      rd.innerHTML='L = <b>'+L+'</b>、周期 = <b>'+period+'</b> / 最大 '+maxp+' ／ '+
-        (period===maxp?'<span class="ok">M 系列（最長周期）✓ 原始多項式</span>':'<span class="warn">周期が短い（原始多項式でない）</span>')+
-        ' ／ <span class="warn">※ '+(2*L)+' ビット観測されれば解読される（バーレカンプ・マッシー）</span>';
-    }
-    sl.addEventListener("change",run);reg(null,run);run();
-  };
 
-  /* ---------- 14: AES S-box ---------- */
-  REG.aesbox=function(el){
-    head(el,"AES S-box","GF(2^8) の逆元 + アフィン変換");
-    var row=ctrls(el);
-    var sv=slider(row,"入力バイト",0,255,0x53,1);
-    var out=panel(el), rd=readout(el);
-    function gmul(a,b){var p=0;for(var i=0;i<8;i++){if(b&1)p^=a;var hi=a&0x80;a=(a<<1)&0xFF;if(hi)a^=0x1B;b>>=1;}return p;}
-    function ginv(a){if(a===0)return 0;var r=1;for(var i=0;i<254;i++)r=gmul(r,a);return r;}
-    function sbox(a){var b=ginv(a),c=0;
-      for(var i=0;i<8;i++){var bit=((b>>i)&1)^((b>>((i+4)%8))&1)^((b>>((i+5)%8))&1)^((b>>((i+6)%8))&1)^((b>>((i+7)%8))&1)^((0x63>>i)&1);c|=bit<<i;}
-      return c;}
-    function hex(v){return "0x"+v.toString(16).toUpperCase().padStart(2,"0");}
-    function run(){
-      var a=+sv.input.value; sv.val.textContent=hex(a);
-      var inv=ginv(a), s=sbox(a);
-      var h='<div>入力　　　　　: <b>'+hex(a)+'</b> = '+a.toString(2).padStart(8,"0")+'₂</div>';
-      h+='<div>① GF(2⁸) 逆元 : <b style="color:var(--signal)">'+hex(inv)+'</b> = '+inv.toString(2).padStart(8,"0")+'₂'+
-         (a!==0?'　<span style="color:var(--faint)">検算: '+hex(a)+'×'+hex(inv)+' = '+hex(gmul(a,inv))+'</span>':'　<span style="color:var(--faint)">（0 は例外的に 0）</span>')+'</div>';
-      h+='<div>② アフィン変換: <b style="color:var(--alias)">'+hex(s)+'</b> = '+s.toString(2).padStart(8,"0")+'₂</div>';
-      out.innerHTML=h;
-      rd.innerHTML='S-box('+hex(a)+') = <b class="ok">'+hex(s)+'</b> ／ 逆元写像は差分確率の最大値が 4/256 = 2⁻⁶ で理論最良に近い（差分解読法への耐性）';
-    }
-    sv.input.addEventListener("input",run);reg(null,run);run();
-  };
 
-  /* ---------- 16: RSA ---------- */
-  REG.rsa=function(el){
-    head(el,"RSA","小さな素数で全手順をたどる");
-    var row=ctrls(el);
-    var ip=textin(row,"素数 p",61,"80px"), iq=textin(row,"素数 q",53,"80px"),
-        ie=textin(row,"公開指数 e",17,"80px"), im=textin(row,"平文 M",65,"80px");
-    var out=panel(el), rd=readout(el);
-    function isPrime(n){if(n<2)return false;for(var i=2;i*i<=n;i++)if(n%i===0)return false;return true;}
-    function egcd(a,b){if(b===0)return [a,1,0];var r=egcd(b,a%b);return [r[0],r[2],r[1]-Math.floor(a/b)*r[2]];}
-    function powmod(b,e,m){var r=1;b%=m;while(e>0){if(e&1)r=(r*b)%m;b=(b*b)%m;e=Math.floor(e/2);}return r;}
-    function run(){
-      var p=parseInt(ip.value)||0,q=parseInt(iq.value)||0,e=parseInt(ie.value)||0,M=parseInt(im.value)||0;
-      if(!isPrime(p)||!isPrime(q)||p===q){out.innerHTML='<span style="color:var(--alias)">p, q は相異なる素数にしてください</span>';rd.innerHTML="";return;}
-      var n=p*q, phi=(p-1)*(q-1);
-      var g=egcd(e,phi);
-      if(g[0]!==1){out.innerHTML='<span style="color:var(--alias)">gcd(e, φ(n)) = '+g[0]+' ≠ 1。e を変えてください</span>';rd.innerHTML="";return;}
-      var d=((g[1]%phi)+phi)%phi;
-      if(M>=n){out.innerHTML='<span style="color:var(--alias)">平文 M は n='+n+' 未満にしてください</span>';rd.innerHTML="";return;}
-      var Cv=powmod(M,e,n), Mv=powmod(Cv,d,n);
-      var h='<div>n = p×q = '+p+'×'+q+' = <b>'+n+'</b>　<span style="color:var(--faint)">（公開）</span></div>';
-      h+='<div>φ(n) = (p−1)(q−1) = '+(p-1)+'×'+(q-1)+' = <b>'+phi+'</b>　<span style="color:var(--alias)">（秘密）</span></div>';
-      h+='<div>e = <b>'+e+'</b>　<span style="color:var(--faint)">（公開、gcd(e,φ)=1 ✓）</span></div>';
-      h+='<div>d = e⁻¹ mod φ(n) = <b style="color:var(--alias)">'+d+'</b>　<span style="color:var(--faint)">検算: '+e+'×'+d+' mod '+phi+' = '+((e*d)%phi)+'</span></div>';
-      h+='<div style="margin-top:.5rem;padding-top:.4rem;border-top:1px dashed var(--line)">暗号化: C = M^e mod n = '+M+'^'+e+' mod '+n+' = <b style="color:var(--signal)">'+Cv+'</b></div>';
-      h+='<div>復号　: M = C^d mod n = '+Cv+'^'+d+' mod '+n+' = <b style="color:var(--signal)">'+Mv+'</b></div>';
-      out.innerHTML=h;
-      rd.innerHTML=(Mv===M?'<span class="ok">✓ 復号成功（オイラーの定理により M^(ed) ≡ M）</span>':'<span class="warn">復号失敗</span>')+
-        ' ／ 公開鍵 ('+n+', '+e+') だけから d を求めるには n の素因数分解が必要';
-    }
-    [ip,iq,ie,im].forEach(function(x){x.addEventListener("input",run);});reg(null,run);run();
-  };
 
-  /* ---------- 17: DH 鍵交換 ---------- */
-  REG.dh=function(el){
-    head(el,"Diffie-Hellman","鍵は回線を流れていない");
-    var row=ctrls(el);
-    var ip=textin(row,"素数 p",23,"80px"), ig=textin(row,"原始根 g",5,"80px"),
-        ia=textin(row,"Alice の秘密 a",6,"90px"), ib=textin(row,"Bob の秘密 b",15,"90px");
-    var out=panel(el), rd=readout(el);
-    function powmod(b,e,m){var r=1;b%=m;while(e>0){if(e&1)r=(r*b)%m;b=(b*b)%m;e=Math.floor(e/2);}return r;}
-    function run(){
-      var p=parseInt(ip.value)||23,g=parseInt(ig.value)||5,a=parseInt(ia.value)||1,b=parseInt(ib.value)||1;
-      if(p<3){out.innerHTML="p≥3";return;}
-      var A=powmod(g,a,p), B=powmod(g,b,p);
-      var K1=powmod(B,a,p), K2=powmod(A,b,p);
-      var h='<table style="border-collapse:collapse;width:100%">';
-      h+='<tr><th style="text-align:left;padding:.2rem .5rem;color:var(--signal)">Alice</th><th style="text-align:center;padding:.2rem;color:var(--muted)">回線（盗聴される）</th><th style="text-align:right;padding:.2rem .5rem;color:var(--alias)">Bob</th></tr>';
-      h+='<tr><td style="padding:.2rem .5rem">秘密 a = <b>'+a+'</b></td><td></td><td style="text-align:right;padding:.2rem .5rem">秘密 b = <b>'+b+'</b></td></tr>';
-      h+='<tr><td style="padding:.2rem .5rem">A = g^a = <b>'+A+'</b></td><td style="text-align:center;color:var(--muted)">A='+A+' →</td><td></td></tr>';
-      h+='<tr><td></td><td style="text-align:center;color:var(--muted)">← B='+B+'</td><td style="text-align:right;padding:.2rem .5rem">B = g^b = <b>'+B+'</b></td></tr>';
-      h+='<tr><td style="padding:.2rem .5rem">K = B^a = <b style="color:var(--signal)">'+K1+'</b></td><td style="text-align:center;color:var(--faint)">（K は流れない）</td><td style="text-align:right;padding:.2rem .5rem">K = A^b = <b style="color:var(--signal)">'+K2+'</b></td></tr>';
-      h+='</table>';
-      out.innerHTML=h;
-      rd.innerHTML=(K1===K2?'<span class="ok">✓ 共有鍵 '+K1+' に一致（g^(ab) mod p）</span>':'不一致')+
-        ' ／ 盗聴者が知るのは p, g, A, B のみ。K を得るには離散対数 g^x=A を解く必要がある';
-    }
-    [ip,ig,ia,ib].forEach(function(x){x.addEventListener("input",run);});reg(null,run);run();
-  };
 
-  /* ---------- 17: 楕円曲線の点の加法 ---------- */
-  REG.ecc=function(el){
-    head(el,"Elliptic Curve","有限体上の点の足し算");
-    var cv=screen(el,300),cc=cctx(cv);var row=ctrls(el);
-    var sp=slider(row,"素数 p",11,97,23,1);
-    var sa=slider(row,"a",0,10,1,1), sb=slider(row,"b",0,10,1,1);
-    var sk=slider(row,"スカラー倍 k",1,30,5,1);
-    var out=readout(el);
-    function isPrime(n){if(n<2)return false;for(var i=2;i*i<=n;i++)if(n%i===0)return false;return true;}
-    function inv(a,p){a=((a%p)+p)%p;for(var i=1;i<p;i++)if((a*i)%p===1)return i;return 0;}
-    function add(P,Q,a,p){
-      if(!P)return Q; if(!Q)return P;
-      if(P[0]===Q[0] && (P[1]+Q[1])%p===0) return null;
-      var lam;
-      if(P[0]===Q[0]&&P[1]===Q[1]) lam=((3*P[0]*P[0]+a)%p)*inv(2*P[1],p)%p;
-      else lam=(((Q[1]-P[1])%p+p)%p)*inv(((Q[0]-P[0])%p+p)%p,p)%p;
-      var x=((lam*lam-P[0]-Q[0])%p+p)%p;
-      var y=((lam*(P[0]-x)-P[1])%p+p)%p;
-      return [x,y];
-    }
-    function draw(){
-      var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
-      var p=+sp.input.value; while(!isPrime(p)&&p<100)p++;
-      var a=+sa.input.value,b=+sb.input.value,k=+sk.input.value;
-      sp.val.textContent=p; sa.val.textContent=a; sb.val.textContent=b; sk.val.textContent=k;
-      // 曲線上の点を列挙
-      var pts=[];
-      for(var x=0;x<p;x++){var rhs=((x*x*x+a*x+b)%p+p)%p;
-        for(var y=0;y<p;y++) if((y*y)%p===rhs) pts.push([x,y]);}
-      var disc=(4*a*a*a+27*b*b)%p;
-      var pad=26, S=Math.min((w-pad*2)/p,(h-pad*2)/p);
-      var X=function(v){return pad+v*S+S/2;}, Y=function(v){return h-pad-v*S-S/2;};
-      // グリッド
-      ctx.strokeStyle=C("--grid");ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(pad,h-pad);ctx.lineTo(pad+p*S,h-pad);ctx.moveTo(pad,h-pad);ctx.lineTo(pad,h-pad-p*S);ctx.stroke();
-      ctx.fillStyle=C("--faint");
-      pts.forEach(function(pt){ctx.beginPath();ctx.arc(X(pt[0]),Y(pt[1]),Math.max(2,S*0.22),0,TAU);ctx.fill();});
-      // G = 最初の点、kG を計算して軌跡表示
-      var G=pts[0], seq=[], P=null;
-      if(G){ for(var i=1;i<=k;i++){P=add(P,G,a,p); if(!P)break; seq.push(P.slice());} }
-      ctx.strokeStyle=C("--signal-soft");ctx.lineWidth=1.5;
-      seq.forEach(function(pt,i){
-        if(i>0){ctx.beginPath();ctx.moveTo(X(seq[i-1][0]),Y(seq[i-1][1]));ctx.lineTo(X(pt[0]),Y(pt[1]));ctx.stroke();}
-      });
-      seq.forEach(function(pt,i){
-        var last=(i===seq.length-1);
-        ctx.fillStyle=last?C("--alias"):C("--signal");
-        ctx.beginPath();ctx.arc(X(pt[0]),Y(pt[1]),last?Math.max(5,S*0.42):Math.max(3,S*0.3),0,TAU);ctx.fill();
-      });
-      if(G){ctx.strokeStyle=C("--blue");ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(X(G[0]),Y(G[1]),Math.max(6,S*0.5),0,TAU);ctx.stroke();
-        lab(ctx,"G",X(G[0])+9,Y(G[1])-8,C("--blue"),"left");}
-      lab(ctx,"x",pad+p*S+4,h-pad+4,C("--muted"),"left");
-      lab(ctx,"y",pad-4,h-pad-p*S-4,C("--muted"),"right");
-      var kG=seq.length?seq[seq.length-1]:null;
-      out.innerHTML='y² = x³+'+a+'x+'+b+' over GF('+p+') ／ 点の個数（無限遠点を除く）= <b>'+pts.length+'</b> ／ '+
-        (disc===0?'<span class="warn">4a³+27b²≡0 なので特異曲線（使えない）</span>'
-        :(kG?'G = ('+G[0]+','+G[1]+')、<b class="ok">'+k+'G = ('+kG[0]+','+kG[1]+')</b> ／ k から kG は簡単、kG から k は困難（ECDLP）'
-            :'<span class="warn">'+k+'G = 無限遠点</span>'));
-    }
-    [sp,sa,sb,sk].forEach(function(s){s.input.addEventListener("input",draw);});reg(cv,draw);
-  };
 
   /* ---------- 18: 誕生日攻撃 ---------- */
   REG.birthday=function(el){
@@ -813,352 +513,11 @@
     sn.input.addEventListener("input",run);sl.addEventListener("change",run);reg(null,run);run();
   };
 
-  /* ---------- 07: 線形符号 G・H・シンドローム ---------- */
-  REG.linear=function(el){
-    head(el,"Linear Code","G で作り、H で調べる");
-    var row=ctrls(el);
-    var ip=textin(row,"P の各行（3 ビット × 3 行、カンマ区切り）","011,101,110","240px");
-    var se=slider(row,"誤り位置（0=なし）",0,6,3,1);
-    var out=panel(el), rd=readout(el);
-    var k=3,r=3,n=6;
-    function run(){
-      var rows=String(ip.value).split(",").map(function(s){return s.trim();});
-      if(rows.length!==3||rows.some(function(s){return !/^[01]{3}$/.test(s);})){
-        out.innerHTML="3 ビットの 0/1 を 3 行、カンマ区切りで（例 011,101,110）";rd.innerHTML="";return;}
-      var P=rows.map(function(s){return s.split("").map(Number);});
-      // G = [I_k | P]  (k×n),  H = [P^T | I_r]  (r×n)
-      var G=[],H=[];
-      for(var i=0;i<k;i++){var g=[];for(var j=0;j<k;j++)g.push(i===j?1:0);G.push(g.concat(P[i]));}
-      for(i=0;i<r;i++){var hh=[];for(j=0;j<k;j++)hh.push(P[j][i]);for(j=0;j<r;j++)hh.push(i===j?1:0);H.push(hh);}
-      function mstr(M){return M.map(function(rw){return rw.join(" ");}).join("<br>");}
-      // 全符号語
-      var words=[],minw=99;
-      for(var m=0;m<(1<<k);m++){
-        var msg=[];for(i=k-1;i>=0;i--)msg.push((m>>i)&1);
-        var c=new Array(n).fill(0);
-        for(i=0;i<k;i++) if(msg[i]) for(j=0;j<n;j++) c[j]^=G[i][j];
-        var w=c.reduce(function(a,b){return a+b;},0);
-        if(m>0&&w<minw)minw=w;
-        words.push([msg.join(""),c.join(""),w]);
-      }
-      var h='<div style="display:flex;gap:2rem;flex-wrap:wrap">';
-      h+='<div><div style="color:var(--muted)">G = [ I₃ | P ]（3×6）</div><div style="letter-spacing:.15em">'+mstr(G)+'</div></div>';
-      h+='<div><div style="color:var(--muted)">H = [ Pᵀ | I₃ ]（3×6）</div><div style="letter-spacing:.15em">'+mstr(H)+'</div></div>';
-      h+='</div>';
-      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">全 8 符号語（最小重み = 最小距離）</div>';
-      h+='<table style="border-collapse:collapse"><tr>'+["情報語 m","符号語 c = mG","重み"].map(function(t){
-        return '<th style="padding:.1rem .8rem;text-align:right;color:var(--muted)">'+t+'</th>';}).join("")+'</tr>';
-      words.forEach(function(wd,i){
-        h+='<tr'+(i>0&&wd[2]===minw?' style="color:var(--signal);font-weight:700"':'')+'>'+
-          wd.map(function(v){return '<td style="padding:.1rem .8rem;text-align:right;letter-spacing:.12em">'+v+'</td>';}).join("")+'</tr>';
-      });
-      h+='</table>';
-      // シンドローム
-      var pos=+se.input.value; se.val.textContent=pos;
-      var c0=words[5][1].split("").map(Number);   // 適当な符号語 (m=101)
-      var rcv=c0.slice(); if(pos>0) rcv[pos-1]^=1;
-      var s=[];for(i=0;i<r;i++){var v=0;for(j=0;j<n;j++)v^=rcv[j]&H[i][j];s.push(v);}
-      var scol=s.join(""), match=-1;
-      for(j=0;j<n;j++){var col=H.map(function(rw){return rw[j];}).join(""); if(col===scol)match=j+1;}
-      h+='<div style="color:var(--muted);margin:.7rem 0 .3rem">シンドローム s = rHᵀ</div>';
-      h+='送信 c : <b style="letter-spacing:.15em">'+c0.join("")+'</b>（m=101）<br>';
-      h+='受信 r : <span style="letter-spacing:.15em">'+rcv.map(function(b,i){return (pos===i+1?'<b style="background:var(--alias);color:#fff;padding:0 .2rem;border-radius:3px">'+b+'</b>':b);}).join("")+'</span><br>';
-      h+='s = <b style="letter-spacing:.15em">'+scol+'</b>';
-      out.innerHTML=h;
-      var t=Math.floor((minw-1)/2);
-      rd.innerHTML='最小距離 d = <b>'+minw+'</b> → 検出 <b>'+(minw-1)+'</b> ビット・訂正 <b>'+t+'</b> ビット ／ '+
-        (pos===0?'<span class="ok">s = 000 → 誤りなし ✓</span>'
-                :(match>0?(match===pos?'<span class="ok">s は H の第 '+match+' 列と一致 → 誤り位置 '+pos+' を特定 ✓</span>'
-                                      :'<span class="warn">s は第 '+match+' 列と一致（実際は '+pos+'）— H に同じ列があると特定できない</span>')
-                         :'<span class="warn">s がどの列とも一致しない → 検出はできるが位置は不明</span>'));
-    }
-    ip.addEventListener("input",run);se.input.addEventListener("input",run);reg(null,run);run();
-  };
 
-  /* ---------- 10: BCH の生成多項式 ---------- */
-  REG.bch=function(el){
-    head(el,"BCH","訂正したいビット数から g(x) を組み立てる");
-    var row=ctrls(el);
-    var st=slider(row,"設計訂正能力 t",1,3,2,1);
-    var out=panel(el), rd=readout(el);
-    function pstr(P){ // GF(2) 係数多項式（昇冪配列）を文字列に
-      var ts=[];for(var i=P.length-1;i>=0;i--) if(P[i]) ts.push(i===0?"1":(i===1?"x":"x"+String(i).split("").map(function(d){return "⁰¹²³⁴⁵⁶⁷⁸⁹"[+d];}).join("")));
-      return ts.join("+")||"0";
-    }
-    function run(){
-      var t=+st.input.value; st.val.textContent=t;
-      var used={}, cosets=[], polys=[], g=[1];
-      for(var j=1;j<=2*t;j++){
-        if(used[j])continue;
-        var cs=[], v=j;
-        do{ cs.push(v); used[v]=true; v=(v*2)%15; }while(v!==j);
-        // m(x) = Π (x + α^i)
-        var m=[1];
-        cs.forEach(function(i){ m=GF16.pmul(m,[GF16.exp[i],1]); });
-        cosets.push(cs); polys.push(m);
-        g=GF16.pmul(g,m);
-      }
-      var h='<div style="color:var(--muted);margin-bottom:.3rem">GF(2⁴), 原始多項式 x⁴+x+1, n = 15</div>';
-      h+='<div style="color:var(--muted);margin-bottom:.3rem">α¹ … α<sup>'+(2*t)+'</sup> をすべて根に持たせたい → 共役をまとめる</div>';
-      h+='<table style="border-collapse:collapse"><tr>'+["共役類（指数）","最小多項式 m(x)","次数"].map(function(s){
-        return '<th style="padding:.15rem .8rem;text-align:left;color:var(--muted)">'+s+'</th>';}).join("")+'</tr>';
-      cosets.forEach(function(cs,i){
-        var deg=polys[i].length-1;
-        h+='<tr><td style="padding:.15rem .8rem">{'+cs.join(", ")+'}</td>'+
-           '<td style="padding:.15rem .8rem;color:var(--signal)">'+pstr(polys[i])+'</td>'+
-           '<td style="padding:.15rem .8rem">'+deg+'</td></tr>';
-      });
-      h+='</table>';
-      var deg=g.length-1, kk=15-deg;
-      h+='<div style="margin-top:.6rem">g(x) = '+polys.map(function(P){return "("+pstr(P)+")";}).join(" · ")+'</div>';
-      h+='<div style="margin-top:.3rem">　　 = <b class="ok">'+pstr(g)+'</b>　（次数 '+deg+'）</div>';
-      out.innerHTML=h;
-      var known={1:"(15,11,3) — ハミング符号と同じ",2:"(15,7,5)",3:"(15,5,7)"};
-      rd.innerHTML='検査ビット n−k = deg g = <b>'+deg+'</b> → <b class="ok">('+15+', '+kk+') 符号</b>、設計距離 d ≥ 2t+1 = <b>'+(2*t+1)+'</b> ／ '+
-        '<b>'+t+'</b> ビット訂正 ／ 教科書の表と一致: '+known[t]+
-        ' ／ <span class="warn">t を上げると k が減る = 訂正能力と情報量のトレードオフ</span>';
-    }
-    st.input.addEventListener("input",run);reg(null,run);run();
-  };
 
-  /* ---------- 11: リード・ソロモン RS(15,11) の符号化と復号 ---------- */
-  REG.rs=function(el){
-    head(el,"Reed-Solomon","RS(15,11) over GF(16) — 誤りを入れて直す");
-    var row=ctrls(el);
-    var s1=slider(row,"誤り位置 1（0=なし）",0,15,3,1);
-    var v1=slider(row,"誤りの値 1",1,15,7,1);
-    var s2=slider(row,"誤り位置 2（0=なし）",0,15,9,1);
-    var v2=slider(row,"誤りの値 2",1,15,11,1);
-    var s3=slider(row,"誤り位置 3（0=なし・訂正能力を超える）",0,15,0,1);
-    var out=panel(el), rd=readout(el);
-    var t=2, nn=15, kk=11;
-    var MSG=[5,3,12,1,8,2,14,6,9,4,10];  // 11 シンボル
-    function hex(a){return a.toString(16).toUpperCase();}
-    function run(){
-      [s1,v1,s2,v2,s3].forEach(function(s){s.val.textContent=s.input.value;});
-      // g(x) = Π_{j=1..4} (x + α^j)
-      var g=[1];for(var j=1;j<=2*t;j++) g=GF16.pmul(g,[GF16.exp[j],1]);
-      // 組織符号化: c(x) = x^4 m(x) + (x^4 m(x) mod g)
-      var d=new Array(nn).fill(0);
-      for(var i=0;i<kk;i++) d[i+2*t]=MSG[i];          // 昇冪配列、下位 4 個が検査
-      var rem=d.slice();
-      for(i=nn-1;i>=2*t;i--){
-        var co=rem[i]; if(!co)continue;
-        for(var q=0;q<g.length;q++) rem[i-(g.length-1)+q]^=GF16.mul(co,g[q]);
-      }
-      var c=d.slice(); for(i=0;i<2*t;i++) c[i]=rem[i];
-      // 誤り注入
-      var rcv=c.slice(), injected=[];
-      [[+s1.input.value,+v1.input.value],[+s2.input.value,+v2.input.value],[+s3.input.value,7]].forEach(function(pv){
-        if(pv[0]>0){ rcv[pv[0]-1]^=pv[1]; injected.push(pv[0]-1); }
-      });
-      var nerr=injected.filter(function(p,i,a){return a.indexOf(p)===i;}).length;
-      // シンドローム
-      var S=[];for(j=1;j<=2*t;j++) S.push(GF16.peval(rcv,GF16.exp[j]));
-      var allz=S.every(function(x){return x===0;});
-      // Berlekamp-Massey
-      var C=[1],B=[1],L=0,m=1,b=1;
-      for(var nI=0;nI<2*t;nI++){
-        var dd=S[nI];
-        for(i=1;i<=L;i++) dd^=GF16.mul(C[i]||0,S[nI-i]);
-        if(dd===0){m++;}
-        else if(2*L<=nI){
-          var T=C.slice(), cf=GF16.div(dd,b);
-          for(i=0;i<B.length;i++){var ix=i+m;C[ix]=(C[ix]||0)^GF16.mul(cf,B[i]);}
-          L=nI+1-L;B=T;b=dd;m=1;
-        } else {
-          var cf2=GF16.div(dd,b);
-          for(i=0;i<B.length;i++){var ix2=i+m;C[ix2]=(C[ix2]||0)^GF16.mul(cf2,B[i]);}
-          m++;
-        }
-      }
-      for(i=0;i<C.length;i++) C[i]=C[i]||0;
-      // Chien 探索: Λ(α^{-p}) = 0 なる位置 p
-      var locs=[];
-      for(var p=0;p<nn;p++) if(GF16.peval(C,GF16.pow(GF16.exp[1],-p))===0) locs.push(p);
-      // Forney: Ω = S(x)Λ(x) mod x^{2t}
-      var Sp=S.slice();
-      var Om=GF16.pmul(Sp,C).slice(0,2*t);
-      var Cd=[]; for(i=1;i<C.length;i+=2) Cd[i-1]=C[i];   // 標数 2 の形式微分
-      for(i=0;i<Cd.length;i++)Cd[i]=Cd[i]||0;
-      var fixed=rcv.slice(), okfix=(locs.length===L);
-      locs.forEach(function(p){
-        var Xi=GF16.pow(GF16.exp[1],p), Xinv=GF16.pow(GF16.exp[1],-p);
-        var num=GF16.peval(Om,Xinv), den=GF16.peval(Cd,Xinv);
-        if(den===0){okfix=false;return;}
-        fixed[p]^=GF16.div(num,den);
-      });
-      var recovered=fixed.slice(2*t), okmsg=recovered.every(function(v,i){return v===MSG[i];});
-      function line(lbl,arr,mark){
-        return '<div>'+lbl+' '+arr.map(function(v,i){
-          var s=hex(v); return (mark&&mark.indexOf(i)>=0)?'<b style="background:var(--alias);color:#fff;padding:0 .25rem;border-radius:3px">'+s+'</b>':s;
-        }).join(" ")+'</div>';
-      }
-      var h='<div style="color:var(--muted);margin-bottom:.3rem">シンボルは GF(16) の元（16 進 1 桁）。左が低次（検査 4 個）、右が高次（情報 11 個）。</div>';
-      h+=line("送信 c :",c);
-      h+=line("受信 r :",rcv,injected);
-      h+='<div style="margin-top:.4rem;color:var(--muted)">① シンドローム S₁..S₄ = r(α), r(α²), r(α³), r(α⁴)</div>';
-      h+='<div>'+S.map(function(v,i){return "S"+(i+1)+"="+hex(v);}).join("　")+(allz?'　<span class="ok">すべて 0 → 誤りなし</span>':'')+'</div>';
-      if(!allz){
-        h+='<div style="margin-top:.4rem;color:var(--muted)">② 誤り位置多項式 Λ(x)（バーレカンプ・マッシー）</div>';
-        h+='<div>Λ(x) = '+C.map(function(v,i){return v?(hex(v)+(i?"·x"+(i>1?"^"+i:""):"")):null;}).filter(function(s){return s;}).join(" + ")+'　（次数 L = '+L+' = 誤りの個数）</div>';
-        h+='<div style="margin-top:.4rem;color:var(--muted)">③ チェン探索で根を求める → 誤り位置</div>';
-        h+='<div>'+(locs.length?locs.map(function(p){return "位置 "+(p+1);}).join("、"):"根が見つからない")+'</div>';
-        h+='<div style="margin-top:.4rem;color:var(--muted)">④ フォーニーの公式で誤りの値 → 訂正</div>';
-        h+=line("訂正後 :",fixed,locs);
-      }
-      out.innerHTML=h;
-      rd.innerHTML='注入した誤り <b>'+nerr+'</b> シンボル ／ 訂正能力 t = <b>'+t+'</b> = (n−k)/2 ／ '+
-        (nerr===0?'<span class="ok">シンドロームが全 0 → 何もしない ✓</span>'
-         :(okmsg?'<span class="ok">情報 11 シンボルが完全に復元 ✓</span>'
-                :'<span class="warn">復号失敗 — 誤りが t を超えると直せない（しかも間違った語に「訂正」されうる）</span>'));
-    }
-    [s1,v1,s2,v2,s3].forEach(function(s){s.input.addEventListener("input",run);});
-    reg(null,run);run();
-  };
 
-  /* ---------- 12: シーザー暗号と頻度分析 ---------- */
-  REG.caesar=function(el){
-    head(el,"Frequency Analysis","鍵を知らなくても、文字の出現回数が鍵を教える");
-    var row=ctrls(el);
-    var sk=slider(row,"鍵（シフト量）",0,25,3,1);
-    var cv=screen(el,180),cc=cctx(cv);
-    var out=panel(el), rd=readout(el);
-    var PT=("IN CRYPTOGRAPHY A CAESAR CIPHER IS ONE OF THE SIMPLEST AND MOST WIDELY KNOWN "+
-            "ENCRYPTION TECHNIQUES IT IS A TYPE OF SUBSTITUTION CIPHER IN WHICH EACH LETTER "+
-            "IN THE PLAINTEXT IS REPLACED BY A LETTER SOME FIXED NUMBER OF POSITIONS DOWN THE ALPHABET");
-    var ENG=[8.17,1.49,2.78,4.25,12.70,2.23,2.02,6.09,6.97,0.15,0.77,4.03,2.41,6.75,7.51,1.93,0.10,5.99,6.33,9.06,2.76,0.98,2.36,0.15,1.97,0.07];
-    var A="A".charCodeAt(0);
-    function enc(s,k){return s.replace(/[A-Z]/g,function(ch){return String.fromCharCode((ch.charCodeAt(0)-A+k)%26+A);});}
-    function freq(s){var f=new Array(26).fill(0),tot=0;
-      for(var i=0;i<s.length;i++){var c=s.charCodeAt(i)-A;if(c>=0&&c<26){f[c]++;tot++;}}
-      return {f:f,tot:tot};}
-    var CT="", best=0;
-    function run(){
-      var k=+sk.input.value; sk.val.textContent=k;
-      CT=enc(PT,k);
-      var fr=freq(CT);
-      // χ² で全 26 通りを試す
-      var scores=[];
-      for(var g=0;g<26;g++){
-        var chi=0;
-        for(var i=0;i<26;i++){
-          var obs=fr.f[(i+g)%26], exp=fr.tot*ENG[i]/100;
-          chi+=(obs-exp)*(obs-exp)/exp;
-        }
-        scores.push(chi);
-      }
-      best=scores.indexOf(Math.min.apply(null,scores));
-      var h='<div style="color:var(--muted)">平文</div><div style="word-break:break-all">'+PT.slice(0,110)+'…</div>';
-      h+='<div style="color:var(--muted);margin-top:.4rem">暗号文（鍵 '+k+'）</div><div style="word-break:break-all;color:var(--alias)">'+CT.slice(0,110)+'…</div>';
-      h+='<div style="color:var(--muted);margin-top:.4rem">χ² 最小の鍵で復号した結果</div><div style="word-break:break-all;color:var(--signal)">'+enc(CT,(26-best)%26).slice(0,110)+'…</div>';
-      out.innerHTML=h;
-      draw();
-      rd.innerHTML='鍵 = <b>'+k+'</b> ／ 頻度分析の推定鍵 = <b class="ok">'+best+'</b> '+
-        (best===k?'<span class="ok">✓ 一致（鍵空間 26 通りを総当たりするまでもない）</span>':'')+
-        ' ／ <span class="warn">シフトしても「山の形」は変わらない — これが古典暗号の致命傷</span>';
-    }
-    function draw(){
-      var d=cc.fit(),w=d.w,h=d.h,ctx=cc.ctx,p={l:26,r:10,t:14,b:24};ctx.clearRect(0,0,w,h);
-      var fr=freq(CT), k=+sk.input.value;
-      var bw=(w-p.l-p.r)/26, mx=Math.max.apply(null,fr.f.concat([1]));
-      for(var i=0;i<26;i++){
-        var pc=fr.f[i]/fr.tot*100;
-        var hh=(fr.f[i]/mx)*(h-p.t-p.b);
-        ctx.fillStyle=(i===(4+k)%26)?C("--alias"):C("--signal");   // E の行き先を強調
-        ctx.fillRect(p.l+i*bw+1,h-p.b-hh,bw-2,hh);
-        // 期待値（英語）の点
-        var eh=(fr.tot*ENG[i]/100/mx)*(h-p.t-p.b);
-        ctx.fillStyle=C("--muted");ctx.globalAlpha=.5;
-        ctx.fillRect(p.l+i*bw+1,h-p.b-eh-1,bw-2,2);ctx.globalAlpha=1;
-        lab(ctx,String.fromCharCode(A+i),p.l+i*bw+bw/2,h-p.b+13,C("--faint"),"center");
-      }
-      ctx.strokeStyle=C("--grid");ctx.beginPath();ctx.moveTo(p.l,h-p.b);ctx.lineTo(w-p.r,h-p.b);ctx.stroke();
-      lab(ctx,"暗号文の文字頻度（棒）／ 英語の平均頻度（灰線）",p.l+2,p.t,C("--muted"),"left");
-      lab(ctx,"E の行き先 = "+String.fromCharCode(A+(4+k)%26),w-p.r,p.t,C("--alias"),"right");
-    }
-    sk.input.addEventListener("input",run);reg(cv,draw);run();
-  };
 
-  /* ---------- 15: オイラーの φ 関数 ---------- */
-  REG.phi=function(el){
-    head(el,"Euler φ","n と互いに素な数を数える");
-    var row=ctrls(el);
-    var sn=slider(row,"n",2,120,36,1);
-    var out=panel(el), rd=readout(el);
-    function gcd(a,b){while(b){var t=a%b;a=b;b=t;}return a;}
-    function run(){
-      var n=+sn.input.value; sn.val.textContent=n;
-      var f={},m=n;
-      for(var p=2;p*p<=m;p++) while(m%p===0){f[p]=(f[p]||0)+1;m/=p;}
-      if(m>1)f[m]=(f[m]||0)+1;
-      var ps=Object.keys(f).map(Number);
-      var phi=n; ps.forEach(function(p){phi=phi/p*(p-1);});
-      var units=[]; for(var a=1;a<n;a++) if(gcd(a,n)===1) units.push(a);
-      var h='<div>n = <b>'+n+'</b> = '+ps.map(function(p){return p+(f[p]>1?"^"+f[p]:"");}).join(" × ")+'</div>';
-      h+='<div style="margin-top:.3rem">φ(n) = n · '+ps.map(function(p){return "(1 − 1/"+p+")";}).join(" · ")+' = <b class="ok">'+phi+'</b></div>';
-      h+='<div style="color:var(--muted);margin:.5rem 0 .3rem">0 〜 '+(n-1)+' のうち n と互いに素なもの（= 逆元を持つ = (Z_n)* の元）</div>';
-      h+='<div style="display:flex;flex-wrap:wrap;gap:.2rem">';
-      for(a=0;a<n;a++){
-        var u=gcd(a,n)===1;
-        h+='<span style="min-width:1.7rem;text-align:center;padding:.1rem .25rem;border-radius:4px;'+
-          (u?'background:var(--signal);color:#fff;font-weight:700':'color:var(--faint)')+'">'+a+'</span>';
-      }
-      h+='</div>';
-      out.innerHTML=h;
-      var isp=ps.length===1&&f[ps[0]]===1;
-      rd.innerHTML='数え上げた個数 = <b>'+units.length+'</b>、公式の値 = <b>'+phi+'</b> '+
-        (units.length===phi?'<span class="ok">✓ 一致</span>':'<span class="warn">不一致</span>')+
-        ' ／ '+(isp?'<span class="ok">n は素数なので φ(n) = n−1（0 以外すべて逆元を持つ = 体）</span>'
-                  :'<span class="warn">n は合成数なので体にならない（0 を含め '+(n-units.length)+' 個が逆元を持たない）</span>')+
-        ' ／ RSA では φ(n)=(p−1)(q−1) が秘密の要';
-    }
-    sn.input.addEventListener("input",run);reg(null,run);run();
-  };
 
-  /* ---------- 15: 中国剰余定理 ---------- */
-  REG.crt=function(el){
-    head(el,"CRT","バラバラの余りから、もとの数を組み立て直す");
-    var row=ctrls(el);
-    var a1=textin(row,"x ≡ a₁ (mod n₁)　a₁",2,"70px"), n1=textin(row,"n₁",3,"70px");
-    var a2=textin(row,"a₂",3,"70px"), n2=textin(row,"n₂",5,"70px");
-    var a3=textin(row,"a₃",2,"70px"), n3=textin(row,"n₃",7,"70px");
-    var out=panel(el), rd=readout(el);
-    function gcd(a,b){while(b){var t=a%b;a=b;b=t;}return a;}
-    function inv(a,m){a=((a%m)+m)%m;for(var x=1;x<m;x++) if(a*x%m===1)return x;return null;}
-    function run(){
-      var A=[+a1.value,+a2.value,+a3.value], N=[+n1.value,+n2.value,+n3.value];
-      if(N.some(function(v){return !(v>1);})){out.innerHTML="法は 2 以上の整数で";rd.innerHTML="";return;}
-      var bad=null;
-      for(var i=0;i<3;i++)for(var j=i+1;j<3;j++) if(gcd(N[i],N[j])!==1) bad=[N[i],N[j]];
-      var P=N[0]*N[1]*N[2];
-      var h='<table style="border-collapse:collapse"><tr>'+
-        ["i","aᵢ","nᵢ","Nᵢ = N/nᵢ","yᵢ = Nᵢ⁻¹ mod nᵢ","aᵢ Nᵢ yᵢ"].map(function(s){
-          return '<th style="padding:.15rem .7rem;text-align:right;color:var(--muted)">'+s+'</th>';}).join("")+'</tr>';
-      var x=0, okall=!bad;
-      for(i=0;i<3;i++){
-        var Ni=P/N[i], yi=bad?null:inv(Ni%N[i],N[i]);
-        var term=(yi==null)?"—":(A[i]*Ni*yi);
-        if(yi!=null) x+=A[i]*Ni*yi;
-        h+='<tr>'+[i+1,((A[i]%N[i])+N[i])%N[i],N[i],Ni,(yi==null?"—":yi),term].map(function(v){
-          return '<td style="padding:.15rem .7rem;text-align:right">'+v+'</td>';}).join("")+'</tr>';
-      }
-      h+='</table>';
-      x=((x%P)+P)%P;
-      h+='<div style="margin-top:.5rem">N = n₁n₂n₃ = <b>'+P+'</b>　x = Σ aᵢNᵢyᵢ mod N = <b class="ok">'+x+'</b></div>';
-      if(okall){
-        h+='<div style="color:var(--muted);margin:.5rem 0 .3rem">検算</div>';
-        for(i=0;i<3;i++) h+='<div>'+x+' mod '+N[i]+' = <b>'+(x%N[i])+'</b>　（欲しかったのは '+(((A[i]%N[i])+N[i])%N[i])+'）'+
-          (x%N[i]===((A[i]%N[i])+N[i])%N[i]?' <span class="ok">✓</span>':' <span class="warn">✗</span>')+'</div>';
-      }
-      out.innerHTML=h;
-      rd.innerHTML=bad?('<span class="warn">'+bad[0]+' と '+bad[1]+' が互いに素でない → CRT の前提を満たさない（解が無いか一意でない）</span>')
-        :('0 〜 '+(P-1)+' の <b>'+P+'</b> 個の数と、余りの組 (a₁,a₂,a₃) の <b>'+P+'</b> 通りが <b class="ok">1 対 1</b> ／ '+
-          'だから「大きな法 1 個」を「小さな法 3 個」に分解して計算できる（RSA の高速復号はこれ）');
-    }
-    [a1,n1,a2,n2,a3,n3].forEach(function(t){t.addEventListener("input",run);});
-    reg(null,run);run();
-  };
 
   /* ===== CHAPTER WIDGETS (build_site.py が wjs/*.js から生成) ===== */
   /* ============ 01. clockmod — 整数 a が文字盤のどこに着くか ============ */
@@ -1499,7 +858,7 @@
       for(var e=0;e<n;e++){
         var q=P(e), hit=!!on[e];
         ctx.beginPath();ctx.arc(q[0],q[1],nr,0,TAU);
-        ctx.fillStyle=hit?(d===1?C("--signal-soft"):"rgba(47,111,158,.16)"):C("--panel");ctx.fill();
+        ctx.fillStyle=hit?(d===1?C("--signal-soft"):C("--blue-soft")):C("--panel");ctx.fill();
         ctx.strokeStyle=hit?col:C("--faint");ctx.lineWidth=hit?1.6:1;ctx.setLineDash(hit?[]:[3,3]);ctx.stroke();ctx.setLineDash([]);
         ctx.font=(n>20?"10px ":"11px ")+C("--mono");ctx.textAlign="center";ctx.textBaseline="middle";
         ctx.fillStyle=hit?C("--ink"):C("--muted");ctx.fillText(String(e),q[0],q[1]+0.5);
@@ -1831,7 +1190,7 @@
       h+='<div style="display:grid;grid-template-columns:repeat('+cols+','+cw+'em);gap:2px">';
       for(var i=0;i<N;i++){
         var c=i===k?'var(--signal)':((i===la||i===lb)?'var(--blue)':'var(--line)');
-        var bg=i===k?'var(--signal-soft)':((i===la||i===lb)?'rgba(47,111,158,.16)':'var(--panel)');
+        var bg=i===k?'var(--signal-soft)':((i===la||i===lb)?'var(--blue-soft)':'var(--panel)');
         h+='<div title="i = '+i+'" style="border:1.5px solid '+c+';background:'+bg+';border-radius:4px;text-align:center;line-height:1.25;padding:.1rem 0">'+
           '<div style="font-size:.62rem;color:var(--muted)">'+i+'</div><div style="font-size:'+(M===8?'.7rem':'.78rem')+';'+
           ((i===k||i===la||i===lb)?'font-weight:700;color:var(--ink)':'')+'">'+(M===8?("0"+EXP[i].toString(16).toUpperCase()).slice(-2):g5bin(EXP[i],M))+'</div></div>';
@@ -2089,10 +1448,10 @@
       return {G:G,H:H,k:k,r:r,n:k+r};},
     ST:{n:"background:var(--panel);border-color:var(--line);color:var(--ink)",
         i:"background:var(--signal-soft);border-color:var(--signal);color:var(--ink)",
-        p:"background:rgba(47,111,158,.14);border-color:var(--blue);color:var(--ink)",
+        p:"background:var(--blue-soft);border-color:var(--blue);color:var(--ink)",
         e:"background:var(--alias-soft);border-color:var(--alias);color:var(--alias);font-weight:700",
         h:"background:var(--signal-soft);border-color:var(--signal);color:var(--signal);font-weight:700",
-        b:"background:rgba(47,111,158,.14);border-color:var(--blue);color:var(--blue);font-weight:700",
+        b:"background:var(--blue-soft);border-color:var(--blue);color:var(--blue);font-weight:700",
         f:"background:transparent;border-color:var(--line);color:var(--faint)"},
     // ビット列を 1 文字 1 マスの HTML に。sty は位置ごとの記号（W7.ST のキー）を返す関数か文字列
     bits:function(s,sty){var h="";for(var i=0;i<s.length;i++){var k=typeof sty==="function"?sty(i,s[i]):(sty&&sty[i]&&sty[i]!==" "?sty[i]:"n");
@@ -2283,9 +1642,9 @@
     str:function(c,a,b){return c.slice(a||1,b||8).join("");},
     cell:function(b,k){var st={n:"background:var(--panel);border-color:var(--line);color:var(--ink)",
         i:"background:var(--signal-soft);border-color:var(--signal);color:var(--ink)",
-        p:"background:rgba(47,111,158,.14);border-color:var(--blue);color:var(--ink)",
+        p:"background:var(--blue-soft);border-color:var(--blue);color:var(--ink)",
         e:"background:var(--alias-soft);border-color:var(--alias);color:var(--alias);font-weight:700",
-        b:"background:rgba(47,111,158,.14);border-color:var(--blue);color:var(--blue);font-weight:700",
+        b:"background:var(--blue-soft);border-color:var(--blue);color:var(--blue);font-weight:700",
         f:"background:transparent;border-color:var(--line);color:var(--faint)"}[k||"n"];
       return '<span style="display:inline-block;min-width:1.45em;text-align:center;margin:0 .07rem;border:1px solid;border-radius:4px;line-height:1.5;'+st+'">'+b+'</span>';},
     row:function(c,sty,from,to){var h="";for(var i=from||1;i<(to||8);i++)h+=W8.cell(c[i],sty?sty(i):"n");return '<span style="white-space:nowrap">'+h+'</span>';},
@@ -2359,7 +1718,7 @@
       for(var q=1;q<=7;q++){var x,y;
         if(q===7){x=cx;y=cy;}else{var t2=(q===1||q===2||q===4)?1.06*R:0.74*R,a=ang[q]*Math.PI/180;x=cx+t2*Math.cos(a);y=cy-t2*Math.sin(a);}
         var isE=!!err[q],isP=(q===1||q===2||q===4);
-        ctx.fillStyle=isE?C("--alias-soft"):(isP?"rgba(47,111,158,.18)":C("--signal-soft"));
+        ctx.fillStyle=isE?C("--alias-soft"):(isP?C("--blue-soft"):C("--signal-soft"));
         ctx.strokeStyle=isE?C("--alias"):(isP?C("--blue"):C("--signal"));ctx.lineWidth=isE?2.4:1.4;
         rrect(ctx,x-14,y-14,28,28,6);ctx.fill();ctx.stroke();
         ctx.fillStyle=isE?C("--alias"):C("--ink");ctx.font="bold 15px "+C("--mono");ctx.textAlign="center";ctx.fillText(String(r[q]),x,y+5);
@@ -2496,7 +1855,7 @@
     var STY={
       n:"",
       d:"background:var(--signal-soft);",
-      c:"background:color-mix(in srgb,var(--blue) 16%,transparent);",
+      c:"background:var(--blue-soft);",
       e:"background:var(--alias-soft);color:var(--alias);font-weight:700;",
       z:"color:var(--faint);",
       h:"background:var(--signal-soft);color:var(--signal);font-weight:700;"
@@ -2813,7 +2172,7 @@
       return P;
     }
     function cellsHTML(s,st){
-      var STY={n:"",c:"background:color-mix(in srgb,var(--blue) 16%,transparent);",e:"background:var(--alias-soft);color:var(--alias);font-weight:700;",
+      var STY={n:"",c:"background:var(--blue-soft);",e:"background:var(--alias-soft);color:var(--alias);font-weight:700;",
                z:"color:var(--faint);",h:"background:var(--signal-soft);color:var(--signal);font-weight:700;"};
       if(!st)st="n";if(st.length===1)st=new Array(s.length+1).join(st);
       var h="";for(var i=0;i<s.length;i++)h+='<span style="display:inline-block;min-width:1.35em;text-align:center;border-radius:4px;margin:0 1px;'+(STY[st[i]]||"")+'">'+s[i]+'</span>';
@@ -3108,7 +2467,7 @@
     }
     /* ---- 表示の部品 ---- */
     var STY={
-      info:["var(--blue)","color-mix(in srgb,var(--blue) 14%,transparent)","var(--ink)"],
+      info:["var(--blue)","var(--blue-soft)","var(--ink)"],
       check:["var(--signal)","var(--signal-soft)","var(--ink)"],
       err:["var(--alias)","var(--alias-soft)","var(--alias)"],
       hit:["var(--alias)","var(--alias-soft)","var(--ink)"],
@@ -4735,7 +4094,7 @@
       var trace=[],x=x0;
       ops.forEach(function(op){
         var mul=op[0]==="M",dm=op[2],hgt=mul?44:30,col=mul?(dm?C("--faint"):C("--alias")):C("--blue");
-        ctx.fillStyle=mul?(dm?C("--screen"):C("--alias-soft")):"rgba(47,111,158,.16)";ctx.strokeStyle=col;ctx.lineWidth=1.2;
+        ctx.fillStyle=mul?(dm?C("--screen"):C("--alias-soft")):C("--blue-soft");ctx.strokeStyle=col;ctx.lineWidth=1.2;
         if(dm)ctx.setLineDash([3,2]);rrect(ctx,x,y0+(44-hgt),bw,hgt,3);ctx.fill();ctx.stroke();ctx.setLineDash([]);
         if(bw>=14)lab(ctx,mul?"掛":"2",x+bw/2,y0+40,col,"center");
         trace.push([x,x+bw,mul&&!dm?1:(mul?1:0.62)]);x+=bw+gap;});

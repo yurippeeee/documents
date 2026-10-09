@@ -2,7 +2,7 @@
 from itertools import product as _product
 
 BLU = "var(--blue)"
-BSOFT = "rgba(47,111,158,.14)"
+BSOFT = "var(--blue-soft)"
 
 def _bits(x, y, s, cw=26, ch=26, hl=None, hlc=ALI, hlf=ASOFT, c=LIN, fill=PAN, tc=INK, sz=13):
     """ビット列を 1 文字 1 マスで描く。hl は強調する位置（0 始まり）の集合"""

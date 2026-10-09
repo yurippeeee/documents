@@ -2,7 +2,7 @@
 from itertools import product as _product7
 
 _BL7 = "var(--blue)"
-_BS7 = "rgba(47,111,158,.14)"
+_BS7 = "var(--blue-soft)"
 
 # ビットのマスの見た目: (塗り, 枠, 文字色, 太字)
 _ST7 = {

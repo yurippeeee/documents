@@ -2,7 +2,7 @@
 # 他の章のファイルと同じ名前空間で exec されるので、補助関数・定数は名前に 9 を付ける。
 
 _B9 = "var(--blue)"
-_BS9 = "color-mix(in srgb, var(--blue) 15%, transparent)"
+_BS9 = "var(--blue-soft)"
 _SUP9 = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 # マスの見た目: (塗り, 枠, 文字色, 太字)

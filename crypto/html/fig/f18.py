@@ -4,7 +4,7 @@ import hashlib as _qhl
 import math as _qm
 
 _QB = "var(--blue)"
-_QBS = "rgba(47,111,158,.14)"
+_QBS = "var(--blue-soft)"
 
 
 def _qsha(s):

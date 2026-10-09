@@ -3,7 +3,7 @@
 # 図の数値（LFSR の出力・輪・自己相関・ChaCha20 の値）は、ここで計算して描く。
 
 _C13B = "var(--blue)"
-_C13BS = "rgba(47,111,158,.14)"
+_C13BS = "var(--blue-soft)"
 
 
 def _c13_tx(x, y, parts, a="middle", sz=12, c=INK, b=False, mono=False):

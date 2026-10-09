@@ -2,7 +2,7 @@
 import math as _m01
 
 _B01 = "var(--blue)"
-_BS01 = "color-mix(in srgb, var(--blue) 14%, transparent)"
+_BS01 = "var(--blue-soft)"
 
 
 def _n01(v):

@@ -34,7 +34,7 @@
       for(var e=0;e<n;e++){
         var q=P(e), hit=!!on[e];
         ctx.beginPath();ctx.arc(q[0],q[1],nr,0,TAU);
-        ctx.fillStyle=hit?(d===1?C("--signal-soft"):"rgba(47,111,158,.16)"):C("--panel");ctx.fill();
+        ctx.fillStyle=hit?(d===1?C("--signal-soft"):C("--blue-soft")):C("--panel");ctx.fill();
         ctx.strokeStyle=hit?col:C("--faint");ctx.lineWidth=hit?1.6:1;ctx.setLineDash(hit?[]:[3,3]);ctx.stroke();ctx.setLineDash([]);
         ctx.font=(n>20?"10px ":"11px ")+C("--mono");ctx.textAlign="center";ctx.textBaseline="middle";
         ctx.fillStyle=hit?C("--ink"):C("--muted");ctx.fillText(String(e),q[0],q[1]+0.5);

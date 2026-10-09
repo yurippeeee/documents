@@ -2,8 +2,8 @@
 import math as _m02
 
 _B02 = "var(--blue)"
-_BS02 = "color-mix(in srgb, var(--blue) 14%, transparent)"
-_GS02 = "color-mix(in srgb, var(--muted) 16%, transparent)"
+_BS02 = "var(--blue-soft)"
+_GS02 = "var(--muted-soft)"
 
 
 def _cell02(x, y, w, h, s, c=LIN, f=PAN, tc=INK, sz=13, b=False, mono=True, r=5, lw=1.3, dash=None):

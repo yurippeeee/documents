@@ -2,7 +2,7 @@
 # 他章のファイルと名前がぶつからないよう、この章の補助関数・定数は _c12 で始める。
 
 _C12B = "var(--blue)"
-_C12BS = "rgba(47,111,158,.14)"
+_C12BS = "var(--blue-soft)"
 
 
 def _c12_tx(x, y, parts, a="middle", sz=12, c=INK, b=False, mono=False):

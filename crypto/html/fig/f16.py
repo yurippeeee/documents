@@ -3,7 +3,7 @@
 # ほかの章の fNN.py と名前が衝突しないよう、補助関数と定数には _r16 を付ける
 
 _R16_BL = "var(--blue)"
-_R16_BS = "rgba(47,111,158,.14)"
+_R16_BS = "var(--blue-soft)"
 
 
 import re as _r16_re

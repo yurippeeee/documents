@@ -3,7 +3,7 @@
 from math import gcd as _g15
 
 _B15 = "var(--blue)"
-_BS15 = "rgba(47,111,158,.15)"
+_BS15 = "var(--blue-soft)"
 
 
 def _c15(x, y, w, h, s, fill=PAN, c=LIN, tc=INK, sz=12, b=False, mono=True, r=5, lw=1.2):

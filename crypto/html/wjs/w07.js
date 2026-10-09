@@ -16,10 +16,10 @@
       return {G:G,H:H,k:k,r:r,n:k+r};},
     ST:{n:"background:var(--panel);border-color:var(--line);color:var(--ink)",
         i:"background:var(--signal-soft);border-color:var(--signal);color:var(--ink)",
-        p:"background:rgba(47,111,158,.14);border-color:var(--blue);color:var(--ink)",
+        p:"background:var(--blue-soft);border-color:var(--blue);color:var(--ink)",
         e:"background:var(--alias-soft);border-color:var(--alias);color:var(--alias);font-weight:700",
         h:"background:var(--signal-soft);border-color:var(--signal);color:var(--signal);font-weight:700",
-        b:"background:rgba(47,111,158,.14);border-color:var(--blue);color:var(--blue);font-weight:700",
+        b:"background:var(--blue-soft);border-color:var(--blue);color:var(--blue);font-weight:700",
         f:"background:transparent;border-color:var(--line);color:var(--faint)"},
     // ビット列を 1 文字 1 マスの HTML に。sty は位置ごとの記号（W7.ST のキー）を返す関数か文字列
     bits:function(s,sty){var h="";for(var i=0;i<s.length;i++){var k=typeof sty==="function"?sty(i,s[i]):(sty&&sty[i]&&sty[i]!==" "?sty[i]:"n");

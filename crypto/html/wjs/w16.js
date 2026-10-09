@@ -193,7 +193,7 @@
       var trace=[],x=x0;
       ops.forEach(function(op){
         var mul=op[0]==="M",dm=op[2],hgt=mul?44:30,col=mul?(dm?C("--faint"):C("--alias")):C("--blue");
-        ctx.fillStyle=mul?(dm?C("--screen"):C("--alias-soft")):"rgba(47,111,158,.16)";ctx.strokeStyle=col;ctx.lineWidth=1.2;
+        ctx.fillStyle=mul?(dm?C("--screen"):C("--alias-soft")):C("--blue-soft");ctx.strokeStyle=col;ctx.lineWidth=1.2;
         if(dm)ctx.setLineDash([3,2]);rrect(ctx,x,y0+(44-hgt),bw,hgt,3);ctx.fill();ctx.stroke();ctx.setLineDash([]);
         if(bw>=14)lab(ctx,mul?"掛":"2",x+bw/2,y0+40,col,"center");
         trace.push([x,x+bw,mul&&!dm?1:(mul?1:0.62)]);x+=bw+gap;});
