@@ -69,7 +69,7 @@ blockquote>*:first-child{margin-top:0}
 blockquote>*:last-child{margin-bottom:0}
 
 /* tables */
-.tablewrap{overflow-x:auto;margin:1.3rem 0;border:1px solid var(--line);border-radius:10px}
+.tablewrap{position:relative;overflow-x:auto;margin:1.3rem 0;border:1px solid var(--line);border-radius:10px}
 table{border-collapse:collapse;width:100%;font-size:.93rem}
 th,td{padding:.55rem .7rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
 th{background:var(--screen);font-family:var(--mono);font-size:.78rem;letter-spacing:.04em;color:var(--muted);font-weight:600;white-space:nowrap}
