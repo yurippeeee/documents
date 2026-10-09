@@ -2780,6 +2780,230 @@
     [ia,ib].forEach(function(x){x.addEventListener("input",run);});reg(null,run);run();
   };
 
+  /* ============ 10. 共通の補助関数（GF(2^m) と GF(2) 係数の多項式） ============ */
+  var W10=(function(){
+    var SUP="⁰¹²³⁴⁵⁶⁷⁸⁹";
+    function sup(e){return String(e).split("").map(function(d){return SUP[+d];}).join("");}
+    function al(i){return "α"+sup(i);}
+    var PRIM={3:0b1011,4:0b10011,5:0b100101,6:0b1000011};
+    /* GF(2^m) を原始多項式で作る。exp[i] = α^i、log[v] = i */
+    function field(m){
+      var n=(1<<m)-1, exp=new Array(2*n), log=new Array(n+1), v=1;
+      for(var i=0;i<n;i++){exp[i]=v;log[v]=i;v<<=1;if(v>>m)v^=PRIM[m];}
+      for(i=n;i<2*n;i++)exp[i]=exp[i-n];
+      function mul(a,b){return (a&&b)?exp[(log[a]+log[b])%n]:0;}
+      function pw(e){return exp[((e%n)+n)%n];}
+      return {m:m,n:n,exp:exp,log:log,mul:mul,pw:pw,poly:PRIM[m]};
+    }
+    function bits(v,m){var s=v.toString(2);while(s.length<m)s="0"+s;return s;}
+    /* GF(2) 係数の多項式（昇べきの配列 c[i] = x^i の係数）を文字列に */
+    function pstr(c){
+      var t=[];for(var i=c.length-1;i>=0;i--)if(c[i])t.push(i===0?"1":i===1?"x":"x"+sup(i));
+      return t.join("+")||"0";
+    }
+    function pmul(a,b){var r=new Array(a.length+b.length-1).fill(0);
+      for(var i=0;i<a.length;i++)if(a[i])for(var j=0;j<b.length;j++)r[i+j]^=b[j];return r;}
+    /* 指数 j の共役類（j, 2j, 4j, … を n で割った余り） */
+    function coset(j,n){var c=[],v=j%n;do{c.push(v);v=(2*v)%n;}while(v!==j%n);return c;}
+    /* 共役類の最小多項式 Π(x + α^i)。係数は 0 か 1 になる（昇べき） */
+    function minpoly(F,cls){
+      var P=[1];
+      cls.forEach(function(i){var a=F.pw(i),Q=new Array(P.length+1).fill(0);
+        for(var k=0;k<P.length;k++){Q[k+1]^=P[k];Q[k]^=F.mul(P[k],a);}P=Q;});
+      return P;
+    }
+    function cellsHTML(s,st){
+      var STY={n:"",c:"background:color-mix(in srgb,var(--blue) 16%,transparent);",e:"background:var(--alias-soft);color:var(--alias);font-weight:700;",
+               z:"color:var(--faint);",h:"background:var(--signal-soft);color:var(--signal);font-weight:700;"};
+      if(!st)st="n";if(st.length===1)st=new Array(s.length+1).join(st);
+      var h="";for(var i=0;i<s.length;i++)h+='<span style="display:inline-block;min-width:1.35em;text-align:center;border-radius:4px;margin:0 1px;'+(STY[st[i]]||"")+'">'+s[i]+'</span>';
+      return '<span style="white-space:nowrap">'+h+'</span>';
+    }
+    return {sup:sup,al:al,field:field,bits:bits,pstr:pstr,pmul:pmul,coset:coset,minpoly:minpoly,cells:cellsHTML};
+  })();
+
+  /* ============ 10. rootscan — GF(2) 係数の多項式に α^i を代入する ============ */
+  REG.rootscan=function(el){
+    head(el,"Roots","GF(2) 係数の多項式に α⁰ … α¹⁴ を代入する");
+    var row=ctrls(el);
+    var ip=textin(row,"多項式（2 進。左端が最高次）","10011","160px");
+    var si=slider(row,"計算を表示する αⁱ の i",0,14,1,1);
+    var out=panel(el), rd=readout(el);
+    var F=W10.field(4);
+    var th='style="padding:.12rem .45rem;text-align:center;color:var(--muted);font-weight:600"', td='style="padding:.1rem .45rem;text-align:center"';
+    function run(){
+      var P=(ip.value||"").replace(/[^01]/g,"").replace(/^0+/,"");
+      if(!P||P.length>16){out.innerHTML='<span style="color:var(--alias)">0 と 1 で、次数 15 以下の 0 でない多項式を入れる</span>';rd.innerHTML="";return;}
+      var d=P.length-1, coef=[];for(var e=0;e<=d;e++)coef[e]=+P[d-e];
+      var vals=[], roots=[];
+      for(var i=0;i<15;i++){var v=0;for(var e2=0;e2<=d;e2++)if(coef[e2])v^=F.pw(i*e2);vals.push(v);if(v===0)roots.push(i);}
+      var sel=+si.input.value; si.val.textContent=W10.al(sel);
+      var h='<div style="margin-bottom:.35rem">p(x) = '+W10.pstr(coef)+'（次数 '+d+'）</div>';
+      h+='<table style="border-collapse:collapse"><tr><th '+th+'>i</th>';
+      for(var k=0;k<15;k++)h+='<th '+th+'>'+k+'</th>';
+      h+='</tr><tr><td '+td+' style="color:var(--muted)">αⁱ</td>';
+      for(k=0;k<15;k++)h+='<td '+td+'>'+W10.bits(F.pw(k),4)+'</td>';
+      h+='</tr><tr><td '+td+' style="color:var(--muted)">p(αⁱ)</td>';
+      for(k=0;k<15;k++){var z=vals[k]===0;
+        h+='<td style="padding:.1rem .3rem;text-align:center"><span style="display:inline-block;padding:0 .2rem;border-radius:4px;'+(z?'background:var(--signal-soft);color:var(--signal);font-weight:700':'')+(k===sel?';outline:1.5px solid var(--blue)':'')+'">'+W10.bits(vals[k],4)+'</span></td>';}
+      h+='</tr></table>';
+      /* 選んだ i の計算 */
+      var terms=[];for(var e3=d;e3>=0;e3--)if(coef[e3])terms.push(e3);
+      h+='<div style="margin-top:.6rem;color:var(--muted)">p('+W10.al(sel)+') の計算（各項 x<sup>e</sup> は α<sup>'+sel+'·e</sup> になる）</div><div>';
+      terms.forEach(function(e4,idx){var ex=(sel*e4)%15;
+        h+=(idx?' ⊕ ':'')+'<span title="x^'+e4+'">'+W10.al(ex)+'</span> <span style="color:var(--faint)">('+W10.bits(F.pw(ex),4)+')</span>';});
+      h+=' = <b>'+W10.bits(vals[sel],4)+'</b>'+(vals[sel]===0?' <span style="color:var(--signal)">→ 根</span>':'')+'</div>';
+      out.innerHTML=h;
+      var closed=roots.every(function(j){return roots.indexOf((2*j)%15)>=0;});
+      rd.innerHTML=(roots.length?'根: <b class="ok">'+roots.map(W10.al).join(", ")+'</b>（'+roots.length+' 個 ≤ 次数 '+d+'）':'GF(2⁴) の 0 以外の要素に根は無い')+
+        (roots.length?' ／ 根の指数を 2 倍して 15 で割った余りも、また根の指数 '+(closed?'<span class="ok">✓（2 節）</span>':''):'');
+    }
+    ip.addEventListener("input",run);si.input.addEventListener("input",run);reg(null,run);run();
+  };
+
+  /* ============ 10. bchgen — t から生成多項式を組み立てる ============ */
+  REG.bchgen=function(el){
+    head(el,"BCH","訂正したいビット数 t から g(x) を組み立てる");
+    var row=ctrls(el);
+    var sm=select(row,"体 GF(2^m)",["m = 3（n = 7、x³+x+1）","m = 4（n = 15、x⁴+x+1）","m = 5（n = 31、x⁵+x²+1）","m = 6（n = 63、x⁶+x+1）"]);
+    sm.value="1";
+    var st=slider(row,"訂正したいビット数 t",1,4,2,1);
+    var cv=screen(el,250),cc=cctx(cv);
+    var out=panel(el), rd=readout(el);
+    var th='style="padding:.12rem .6rem;text-align:left;color:var(--muted);font-weight:600"', td='style="padding:.1rem .6rem;text-align:left"';
+    var cur=null;
+    function build(m,t){
+      var F=W10.field(m), n=F.n, need=[], used={}, classes=[];
+      for(var j=1;j<=2*t;j++)need.push(j%n);
+      need.forEach(function(j){
+        var c=W10.coset(j,n), key=Math.min.apply(null,c);
+        if(!used[key]){used[key]=true;classes.push({cls:c,M:W10.minpoly(F,c),req:[]});}
+        classes.forEach(function(o){if(o.cls.indexOf(j)>=0&&o.req.indexOf(j)<0)o.req.push(j);});
+      });
+      var g=[1];classes.forEach(function(o){g=W10.pmul(g,o.M);});
+      return {F:F,n:n,t:t,need:need,classes:classes,g:g,k:n-(g.length-1)};
+    }
+    function tmax(m){var n=(1<<m)-1;for(var t=1;t<=n;t++){if(build(m,t).k<=1)return t;}return 1;}
+    /* 最小距離（k ≤ 21 なら全符号語の重みを数える） */
+    function dmin(B){
+      var k=B.k,n=B.n;if(k>21)return null;
+      var rows=[];for(var i=0;i<k;i++){var lo=0,hi=0;for(var e=0;e<B.g.length;e++)if(B.g[e]){var p=e+i;if(p<32)lo|=(1<<p);else hi|=(1<<(p-32));}rows.push([lo>>>0,hi>>>0]);}
+      function pc(x){x=x-((x>>>1)&0x55555555);x=(x&0x33333333)+((x>>>2)&0x33333333);return (((x+(x>>>4))&0x0F0F0F0F)*0x01010101)>>>24;}
+      var lo=0,hi=0,best=n;
+      for(var c=1;c<(1<<k);c++){var j=0,v=c;while(!(v&1)){v>>=1;j++;}lo^=rows[j][0];hi^=rows[j][1];var w=pc(lo>>>0)+pc(hi>>>0);if(w<best)best=w;}
+      return best;
+    }
+    function draw(){
+      var s=cc.fit(),w=s.w,h=s.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      if(!cur)return;
+      var n=cur.n, cx=w/2, cy=h/2+4, R=Math.min(h/2-26,w/2-40);
+      var pal=[C("--signal"),C("--blue"),C("--alias"),C("--muted")];
+      var inClass={};cur.classes.forEach(function(o,ci){o.cls.forEach(function(j){inClass[j]=ci;});});
+      function P(j){var a=-Math.PI/2+TAU*j/n;return [cx+R*Math.cos(a),cy+R*Math.sin(a)];}
+      /* 使う類の中の 2 乗の矢印（j → 2j） */
+      cur.classes.forEach(function(o,ci){
+        ctx.strokeStyle=pal[ci%pal.length];ctx.lineWidth=1.3;ctx.globalAlpha=0.75;
+        o.cls.forEach(function(j){var a=P(j),b=P((2*j)%n);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();});
+        ctx.globalAlpha=1;
+      });
+      var rr=n<=15?11:(n<=31?7:4.2);
+      for(var j=0;j<n;j++){
+        var p=P(j), ci=inClass[j], col=(ci===undefined)?C("--line"):pal[ci%pal.length];
+        ctx.beginPath();ctx.arc(p[0],p[1],rr,0,TAU);ctx.fillStyle=(ci===undefined)?C("--panel"):col;ctx.fill();
+        ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.stroke();
+        if(cur.need.indexOf(j)>=0){ctx.beginPath();ctx.arc(p[0],p[1],rr+4,0,TAU);ctx.strokeStyle=C("--ink");ctx.lineWidth=1.6;ctx.stroke();}
+        if(n<=31||j%3===0){var q=[cx+(R+rr+12)*Math.cos(-Math.PI/2+TAU*j/n),cy+(R+rr+12)*Math.sin(-Math.PI/2+TAU*j/n)+4];
+          lab(ctx,String(j),q[0],q[1],ci===undefined?C("--faint"):C("--ink"),"center");}
+      }
+      lab(ctx,"点 = α の指数（0〜"+(n-1)+"）",10,16,C("--muted"),"left");
+      lab(ctx,"黒い輪 = 要求する根 α¹〜α"+W10.sup(2*cur.t),10,32,C("--muted"),"left");
+      lab(ctx,"色 = g に入る共役類",10,48,C("--muted"),"left");
+    }
+    function run(){
+      var m=[3,4,5,6][+sm.value], tm=tmax(m);
+      st.input.max=tm; if(+st.input.value>tm)st.input.value=tm;
+      var t=+st.input.value; st.val.textContent=t;
+      cur=build(m,t);
+      var h='<table style="border-collapse:collapse"><tr><th '+th+'>共役類（指数）</th><th '+th+'>要求した根</th><th '+th+'>最小多項式 M(x)</th><th '+th+'>次数</th></tr>';
+      cur.classes.forEach(function(o){
+        h+='<tr><td '+td+'>{'+o.cls.join(", ")+'}</td><td '+td+'>'+o.req.map(W10.al).join(", ")+'</td><td '+td+' style="padding:.1rem .6rem;color:var(--signal)">'+W10.pstr(o.M)+'</td><td '+td+'>'+(o.M.length-1)+'</td></tr>';
+      });
+      h+='</table>';
+      var gb=cur.g.slice().reverse().join("");
+      h+='<div style="margin-top:.5rem">g(x) = '+cur.classes.map(function(o){return "("+W10.pstr(o.M)+")";}).join(" · ")+'</div>';
+      h+='<div>　　 = <b>'+W10.pstr(cur.g)+'</b>　<span style="color:var(--faint)">（'+gb+'、次数 '+(cur.g.length-1)+'）</span></div>';
+      out.innerHTML=h;
+      var d=dmin(cur), des=2*t+1;
+      rd.innerHTML='<b class="ok">('+cur.n+', '+cur.k+') 符号</b> ／ 検査ビット n − k = deg g = <b>'+(cur.g.length-1)+'</b> ／ 設計距離 2t + 1 = <b>'+des+'</b> ／ '+
+        (d===null?'実際の最小距離: 符号語が多いので数えない（2<sup>'+cur.k+'</sup> 個）':'実際の最小距離（全符号語の重みの最小）= <b>'+d+'</b>'+(d>des?'（設計距離より大きい）':'')+' <span class="ok">≥ '+des+' ✓</span>');
+      draw();
+    }
+    sm.addEventListener("change",run);st.input.addEventListener("input",run);reg(cv,draw);run();
+  };
+
+  /* ============ 10. bchdec — (15,7) 符号の復号 ============ */
+  REG.bchdec=function(el){
+    head(el,"BCH Decode","(15,7) 符号で 2 ビットまでの誤りを訂正する");
+    var row=ctrls(el);
+    var iu=textin(row,"情報ビット u（7 ビット）","0000001","110px");
+    var s1=slider(row,"誤りの位置 1",-1,14,10,1), s2=slider(row,"誤りの位置 2",-1,14,3,1), s3=slider(row,"誤りの位置 3",-1,14,-1,1);
+    var out=panel(el), rd=readout(el);
+    var F=W10.field(4), G=[1,0,0,0,1,0,1,1,1];  /* g = x^8+x^7+x^6+x^4+1（昇べき） */
+    function lg(v){return v===0?"0":W10.al(F.log[v]);}
+    function ev(r,i){var v=0;for(var e=0;e<15;e++)if(r[e])v^=F.pw(i*e);return v;}
+    function str(a){var s="";for(var i=14;i>=0;i--)s+=a[i];return s;}
+    function run(){
+      var U=(iu.value||"").replace(/[^01]/g,"");
+      if(U.length>7){U=U.slice(U.length-7);}while(U.length<7)U="0"+U;
+      var u=[];for(var i=0;i<7;i++)u[i]=+U[6-i];
+      var c=W10.pmul(u,G);while(c.length<15)c.push(0);
+      var e=new Array(15).fill(0), sl=[s1,s2,s3];
+      sl.forEach(function(s){var p=+s.input.value;s.val.textContent=p<0?"なし":p;if(p>=0)e[p]^=1;});
+      var r=c.map(function(v,k){return v^e[k];});
+      var nerr=e.reduce(function(a,b){return a+b;},0);
+      var S1=ev(r,1), S3=ev(r,3), lam=null, kind="";
+      if(S1===0&&S3===0){lam=[1];kind="0 個（誤り無し）";}
+      else if(S1===0){lam=null;kind="S₁ = 0 なのに S₃ ≠ 0 → 誤りは 3 個以上";}
+      else{
+        var S1c=F.mul(S1,F.mul(S1,S1)), sg2=F.mul(S3,F.exp[(15-F.log[S1])%15])^F.mul(S1,S1);
+        if(S3===S1c){lam=[1,S1];kind="S₃ = S₁³ → 1 個";}else{lam=[1,S1,sg2];kind="2 個（σ₂ = S₃/S₁ + S₁² = "+lg(sg2)+"）";}
+      }
+      var roots=[], vals=[];
+      if(lam){for(var i2=0;i2<15;i2++){var x=F.pw(-i2),v=0,xp=1;for(var k=0;k<lam.length;k++){v^=F.mul(lam[k],xp);xp=F.mul(xp,x);}vals.push(v);if(v===0)roots.push(i2);}}
+      var fixed=r.slice(), okRoots=lam&&roots.length===lam.length-1;
+      if(okRoots)roots.forEach(function(p){fixed[p]^=1;});
+      var est="",cst="",rst="";for(var q=14;q>=0;q--){est+=e[q]?"e":"z";cst+=c[q]?"c":"n";rst+=e[q]?"e":(r[q]?"c":"n");}
+      var h='<table style="border-collapse:collapse">';
+      function trow(lab,bits,sty){return '<tr><td style="padding:.1rem .5rem;color:var(--muted);white-space:nowrap">'+lab+'</td><td style="padding:.1rem .3rem">'+W10.cells(bits,sty)+'</td></tr>';}
+      var posrow="";for(var pp=14;pp>=0;pp--)posrow+='<span style="display:inline-block;min-width:1.35em;text-align:center;margin:0 1px;color:var(--faint);font-size:.72rem">'+pp+'</span>';
+      h+='<tr><td style="padding:.1rem .5rem;color:var(--muted)">位置</td><td style="padding:.1rem .3rem;white-space:nowrap">'+posrow+'</td></tr>';
+      h+=trow("送った c = u·g",str(c),cst)+trow("誤り e",str(e),est)+trow("受信語 r",str(r),rst);
+      if(okRoots)h+=trow("訂正後",str(fixed),"n");
+      h+='</table>';
+      h+='<div style="margin-top:.5rem">S₁ = r(α) = <b>'+lg(S1)+'</b>（'+W10.bits(S1,4)+'） ／ S₃ = r(α³) = <b>'+lg(S3)+'</b>（'+W10.bits(S3,4)+'） ／ 判定: '+kind+'</div>';
+      if(lam){
+        var ls=["1"];for(var k2=1;k2<lam.length;k2++)if(lam[k2])ls.push((lam[k2]===1?"":lg(lam[k2]))+(k2===1?"x":"x²"));
+        h+='<div>Λ(x) = <b>'+ls.join(" + ")+'</b></div>';
+        if(lam.length>1){
+          h+='<div style="margin-top:.35rem;color:var(--muted)">チェン探索: Λ(α⁻ⁱ)</div><div style="white-space:nowrap;overflow-x:auto">';
+          for(var i3=0;i3<15;i3++){var z=vals[i3]===0;
+            h+='<span style="display:inline-block;text-align:center;margin:0 2px;padding:.05rem .15rem;border-radius:4px;'+(z?'background:var(--signal-soft);color:var(--signal);font-weight:700':'')+'"><span style="font-size:.7rem;color:var(--faint)">'+i3+'</span><br>'+W10.bits(vals[i3],4)+'</span>';}
+          h+='</div>';
+        }
+      }
+      out.innerHTML=h;
+      var same=okRoots&&fixed.join("")===c.join("");
+      var msg;
+      if(nerr===0)msg='<span class="ok">誤り無し → シンドロームはすべて 0</span>';
+      else if(!lam)msg='<span class="warn">訂正できないことが分かる（検出のみ）</span>';
+      else if(!okRoots)msg='<span class="warn">Λ の根が '+roots.length+' 個しか見つからない → 訂正できないことが分かる（検出のみ）</span>';
+      else if(same)msg='<span class="ok">位置 '+roots.slice().sort(function(a,b){return b-a;}).join(", ")+' を反転して、送った符号語に戻った</span>';
+      else msg='<span class="warn">位置 '+roots.join(", ")+' を反転したが、送ったものとは別の符号語になった（誤訂正）</span>';
+      rd.innerHTML='誤りの数 <b>'+nerr+'</b> ／ '+msg+(nerr>2?' ／ 訂正能力 t = 2 を超えている':'');
+    }
+    iu.addEventListener("input",run);[s1,s2,s3].forEach(function(s){s.input.addEventListener("input",run);});reg(null,run);run();
+  };
+
   /* ============ 11. リード・ソロモン符号（共通の計算） ============ */
   /* 他の章のファイルと同じ関数の中に入るので、この章の部品はすべて RS11 の中に置く */
   var RS11=(function(){
@@ -2873,7 +3097,8 @@
       var seq=Tm.slice(rho);res.seq=seq;
       var B=bm(F,seq);res.Lam=B.Lam;res.L=B.L;
       var loc=B.L?roots(F,B.Lam):[];res.locs=loc;
-      if(2*B.L>nk-rho||loc.length!==B.L){res.status="fail";res.why="見つかった根の個数が L と合わない";return res;}
+      if(2*B.L>nk-rho){res.status="fail";res.why="誤りを決める式が足りない（2L > 2t − ρ）";return res;}
+      if(loc.length!==B.L){res.status="fail";res.why="見つかった根の個数が L と合わない";return res;}
       if(loc.some(function(p){return eras.indexOf(p)>=0;})){res.status="fail";res.why="誤りの位置が消失の位置と重なる";return res;}
       var Psi=F.pmul(B.Lam,Gam);res.Psi=Psi;
       var all=eras.concat(loc);
@@ -3631,7 +3856,7 @@
         (outs.length?outs.join("").replace(/(.{5})/g,"$1 "):"（まだ出力していない）")+'</div>'+
         '<div style="color:var(--muted);margin-top:.4rem">状態の移り変わり（直近）</div><div style="word-break:break-all">'+
         hist.slice(-9).map(function(s,k,arr){var last=k===arr.length-1;return last?'<b>'+s+'</b>':s;}).join(" → ")+'</div>';
-      ro.innerHTML='f(x) = '+c13poly(c)+' ／ この初期状態からの周期 <b>'+per+'</b>（最長 2<sup>'+c.length+'</sup> − 1 = '+((1<<c.length)-1)+'）'+
+      ro.innerHTML='時刻 n = '+n+' ／ この初期状態に戻るまでの更新回数 <b>'+per+'</b>（0 以外の状態は 2<sup>'+c.length+'</sup> − 1 = '+((1<<c.length)-1)+' 通り）'+
         (back?' ／ <b class="ok">時刻 '+n+' で初期状態に戻った</b>':'');
     }
     b1.addEventListener("click",function(){stop();step();});
@@ -3741,7 +3966,7 @@
       if(ck.checked)h+='<div style="color:var(--muted);margin-top:.4rem">秘密の LFSR: タップ '+sec.c.join("")+'、f(x) = '+c13poly(sec.c)+'、初期状態（左が新しい） '+sec.init.slice().reverse().join("")+'</div>';
       out.innerHTML=h;
       if(neq<=0){ro.innerHTML='<span class="warn">式が立たない（m ≤ L）。少なくとも L + 1 ビット要る</span>';return;}
-      ro.innerHTML='式 '+neq+' 本、未知数 '+L+' 個、階数 '+R.rank+' ／ '+
+      ro.innerHTML='式 '+neq+' 本（ほかの式の XOR では作れない式は '+R.rank+' 本）、未知数 '+L+' 個 ／ '+
         (nsol===1?'<b class="ok">解はただ 1 つ</b>':'<span class="warn">解が '+nsol+' 個あり、タップが 1 つに決まらない</span>')+
         ' ／ 予測 '+hit+'/32 ビット一致'+(hit===32&&nsol===1?'（以後の鍵ストリームはすべて分かる）':'');
     }
@@ -4093,6 +4318,226 @@
       ro.innerHTML=(note?note+' ／ ':'')+res;
     }
     [sm,sa].forEach(function(s){s.addEventListener("change",run);});sb.input.addEventListener("input",run);reg(null,run);run();
+  };
+
+  /* ============ 15. phiTable — 1〜mn を m 列に並べて φ(mn) = φ(m)φ(n) を確かめる ============ */
+  REG.phiTable=function(el){
+    head(el,"Euler φ","1〜mn を m 列に並べ、φ(mn) と φ(m)φ(n) を比べる");
+    var row=ctrls(el);
+    var sm=slider(row,"列の数 m",2,10,3,1),sn=slider(row,"行の数 n",2,10,5,1);
+    var out=panel(el),ro=readout(el);
+    function gcd(a,b){while(b){var t=a%b;a=b;b=t;}return a;}
+    function phi(k){var c=0;for(var a=1;a<=k;a++)if(gcd(a,k)===1)c++;return c;}
+    function run(){
+      var m=+sm.input.value,n=+sn.input.value,c,i;sm.val.textContent=m;sn.val.textContent=n;
+      var h='<table style="border-collapse:separate;border-spacing:3px;width:auto"><tr><th style="padding:.1rem .4rem;font-weight:400">m で割った余り</th>';
+      for(c=1;c<=m;c++){var r=c%m,ok=gcd(r,m)===1;
+        h+='<th style="padding:.1rem .3rem;text-align:center;color:'+(ok?"var(--signal)":"var(--alias)")+'">'+r+'</th>';}
+      h+='</tr>';
+      for(i=0;i<n;i++){
+        h+='<tr><th style="padding:.1rem .4rem;font-weight:400">'+(i+1)+' 行目</th>';
+        for(c=1;c<=m;c++){var x=i*m+c,cm=gcd(x,m)===1,cn=gcd(x,n)===1,st;
+          if(cm&&cn)st="background:var(--signal-soft);border-color:var(--signal);font-weight:700";
+          else if(cm)st="background:var(--alias-soft);border-color:var(--alias);color:var(--alias)";
+          else st="color:var(--faint)";
+          h+='<td style="min-width:2.9rem;padding:.12rem .3rem;text-align:center;border:1px solid var(--line);border-radius:4px;'+st+'">'+x+
+            '<span style="font-size:.66rem;color:var(--muted);margin-left:.35rem;font-weight:400">'+(x%n)+'</span></td>';}
+        h+='</tr>';}
+      h+='</table><div style="margin-top:.4rem;color:var(--muted)">マスの右の小さな数字は n で割った余り。緑 = mn と互いに素、赤 = m とは互いに素だが n とは素でない、薄字 = m と互いに素でない列</div>';
+      var lines=[];
+      for(c=1;c<=m;c++){if(gcd(c%m,m)!==1)continue;
+        var rs=[],seen={},dup=false;for(i=0;i<n;i++){var v=(i*m+c)%n;rs.push(v);if(seen[v])dup=true;seen[v]=1;}
+        lines.push('<span style="color:'+(dup?"var(--alias)":"var(--signal)")+'">余り '+(c%m)+' の列: '+rs.join(",")+(dup?"（重なりあり）":"")+'</span>');}
+      h+='<div style="margin-top:.2rem">n で割った余りの並び　'+lines.join("　")+'</div>';
+      out.innerHTML=h;
+      var pm=phi(m),pn=phi(n),pmn=phi(m*n),g=gcd(m,n);
+      ro.innerHTML='φ(m) = '+pm+'、φ(n) = '+pn+'、φ(m)φ(n) = <b>'+(pm*pn)+'</b> ／ 数えた φ('+(m*n)+') = <b>'+pmn+'</b> ／ '+
+        (g===1?'<span class="ok">m と n が互いに素なので一致する</span>':'<span class="warn">gcd(m, n) = '+g+' なので列の中で余りが重なり、一致しない</span>');
+    }
+    sm.input.addEventListener("input",run);sn.input.addEventListener("input",run);reg(null,run);run();
+  };
+
+  /* ============ 15. crtGrid — 余りの組のマスに数を書き込む ============ */
+  REG.crtGrid=function(el){
+    head(el,"CRT","x を (x mod m₁, x mod m₂) のマスに書き込み、解を作る");
+    var row=ctrls(el);
+    var s1=slider(row,"法 m₁",2,9,3,1),s2=slider(row,"法 m₂",2,9,5,1);
+    var row2=ctrls(el);
+    var t1=slider(row2,"余り a₁",0,8,2,1),t2=slider(row2,"余り a₂",0,8,3,1);
+    var out=panel(el),ro=readout(el);
+    function gcd(a,b){while(b){var t=a%b;a=b;b=t;}return a;}
+    function inv(a,m){a%=m;for(var x=1;x<m;x++)if(a*x%m===1)return x;return null;}
+    function run(){
+      var m1=+s1.input.value,m2=+s2.input.value,i,j;
+      t1.input.max=m1-1;if(+t1.input.value>m1-1)t1.input.value=m1-1;
+      t2.input.max=m2-1;if(+t2.input.value>m2-1)t2.input.value=m2-1;
+      var a1=+t1.input.value,a2=+t2.input.value;
+      s1.val.textContent=m1;s2.val.textContent=m2;t1.val.textContent=a1;t2.val.textContent=a2;
+      var M=m1*m2,cells=[];
+      for(i=0;i<m1;i++){cells.push([]);for(j=0;j<m2;j++)cells[i].push([]);}
+      for(var x=0;x<M;x++)cells[x%m1][x%m2].push(x);
+      var h='<div style="color:var(--muted);margin-bottom:.2rem">0〜'+(M-1)+' の各 x を、行 = x mod '+m1+'、列 = x mod '+m2+' のマスに書き込む（黒枠が余りの組 ('+a1+', '+a2+')）</div>';
+      h+='<table style="border-collapse:separate;border-spacing:3px;width:auto"><tr><th style="padding:.1rem .3rem"></th>';
+      for(j=0;j<m2;j++)h+='<th style="padding:.1rem .3rem;text-align:center">'+j+'</th>';
+      h+='</tr>';
+      var empty=0,multi=0;
+      for(i=0;i<m1;i++){
+        h+='<tr><th style="padding:.1rem .3rem;text-align:center">'+i+'</th>';
+        for(j=0;j<m2;j++){var c=cells[i][j],st;
+          if(!c.length){empty++;st="background:var(--screen);color:var(--faint)";}
+          else if(c.length>1){multi++;st="background:var(--alias-soft);border-color:var(--alias);color:var(--alias);font-weight:700";}
+          else st="background:var(--signal-soft);border-color:var(--signal)";
+          if(i===a1&&j===a2)st+=";outline:2px solid var(--ink)";
+          h+='<td style="min-width:2.3rem;padding:.15rem .3rem;text-align:center;border:1px solid var(--line);border-radius:4px;'+st+'">'+(c.length?c.join(","):"空")+'</td>';}
+        h+='</tr>';}
+      h+='</table>';
+      var g=gcd(m1,m2);
+      if(g===1){
+        var M1=m2,N1=inv(M1,m1),M2=m1,N2=inv(M2,m2),xx=(a1*M1*N1+a2*M2*N2)%M;
+        h+='<div style="margin-top:.5rem">M = '+m1+'·'+m2+' = '+M+'、M₁ = '+M1+'、N₁ = '+M1+'⁻¹ mod '+m1+' = '+N1+'、M₂ = '+M2+'、N₂ = '+M2+'⁻¹ mod '+m2+' = '+N2+'</div>';
+        h+='<div>x = a₁M₁N₁ + a₂M₂N₂ mod M = '+a1+'·'+M1+'·'+N1+' + '+a2+'·'+M2+'·'+N2+' mod '+M+' = <b style="color:var(--signal)">'+xx+'</b>'+
+          '　<span style="color:var(--muted)">検算: '+xx+' mod '+m1+' = '+(xx%m1)+'、'+xx+' mod '+m2+' = '+(xx%m2)+'</span></div>';
+        ro.innerHTML='余りの組 ('+a1+', '+a2+') の解 x = <b class="ok">'+xx+'</b> ／ <span class="ok">'+M+' 個のマスがちょうど 1 回ずつ埋まる</span>';
+      }else{
+        h+='<div style="margin-top:.5rem;color:var(--alias)">gcd(m₁, m₂) = '+g+' なので、M₁ = '+m2+' が法 '+m1+' で逆元を持たず、上の作り方が使えない</div>';
+        var c0=cells[a1][a2];
+        ro.innerHTML='<span class="warn">空きのマス '+empty+' 個、2 つ以上の数が入るマス '+multi+' 個</span> ／ 余りの組 ('+a1+', '+a2+') の解: '+
+          (c0.length?c0.length+' 個（'+c0.join(", ")+'）':'無い');
+      }
+      out.innerHTML=h;
+    }
+    [s1,s2,t1,t2].forEach(function(o){o.input.addEventListener("input",run);});reg(null,run);run();
+  };
+
+  /* ============ 15. orderCycle — x → ax mod n の矢印が同じ長さの輪に分かれる ============ */
+  REG.orderCycle=function(el){
+    head(el,"Order","n と互いに素な数に a を掛け続けると、同じ長さの輪に分かれる");
+    var row=ctrls(el);
+    var sn=slider(row,"法 n",3,36,10,1),sa=slider(row,"掛ける数 a",1,35,3,1);
+    var cv=screen(el,340),cc=cctx(cv),ro=readout(el);
+    function gcd(a,b){while(b){var t=a%b;a=b;b=t;}return a;}
+    function ordr(x,n){var d=1,v=x%n;while(v!==1){v=v*x%n;d++;}return d;}
+    function arrow(ctx,x1,y1,x2,y2,col,lw,rr){
+      var dx=x2-x1,dy=y2-y1,L=Math.sqrt(dx*dx+dy*dy);if(L<1)return;
+      var ux=dx/L,uy=dy/L,sx=x1+ux*rr,sy=y1+uy*rr,ex=x2-ux*(rr+2),ey=y2-uy*(rr+2);
+      ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex-ux*6,ey-uy*6);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-ux*8-uy*4,ey-uy*8+ux*4);ctx.lineTo(ex-ux*8+uy*4,ey-uy*8-ux*4);ctx.closePath();ctx.fill();}
+    function draw(){
+      var n=+sn.input.value;sa.input.max=n-1;if(+sa.input.value>n-1)sa.input.value=n-1;
+      var a=+sa.input.value;sn.val.textContent=n;sa.val.textContent=a;
+      var s=cc.fit(),w=s.w,h=s.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      var U=[],x;for(x=1;x<n;x++)if(gcd(x,n)===1)U.push(x);
+      var ph=U.length;
+      if(gcd(a,n)!==1){
+        lab(ctx,"a = "+a+" は n = "+n+" と互いに素でないので、この群の要素ではない",16,30,C("--alias"),"left");
+        ro.innerHTML='<span class="warn">gcd(a, n) = '+gcd(a,n)+' ≠ 1。a を n と互いに素な数にする</span>';return;}
+      var d=ordr(a,n),seen={},cycles=[];
+      U.forEach(function(u){if(seen[u])return;var cyc=[],y=u;while(!seen[y]){seen[y]=1;cyc.push(y);y=y*a%n;}cycles.push(cyc);});
+      var cx=w/2,cy=h/2+4,R=Math.min(w*0.42,h/2-26),rr=ph>16?10:12,pos={};
+      U.forEach(function(u,i){var ang=-Math.PI/2+TAU*i/ph;pos[u]=[cx+R*Math.cos(ang),cy+R*Math.sin(ang)];});
+      var others=[C("--blue"),C("--alias"),C("--muted")];
+      cycles.forEach(function(cyc,ci){
+        var col=ci===0?C("--signal"):others[(ci-1)%others.length],lw=ci===0?2.2:1.3;
+        cyc.forEach(function(u){var v=u*a%n,p1=pos[u],p2=pos[v];
+          if(v===u){ctx.strokeStyle=col;ctx.lineWidth=lw;var ox=(p1[0]-cx)/R,oy=(p1[1]-cy)/R;
+            ctx.beginPath();ctx.arc(p1[0]+ox*(rr+6),p1[1]+oy*(rr+6),6,0,TAU);ctx.stroke();}
+          else arrow(ctx,p1[0],p1[1],p2[0],p2[1],col,lw,rr);});
+      });
+      U.forEach(function(u){var p=pos[u],inOne=cycles[0].indexOf(u)>=0;
+        ctx.beginPath();ctx.arc(p[0],p[1],rr,0,TAU);ctx.fillStyle=inOne?C("--signal-soft"):C("--panel");ctx.fill();
+        ctx.strokeStyle=inOne?C("--signal"):C("--muted");ctx.lineWidth=1.4;ctx.stroke();
+        ctx.fillStyle=C("--ink");ctx.font=(ph>16?"10px ":"11px ")+C("--mono");ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(String(u),p[0],p[1]+.5);});
+      ctx.textBaseline="alphabetic";
+      lab(ctx,"緑の輪 = 1 を含む輪 ⟨a⟩",12,18,C("--signal"),"left");
+      var prs=U.filter(function(u){return ordr(u,n)===ph;});
+      var ap=1;for(var k=0;k<ph;k++)ap=ap*a%n;
+      ro.innerHTML='φ('+n+') = <b>'+ph+'</b> ／ '+a+' の位数 = <b>'+d+'</b> ／ 輪 <b>'+cycles.length+'</b> 本 × 長さ '+d+' = '+ph+
+        ' ／ '+a+'^φ(n) mod '+n+' = '+ap+' ／ 原始根: '+(prs.length?'<b class="ok">'+prs.join(", ")+'</b>（'+prs.length+' 個）':'<span class="warn">無い</span>');
+    }
+    sn.input.addEventListener("input",draw);sa.input.addEventListener("input",draw);reg(cv,draw);
+  };
+
+  /* ============ 15. dlogBsgs — gˣ の並びと Baby-step Giant-step ============ */
+  REG.dlogBsgs=function(el){
+    head(el,"Discrete Log","gˣ mod p の並びと、Baby-step Giant-step の手順");
+    var row=ctrls(el);
+    var primes=[23,47,101,233,509,1019,2027];
+    var sp=select(row,"素数 p",primes.map(String));
+    var sy=slider(row,"y",1,22,8,1);
+    var cv=screen(el,220),cc=cctx(cv),out=panel(el),ro=readout(el);
+    function pw(b,e,m){var r=1;b%=m;while(e>0){if(e&1)r=r*b%m;b=b*b%m;e=Math.floor(e/2);}return r;}
+    function proot(p){var f=[],q=p-1,d;for(d=2;d*d<=q;d++)if(q%d===0){f.push(d);while(q%d===0)q/=d;}if(q>1)f.push(q);
+      for(var g=2;g<p;g++){if(f.every(function(r){return pw(g,(p-1)/r,p)!==1;}))return g;}return null;}
+    function draw(){
+      var p=primes[+sp.value],g=proot(p);
+      sy.input.max=p-1;if(+sy.input.value>p-1)sy.input.value=p-1;
+      var y=+sy.input.value;sy.val.textContent=y;
+      var xs=0,v=1;while(v!==y){v=v*g%p;xs++;}
+      var c=chart(cc,0,p-2,1,p-1,{l:44,b:26,t:16,r:14}),ctx=c.ctx;
+      grid(c,4);axis(c);
+      ctx.strokeStyle=C("--alias");ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(c.p.l,c.Y(y));ctx.lineTo(c.w-c.p.r,c.Y(y));ctx.stroke();ctx.setLineDash([]);
+      v=1;var rad=p>600?1.6:(p>150?2.2:3);
+      for(var x=0;x<p-1;x++){dot(c,x,v,rad,C("--signal"));v=v*g%p;}
+      dot(c,xs,y,6,C("--alias"),true);
+      lab(ctx,"x",c.w-c.p.r,c.h-8,C("--muted"),"right");lab(ctx,"0",c.p.l,c.h-8,C("--muted"),"center");lab(ctx,String(p-2),c.X(p-2),c.h-8,C("--muted"),"center");
+      lab(ctx,"1",c.p.l-6,c.Y(1)+4,C("--muted"),"right");lab(ctx,String(p-1),c.p.l-6,c.Y(p-1)+4,C("--muted"),"right");
+      lab(ctx,"y = "+y,c.p.l+6,c.Y(y)-5,C("--alias"),"left");
+      var m=Math.ceil(Math.sqrt(p-1)),baby={},bl=[];v=1;
+      for(var i=0;i<m;i++){if(baby[v]===undefined)baby[v]=i;bl.push(v);v=v*g%p;}
+      var gm=pw(g,m,p),gim=pw(gm,p-2,p),cur=y,steps=[],found=null;
+      for(var j=0;j<=m;j++){var hit=baby[cur];steps.push([j,cur,hit]);if(hit!==undefined){found=j*m+hit;break;}cur=cur*gim%p;}
+      var h='<div>p = '+p+'、原始根 g = '+g+'、m = ⌈√'+(p-1)+'⌉ = '+m+'、g<sup>m</sup> = '+gm+'、g<sup>−m</sup> = '+gim+'</div>';
+      var hb=steps.length?steps[steps.length-1][2]:-1;
+      h+='<div style="margin-top:.35rem;color:var(--muted)">① baby step（g<sup>i</sup>, i = 0〜'+(m-1)+'）</div><div style="display:flex;flex-wrap:wrap;gap:.2rem .5rem">';
+      bl.forEach(function(b,k){if(k<14||k===hb)h+='<span style="'+(k===hb?"color:var(--signal);font-weight:700":"")+'">'+k+':'+b+'</span>';else if(k===14)h+='<span>…</span>';});
+      h+='</div><div style="margin-top:.35rem;color:var(--muted)">② giant step（y·(g<sup>−m</sup>)<sup>j</sup> を表と照合）</div><div style="display:flex;flex-wrap:wrap;gap:.2rem .6rem">';
+      steps.forEach(function(st){h+='<span style="'+(st[2]!==undefined?"color:var(--alias);font-weight:700":"")+'">j='+st[0]+': '+st[1]+(st[2]!==undefined?' → 表の i = '+st[2]:"")+'</span>';});
+      h+='</div><div style="margin-top:.35rem">x = j·m + i = '+steps[steps.length-1][0]+'·'+m+' + '+hb+' = <b style="color:var(--alias)">'+found+'</b></div>';
+      out.innerHTML=h;
+      ro.innerHTML=g+'<sup>'+found+'</sup> mod '+p+' = '+y+' ／ 総当たり: g<sup>0</sup> から順に <b>'+(xs+1)+'</b> 個を計算 ／ BSGS: baby '+m+' 回 + giant '+steps.length+' 回 = <b>'+(m+steps.length)+'</b> 回（最大でも約 2√p ≈ '+Math.round(2*Math.sqrt(p))+' 回）';
+    }
+    sp.addEventListener("change",draw);sy.input.addEventListener("input",draw);reg(cv,draw);
+  };
+
+  /* ============ 15. millerRabin — 列 x₀, …, xₛ と判定 ============ */
+  REG.millerRabin=function(el){
+    head(el,"Miller–Rabin","2 乗を繰り返す列 x₀, x₁, …, xₛ で合成数を見つける");
+    var row=ctrls(el);
+    var tn=textin(row,"判定する奇数 n","561","130px"),ta=textin(row,"底 a","2","90px");
+    var out=panel(el),ro=readout(el);
+    function mm(a,b,m){return Number((BigInt(a)*BigInt(b))%BigInt(m));}
+    function pw(b,e,m){var r=1;b%=m;while(e>0){if(e&1)r=mm(r,b,m);b=mm(b,b,m);e=Math.floor(e/2);}return r;}
+    function gcd(a,b){while(b){var t=a%b;a=b;b=t;}return a;}
+    function seq(n,a){var d=n-1,s=0;while(d%2===0){d/=2;s++;}var xs=[pw(a,d,n)];for(var k=0;k<s;k++)xs.push(mm(xs[k],xs[k],n));return {d:d,s:s,xs:xs};}
+    function pass(n,xs,s){if(xs[0]===1)return true;for(var k=0;k<s;k++)if(xs[k]===n-1)return true;return false;}
+    function isPrime(n){if(n<2)return false;for(var q=2;q*q<=n;q++)if(n%q===0)return false;return true;}
+    function liars(n){var c=0,d=n-1,s=0;while(d%2===0){d/=2;s++;}
+      for(var a=2;a<=n-2;a++){var x=1,b=a,e=d;while(e>0){if(e&1)x=x*b%n;b=b*b%n;e=Math.floor(e/2);}
+        if(x===1||x===n-1){c++;continue;}for(var k=1;k<s;k++){x=x*x%n;if(x===n-1){c++;break;}}}
+      return c;}
+    function run(){
+      var n=parseInt(tn.value,10),a=parseInt(ta.value,10);
+      if(!(n>=5&&n%2===1&&n<1e9)){out.innerHTML='<span style="color:var(--alias)">n は 5 以上 10 億未満の奇数を入れる</span>';ro.innerHTML="";return;}
+      if(!(a>=2&&a<=n-2)){out.innerHTML='<span style="color:var(--alias)">a は 2 以上 n − 2 以下の整数を入れる</span>';ro.innerHTML="";return;}
+      var r=seq(n,a),ok=pass(n,r.xs,r.s),bad=-1,k;
+      for(k=0;k<r.s;k++)if(r.xs[k]!==1&&r.xs[k]!==n-1&&r.xs[k+1]===1){bad=k;break;}
+      var h='<div>n − 1 = '+(n-1)+' = 2<sup>'+r.s+'</sup> × '+r.d+'（s = '+r.s+'、d = '+r.d+'）</div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin-top:.4rem">';
+      r.xs.forEach(function(v,i){
+        var st=v===1||v===n-1?"background:var(--signal-soft);border-color:var(--signal)":(i===bad?"background:var(--alias-soft);border-color:var(--alias);color:var(--alias);font-weight:700":"");
+        h+='<span style="display:inline-block;text-align:center"><span style="display:block;font-size:.68rem;color:var(--muted)">x<sub>'+i+'</sub></span>'+
+          '<span style="display:inline-block;min-width:2.4rem;padding:.15rem .4rem;border:1px solid var(--line);border-radius:5px;'+st+'">'+v+(v===n-1&&n>3?" (−1)":"")+'</span></span>';
+        if(i<r.xs.length-1)h+='<span style="color:var(--muted)">→²</span>';});
+      h+='</div>';
+      if(bad>=0){var z=r.xs[bad];
+        h+='<div style="margin-top:.4rem;color:var(--alias)">x<sub>'+bad+'</sub> = '+z+' は ±1 でないのに 2 乗すると 1 → (z − 1)(z + 1) ≡ 0 で、gcd('+(z-1)+', '+n+') = '+gcd(z-1,n)+'、gcd('+(z+1)+', '+n+') = '+gcd(z+1,n)+' は n の約数</div>';}
+      else if(!ok&&r.xs[r.s]!==1)h+='<div style="margin-top:.4rem;color:var(--alias)">x<sub>'+r.s+'</sub> = a<sup>n−1</sup> mod n が 1 でない → フェルマー・テストの段階で合成数</div>';
+      if(gcd(a,n)!==1)h+='<div style="color:var(--muted)">（a と n が共通の約数 '+gcd(a,n)+' を持つ）</div>';
+      out.innerHTML=h;
+      var pr=isPrime(n),txt='判定: '+(ok?'<b class="ok">たぶん素数</b>':'<b class="warn">確実に合成数</b>')+' ／ 実際は '+(pr?'素数':'合成数');
+      if(!pr&&n<=20000){var L=liars(n);txt+=' ／ 誤判定させる a: '+(n-3)+' 個中 <b>'+L+'</b> 個（'+(100*L/(n-3)).toFixed(1)+'%、1/4 以下）';}
+      ro.innerHTML=txt;
+    }
+    tn.addEventListener("input",run);ta.addEventListener("input",run);reg(null,run);run();
   };
 
   /* ============ 16. 共通: BigInt による整数の計算（ほかの章と名前が衝突しないよう R16 にまとめる） ============ */
