@@ -140,7 +140,10 @@ def convert_blocks(lines):
             if lang == "fig":
                 name = (body[0].strip() if body else "")
                 if name not in FIGS:
-                    raise SystemExit("unknown figure: %r" % name)
+                    # 他の章が書きかけでも全体のビルドを止めない（警告して目立つ印を出す）
+                    print("WARNING: unknown figure %r" % name, file=sys.stderr)
+                    out.append('<div class="katex-error" style="color:var(--alias)">[unknown figure: %s]</div>' % esc(name))
+                    continue
                 out.append(FIGS[name])
                 continue
             if lang == "longdiv":
