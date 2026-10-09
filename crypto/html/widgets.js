@@ -2894,7 +2894,7 @@
     function draw(){
       var s=cc.fit(),w=s.w,h=s.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
       if(!cur)return;
-      var n=cur.n, cx=w/2, cy=h/2+4, R=Math.min(h/2-26,w/2-40);
+      var n=cur.n, cx=w/2, cy=h/2+2, R=Math.min(h/2-34,w/2-40);
       var pal=[C("--signal"),C("--blue"),C("--alias"),C("--muted")];
       var inClass={};cur.classes.forEach(function(o,ci){o.cls.forEach(function(j){inClass[j]=ci;});});
       function P(j){var a=-Math.PI/2+TAU*j/n;return [cx+R*Math.cos(a),cy+R*Math.sin(a)];}
@@ -2914,7 +2914,7 @@
           lab(ctx,String(j),q[0],q[1],ci===undefined?C("--faint"):C("--ink"),"center");}
       }
       lab(ctx,"点 = α の指数（0〜"+(n-1)+"）",10,16,C("--muted"),"left");
-      lab(ctx,"黒い輪 = 要求する根 α¹〜α"+W10.sup(2*cur.t),10,32,C("--muted"),"left");
+      lab(ctx,"輪で囲んだ点 = 要求する根 α¹〜α"+W10.sup(2*cur.t),10,32,C("--muted"),"left");
       lab(ctx,"色 = g に入る共役類",10,48,C("--muted"),"left");
     }
     function run(){
@@ -2960,11 +2960,11 @@
       var r=c.map(function(v,k){return v^e[k];});
       var nerr=e.reduce(function(a,b){return a+b;},0);
       var S1=ev(r,1), S3=ev(r,3), lam=null, kind="";
-      if(S1===0&&S3===0){lam=[1];kind="0 個（誤り無し）";}
+      if(S1===0&&S3===0){lam=[1];kind="誤り無し";}
       else if(S1===0){lam=null;kind="S₁ = 0 なのに S₃ ≠ 0 → 誤りは 3 個以上";}
       else{
         var S1c=F.mul(S1,F.mul(S1,S1)), sg2=F.mul(S3,F.exp[(15-F.log[S1])%15])^F.mul(S1,S1);
-        if(S3===S1c){lam=[1,S1];kind="S₃ = S₁³ → 1 個";}else{lam=[1,S1,sg2];kind="2 個（σ₂ = S₃/S₁ + S₁² = "+lg(sg2)+"）";}
+        if(S3===S1c){lam=[1,S1];kind="S₃ = S₁³ なので誤り 1 個として計算";}else{lam=[1,S1,sg2];kind="誤り 2 個として計算（σ₂ = S₃/S₁ + S₁² = "+lg(sg2)+"）";}
       }
       var roots=[], vals=[];
       if(lam){for(var i2=0;i2<15;i2++){var x=F.pw(-i2),v=0,xp=1;for(var k=0;k<lam.length;k++){v^=F.mul(lam[k],xp);xp=F.mul(xp,x);}vals.push(v);if(v===0)roots.push(i2);}}
@@ -2978,7 +2978,7 @@
       h+=trow("送った c = u·g",str(c),cst)+trow("誤り e",str(e),est)+trow("受信語 r",str(r),rst);
       if(okRoots)h+=trow("訂正後",str(fixed),"n");
       h+='</table>';
-      h+='<div style="margin-top:.5rem">S₁ = r(α) = <b>'+lg(S1)+'</b>（'+W10.bits(S1,4)+'） ／ S₃ = r(α³) = <b>'+lg(S3)+'</b>（'+W10.bits(S3,4)+'） ／ 判定: '+kind+'</div>';
+      h+='<div style="margin-top:.5rem">S₁ = r(α) = <b>'+lg(S1)+'</b>（'+W10.bits(S1,4)+'） ／ S₃ = r(α³) = <b>'+lg(S3)+'</b>（'+W10.bits(S3,4)+'） ／ 復号器の判断: '+kind+'</div>';
       if(lam){
         var ls=["1"];for(var k2=1;k2<lam.length;k2++)if(lam[k2])ls.push((lam[k2]===1?"":lg(lam[k2]))+(k2===1?"x":"x²"));
         h+='<div>Λ(x) = <b>'+ls.join(" + ")+'</b></div>';
