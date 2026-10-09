@@ -2973,7 +2973,7 @@
       var est="",cst="",rst="";for(var q=14;q>=0;q--){est+=e[q]?"e":"z";cst+=c[q]?"c":"n";rst+=e[q]?"e":(r[q]?"c":"n");}
       var h='<table style="border-collapse:collapse">';
       function trow(lab,bits,sty){return '<tr><td style="padding:.1rem .5rem;color:var(--muted);white-space:nowrap">'+lab+'</td><td style="padding:.1rem .3rem">'+W10.cells(bits,sty)+'</td></tr>';}
-      var posrow="";for(var pp=14;pp>=0;pp--)posrow+='<span style="display:inline-block;min-width:1.35em;text-align:center;margin:0 1px"><span style="color:var(--faint);font-size:.7rem">'+pp+'</span></span>';
+      var posrow="";for(var pp=14;pp>=0;pp--)posrow+='<span style="display:inline-block;min-width:1.35em;text-align:center;border-radius:4px;margin:0 1px;color:var(--faint);letter-spacing:-.06em">'+pp+'</span>';
       h+='<tr><td style="padding:.1rem .5rem;color:var(--muted)">位置</td><td style="padding:.1rem .3rem;white-space:nowrap">'+posrow+'</td></tr>';
       h+=trow("送った c = u·g",str(c),cst)+trow("誤り e",str(e),est)+trow("受信語 r",str(r),rst);
       if(okRoots)h+=trow("訂正後",str(fixed),"n");
@@ -4471,15 +4471,17 @@
       sy.input.max=p-1;if(+sy.input.value>p-1)sy.input.value=p-1;
       var y=+sy.input.value;sy.val.textContent=y;
       var xs=0,v=1;while(v!==y){v=v*g%p;xs++;}
-      var c=chart(cc,0,p-2,1,p-1,{l:44,b:26,t:16,r:14}),ctx=c.ctx;
+      var c=chart(cc,0,p-2,1,p-1,{l:44,b:26,t:24,r:14}),ctx=c.ctx;
+      function labBg(t,x0,y0,col,al){ctx.font="11px "+C("--mono");var tw=ctx.measureText(t).width,lx=al==="right"?x0-tw:x0;
+        ctx.fillStyle=C("--screen");ctx.fillRect(lx-3,y0-11,tw+6,15);lab(ctx,t,x0,y0,col,al);}
       grid(c,4);axis(c);
       ctx.strokeStyle=C("--alias");ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(c.p.l,c.Y(y));ctx.lineTo(c.w-c.p.r,c.Y(y));ctx.stroke();ctx.setLineDash([]);
       v=1;var rad=p>600?1.6:(p>150?2.2:3);
       for(var x=0;x<p-1;x++){dot(c,x,v,rad,C("--signal"));v=v*g%p;}
       dot(c,xs,y,6,C("--alias"),true);
-      lab(ctx,"x",c.X((p-2)/2),c.h-8,C("--muted"),"center");lab(ctx,"gˣ mod p",c.p.l+6,c.p.t+10,C("--muted"),"left");lab(ctx,"0",c.p.l,c.h-8,C("--muted"),"center");lab(ctx,String(p-2),c.X(p-2),c.h-8,C("--muted"),"center");
+      lab(ctx,"x",c.X((p-2)/2),c.h-8,C("--muted"),"center");lab(ctx,"gˣ mod p",c.p.l+6,c.p.t-8,C("--muted"),"left");lab(ctx,"0",c.p.l,c.h-8,C("--muted"),"center");lab(ctx,String(p-2),c.X(p-2),c.h-8,C("--muted"),"center");
       lab(ctx,"1",c.p.l-6,c.Y(1)+4,C("--muted"),"right");lab(ctx,String(p-1),c.p.l-6,c.Y(p-1)+4,C("--muted"),"right");
-      lab(ctx,"y = "+y,c.p.l+6,c.Y(y)-5,C("--alias"),"left");
+      labBg("y = "+y,c.w-c.p.r-4,c.Y(y)-5,C("--alias"),"right");
       var m=Math.ceil(Math.sqrt(p-1)),baby={},bl=[];v=1;
       for(var i=0;i<m;i++){if(baby[v]===undefined)baby[v]=i;bl.push(v);v=v*g%p;}
       var gm=pw(g,m,p),gim=pw(gm,p-2,p),cur=y,steps=[],found=null;
