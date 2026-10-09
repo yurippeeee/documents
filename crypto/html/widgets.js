@@ -2830,7 +2830,6 @@
     var si=slider(row,"計算を表示する αⁱ の i",0,14,1,1);
     var out=panel(el), rd=readout(el);
     var F=W10.field(4);
-    var th='style="padding:.12rem .45rem;text-align:center;color:var(--muted);font-weight:600"', td='style="padding:.1rem .45rem;text-align:center"';
     function run(){
       var P=(ip.value||"").replace(/[^01]/g,"").replace(/^0+/,"");
       if(!P||P.length>16){out.innerHTML='<span style="color:var(--alias)">0 と 1 で、次数 15 以下の 0 でない多項式を入れる</span>';rd.innerHTML="";return;}
@@ -2839,14 +2838,13 @@
       for(var i=0;i<15;i++){var v=0;for(var e2=0;e2<=d;e2++)if(coef[e2])v^=F.pw(i*e2);vals.push(v);if(v===0)roots.push(i);}
       var sel=+si.input.value; si.val.textContent=W10.al(sel);
       var h='<div style="margin-bottom:.35rem">p(x) = '+W10.pstr(coef)+'（次数 '+d+'）</div>';
-      h+='<table style="border-collapse:collapse"><tr><th '+th+'>i</th>';
-      for(var k=0;k<15;k++)h+='<th '+th+'>'+k+'</th>';
-      h+='</tr><tr><td '+td+' style="color:var(--muted)">αⁱ</td>';
-      for(k=0;k<15;k++)h+='<td '+td+'>'+W10.bits(F.pw(k),4)+'</td>';
-      h+='</tr><tr><td '+td+' style="color:var(--muted)">p(αⁱ)</td>';
-      for(k=0;k<15;k++){var z=vals[k]===0;
-        h+='<td style="padding:.1rem .3rem;text-align:center"><span style="display:inline-block;padding:0 .2rem;border-radius:4px;'+(z?'background:var(--signal-soft);color:var(--signal);font-weight:700':'')+(k===sel?';outline:1.5px solid var(--blue)':'')+'">'+W10.bits(vals[k],4)+'</span></td>';}
-      h+='</tr></table>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:.35rem">';
+      for(var k=0;k<15;k++){var z=vals[k]===0;
+        h+='<div style="min-width:4.6em;text-align:center;border:1px solid '+(k===sel?'var(--blue)':'var(--line)')+';border-radius:6px;padding:.15rem .3rem;'+(z?'background:var(--signal-soft)':'')+'">'+
+          '<div style="color:var(--blue);font-weight:700">'+W10.al(k)+'</div>'+
+          '<div style="color:var(--faint);font-size:.72rem">'+W10.bits(F.pw(k),4)+'</div>'+
+          '<div style="'+(z?'color:var(--signal);font-weight:700':'')+'">'+W10.bits(vals[k],4)+'</div></div>';}
+      h+='</div><div style="color:var(--faint);font-size:.72rem;margin-top:.2rem">各マス: 上から αⁱ、そのビット表現、p(αⁱ) の値（緑のマスが根）</div>';
       /* 選んだ i の計算 */
       var terms=[];for(var e3=d;e3>=0;e3--)if(coef[e3])terms.push(e3);
       h+='<div style="margin-top:.6rem;color:var(--muted)">p('+W10.al(sel)+') の計算（各項 x<sup>e</sup> は α<sup>'+sel+'·e</sup> になる）</div><div>';
@@ -2865,7 +2863,7 @@
   REG.bchgen=function(el){
     head(el,"BCH","訂正したいビット数 t から g(x) を組み立てる");
     var row=ctrls(el);
-    var sm=select(row,"体 GF(2^m)",["m = 3（n = 7、x³+x+1）","m = 4（n = 15、x⁴+x+1）","m = 5（n = 31、x⁵+x²+1）","m = 6（n = 63、x⁶+x+1）"]);
+    var sm=select(row,"体 GF(2ᵐ)",["m = 3（n = 7、x³+x+1）","m = 4（n = 15、x⁴+x+1）","m = 5（n = 31、x⁵+x²+1）","m = 6（n = 63、x⁶+x+1）"]);
     sm.value="1";
     var st=slider(row,"訂正したいビット数 t",1,4,2,1);
     var cv=screen(el,250),cc=cctx(cv);
@@ -2975,7 +2973,7 @@
       var est="",cst="",rst="";for(var q=14;q>=0;q--){est+=e[q]?"e":"z";cst+=c[q]?"c":"n";rst+=e[q]?"e":(r[q]?"c":"n");}
       var h='<table style="border-collapse:collapse">';
       function trow(lab,bits,sty){return '<tr><td style="padding:.1rem .5rem;color:var(--muted);white-space:nowrap">'+lab+'</td><td style="padding:.1rem .3rem">'+W10.cells(bits,sty)+'</td></tr>';}
-      var posrow="";for(var pp=14;pp>=0;pp--)posrow+='<span style="display:inline-block;min-width:1.35em;text-align:center;margin:0 1px;color:var(--faint);font-size:.72rem">'+pp+'</span>';
+      var posrow="";for(var pp=14;pp>=0;pp--)posrow+='<span style="display:inline-block;min-width:1.35em;text-align:center;margin:0 1px"><span style="color:var(--faint);font-size:.7rem">'+pp+'</span></span>';
       h+='<tr><td style="padding:.1rem .5rem;color:var(--muted)">位置</td><td style="padding:.1rem .3rem;white-space:nowrap">'+posrow+'</td></tr>';
       h+=trow("送った c = u·g",str(c),cst)+trow("誤り e",str(e),est)+trow("受信語 r",str(r),rst);
       if(okRoots)h+=trow("訂正後",str(fixed),"n");
@@ -4452,7 +4450,7 @@
       var prs=U.filter(function(u){return ordr(u,n)===ph;});
       var ap=1;for(var k=0;k<ph;k++)ap=ap*a%n;
       ro.innerHTML='φ('+n+') = <b>'+ph+'</b> ／ '+a+' の位数 = <b>'+d+'</b> ／ 輪 <b>'+cycles.length+'</b> 本 × 長さ '+d+' = '+ph+
-        ' ／ '+a+'^φ(n) mod '+n+' = '+ap+' ／ 原始根: '+(prs.length?'<b class="ok">'+prs.join(", ")+'</b>（'+prs.length+' 個）':'<span class="warn">無い</span>');
+        ' ／ '+a+'<sup>φ('+n+')</sup> mod '+n+' = '+ap+' ／ 原始根: '+(prs.length?'<b class="ok">'+prs.join(", ")+'</b>（'+prs.length+' 個）':'<span class="warn">無い</span>');
     }
     sn.input.addEventListener("input",draw);sa.input.addEventListener("input",draw);reg(cv,draw);
   };
@@ -4479,7 +4477,7 @@
       v=1;var rad=p>600?1.6:(p>150?2.2:3);
       for(var x=0;x<p-1;x++){dot(c,x,v,rad,C("--signal"));v=v*g%p;}
       dot(c,xs,y,6,C("--alias"),true);
-      lab(ctx,"x",c.w-c.p.r,c.h-8,C("--muted"),"right");lab(ctx,"0",c.p.l,c.h-8,C("--muted"),"center");lab(ctx,String(p-2),c.X(p-2),c.h-8,C("--muted"),"center");
+      lab(ctx,"x",c.X((p-2)/2),c.h-8,C("--muted"),"center");lab(ctx,"gˣ mod p",c.p.l+6,c.p.t+10,C("--muted"),"left");lab(ctx,"0",c.p.l,c.h-8,C("--muted"),"center");lab(ctx,String(p-2),c.X(p-2),c.h-8,C("--muted"),"center");
       lab(ctx,"1",c.p.l-6,c.Y(1)+4,C("--muted"),"right");lab(ctx,String(p-1),c.p.l-6,c.Y(p-1)+4,C("--muted"),"right");
       lab(ctx,"y = "+y,c.p.l+6,c.Y(y)-5,C("--alias"),"left");
       var m=Math.ceil(Math.sqrt(p-1)),baby={},bl=[];v=1;
