@@ -136,11 +136,113 @@ def _f06_detect():
 F["e06_detect"] = _f06_detect()
 
 
-# 5. 訂正: 球が重ならない（d=3, t=1）か、真ん中で引き分ける（d=2, t=1）か
+# 5a. 訂正の境目は距離の半分（繰り返し符号で、c₁ = 0…0 から 1 ビットずつ反転させる）
+def _halfrow(y, d, title, note1, note2):
+    o = []
+    x0, dx = 110, 130
+    xs = [x0 + k * dx for k in range(d + 1)]
+    o.append(T(20, y - 62, title, "start", 13, INK, True))
+    xm = x0 + dx * d / 2
+    if d % 2:   # 半分がノードの間にあるときは上下に通す
+        o.append(W(xm, y - 46, xm, y + 54, c=MUT, lw=1.4, dash="5,4"))
+    else:       # 半分がノードに重なるときは、ノードの上だけに引く
+        o.append(W(xm, y - 46, xm, y - 18, c=MUT, lw=1.4, dash="5,4"))
+    o.append(T(xm, y - 50, "半分 d/2 = %g" % (d / 2), "middle", 11, MUT, True))
+    for k in range(d):
+        o.append(W(xs[k] + 36, y, xs[k + 1] - 36, y, c=LIN, lw=2))
+    for k in range(d + 1):
+        v = "1" * k + "0" * (d - k)
+        if 2 * k < d:
+            c, fl, da = BLU, BSOFT, None
+        elif 2 * k > d:
+            c, fl, da = ALI, ASOFT, None
+        else:
+            c, fl, da = MUT, PAN, "4,3"
+        o.append(RECT(xs[k] - 35, y - 16, 70, 32, 8, fl, c, 1.9 if k in (0, d) else 1.3, da))
+        o.append(T(xs[k], y + 5, v, "middle", 14, INK, k in (0, d), True))
+        o.append(T(xs[k], y + 34, "c₁ から %d" % k, "middle", 10.5, BLU))
+        o.append(T(xs[k], y + 48, "c₂ から %d" % (d - k), "middle", 10.5, ALI))
+    o.append(T(xs[0], y - 24, "c₁（送った）", "middle", 11, BLU, True))
+    o.append(T(xs[d], y - 24, "c₂（別の符号語）", "middle", 11, ALI, True))
+    o.append(T(20, y + 78, note1, "start", 11.5, INK))
+    o.append(T(20, y + 96, note2, "start", 11.5, INK))
+    return o
+
+def _f06_half():
+    o = []
+    for i, (fl, c, da, lab) in enumerate([(BSOFT, BLU, None, "c₁ のほうが近い"),
+                                          (ASOFT, ALI, None, "c₂ のほうが近い"),
+                                          (PAN, MUT, "4,3", "c₁ と c₂ から同じ距離")]):
+        x = 20 + i * 200
+        o.append(RECT(x, 12, 26, 16, 4, fl, c, 1.3, da))
+        o.append(T(x + 34, 25, lab, "start", 11, INK))
+    o += _halfrow(118, 3, "d_min = 3（3 回繰り返し符号）", 
+                  "1 ビットの誤り（100）は半分より手前なので c₁ に近く、正しく c₁ に訂正される。",
+                  "2 ビットの誤り（110）は半分の 1.5 を越えて c₂ に近くなり、誤って c₂ に「訂正」される。")
+    o += _halfrow(318, 4, "d_min = 4（4 回繰り返し符号）",
+                  "1 ビットの誤り（1000）は c₁ に近い。3 ビット（1110）は c₂ に近い。",
+                  "2 ビットの誤り（1100）はちょうど半分で、c₁ からも c₂ からも 2。どちらを送ったか決められない。")
+    return SVG(760, 430, o, "d 回繰り返し符号（符号語は 0…0 と 1…1 の 2 つで、d_min = d）で c₁ = 0…0 を送り、"
+               "左のビットから順に反転した場合。受信語が c₁ と c₂ のどちらに近いかは、誤りのビット数が"
+               "距離の半分 d/2 より少ないか多いかで決まる。")
+F["e06_half"] = _f06_half()
+
+
+# 5b. 一般の符号: c₁ と c₂ が違う位置 D での多数決
+def _f06_vote():
+    c1, c2, y = "00000000", "00011111", "10001000"
+    D = {i for i in range(8) if c1[i] != c2[i]}
+    o = []
+    x0, cw, ch = 130, 42, 30
+    top = 56
+    # D の帯
+    dl = min(D)
+    o.append(RECT(x0 + dl * cw - 4, top - 30, len(D) * cw + 4, 3 * 46 + 24, 10, BSOFT, BLU, 1.2, "5,3"))
+    o.append(T(x0 + dl * cw + len(D) * cw / 2, top - 12, "c₁ と c₂ が違う位置 D（d = 5 か所）", "middle", 11.5, BLU, True))
+    o.append(T(x0 + dl * cw / 2 - 2, top - 12, "同じ位置", "middle", 11.5, MUT, True))
+    rows = [("c₁（送った）", c1, BLU), ("c₂（別の符号語）", c2, ALI), ("受信語 y", y, INK)]
+    for r, (lab, bits, col) in enumerate(rows):
+        yy = top + r * 46
+        o.append(T(x0 - 12, yy + 20, lab, "end", 12, col, True))
+        for i, b in enumerate(bits):
+            err = r == 2 and bits[i] != c1[i]
+            o.append(RECT(x0 + i * cw + 2, yy, cw - 6, ch, 5, ASOFT if err else PAN, ALI if err else LIN, 1.6 if err else 1.1))
+            o.append(T(x0 + i * cw + cw / 2 - 1, yy + 20, b, "middle", 14, ALI if err else INK, err, True))
+    # 各列の判定
+    yy = top + 3 * 46 + 8
+    for i in range(8):
+        cx = x0 + i * cw + cw / 2 - 1
+        if i in D:
+            side = "c₁" if y[i] == c1[i] else "c₂"
+            o.append(T(cx, yy + 14, side, "middle", 11.5, BLU if side == "c₁" else ALI, True))
+        else:
+            same = y[i] == c1[i]
+            o.append(T(cx, yy + 14, "＝" if same else "×", "middle", 12, MUT if same else ALI, True))
+    o.append(T(x0 - 12, yy + 14, "y の一致", "end", 11, MUT))
+    o.append(T(x0, yy + 40, "c₁ / c₂: D の中で y が一致する側　＝: 両方と一致　×: 両方と違う（両方の距離に +1）",
+               "start", 10.5, MUT))
+    # 右側の数え上げ
+    X = 500
+    lines = [("D の中: y は c₁ と 4 か所、c₂ と 1 か所で一致", INK, False),
+             ("　→ c₂ に一致する数 a = 1", ALI, True),
+             ("D の外: y が c₁ と違う位置は 1 か所", INK, False),
+             ("　→ c₂ とも違う（s = 1、両方に +1）", MUT, True),
+             ("d(y, c₁) = a + s = 1 + 1 = 2", BLU, True),
+             ("d(y, c₂) = (d − a) + s = 4 + 1 = 5", ALI, True),
+             ("a < d/2 = 2.5 なので c₁ のほうが近い", SIG, True)]
+    for j, (t, c, b) in enumerate(lines):
+        o.append(T(X, 44 + j * 24, t, "start", 11.5, c, b))
+    return SVG(800, 268, o, "c₁ と c₂ のどちらが受信語に近いかは、2 つが違う d か所で y がどちらに一致しているかの"
+               "多数決で決まる。2 つが同じ位置の誤りは、両方の距離を同じだけ増やすので勝負に影響しない。")
+F["e06_vote"] = _f06_vote()
+
+
+# 5c. 半径 t の球: 半分の手前で止まれば重ならない（d=3, t=1）、半分に届くと重なる（d=2, t=1）
 def _ballrow(y, chain, codes, t, title, tc, note1, note2):
-    o = [T(20, y - 44, title, "start", 13, tc, True)]
+    o = [T(20, y - 50, title, "start", 13, tc, True)]
     x0, dx = 90, 150
     xs = [x0 + i * dx for i in range(len(chain))]
+    xm = (xs[0] + xs[-1]) / 2
     for i in range(len(chain) - 1):
         o.append(W(xs[i] + 34, y, xs[i + 1] - 34, y, c=LIN, lw=2))
     # 半径 t の球（1 ビット隣までを囲む）
@@ -151,22 +253,29 @@ def _ballrow(y, chain, codes, t, title, tc, note1, note2):
         cw = v in codes
         o.append(RECT(xs[i] - 32, y - 16, 64, 32, 8, PAN, BLU if i == 0 and cw else (ALI if cw else LIN), 1.8 if cw else 1.2))
         o.append(T(xs[i], y + 5, v, "middle", 14, INK, cw, True))
-    o.append(T(20, y + 52, note1, "start", 11.5, INK))
-    o.append(T(20, y + 70, note2, "start", 11.5, tc, True))
+    if len(chain) % 2 == 0:   # 半分がノードの間
+        o.append(W(xm, y - 40, xm, y + 40, c=MUT, lw=1.4, dash="5,4"))
+        o.append(T(xm, y + 54, "半分", "middle", 11, MUT, True))
+    else:                     # 半分がノードに重なる: ノードの上下だけに引く
+        o.append(W(xm, y - 42, xm, y - 18, c=MUT, lw=1.4, dash="5,4"))
+        o.append(W(xm, y + 18, xm, y + 42, c=MUT, lw=1.4, dash="5,4"))
+        o.append(T(xm, y + 54, "半分", "middle", 11, MUT, True))
+    o.append(T(20, y + 74, note1, "start", 11.5, INK))
+    o.append(T(20, y + 92, note2, "start", 11.5, tc, True))
     return o
 
 def _f06_balls():
     o = []
-    o += _ballrow(80, ["000", "100", "110", "111"], {"000", "111"}, 1,
-                  "d_min = 3、t = 1（2t + 1 = 3 ≤ d_min）", SIG,
-                  "000 の球 {000, 100} と 111 の球 {110, 111} は重ならない。",
-                  "1 ビットの誤りなら、受信語が入った球の中心が送った符号語 → 訂正できる")
-    o += _ballrow(250, ["000", "100", "110"], {"000", "110"}, 1,
-                  "d_min = 2、t = 1（2t + 1 = 3 > d_min）", ALI,
-                  "100 は 000 からも 110 からも 1 ビットで、2 つの球が重なる。",
-                  "100 を受信しても、000 と 110 のどちらを送ったか決められない → 訂正できない")
-    return SVG(740, 340, o, "各符号語から距離 t 以内のビット列を囲んだ「半径 t の球」。d_min ≥ 2t + 1 なら球は重ならない。"
-               "図は 2 つの符号語をつなぐ最短の道だけを横に並べたもの。")
+    o += _ballrow(84, ["000", "100", "110", "111"], {"000", "111"}, 1,
+                  "d_min = 3、t = 1: 半径 1 は半分 1.5 より小さい", SIG,
+                  "000 の球 {000, 100} と 111 の球 {110, 111} は、どちらも半分の手前で止まり、重ならない。",
+                  "1 ビット以下の誤りなら、受信語が入った球の中心が送った符号語 → 訂正できる")
+    o += _ballrow(286, ["000", "100", "110"], {"000", "110"}, 1,
+                  "d_min = 2、t = 1: 半径 1 は半分 1 と等しい（半分未満ではない）", ALI,
+                  "100 はちょうど半分の位置にあり、000 からも 110 からも 1 ビットで、2 つの球が重なる。",
+                  "100 を受信しても、000 と 110 のどちらを送ったか決められない → 1 ビットの訂正はできない")
+    return SVG(760, 396, o, "各符号語から距離 t 以内のビット列を囲んだ「半径 t の球」。t が最小距離の半分より小さければ、"
+               "どの球も隣の符号語までの半分の手前で止まるので、球は重ならない。図は 2 つの符号語をつなぐ最短の道だけを横に並べたもの。")
 F["e06_balls"] = _f06_balls()
 
 

@@ -28,9 +28,61 @@
       }
       var dup=dm===0;
       ro.innerHTML=dup?'<span class="warn">同じ符号語が 2 つある（距離 0）。符号語はすべて異なる必要がある</span>':
-        'd_min = <b>'+dm+'</b>（赤の組） ／ 検出 <b class="ok">'+(dm-1)+'</b> ビットまで ／ 訂正 <b class="ok">'+Math.floor((dm-1)/2)+'</b> ビットまで';
+        'd_min = <b>'+dm+'</b>（赤の組）';
     }
     ti.addEventListener("input",run);run();
+  };
+
+  /* ============ 06. halfdist — 誤りのビット数と最小距離の半分 ============ */
+  REG.halfdist=function(el){
+    head(el,"Half","誤りのビット数と、最小距離の半分");
+    var row=ctrls(el);
+    var sd=slider(row,"最小距離 d_min",1,8,3,1), sk=slider(row,"誤りのビット数",0,3,1,1);
+    var cv=screen(el,192),cc=cctx(cv), ro=readout(el);
+    function rep(ch,n){var r="";for(var i=0;i<n;i++)r+=ch;return r;}
+    function draw(){
+      var d=+sd.input.value; sk.input.max=d; if(+sk.input.value>d)sk.input.value=d;
+      var k=+sk.input.value; sd.val.textContent=d; sk.val.textContent=k;
+      var t=Math.floor((d-1)/2), half=d/2;
+      var s=cc.fit(),w=s.w,h=s.h,ctx=cc.ctx;ctx.clearRect(0,0,w,h);
+      var x0=58,x1=w-40,cy=96,X=function(i){return x0+(x1-x0)*i/d;};
+      lab(ctx,"c₁ = 0…0 を送り、左から順に反転",8,16,C("--muted"),"left");
+      // 半径 t の球
+      [[0,t,"--blue","--blue-soft"],[d-t,d,"--alias","--alias-soft"]].forEach(function(b){
+        var a=X(b[0])-15,bb=X(b[1])+15;ctx.fillStyle=C(b[3]);ctx.strokeStyle=C(b[2]);ctx.lineWidth=1.3;ctx.setLineDash([5,3]);
+        rrect(ctx,a,cy-19,bb-a,38,16);ctx.fill();ctx.stroke();ctx.setLineDash([]);});
+      // 道
+      ctx.strokeStyle=C("--line");ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(0),cy);ctx.lineTo(X(d),cy);ctx.stroke();
+      // 半分の線
+      var xm=X(half);ctx.strokeStyle=C("--muted");ctx.lineWidth=1.3;ctx.setLineDash([5,4]);
+      ctx.beginPath();ctx.moveTo(xm,cy-40);ctx.lineTo(xm,d%2?cy+48:cy-15);ctx.stroke();ctx.setLineDash([]);
+      lab(ctx,"半分 "+half,xm,cy-46,C("--muted"),"center");
+      for(var i=0;i<=d;i++){
+        var cw=(i===0||i===d), col=2*i<d?"--blue":(2*i>d?"--alias":"--muted");
+        ctx.beginPath();ctx.arc(X(i),cy,cw?8:5,0,TAU);
+        ctx.fillStyle=2*i===d?C("--panel"):C(col);ctx.fill();ctx.strokeStyle=C(col);ctx.lineWidth=1.6;ctx.stroke();
+        lab(ctx,String(i),X(i),cy+32,C("--blue"),"center");
+        lab(ctx,String(d-i),X(i),cy+47,C("--alias"),"center");
+      }
+      lab(ctx,"c₁ から",4,cy+32,C("--blue"),"left");
+      lab(ctx,"c₂ から",4,cy+47,C("--alias"),"left");
+      lab(ctx,"c₁",X(0),cy-24,C("--blue"),"center");
+      lab(ctx,"c₂",X(d),cy-24,C("--alias"),"center");
+      // 受信語
+      ctx.strokeStyle=C("--signal");ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(X(k),cy,13,0,TAU);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(X(k),cy+76);ctx.lineTo(X(k),cy+58);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(X(k),cy+54);ctx.lineTo(X(k)-5,cy+62);ctx.lineTo(X(k)+5,cy+62);ctx.closePath();ctx.fillStyle=C("--signal");ctx.fill();
+      lab(ctx,"受信語 y",Math.min(Math.max(X(k),30),w-30),cy+90,C("--signal"),"center");
+      var c1=rep("0",d), c2=rep("1",d), y=rep("1",k)+rep("0",d-k), v;
+      if(k===0)v='<b class="ok">誤りなし</b>（y = c₁）';
+      else if(2*k<d)v='誤り '+k+' ビットは半分 '+half+' より少ない → <b class="ok">c₁ のほうが近く、正しく c₁ に訂正される</b>';
+      else if(2*k===d)v='誤り '+k+' ビットはちょうど半分 → <span class="warn">c₁ と c₂ から同じ距離で、どちらを送ったか決められない</span>';
+      else if(k<d)v='誤り '+k+' ビットは半分 '+half+' を越えた → <span class="warn">c₂ のほうが近く、誤って c₂ に訂正される</span>（y は符号語ではないので、誤りの検出はできる）';
+      else v='<span class="warn">y が c₂ と一致し、誤りに気づけない</span>（検出もできない）';
+      ro.innerHTML='c₁ = <b>'+c1+'</b>　c₂ = <b>'+c2+'</b>　受信語 y = <b>'+y+'</b>　d(y, c₁) = '+k+'、d(y, c₂) = '+(d-k)+'<br>'+v+
+        '<br>この符号で確実に訂正できるのは、半分 '+half+' 未満の最大の整数 t = <b>'+t+'</b> ビットまで（点線の囲みが半径 t の球）';
+    }
+    sd.input.addEventListener("input",draw);sk.input.addEventListener("input",draw);reg(cv,draw);
   };
 
   /* ============ 06. detcorr — 訂正と検出の配分 ============ */
