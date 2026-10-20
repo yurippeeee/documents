@@ -72,6 +72,12 @@ os.makedirs(OUT, exist_ok=True)
 # 章は music/NN_タイトル.md を番号順に自動で集める（00 の目次は入口ページ music.html が担う）
 CHAPTERS = sorted((m.group(1), fn) for fn in os.listdir(SRC)
                   for m in [re.match(r"^(\d\d)_.*\.md$", fn)] if m and m.group(1) != "00")
+# まだ書き上がっていない章: 原稿があっても本文を出さず、「準備中」のページにする（他の章からのリンクを切らないため）
+PENDING = {"12": "12. コード進行と声部の動き — なめらかにつなぐ",
+           "16": "16. リズムと拍子 — 時間の長さを数える",
+           "17": "17. メロディと和音 — 溶け合う音とぶつかる音"}
+_have = {n for n, fn in CHAPTERS}
+CHAPTERS = sorted([(n, fn) for n, fn in CHAPTERS if n not in PENDING] + [(n, None) for n in PENDING])
 
 # 章ごとのインタラクティブ部品の差し込み: 見出しに含む文字列 -> widget名 (見出し直後に挿入)
 WIDGETS = {}
@@ -122,7 +128,7 @@ def convert_blocks(lines):
         if st == "":
             i += 1; continue
         # skip trailing nav
-        if st.startswith("→ 次"):
+        if st.startswith("→ 次") or st.startswith("→ 目次"):
             i += 1; continue
         # 本文中の好きな位置に図を置く: <!-- widget:NAME -->（GitHub 上の Markdown では表示されない）
         m = re.match(r"^<!--\s*widget:(\w+)\s*-->$", st)
@@ -268,7 +274,7 @@ def convert_blocks(lines):
         i += 1
         while i < n:
             l = lines[i]; s2 = l.strip()
-            if s2 == "" or s2.startswith(("#", "```", "$$", ">", "|", "→ 次")) or is_listitem(l) \
+            if s2 == "" or s2.startswith(("#", "```", "$$", ">", "|", "→ 次", "→ 目次")) or is_listitem(l) \
                or re.match(r"^!\[", s2) or re.match(r"^-{3,}$", s2):
                 break
             para.append(s2); i += 1
@@ -363,6 +369,8 @@ def page(num, title, body, prev_c, next_c):
 """
 
 def _title_of(path):
+    if path is None:
+        return ""
     for l in open(path, encoding="utf-8"):
         if l.startswith("# "):
             return l[2:].strip()
@@ -370,6 +378,10 @@ def _title_of(path):
 
 metas = []
 for num, fn in CHAPTERS:
+    if num in PENDING:
+        metas.append((num, PENDING[num], None if (ONLY and num not in ONLY) else
+                      '<blockquote><p>この章は準備中である。公開まで、<a href="../../music.html">目次</a>から前後の章を読んでほしい。</p></blockquote>'))
+        continue
     if ONLY and num not in ONLY:
         metas.append((num, _title_of(os.path.join(SRC, fn)), None))
         continue
