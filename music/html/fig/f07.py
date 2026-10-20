@@ -20,6 +20,11 @@ def _f07_en(t, minor=False):
     return _f07_pt(t) + (" マイナー" if minor else " メジャー")
 
 
+def _f07_num(n):
+    """+3 / −3 / 0（マイナスは U+2212）"""
+    return ("%+d" % n).replace("-", "−") if n else "0"
+
+
 def _f07_sig(n):
     return "調号なし" if n == 0 else ("♯" if n > 0 else "♭") + " %d つ" % abs(n)
 
@@ -281,11 +286,11 @@ def _f07_chain(sign):
         c, r = i % 4, i // 4
         cx, cy = 8 + c * cw, 12 + r * ch
         t = _f07_MAJ[n]
-        o.append(RECT(cx, cy, cw - 26, ch - 14, 8, PAN, SIG if n != 0 else LIN, 1.2))
+        o.append(RECT(cx, cy, cw - 36, ch - 14, 8, PAN, SIG if n != 0 else LIN, 1.2))
         o.append(T(cx + 10, cy + 20, _f07_jp(t), "start", 13, INK, True))
-        o.append(T(cx + cw - 34, cy + 20, ("n = %+d" % n) if n else "n = 0", "end", 10.5, MUT))
+        o.append(T(cx + cw - 44, cy + 20, "n = " + _f07_num(n), "end", 10.5, MUT))
         ytop = cy + 36
-        o.append(STAFF(cx + 8, ytop, cw - 44, s, "treble", [], key=n))
+        o.append(STAFF(cx + 8, ytop, cw - 54, s, "treble", [], key=n))
         if n:
             o.append(_f07_ks(cx + 8, ytop, s, "treble", n, INK, hl=(abs(n) - 1,)))
             L = (SHARP_ORDER if sign > 0 else FLAT_ORDER)[abs(n) - 1]
@@ -296,9 +301,9 @@ def _f07_chain(sign):
         else:
             o.append(T(cx + 10, ytop + 4 * s + 26, "調号なし", "start", 11.5, MUT, True))
         if c < 3 and i < 7:
-            ax = cx + cw - 24
-            o.append(ARR(ax, cy + ch / 2 - 8, ax + 20, cy + ch / 2 - 8, MUT, 1.5))
-            o.append(T(ax + 10, cy + ch / 2 + 8, "5 度上" if sign > 0 else "5 度下", "middle", 9.5, MUT))
+            ax = cx + cw - 33
+            o.append(ARR(ax, cy + ch / 2 - 8, ax + 28, cy + ch / 2 - 8, MUT, 1.5))
+            o.append(T(ax + 14, cy + ch / 2 + 8, "5 度上" if sign > 0 else "5 度下", "middle", 9, MUT))
     yb = 12 + 2 * ch + 8
     order = SHARP_ORDER if sign > 0 else FLAT_ORDER
     a = "♯" if sign > 0 else "♭"
@@ -330,20 +335,20 @@ F["e07_flats"] = _f07_flats()
 def _f07_sigpos():
     o = []
     s = 12
-    cells = [("ト音記号の ♯（7 つ）", "treble", 7, 20, 34), ("ヘ音記号の ♯（7 つ）", "bass", 7, 366, 34),
-             ("ト音記号の ♭（7 つ）", "treble", -7, 20, 178), ("ヘ音記号の ♭（7 つ）", "bass", -7, 366, 178)]
+    cells = [("ト音記号の ♯（7 つ）", "treble", 7, 20, 22), ("ヘ音記号の ♯（7 つ）", "bass", 7, 300, 22),
+             ("ト音記号の ♭（7 つ）", "treble", -7, 20, 182), ("ヘ音記号の ♭（7 つ）", "bass", -7, 300, 182)]
     for title, clef, n, x, y in cells:
-        o.append(T(x, y - 12, title, "start", 12, INK, True))
-        ytop = y + 14
+        o.append(T(x, y, title, "start", 12, INK, True))
+        ytop = y + 46
         o.append(STAFF(x, ytop, 168, s, clef, [], key=n))
         sg = 1 if n > 0 else -1
         order = SHARP_ORDER if n > 0 else FLAT_ORDER
         for i in range(7):
             cx = _f07_ksx(x, s, i)
-            o.append(T(cx, ytop + 4 * s + 22, order[i], "middle", 12, BLU, True))
-            o.append(T(cx, ytop - 12, str(i + 1), "middle", 9.5, MUT))
-    o.append(T(20, 324, "調号が ♯ 3 つの調なら左の 3 つ（F C G）、♭ 2 つの調なら左の 2 つ（B E）だけを書く。", "start", 11, MUT))
-    return SVG(560, 336, o,
+            o.append(T(cx, ytop + 4 * s + 34, order[i], "middle", 12, BLU, True))
+            o.append(T(cx, ytop - 26, str(i + 1), "middle", 9.5, MUT))
+    o.append(T(20, 338, "調号が ♯ 3 つの調なら左の 3 つ（F C G）、♭ 2 つの調なら左の 2 つ（B E）だけを書く。", "start", 11, MUT))
+    return SVG(520, 350, o,
                "調号の ♯ は ♯ の順（F C G D A E B）に、♭ は ♭ の順（B E A D G C F）に、左から書く。上の小さな数字は書く順、"
                "下の青い文字はその記号が効く音名である。ヘ音記号では、ト音記号と同じ形が、線と線の間隔 1 つ分だけ下にずれる。")
 F["e07_sigpos"] = _f07_sigpos()
@@ -380,7 +385,7 @@ F["e07_readkey"] = _f07_readkey()
 def _f07_twelve():
     o = []
     r = 100
-    for side, (cx, cy) in enumerate(((176, 178), (528, 178))):
+    for side, (cx, cy) in enumerate(((176, 196), (528, 196))):
         fifths = side == 1
         pos = (lambda pc: (7 * pc) % 12) if fifths else (lambda pc: pc)
         pts = {}
@@ -395,12 +400,12 @@ def _f07_twelve():
             px, py, a = pts[pc]
             o.append(CIRC(px, py, 6, SIG, 1.4, SSOFT if k else SIG))
             o.append(T(cx + (r + 20) * math.cos(a), cy + (r + 20) * math.sin(a) + 4.5, NAMES_SHARP[pc], "middle", 12.5, INK, True))
-            o.append(T(cx + (r - 20) * math.cos(a), cy + (r - 20) * math.sin(a) + 4, str(k), "middle", 10, BLU, True))
-        o.append(T(cx, 26, "半音の順に並べた 12 の音名" if not fifths else "5 度の順に並べ直す（五度圏の並び）", "middle", 12.5, INK, True))
-    o.append(ARR(318, 178, 384, 178, MUT, 1.8))
-    o.append(T(351, 168, "並べ直す", "middle", 10.5, MUT))
-    o.append(T(352, 330, "青い数字: C から 5 度ずつ上がった回数 k（12 回目に C に戻る）", "middle", 11, BLU))
-    return SVG(704, 342, o,
+            o.append(T(cx + (r + 40) * math.cos(a), cy + (r + 40) * math.sin(a) + 4, str(k), "middle", 10.5, BLU, True))
+        o.append(T(cx, 20, "半音の順に並べた 12 の音名" if not fifths else "5 度の順に並べ直す（五度圏の並び）", "middle", 12.5, INK, True))
+    o.append(ARR(318, 196, 384, 196, MUT, 1.8))
+    o.append(T(351, 186, "並べ直す", "middle", 10.5, MUT))
+    o.append(T(352, 372, "青い数字: C から 5 度ずつ上がった回数 k（12 回目に C に戻る）", "middle", 11, BLU))
+    return SVG(704, 384, o,
                "C から 5 度ずつ上がって通る音を、赤い線で順に結んだ。半音の順に並べた円（左）では、線は円の中を行き来する星の形になり、"
                "12 の音名を 1 回ずつ通って C に戻る。通る順に並べ直すと（右）、線は円周を 1 周する。")
 F["e07_twelve"] = _f07_twelve()
@@ -431,7 +436,7 @@ def _f07_circle():
                 o.append(T(px, y0 + j * gap, tt, "middle", sz, col, bold))
         dbl = len(ns) > 1
         put((R4 + R3) / 2, [_f07_jp(_f07_MAJ[n]) for n in ns], 12 if dbl else 13.5, BLU)
-        put((R3 + R2) / 2, ["n = %+d" % n if n else "n = 0" for n in ns], 10.5 if dbl else 11, MUT, False)
+        put((R3 + R2) / 2, ["n = " + _f07_num(n) for n in ns], 10.5 if dbl else 11, MUT, False)
         put((R2 + R1) / 2, [_f07_jp(_f07_MIN[n], True) for n in ns], 11 if dbl else 12, PUR)
     o.append(T(cx, cy - 18, "外側: 長調", "middle", 11.5, BLU, True))
     o.append(T(cx, cy + 2, "中: 調号の数 n", "middle", 11, MUT))
@@ -478,7 +483,7 @@ def _f07_enharm():
     # 下の段: 嬰ト長調（避ける）と変イ長調
     y = 262
     o.append(T(20, y - 22, "✕ 嬰ト長調（G♯ メジャー）", "start", 12.5, ALI, True))
-    o.append(T(20, y - 8, "♯ が 8 つ要る（F には ♯ が 2 つ = 𝄪）", "start", 10.5, MUT))
+    o.append(T(20, y - 8, "♯ が 8 つ要る（F には ♯ が 2 つ重なる）", "start", 10.5, MUT))
     gs = spell_scale("G#4", MAJOR, 8)
     st = staff_start(s, 0) + 12
     items = []
@@ -492,7 +497,7 @@ def _f07_enharm():
     o.append(_f07_dsharp(20 + st + i6 * 24 - hw - 0.35 * s, y + 6, s, ALI))
     stf(370, y, "○ 変イ長調（A♭ メジャー）", "調号 ♭ 4 つ（n = −4）で書ける", GRN2, -4, spell_scale("Ab4", MAJOR, 8))
     return SVG(712, y + 88, o,
-               "上: 嬰ヘ長調と変ト長調は、鍵盤では同じ 7 つの鍵を押す（異名同音調）。下: 嬰ト長調は ♯ を 8 つ（F に 𝄪）必要とするので、"
+               "上: 嬰ヘ長調と変ト長調は、鍵盤では同じ 7 つの鍵を押す（異名同音調）。下: 嬰ト長調は ♯ を 8 つ（F には ダブルシャープ、赤）必要とするので、"
                "ふつうは異名同音調の変イ長調（♭ 4 つ）で書く。")
 F["e07_enharm"] = _f07_enharm()
 
@@ -552,8 +557,8 @@ def _f07_parsig():
                 ch = minor and (i in (2, 5, 6))
                 o.append(T(xx, yy + 18, nname(nm, False), "middle", 13, ALI if ch else INK, True))
                 v = p["acc"]
-                o.append(T(xx, yy + 38, "%+d" % v if v else "0", "middle", 11, ALI if ch else MUT, ch))
-            o.append(T(x0 + 104 + 7 * 46 - 6, yy + 38, "合計 = %+d" % nn if nn else "合計 = 0", "start", 11.5, col, True))
+                o.append(T(xx, yy + 38, _f07_num(v), "middle", 11, ALI if ch else MUT, ch))
+            o.append(T(x0 + 104 + 7 * 46 - 6, yy + 38, "合計 = " + _f07_num(nn), "start", 11.5, col, True))
         o.append(T(x0 + 104 + 7 * 46 - 6, y + 58 + 58, "差 = −3", "start", 12, ALI, True))
         o.append(W(x0, y + 128, x0 + 470, y + 128, c=LIN, lw=1))
     o.append(T(x0, 316, "♯ を +1、♭ を −1 として、7 音を足した数が調号の数 n になる。第 3・6・7 音（橙）が 1 ずつ下がる。", "start", 10.5, MUT))
@@ -572,13 +577,13 @@ def _f07_parsig():
     o.append(D(pC[0], pC[1], BLU, 6))
     o.append(D(pAm[0], pAm[1], PUR, 6))
     o.append(D(pCm[0], pCm[1], PUR, 6))
-    o.append(T(pC[0], pC[1] - 12, "ハ長調", "middle", 11.5, BLU, True))
+    o.append(T(pC[0] + 10, pC[1] - 6, "ハ長調", "start", 11.5, BLU, True))
     o.append(T(pAm[0] + 9, pAm[1] + 16, "イ短調", "start", 11, PUR, True))
     o.append(T(pCm[0] + 10, pCm[1] + 4, "ハ短調", "start", 11, PUR, True))
-    o.append(_f07_arc(cx, cy, r + 14, -170, -96, ALI, 1.6, dash="4,3"))
+    o.append(_f07_arc(cx, cy, r + 10, -170, -100, ALI, 1.6, dash="4,3"))
     a1, a2 = math.radians(-166), math.radians(-176)
-    o.append(ARR(cx + (r + 14) * math.cos(a1), cy + (r + 14) * math.sin(a1), cx + (r + 14) * math.cos(a2), cy + (r + 14) * math.sin(a2), ALI, 1.6))
-    o.append(T(cx - r - 22, cy - r + 2, "反時計回りに 3 つ", "middle", 10.5, ALI, True))
+    o.append(ARR(cx + (r + 10) * math.cos(a1), cy + (r + 10) * math.sin(a1), cx + (r + 10) * math.cos(a2), cy + (r + 10) * math.sin(a2), ALI, 1.6))
+    o.append(T(cx - 52, cy - r - 30, "反時計回りに 3 つ", "middle", 10.5, ALI, True))
     o.append(T(cx, cy + r + 24, "平行調: 同じ位置の内側", "middle", 10.5, PUR, True))
     o.append(T(cx, cy + r + 42, "同主調: 3 つ反時計回りの内側", "middle", 10.5, ALI, True))
     return SVG(712, 330, o,

@@ -125,7 +125,8 @@
         '<br>主音から（上行）: '+c.up.slice(1,7).map(function(n){var r=_w06_iv(c.up[0],n);return '<span style="color:'+V(_w06_QC[r.q]||"ink")+'">'+r.q+' '+r.d+' 度</span>';}).join(" ・ ")+
         '<br>上行の第 7 音 '+nname(u7,false)+' は主音の'+(lead(u7)?'半音下 → <b style="color:var(--signal)">導音</b>':'全音下 → 導音ではない')+
         (c.k===3?' ／ 下行の第 7 音 '+nname(d7,false)+' は主音の全音下':'')+
-        (aug.length?' ／ <b style="color:var(--alias)">増 2 度</b>: '+aug.join("、"):' ／ 増 2 度なし');
+        (aug.length?' ／ <b style="color:var(--alias)">増 2 度</b>: '+aug.join("、"):' ／ 増 2 度なし')+
+        '<br><span style="color:var(--purple)">紫</span>: 同じ主音の長音階より半音低い音';
     }
     function evs(w){return function(){dir=w;var e=_w06_run(cur().ms[w],0.34);return e;};}
     function step(w){return function(e,i){dir=w;hot=e[i].k;draw();};}
@@ -156,7 +157,7 @@
         hl[60+pc]={c:on?"signal":diff?"signal":R.col,label:nname(n,false),strong:on||i===0||diff};
       });
       var k=kbd(60,71,{ww:26,wh:70,hl:hl,names:null});
-      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:.3rem 1rem;justify-content:center"><div style="min-width:10.5rem"><b style="color:var(--'+R.col+')">'+R.nm+'</b><br><span style="font-family:var(--mono);font-size:.82rem">'+
+      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:.3rem 1rem;justify-content:center"><div style="min-width:10.5rem"><b style="color:var(--'+R.col+')">'+R.nm+'</b><br><span style="font-size:.86rem">'+
         R.sc.slice(0,7).map(function(n,i){var d=r===2&&parse(n).midi%12!==parse(base[i]).midi%12;return d?'<b style="color:var(--signal)">'+nname(n,false)+'</b>':nname(n,false);}).join(" ")+'</span>'+
         '<br><span style="font-size:.74rem;color:var(--muted)">濃い色の鍵: 主音'+(r===2?'・違う音':'')+'</span></div>'+svgWrap(k.w,k.h,k.svg)+'</div>';
     }
@@ -166,9 +167,9 @@
       view.innerHTML=rowHtml(c,0)+rel("同じ 7 つの音を使う（主音が違う）","green")+rowHtml(c,1)+rel("主音が同じ（3 つの音が違う）","signal")+rowHtml(c,2);
       var R=c.rows, base=R[1].sc, par=R[2].sc, ch=[];
       [2,5,6].forEach(function(i){ch.push("第 "+(i+1)+" 音 "+nname(base[i],false)+" → "+nname(par[i],false));});
-      ro.innerHTML='<b>同じ 7 つの音</b>: '+R[1].nm+'と'+R[0].nm+'（'+base.slice(0,7).map(function(n){return nname(n,false);}).join(" ")+'）。'+
+      ro.innerHTML='<b>同じ 7 つの音</b>: '+R[1].nm+' と '+R[0].nm+'（'+base.slice(0,7).map(function(n){return nname(n,false);}).join(" ")+'）。'+
         nname(R[0].sc[0],false)+' は '+nname(base[0],false)+' の短 3 度下にあり、'+R[0].nm+'の第 3 音が '+nname(base[0],false)+' である'+
-        '<br><b>同じ主音</b>: '+R[1].nm+'と'+R[2].nm+'。違う音は '+ch.join("、");
+        '<br><b>同じ主音</b>: '+R[1].nm+' と '+R[2].nm+'。違う音は '+ch.join("、");
       btns.forEach(function(b){b.relabel();});
     }
     var btns=[0,1,2].map(function(r){

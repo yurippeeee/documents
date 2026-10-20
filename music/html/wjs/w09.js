@@ -55,10 +55,10 @@
         b.push('<polyline points="'+xa+','+(yb-8)+' '+xa+','+yb+' '+xb+','+yb+' '+xb+','+(yb-8)+'" fill="none" stroke="'+V(q)+'" stroke-width="2.2"/>');
         b.push(tx((xa+xb)/2,yb+16,lab+": "+stp(a)+"＋"+stp(a+1),"middle",11.5,V("ink")));
         b.push(tx((xa+xb)/2,yb+32,"半音 "+s+"（"+(s===4?"長":"短")+" 3 度）","middle",11.5,V(q),true));}
-      br(k,Y+58,ch.lo,"下の 3 度"); br(k+2,Y+58,ch.hi,"上の 3 度");
+      br(k,Y+56,ch.lo,"下の 3 度"); br(k+2,Y+104,ch.hi,"上の 3 度");
       var xc=X0+(k+2)*DX;
-      b.push(tx(Math.max(150,Math.min(W-150,xc)),Y+122,ch.lo+" + "+ch.hi+" → "+_w09_TN[ch.t]+"（"+_w09_disp(ch.sym)+"）","middle",14,V(tc),true));
-      var svg=svgWrap(W,Y+134,b.join(""));
+      b.push(tx(Math.max(150,Math.min(W-150,xc)),Y+170,ch.lo+" + "+ch.hi+" → "+_w09_TN[ch.t]+"（"+_w09_disp(ch.sym)+"）","middle",14,V(tc),true));
+      var svg=svgWrap(W,Y+182,b.join(""));
       var rg=_w09_kbdRange(c.sc.slice(0,11).map(function(n){return parse(n).midi;})), hl={};
       ch.ms.forEach(function(m,i){hl[m]={c:tc,label:nname(ch.notes[i],false),strong:on==null||on===i||on===3};});
       var nw=0;for(var mm=rg[0];mm<=rg[1];mm++)if(!BLACK[mm%12])nw++;
@@ -206,8 +206,9 @@
     function cpos(k){return (k*4)%7;}   /* 第 k+1 音が、連なりの何番目か */
     function draw(){
       var c=cur(), k1=+s1.value, k2=+s2.value, A=c.tri[k1], B=c.tri[k2], b=[];
-      var X0=24, DX=44, Y=64, W=X0*2+9*DX;
-      var p1=cpos(k1), cand=[cpos(k2),cpos(k2)+7,cpos(k2)-7].filter(function(p){return p>=0&&p<=7;}), p2=cand.reduce(function(a,q){return Math.abs(q-p1)<Math.abs(a-p1)?q:a;});
+      var X0=46, DX=44, Y=64, W=X0+24+9*DX;
+      var best=null;[cpos(k1),cpos(k1)+7].forEach(function(a){[cpos(k2),cpos(k2)+7].forEach(function(q){if(a<=7&&q<=7&&(!best||Math.abs(a-q)<Math.abs(best[0]-best[1])))best=[a,q];});});
+      var p1=best[0], p2=best[1];
       var shift=((cpos(k2)-p1)%7+7)%7, dist=Math.min(shift,7-shift);
       var pcA=A.ms.map(function(m){return m%12;}), pcB=B.ms.map(function(m){return m%12;});
       function bar_(p,y,ch,lab){var xa=X0+p*DX-17, xb=X0+(p+2)*DX+17, col=V(_w09_TC[ch.t]);
@@ -221,7 +222,7 @@
         b.push(tx(x,Y+4.5,nname(n,false),"middle",12.5,both?V("panel"):(inA||inB?V("ink"):V("muted")),true));
         if(inA)b.push('<circle cx="'+x+'" cy="'+(Y-34)+'" r="3.4" fill="'+V(_w09_TC[A.t])+'"/>');
         if(inB)b.push('<circle cx="'+x+'" cy="'+(Y+34)+'" r="3.4" fill="'+V(_w09_TC[B.t])+'"/>');}
-      var svg=svgWrap(W+14,Y+56,b.join(""));
+      var svg=svgWrap(W,Y+56,b.join(""));
       var com=A.notes.filter(function(n){return pcB.indexOf(parse(n).midi%12)>=0;}).map(function(n){return nname(n,false);});
       function kb(ch,k,act){var hl={};ch.ms.forEach(function(m,i){var cm=pcA.indexOf(m%12)>=0&&pcB.indexOf(m%12)>=0;hl[60+((m%12)-0+12)%12]={c:cm?"green":_w09_TC[ch.t],label:nname(ch.notes[i],false),strong:true};});
         var r=kbd(60,71,{ww:22,wh:60,hl:hl,names:null});
@@ -230,7 +231,7 @@
         '<div style="display:flex;flex-wrap:wrap;gap:.8rem 1.4rem;justify-content:center">'+kb(A,k1,on===0)+kb(B,k2,on===1)+'</div></div>';
       var up=((k2-k1)%7+7)%7, deg=up+1, mv=up===0?"同じ和音":deg+" 度上（= "+(9-deg)+" 度下）";
       ro.innerHTML='根音: '+nname(A.notes[0],false)+' → '+nname(B.notes[0],false)+'（'+mv+'） ／ 3 度の連なりの上のずれ: <b>'+dist+'</b>'+
-        '<br>→ 共通音 <b style="color:'+V(com.length?"green":"muted")+'">'+com.length+' つ</b>'+(com.length?'（'+com.join("・")+'）':'')+(up===0?'（同じ和音なので 3 つとも共通）':'');
+        '<br>→ 共通音 <b style="color:'+V(com.length?"green":"muted")+'">'+com.length+' つ</b>'+(com.length?'（'+com.join("・")+'）':'');
     }
     sk.addEventListener("change",function(){stopAll();labels();draw();});
     [s1,s2].forEach(function(s){s.addEventListener("change",draw);});

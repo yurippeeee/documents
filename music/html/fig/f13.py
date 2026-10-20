@@ -83,14 +83,14 @@ def _f13_pairs():
         o.append(ARR(X + 140, 32, X + 196, 32, MUT, 1.4))
         for k, (sym, ns) in enumerate((a, b)):
             kx = X + 8 + k * 166
-            hl = {parse(n)["midi"]: dict(c=SIG if _f13_out(n) else MUT, label="", strong=True) for n in ns}
+            hl = {parse(n)["midi"]: dict(c=SIG if _f13_out(n) else BLU, label="", strong=_f13_out(n)) for n in ns}
             o.append(KEYBOARD(kx, 128, 60, 72, ww=18, wh=54, hl=hl, names=None))
             o.append(_f13_label_notes(kx + 72, 202, ns, lambda n: SIG if _f13_out(n) else INK, sz=11.5))
             o.append(T(kx + 72, 222, "ダイアトニックコード" if k == 0 else "ノンダイアトニックコード", "middle", 11,
                        INK if k == 0 else SIG, k == 1))
         o.append(T(X + 160, 246, note, "middle", 11, MUT))
     return SVG(712, 258, o, "同じ根音でも、構成音が 1 つ調の外の音に変わるとノンダイアトニックコードになる。"
-               "D7 は F♯、Fm は A♭ を含む（色付きの音）。五線では、どちらも臨時記号の付いた音として現れる。")
+               "鍵盤では、ハ長調の音を薄い青、調の外の音を赤で塗った。D7 は F♯、Fm は A♭ を含み、五線では臨時記号の付いた音として現れる。")
 F["e13_pairs"] = _f13_pairs()
 
 
@@ -152,7 +152,7 @@ F["e13_v7shift"] = _f13_v7shift()
 # 5. V7/X の 4 つの音を、X の根音 r からの半音の数で表す
 def _f13_secderive():
     o = []
-    x0, dx = 54, 35
+    x0, dx = 96, 32
     X = lambda u: x0 + u * dx
     yr = 104
     o.append(W(X(-0.5), yr, X(17.5), yr, c=MUT, lw=1.2))
@@ -171,13 +171,13 @@ def _f13_secderive():
         o.append(CIRC(X(u), yr + 22, 7, GRN2, 1.6, GSOFT))
     o.append(T(X(0), yr + 46, "X の根音 r", "middle", 11, GRN2, True))
     o.append(T(X(12), yr + 46, "r+12（1 オクターブ上の r）", "middle", 11, GRN2, True))
-    o.append(ARR(X(11) + 4, yr - 12, X(12) - 2, yr + 13, SIG, 1.8))
-    o.append(T(X(12) + 10, yr - 6, "半音上", "start", 10.5, SIG, True))
+    o.append(ARR(X(11) + 3, yr - 14, X(12) - 4, yr + 15, SIG, 1.8))
+    o.append(T(X(12) + 12, yr + 27, "半音上", "start", 10.5, SIG, True))
     # 数字と例
     for u in (0, 7, 11, 12, 14, 17):
         o.append(T(X(u), yr + 66, "r" if u == 0 else "r+%d" % u, "middle", 10.5, INK, True))
     ex = {0: "G", 7: "D", 11: "F♯", 12: "G", 14: "A", 17: "C"}
-    o.append(T(X(-0.5) - 2, yr + 88, "例 X = G:", "start", 10.5, MUT))
+    o.append(T(8, yr + 88, "例 X = G", "start", 10.5, MUT, True))
     for u, nm in ex.items():
         o.append(T(X(u), yr + 88, nm, "middle", 11.5, SIG if u == 11 else INK, u == 11))
     return SVG(680, 202, o, "X の根音を r とし、ほかの音を r から何半音上かで表す。V7/X の 3 度の音 r+11 は、1 オクターブ上の X の根音 r+12 の"

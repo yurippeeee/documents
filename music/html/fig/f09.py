@@ -416,7 +416,7 @@ def _f09_chain():
     chain_deg = [0, 2, 4, 6, 1, 3, 5, 0, 2, 4]
     X0, DX, Y = 112, 46, 50
     o.append(T(14, Y + 1, "3 度の連なり", "start", 12, INK, True))
-    o.append(T(14, Y + 16, "（隣どうしは 3 度）", "start", 10, MUT))
+    o.append(T(14, Y + 16, "（隣は 3 度）", "start", 10, MUT))
     o.append(T(14, Y - 26, "第何音か", "start", 10, MUT))
     o.append(W(X0, Y, X0 + 9 * DX, Y, c=LIN, lw=1.4))
     for i, d in enumerate(chain_deg):

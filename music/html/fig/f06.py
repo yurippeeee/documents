@@ -291,7 +291,7 @@ def _f06_upper():
         o.append(T(430, y + 34, "%d + %d + %d = 5" % tuple(gaps), "middle", 13, INK, True, True))
         o.append(T(552, y + 34, "あり" if lead else "なし", "middle", 12.5, GRN2 if lead else ALI, True))
         o.append(T(652, y + 34, "あり（増 2 度）" if wide else "なし", "middle", 12.5, ALI if wide else GRN2, True))
-    return SVG(712, 46 + 3 * 96 - 4, o, "A を主音とする 3 種類の短音階の、第 5 音 E から上の主音 A までの部分。全体は完全 4 度（半音 5 つ）で、"
+    return SVG(712, 46 + 3 * 96 - 4, o, "A を主音とする自然短音階・和声的短音階と、第 6 音・第 7 音を上げた形の、第 5 音 E から上の主音 A までの部分。全体は完全 4 度（半音 5 つ）で、"
                "間に第 6 音と第 7 音が入る。導音を残し（最後の間 c が半音）、全音より広い間を作らない分け方は、3 段目の 2 + 2 + 1 だけである。")
 F["e06_upper"] = _f06_upper()
 
