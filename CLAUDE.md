@@ -55,5 +55,5 @@
 
 - 数式は KaTeX。インライン `$`...`$`、ディスプレイ `$$`。copy-tex 拡張でコピー時に改行が入らないようにしてある。
 - ビルド後、Playwright で `.katex-error` が 0 か、ウィジェットがエラーなく表示されるかを確認する（スクリプト例は各シリーズの build 後に手元で書く）。
-- 公開サイトは main ブランチから配信される。作業ブランチの変更は main に取り込むまで反映されない。
+- 公開サイト（learning.isshie.com）は GitHub Pages で、main ではなくブランチ `claude/iir-filter-design-explanation-0rqqos` から配信される（GitHub の Actions にある「pages build and deployment」の記録で確認できる）。push すると 1 分ほどで反映される。トップページ（index.html）にカードの無いシリーズは、URL を直接開かないと見えない。
 - コミットは章ごとに分け、メッセージに何をなぜ直したかを書く。
