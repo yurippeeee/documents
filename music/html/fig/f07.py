@@ -401,7 +401,7 @@ def _f07_twelve():
             o.append(CIRC(px, py, 6, SIG, 1.4, SSOFT if k else SIG))
             o.append(T(cx + (r + 20) * math.cos(a), cy + (r + 20) * math.sin(a) + 4.5, NAMES_SHARP[pc], "middle", 12.5, INK, True))
             o.append(T(cx + (r + 40) * math.cos(a), cy + (r + 40) * math.sin(a) + 4, str(k), "middle", 10.5, BLU, True))
-        o.append(T(cx, 20, "半音の順に並べた 12 の音名" if not fifths else "5 度の順に並べ直す（五度圏の並び）", "middle", 12.5, INK, True))
+        o.append(T(cx, 20, "半音の順に並べた 12 の音名" if not fifths else "5 度の順に並べ直す", "middle", 12.5, INK, True))
     o.append(ARR(318, 196, 384, 196, MUT, 1.8))
     o.append(T(351, 186, "並べ直す", "middle", 10.5, MUT))
     o.append(T(352, 372, "青い数字: C から 5 度ずつ上がった回数 k（12 回目に C に戻る）", "middle", 11, BLU))

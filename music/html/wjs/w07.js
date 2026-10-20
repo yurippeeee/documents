@@ -64,13 +64,13 @@
       view.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;align-items:center">'+svgWrap(S.w,S.h,S.svg+extra)+svgWrap(kb.w,kb.h,kb.svg)+'</div>';
       var h='<b>'+K.jp+'</b>（'+K.en+'） ／ 調号 <b>'+_w07_sig(n)+'</b>'+(n?'（'+_w07_sigList(n)+'）':'')+' ／ 調号の数 <b>'+_w07_nstr(n)+'</b>';
       if(ch.length){var P=_w07_key(prev,false),d=n-prev;
-        h+='<br>'+P.jp+' → '+K.jp+'（5 度'+(d>0?'上':'下')+(Math.abs(d)>1?'へ '+Math.abs(d)+' つ':'')+'）: ';
+        h+='<br>'+P.jp+' → '+K.jp+'（5 度'+(d>0?'上':'下')+(Math.abs(d)>1?'へ '+Math.abs(d)+' 回':'')+'）: ';
         if(Math.abs(d)===1){var c=ch[0];
           h+=d>0?P.jp+'の第 '+(c.fi+1)+' 音 '+c.from+' が半音上がって <b style="color:var(--signal)">'+c.to+'</b> になった。'+c.to+' は'+K.jp+'の第 '+(c.ti+1)+' 音（導音）'
                 :P.jp+'の第 '+(c.fi+1)+' 音 '+c.from+' が半音下がって <b style="color:var(--signal)">'+c.to+'</b> になった。'+c.to+' は'+K.jp+'の第 '+(c.ti+1)+' 音（下属音）';}
         else h+='変わった音は '+ch.map(function(c){return c.from+' → <b style="color:var(--signal)">'+c.to+'</b>';}).join('、')+'（'+ch.length+' つ）';}
-      if(n===7)h+='<br>これより 5 度上の調は ♯ が 8 つ以上要るので、異名同音調の名前で書く（4 節）';
-      if(n===-7)h+='<br>これより 5 度下の調は ♭ が 8 つ以上要るので、異名同音調の名前で書く（4 節）';
+      if(n===7)h+='<br>これより 5 度上の調は ♯ が 8 つ以上要るので、同じ高さの別の名前で書く（4 節）';
+      if(n===-7)h+='<br>これより 5 度下の調は ♭ が 8 つ以上要るので、同じ高さの別の名前で書く（4 節）';
       ro.innerHTML=h;
       bUp.disabled=n>=7;bDn.disabled=n<=-7;
     }

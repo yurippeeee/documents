@@ -202,17 +202,16 @@
     var band=mk("div",""); band.style.cssText="display:flex;flex-wrap:wrap;gap:4px;margin-top:.8rem"; el.appendChild(band);
     var card=mk("div","play"); el.appendChild(card);
     var ro=readout(el);
-    var ROLE={"C":["I","T","blue"],"A7":["V7/IIm","D","signal"],"C#dim7":["経過的なディミニッシュ","","gold"],"Dm7":["IIm7","SD","green"],
-              "G7":["V7","D","signal"],"Db7":["裏コード","D","signal"],"F":["IV","SD","green"],"Fm":["IVm","SDm","purple"]};
-    function list(){var L=["C"];if(sA.value==="1")L.push("A7");if(sA.value==="2")L.push("C#dim7");L.push("Dm7");L.push(sB.value==="1"?"Db7":"G7");L.push("C","F");if(sC.value==="1")L.push("Fm");L.push("C");return L;}
-    function disp(s){return s.replace("C#","C♯").replace("Db","D♭");}
+    var ROLE={"C":["I","T","blue"],"A7":["V7/IIm","D","signal"],"C♯dim7":["経過的なディミニッシュ","","gold"],"Dm7":["IIm7","SD","green"],
+              "G7":["V7","D","signal"],"D♭7":["裏コード","D","signal"],"F":["IV","SD","green"],"Fm":["IVm","SDm","purple"]};
+    function list(){var L=["C"];if(sA.value==="1")L.push("A7");if(sA.value==="2")L.push("C♯dim7");L.push("Dm7");L.push(sB.value==="1"?"D♭7":"G7");L.push("C","F");if(sC.value==="1")L.push("Fm");L.push("C");return L;}
     function draw(){
       stopAll();
       var L=list();
       band.innerHTML=L.map(function(s){var r=ROLE[s];
         var ms=chordMidis(s,60),sp=chordSpell(s,ms),outN=[];ms.forEach(function(m,i){if(_w13_out(m))outN.push(nname(sp[i],false));});
         return '<div style="flex:1 1 4.2rem;min-width:4.2rem;border:1px solid var(--line);border-radius:8px;padding:.3rem .25rem;text-align:center;background:var(--screen);font-size:.74rem;line-height:1.35">'+
-          '<b style="font-size:.9rem">'+esc(disp(s))+'</b><br><span style="color:var(--'+r[2]+');font-weight:700">'+esc(r[0])+(r[1]?'（'+r[1]+'）':'')+'</span><br>'+
+          '<b style="font-size:.9rem">'+esc(s)+'</b><br><span style="color:var(--'+r[2]+');font-weight:700">'+esc(r[0])+(r[1]?'（'+r[1]+'）':'')+'</span><br>'+
           '<span style="color:var(--signal)">'+(outN.length?esc(outN.join("・")):'&nbsp;')+'</span></div>';}).join("");
       card.innerHTML="";
       playMulti(card,{chords:L.join(" "),key:"C",show:"chords kbd staff",bass:"on",tempo:"120",label:"置き換えた進行（ハ長調）"});

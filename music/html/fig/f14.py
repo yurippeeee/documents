@@ -68,7 +68,7 @@ def _f14_define():
         xs = _f14_boxes(o, x0, yb, prog, bw, stroke={len(prog) - 1: final})
         ends = {}
         for (i0, i1, lev, col, lab, dash) in brackets:
-            lx = ends[0] + 8 if lev == 1 and 0 in ends and ends[0] > xs[i0][0] else None
+            lx = ends[0] + 8 if lev == 1 and 0 in ends and xs[i0][0] < ends[0] < xs[i1][1] else None
             _f14_bracket(o, xs[i0][0], xs[i1][1], y + 24 + lev * 17, col, lab, dash, lx)
             ends[lev] = xs[i1][1]
         o.append(T(x0 - 8, y + 33, "調", "end", 11, MUT, True))

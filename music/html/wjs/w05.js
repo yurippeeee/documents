@@ -129,12 +129,10 @@
       /* 並べ直した長音階: 鍵盤（丸の数は連なりの番号） */
       var m=sc.map(function(n){return parse(n).midi;}), hl={};
       m.forEach(function(x,i){hl[x]={c:"signal",label:nname(sc[i],false),strong:i===onF};});
-      var k=_w05_kbdArcs(60,83,m,hl,20,80,58), nb=[];
-      sc.forEach(function(n,i){var j=c.map(function(q){return q[0];}).indexOf(n[0]), x=k.pos[m[i]][0];
-        nb.push('<circle cx="'+x+'" cy="14" r="8.5" fill="'+V("signal-soft")+'" stroke="'+V("signal")+'" stroke-width="1.2"/>'+tx(x,18,String(j+1),"middle",10.5,V("signal"),true));});
+      var k=_w05_kbdArcs(60,83,m,hl,22,84);
       var s=10, x0=62, dx=40, items=sc.map(function(n,i){var col=i===onF?V("signal"):parse(n).acc?V("signal"):V("ink");return {x:x0+i*dx,notes:[n],fill:col};});
       var stf=staff({s:s,w:x0+7*dx+26,clef:"treble",items:items});
-      view.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;align-items:center">'+strip+svgWrap(k.w,k.h,nb.join("")+k.svg)+svgWrap(stf.w,stf.h,stf.svg)+'</div>';
+      view.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;align-items:center">'+strip+svgWrap(k.w,k.h,k.svg)+svgWrap(stf.w,stf.h,stf.svg)+'</div>';
       var chg=c.filter(function(n){return parse(n+"4").acc!==0;});
       ro.innerHTML='連なり <b>'+c.map(function(n){return nname(n+"4",false);}).join(" ")+'</b>（完全 5 度ずつ）→ 2 番目の '+nname(c[1]+"4",false)+' を主音にして並べ直すと <b>'+sc.map(function(n){return nname(n,false);}).join(" ")+'</b>（'+nname(c[1]+"4",false)+' 長音階）'+
         '<br>C 長音階（連なり F C G D A E B）と比べて変わった音: '+(chg.length?'<b>'+chg.map(function(n){return n[0]+' → '+nname(n+"4",false);}).join("、")+'</b>（'+chg.length+' つ）':'なし');

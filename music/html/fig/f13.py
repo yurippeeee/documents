@@ -34,6 +34,21 @@ def _f13_label_notes(x, y, notes, col_of, sz=11, step=None, anchor="middle"):
     return "".join(o)
 
 
+def _f13_voice_rows(X, y0, rows, numx=160, dy=17):
+    """各声部の音の動きを、音名の列と半音の数で書く。rows = [(見出し, [音名...])]"""
+    o = []
+    for i, (lab, ns) in enumerate(rows):
+        y = y0 + i * dy
+        o.append(T(X, y, lab, "start", 11, MUT))
+        o.append(T(X + 56, y, " → ".join(nname(n, False) for n in ns), "start", 11, INK, True))
+        for k in range(len(ns) - 1):
+            d = parse(ns[k + 1])["midi"] - parse(ns[k])["midi"]
+            c = SIG if abs(d) == 1 else (MUT if d == 0 else INK)
+            t = ("+%d" % d) if d > 0 else (("−%d" % -d) if d < 0 else "0")
+            o.append(T(X + numx + k * 36, y, t, "middle", 11, c, abs(d) == 1))
+    return "".join(o)
+
+
 # 1. ハ長調の 7 音と、調の外の 5 音
 def _f13_keys():
     o = []
@@ -274,24 +289,25 @@ def _f13_ivm():
         o.append(T(X, 22, title, "start", 12.5, INK, True))
         info = {}
         items = []
+        gap = 140 if len(chords) == 2 else 120
         for k, (sym, ns) in enumerate(chords):
             _f13_chk(sym, ns)
             fills = {nname(n): PUR for n in ns if _f13_out(n)}
-            items.append(dict(key=k, x=96 + k * 104, notes=ns, fill=INK, fills=fills,
+            items.append(dict(key=k, x=86 + k * gap, notes=ns, fill=INK, fills=fills,
                               label="%s（%s）" % (sym, roman(sym, "C")), lcol=PUR if fills else INK, lsz=11.5))
         o.append(STAFF(X, 50, pw - 24, s=s, clef="treble", items=items, info=info))
+        srt = [sorted(ns, key=lambda n: parse(n)["midi"]) for _, ns in chords]
         for k in range(len(chords) - 1):
             for v in range(3):
                 (x1, y1), (x2, y2) = info[k][v], info[k + 1][v]
-                d = parse(sorted(chords[k + 1][1], key=lambda n: parse(n)["midi"])[v])["midi"] - \
-                    parse(sorted(chords[k][1], key=lambda n: parse(n)["midi"])[v])["midi"]
+                d = parse(srt[k + 1][v])["midi"] - parse(srt[k][v])["midi"]
                 col = SIG if abs(d) == 1 else (MUT if d == 0 else INK)
-                o.append(W(x1 + 9, y1, x2 - 9, y2, c=col, lw=1.6 if d else 1.0, dash=None if d else "3,3"))
-                lab = "0" if d == 0 else "%+d" % d
-                o.append(T((x1 + x2) / 2, (y1 + y2) / 2 - 5, lab, "middle", 10.5, col, d != 0))
-        o.append(T(X, 160, summary, "start", 11.5, INK, True))
-    o.append(T(330, 186, "数字は各声部が動く半音の数（− は下へ）。色の線は半音の動き、破線は動かない音。", "start", 10.5, MUT))
-    return SVG(712, 196, o, "左: IV → I では F → E が半音、A → G が全音で動く。右: IV と I の間に IVm をはさむと、A → A♭ → G と 1 つの声部が"
+                o.append(W(x1 + 10, y1, x2 - 10, y2, c=col, lw=1.8 if d else 1.0, dash=None if d else "3,3"))
+        rows = [(nm, [srt[k][v] for k in range(len(chords))]) for v, nm in ((2, "上の声部"), (1, "中の声部"), (0, "下の声部"))]
+        o.append(_f13_voice_rows(X, 146, rows, numx=196 if len(chords) == 3 else 156))
+        o.append(T(X, 206, summary, "start", 11.5, INK, True))
+    o.append(T(12, 230, "数字は各声部が動く半音の数（− は下へ、0 は動かない）。色の線と赤い数字は半音の動き。", "start", 10.5, MUT))
+    return SVG(712, 240, o, "左: IV → I では F → E が半音、A → G が全音で動く。右: IV と I の間に IVm をはさむと、A → A♭ → G と 1 つの声部が"
                "半音ずつ下がり、IVm → I では F → E と A♭ → G の 2 つの声部が半音で動く。C はどちらでも動かない。")
 F["e13_ivm"] = _f13_ivm()
 
@@ -374,11 +390,9 @@ F["e13_tritone"] = _f13_tritone()
 def _f13_ura():
     o = []
     s = 8
-    panels = [(0, "IIm7 → V7 → I", [("Dm7", "D3", ["F4", "A4", "C5"]), ("G7", "G2", ["F4", "G4", "B4"]), ("C", "C3", ["E4", "G4", "C5"])],
-               "ベース: D → G → C（5 度下・4 度上）"),
-              (356, "IIm7 → ♭II7 → I（裏コード）", [("Dm7", "D3", ["F4", "A4", "C5"]), ("Db7", "Db3", ["F4", "Ab4", "Cb5"]), ("C", "C3", ["E4", "G4", "C5"])],
-               "ベース: D → D♭ → C（半音ずつ下）")]
-    for px, title, chords, bass_txt in panels:
+    panels = [(0, "IIm7 → V7 → I", [("Dm7", "D3", ["F4", "A4", "C5"]), ("G7", "G2", ["F4", "G4", "B4"]), ("C", "C3", ["E4", "G4", "C5"])]),
+              (356, "IIm7 → ♭II7 → I（裏コード）", [("Dm7", "D3", ["F4", "A4", "C5"]), ("Db7", "Db3", ["F4", "Ab4", "Cb5"]), ("C", "C3", ["E4", "G4", "C5"])])]
+    for px, title, chords in panels:
         X = px + 12
         o.append(T(X, 22, title, "start", 12.5, INK, True))
         info = {}
@@ -386,25 +400,20 @@ def _f13_ura():
         for k, (sym, b, up) in enumerate(chords):
             _f13_chk(sym, [b] + up, part=(sym == "G7"))
             fills = {nname(n): SIG for n in [b] + up if _f13_out(n)}
-            disp = sym.replace("Db", "D♭")
-            items.append(dict(key=k, x=92 + k * 96, notes=[b] + up, fill=INK, fills=fills, sym=disp,
+            items.append(dict(key=k, x=78 + k * 110, notes=[b] + up, fill=INK, fills=fills, sym=sym.replace("Db", "D♭"),
                               symcol=SIG if fills else INK))
         o.append(STAFF(X, 52, 320, s=s, clef="grand", items=items, info=info))
+        srt = [sorted([b] + up, key=lambda n: parse(n)["midi"]) for _, b, up in chords]
         for k in range(2):
             for v in range(4):
                 (x1, y1), (x2, y2) = info[k][v], info[k + 1][v]
-                lo1 = sorted([chords[k][1]] + chords[k][2], key=lambda n: parse(n)["midi"])
-                lo2 = sorted([chords[k + 1][1]] + chords[k + 1][2], key=lambda n: parse(n)["midi"])
-                d = parse(lo2[v])["midi"] - parse(lo1[v])["midi"]
-                if d == 0:
-                    o.append(W(x1 + 8, y1, x2 - 8, y2, c=MUT, lw=1, dash="3,3"))
-                    continue
-                col = SIG if abs(d) == 1 else INK
-                o.append(W(x1 + 8, y1, x2 - 8, y2, c=col, lw=1.5))
-                o.append(T((x1 + x2) / 2 + 2, (y1 + y2) / 2 - 4, "%+d" % d, "middle", 10, col, True))
-        o.append(T(X, 222, bass_txt, "start", 11.5, INK, True))
-    o.append(T(12, 244, "数字は各声部が動く半音の数（− は下へ）。色の線は半音の動き、破線は動かない音。", "start", 10.5, MUT))
-    return SVG(712, 254, o, "上の 3 つの声部（F・A・C → F・G・B / F・A♭・C♭ → E・G・C）は、V7 でも裏コードでも、F → E（半音下）と B（C♭）→ C（半音上）"
+                d = parse(srt[k + 1][v])["midi"] - parse(srt[k][v])["midi"]
+                col = SIG if abs(d) == 1 else (MUT if d == 0 else INK)
+                o.append(W(x1 + 9, y1, x2 - 9, y2, c=col, lw=1.6 if d else 1.0, dash=None if d else "3,3"))
+        rows = [(nm, [srt[k][v] for k in range(3)]) for v, nm in ((3, "上の声部"), (2, "中の声部"), (1, "下の声部"), (0, "ベース"))]
+        o.append(_f13_voice_rows(X, 182, rows, numx=196))
+    o.append(T(12, 262, "数字は各声部が動く半音の数（− は下へ、0 は動かない）。色の線と赤い数字は半音の動き。", "start", 10.5, MUT))
+    return SVG(712, 272, o, "上の 3 つの声部（F・A・C → F・G・B / F・A♭・C♭ → E・G・C）は、V7 でも裏コードでも、F → E（半音下）と B（C♭）→ C（半音上）"
                "の三全音の解決が共通である。違いはベースで、裏コードではベースが D → D♭ → C と半音ずつ下がり、D♭7 → C ではすべての声部が半音で動く。")
 F["e13_ura"] = _f13_ura()
 

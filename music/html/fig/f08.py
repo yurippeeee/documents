@@ -79,8 +79,8 @@ def _f08_stack():
         o.append(W(xn, y, xn + 34, ly - 4, c=c, lw=1.2))
         o.append(T(xn + 38, ly, lab + " " + n[0], "start", 12.5, c, True))
     # 右: 文字を数える
-    X0, dx = 412, 38
-    rows = [(62, "CDE", "C から E: 3 度"), (120, "EFG", "E から G: 3 度"), (178, "CDEFG", "C から G: 3 + 3 − 1 = 5 度")]
+    X0, dx = 412, 36
+    rows = [(62, "CDE", "C から E: 3 度"), (120, "EFG", "E から G: 3 度"), (172, "CDEFG", "C から G: 5 度")]
     colof = {"C": (SIG, SSOFT), "E": (BLU, BSOFT), "G": (GRN2, GSOFT)}
     for y, letters, txt in rows:
         for L in letters:
@@ -89,6 +89,7 @@ def _f08_stack():
             o.append(CIRC(X0 + i * dx, y - 5, 14, c, 1.5, fl))
             o.append(T(X0 + i * dx, y, L, "middle", 12.5, INK if L in colof else MUT, L in colof))
         o.append(T(X0 + 4 * dx + 26, y, txt, "start", 12, INK, True))
+    o.append(T(X0 + 4 * dx + 26, 192, "（3 + 3 − 1 = 5）", "start", 11.5, MUT))
     o.append(T(X0 - 20, 30, "文字の名前を、両端を含めて数える（03 章 2 節）", "start", 10.5, MUT))
     return SVG(712, 206, o, "C の 3 度上に E、E の 3 度上に G を重ねると、C・E・G の三和音ができる。"
                "3 度の上に 3 度を重ねた音程は 3 + 3 − 1 = 5 度なので、G は C の 5 度上の音である。"
@@ -208,7 +209,7 @@ def _f08_ratio():
         o.append(T(16, y + 10, lab, "start", 11.5, col, True))
         o.append(W(X(f0) - 8, y, x1, y, c=MUT, lw=1))
         n = 1
-        while n * f0 <= fmax:
+        while n * f0 <= fmax and n <= 15:
             xx = X(n * f0)
             if n in hi:
                 o.append(W(xx, y, xx, y - 34, c=col, lw=3.4))
@@ -216,9 +217,12 @@ def _f08_ratio():
                 o.append(T(xx, y + 16, hi[n], "middle", 11, col, True))
             else:
                 o.append(W(xx, y, xx, y - 16, c=MUT, lw=1.6))
-                o.append(T(xx, y - 21, str(n), "middle", 9.5, MUT))
+                if n < 13:
+                    o.append(T(xx, y - 21, str(n), "middle", 9.5, MUT))
             n += 1
         o.append(T(X(f0), y + 16, base, "middle", 10, MUT))
+        if f0 < 30:
+            o.append(T(x1, y + 33, "間の第 11・13・14 倍音は使わない", "end", 10, MUT))
     # 周波数の目盛（音名）
     yb = 222
     o.append(W(x0 - 20, yb, x1, yb, c=MUT, lw=1))
@@ -390,11 +394,10 @@ def _f08_findroot():
     # ③
     ns3 = ["C4", "E4", "G4"]
     o.append(STAFF(xs[2] + 8, 60, 100, s=8, clef="treble", items=[dict(x=66, notes=ns3, fills=_f08_fills(ns3, [SIG, BLU, GRN2]))]))
-    o.append(T(xs[2] + 116, 82, "線・線", "start", 10, MUT))
-    o.append(T(xs[2] + 116, 96, "・線", "start", 10, MUT))
-    o.append(T(xs[2] + 12, 142, "根音 C", "start", 12, SIG, True))
-    o.append(T(xs[2] + 12, 162, "半音 4 + 3 → 長三和音", "start", 11, BLU, True))
-    o.append(T(xs[2] + 12, 182, "コードネーム C", "start", 11.5, INK, True))
+    o.append(T(xs[2] + 12, 124, "3 つとも線の上にそろう", "start", 10, MUT))
+    o.append(T(xs[2] + 12, 148, "根音 C", "start", 12, SIG, True))
+    o.append(T(xs[2] + 12, 168, "半音 4 + 3 → 長三和音", "start", 11, BLU, True))
+    o.append(T(xs[2] + 12, 188, "コードネーム C", "start", 11.5, INK, True))
     # ④
     o.append(T(xs[3] + 12, 64, "ベース E は", "start", 12, INK))
     o.append(T(xs[3] + 12, 84, "3 度の音", "start", 13, BLU, True))
@@ -418,8 +421,8 @@ def _f08_voicing():
     for k, (t1, t2, ns, ghosts, note) in enumerate(panels):
         px = 8 + k * 176
         close = t1 == "密集配置"
-        col, fl = (BLU, BSOFT) if close else (GLD, GOSOFT)
-        o.append(RECT(px, 6, 168, 236, 10, PAN, col, 1.3))
+        col = INK
+        o.append(RECT(px, 6, 168, 236, 10, PAN, LIN, 1.3))
         o.append(T(px + 84, 28, t1, "middle", 13, col, True))
         o.append(T(px + 84, 46, t2, "middle", 10.5, MUT))
         yt = 66
@@ -434,7 +437,7 @@ def _f08_voicing():
         if len(ns) == 4:
             o.append(T(px + 84, 232, "重複: %s と %s" % (ns[0], [n for n in ns[1:] if n[0] == ns[0][0]][0]), "middle", 10.5, SIG, True))
     return SVG(712, 248, o, "配置の 4 つの例（C・E・G）。ベースより上の音の、隣り合う 2 音の間に構成音が入らないのが密集配置、"
-               "1 つずつ入る（点線の丸）のが開離配置である。下の 2 つは、ベースの C を 1 オクターブ上でも鳴らす重複の例。")
+               "1 つずつ入る（点線の丸）のが開離配置である。右の 2 つは、ベースの C を 1 オクターブ上でも鳴らす重複の例。")
 F["e08_voicing"] = _f08_voicing()
 
 

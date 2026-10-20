@@ -45,6 +45,29 @@ def _f10_move(p, q, c, lab=None, lc=None, dy=-5, sz=10.5, gap=9):
     return "".join(o)
 
 
+def _f10_dl(m1, m2):
+    d = m2 - m1
+    return "0" if d == 0 else ("+%d" % d if d > 0 else "−%d" % -d)
+
+
+def _f10_arrows(pa, pb, cols, mids_a=None, mids_b=None, labs=None):
+    """pa, pb: 音符の位置 [(x,y)…]（低い音から順）。各声部の矢印を引き、行き先の音の右に半音の変化を書く。"""
+    o = []
+    for i, (p, q) in enumerate(zip(pa, pb)):
+        c = cols[i]
+        lab = labs[i] if labs else _f10_dl(mids_a[i], mids_b[i])
+        if lab == "0":
+            o.append(W(p[0] + 11, p[1], q[0] - 11, q[1], c=MUT, lw=1.4, dash="3,3"))
+        else:
+            o.append(ARR(p[0] + 11, p[1], q[0] - 12, q[1], c, 1.6, 6))
+        o.append(T(q[0] + 14, q[1] + 4, lab, "start", 11, INK if c == MUT else c, True))
+    return "".join(o)
+
+
+def _f10_mids(ns):
+    return sorted(parse(n)["midi"] for n in ns)
+
+
 # 1 節. 同じ 3 つの和音を、順番だけ変えて並べる
 def _f10_ends():
     o = []
@@ -145,32 +168,40 @@ F["e10_chain"] = _f10_chain()
 # 3 節. 属七の和音: V の上に 3 度をもう 1 つ重ねる
 def _f10_v7():
     o = []
-    s = 11
-    yt = 54
-    items = [dict(x=80, notes=["G4", "B4", "D5"], fill=INK, label="V（G）", lcol=INK),
-             dict(x=200, notes=["G4", "B4", "D5", "F5"], fill=INK, fills={"B4": SIG, "F5": SIG}, label="V7（G7）", lcol=SIG)]
-    o.append(STAFF(20, yt, 290, s=s, clef="treble", items=items))
-    Y = lambda pp: yt + 4 * s - pp * s / 2
-    xb = 20 + 200 + 20
-    for p1, p2, lab in [(2, 4, "長 3 度（4）"), (4, 6, "短 3 度（3）"), (6, 8, "短 3 度（3）")]:
-        o.append(W(xb, Y(p1) - 1, xb + 5, Y(p1) - 1, xb + 5, Y(p2) + 1, xb, Y(p2) + 1, c=MUT, lw=1.2))
-        o.append(T(xb + 10, (Y(p1) + Y(p2)) / 2 + 4, lab, "start", 10.5, INK))
-    o.append(T(20 + 140, yt + 4 * s + 46, "B と F の間は 減 5 度（半音 6）= 三全音", "middle", 11, SIG, True))
-    o.append(T(20 + 140, yt + 4 * s + 64, "根音 G から 7 度の音 F までは 短 7 度（半音 10）", "middle", 11, INK))
+    s = 12
+    yt = 52
+    items = [dict(x=70, notes=["G4", "B4", "D5"], fill=INK, label="V（G）", lcol=INK, lsz=12),
+             dict(x=170, notes=["G4", "B4", "D5", "F5"], fill=INK, fills={"B4": SIG, "F5": SIG}, label="V7（G7）", lcol=SIG, lsz=12)]
+    o.append(STAFF(16, yt, 220, s=s, clef="treble", items=items))
+    # 3 度の積み重ね（下から G・B・D・F）
+    X0, Y0, dy = 330, 176, 40
+    seq = [("G", "根音", INK), ("B", "3 度の音（導音）", SIG), ("D", "5 度の音", INK), ("F", "7 度の音", SIG)]
+    for i, (n, role, c) in enumerate(seq):
+        y = Y0 - i * dy
+        o.append(CIRC(X0, y, 13, c, 1.6, PAN))
+        o.append(T(X0, y + 5, n, "middle", 13, c, True))
+        o.append(T(X0 + 22, y + 4, role, "start", 10.5, c, c == SIG))
+        if i:
+            o.append(T(X0 - 22, y + dy / 2 + 4, ["長 3 度（半音 4）", "短 3 度（半音 3）", "短 3 度（半音 3）"][i - 1], "end", 10.5, INK))
+    o.append(W(X0 - 132, Y0, X0 - 140, Y0, X0 - 140, Y0 - 3 * dy, X0 - 132, Y0 - 3 * dy, c=MUT, lw=1.3))
+    o.append(T(X0 - 146, Y0 - 1.5 * dy - 4, "短 7 度", "end", 10.5, INK, True))
+    o.append(T(X0 - 146, Y0 - 1.5 * dy + 11, "（半音 10）", "end", 10, INK))
+    xb = X0 + 116
+    o.append(W(xb - 6, Y0 - dy, xb, Y0 - dy, xb, Y0 - 3 * dy, xb - 6, Y0 - 3 * dy, c=SIG, lw=1.6))
+    o.append(T(xb + 6, Y0 - 2 * dy - 4, "三全音", "start", 11, SIG, True))
+    o.append(T(xb + 6, Y0 - 2 * dy + 11, "（減 5 度、半音 6）", "start", 10, SIG))
     info = {}
     hl = {67: dict(c=MUT, label="G"), 71: dict(c=SIG, label="B", strong=True), 74: dict(c=MUT, label="D"), 77: dict(c=SIG, label="F", strong=True)}
-    kx, ky = 420, 40
-    o.append(KEYBOARD(kx, ky, 67, 79, ww=26, wh=104, hl=hl, names=None, info=info))
-    yb = ky + 104 + 12
+    kx, ky = 486, 46
+    o.append(KEYBOARD(kx, ky, 67, 79, ww=26, wh=100, hl=hl, names=None, info=info))
+    yb = ky + 100 + 12
     for a, b, n in [(67, 71, 4), (71, 74, 3), (74, 77, 3)]:
         xa, xb2 = info[a][0], info[b][0]
         o.append(PL([(xa, yb - 4), ((xa + xb2) / 2, yb + 8), (xb2, yb - 4)], MUT, 1.4))
         o.append(T((xa + xb2) / 2, yb + 22, "%d" % n, "middle", 11, INK, True))
-    o.append(T(info[71][0], yb + 46, "導音", "middle", 10.5, SIG, True))
-    o.append(T(info[77][0], yb + 46, "7 度の音", "middle", 10.5, SIG, True))
-    o.append(T(kx + kb_width(67, 79, 26) / 2, 26, "G7 = G・B・D・F（半音 4・3・3 を積む）", "middle", 11.5, INK, True))
-    return SVG(680, yt + 4 * s + 78, o, "V（G・B・D）の上に、音階の音で 3 度をもう 1 つ重ねると F が加わり、属七の和音 V7（ハ長調では G7）になる。"
-               "3 度の音 B は導音で、7 度の音 F との間は三全音である。")
+    o.append(T(kx + kb_width(67, 79, 26) / 2, 30, "G7 = G・B・D・F", "middle", 12, INK, True))
+    return SVG(712, 206, o, "V（G・B・D）の上に、音階の音で 3 度をもう 1 つ重ねると F が加わり、属七の和音 V7（ハ長調では G7）になる。"
+               "根音 G から 7 度の音 F までは短 7 度。3 度の音 B は導音で、7 度の音 F との間は三全音である。")
 F["e10_v7"] = _f10_v7()
 
 
@@ -181,30 +212,28 @@ def _f10_tritone():
               "半音 6 − 1 − 1 = 4、度数 5 − 1 − 1 = 3", 57, 67),
              ("F が下・B が上", ["F4", "B4"], ["E4", "C5"], "増 4 度（半音 6）", "短 6 度（半音 8）", ALI, PUR,
               "半音 6 + 1 + 1 = 8、度数 4 + 1 + 1 = 6", 64, 74)]
-    s = 10
+    s = 12
     for k, (title, a, b, la, lb, ca, cb, form, klo, khi) in enumerate(cases):
         px = 14 + k * 350
-        o.append(RECT(px, 8, 332, 300, 10, "none", LIN, 1.2))
+        o.append(RECT(px, 8, 332, 320, 10, "none", LIN, 1.2))
         o.append(T(px + 166, 30, title, "middle", 12.5, INK, True))
         info = {}
-        items = [dict(x=96, notes=a, fill=SIG, key="a", label=la, lcol=ca, lsz=11),
-                 dict(x=236, notes=b, fill=BLU, key="b", label=lb, lcol=cb, lsz=11)]
-        o.append(STAFF(px + 14, 64, 300, s=s, clef="treble", items=items, info=info))
-        for (p, q) in zip(info["a"], info["b"]):
-            up = q[1] < p[1]
-            o.append(_f10_move(p, q, SIG, "+1" if up else "−1", dy=-7 if up else 13))
+        items = [dict(x=92, notes=a, fill=SIG, key="a", label=la, lcol=ca, lsz=11.5, label_dy=4.6 * s),
+                 dict(x=222, notes=b, fill=BLU, key="b", label=lb, lcol=cb, lsz=11.5, label_dy=4.6 * s)]
+        o.append(STAFF(px + 14, 54, 290, s=s, clef="treble", items=items, info=info))
+        o.append(_f10_arrows(info["a"], info["b"], [SIG, SIG], _f10_mids(a), _f10_mids(b)))
         kinfo = {}
         hl = {parse(a[0])["midi"]: dict(c=SIG, label=nname(a[0], False), strong=True), parse(a[1])["midi"]: dict(c=SIG, label=nname(a[1], False), strong=True),
               parse(b[0])["midi"]: dict(c=BLU, label=nname(b[0], False)), parse(b[1])["midi"]: dict(c=BLU, label=nname(b[1], False))}
         kw = kb_width(klo, khi, 26)
         kx = px + 166 - kw / 2
-        o.append(KEYBOARD(kx, 160, klo, khi, ww=26, wh=90, hl=hl, names=None, info=kinfo))
-        for m1, m2 in zip([parse(n)["midi"] for n in a], [parse(n)["midi"] for n in b]):
+        o.append(KEYBOARD(kx, 174, klo, khi, ww=26, wh=86, hl=hl, names=None, info=kinfo))
+        for m1, m2 in zip(_f10_mids(a), _f10_mids(b)):
             x1, x2 = kinfo[m1][0], kinfo[m2][0]
-            o.append(ARR(x1, 262, x2 + (4 if x2 < x1 else -4), 262, SIG, 1.6, 6))
-            o.append(T((x1 + x2) / 2, 280, "+1" if m2 > m1 else "−1", "middle", 10.5, SIG, True))
-        o.append(T(px + 166, 298, form, "middle", 11, INK, True))
-    return SVG(712, 314, o, "V7 の三全音 B・F が、それぞれ半音ずつ動いて I の C・E になるとき。B が下なら減 5 度が長 3 度に縮み、"
+            o.append(ARR(x1, 272, x2 + (4 if x2 < x1 else -4), 272, SIG, 1.6, 6))
+            o.append(T((x1 + x2) / 2, 290, _f10_dl(m1, m2), "middle", 11, SIG, True))
+        o.append(T(px + 166, 316, form, "middle", 11.5, INK, True))
+    return SVG(712, 336, o, "V7 の三全音 B・F が、それぞれ半音ずつ動いて I の C・E になるとき。B が下なら減 5 度が長 3 度に縮み、"
                "F が下なら増 4 度が短 6 度に広がる。どちらも、不協和の三全音が不完全協和の音程に変わる。")
 F["e10_tritone"] = _f10_tritone()
 
@@ -234,54 +263,47 @@ F["e10_spec"] = _f10_spec()
 # 3 節. G7 → C の 4 つの声部の動き
 def _f10_resolve():
     o = []
-    s = 9
+    s = 12
     info = {}
-    chords = [dict(x=88, up=["D4", "F4", "B4"], bass=["G2"], k="a", fill=INK, fills={"F4": SIG, "B4": SIG}, sym="G7（V7）"),
-              dict(x=250, up=["C4", "E4", "C5"], bass=["C3"], k="b", fill=BLU, sym="C（I）", symcol=BLU)]
-    o.append(_f10_gs(20, 46, 300, s, chords, info=info))
-    au, bu = info["au"], info["bu"]
-    labs = [("−2", MUT), ("−1", SIG), ("+1", SIG)]
-    for (p, q), (lab, c) in zip(zip(au, bu), labs):
-        o.append(_f10_move(p, q, c, lab, dy=-6 if q[1] < p[1] else 13))
-    o.append(_f10_move(info["ab"][0], info["bb"][0], MUT, "+5", dy=-6))
+    up1, up2 = ["D4", "F4", "B4"], ["C4", "E4", "C5"]
+    chords = [dict(x=92, up=up1, bass=["G2"], k="a", fill=INK, fills={"F4": SIG, "B4": SIG}, sym="G7（V7）"),
+              dict(x=242, up=up2, bass=["C3"], k="b", fill=BLU, sym="C（I）", symcol=BLU)]
+    o.append(_f10_gs(16, 52, 310, s, chords, info=info))
+    o.append(_f10_arrows(info["au"], info["bu"], [MUT, SIG, SIG], _f10_mids(up1), _f10_mids(up2)))
+    o.append(_f10_arrows(info["ab"], info["bb"], [MUT], [43], [48]))
     rows = [("B → C", "+1", "導音 → 主音（半音上）", SIG), ("F → E", "−1", "7 度の音 → 音階の第 3 音（半音下）", SIG),
-            ("D → C", "−2", "5 度の音 → 主音（全音下）", MUT), ("G → C", "+5", "ベース: 根音 → 根音", MUT)]
+            ("D → C", "−2", "5 度の音 → 主音（全音下）", INK), ("G → C", "+5", "ベース: 根音 → 根音", INK)]
     for i, (mv, d, txt, c) in enumerate(rows):
-        y = 70 + i * 34
-        o.append(T(370, y, mv, "start", 12.5, c if c != MUT else INK, True))
-        o.append(T(432, y, d, "start", 12, c if c != MUT else INK, True))
-        o.append(T(466, y, txt, "start", 11, INK if c != MUT else MUT))
-    return SVG(712, 210, o, "G7 → C で、4 つの音がそれぞれどこへ動くか（数は半音の数の変化）。三全音の 2 つの音（赤）は、"
-               "どちらも半音だけ動いて I の音になる。この形では I の 5 度の音 G は鳴らないが、C と E で C の和音として聞こえる。")
+        y = 78 + i * 36
+        o.append(T(384, y, mv, "start", 12.5, c, True))
+        o.append(T(446, y, d, "start", 12.5, c, True))
+        o.append(T(480, y, txt, "start", 11, c if c == SIG else MUT, c == SIG))
+    return SVG(712, 226, o, "G7 → C で、4 つの音がそれぞれどこへ動くか（数は半音の数の変化）。三全音の 2 つの音（赤）は、"
+               "どちらも半音 1 つだけ動いて I の音になる。この形では I の 5 度の音 G は鳴らないが、C と E で C の和音として聞こえる。")
 F["e10_resolve"] = _f10_resolve()
 
 
 # 3 節. 短調のドミナント: 自然短音階の Vm と、和声的短音階の V7
 def _f10_minor():
     o = []
-    s = 9
-    panels = [("自然短音階の V: Em → Am（Vm → Im）", ["E4", "G4", "B4"], ["E4", "A4", "C5"], ["0", "+2", "+1"],
-               [MUT, ALI, MUT], "Em", "G は主音 A の全音下（導音ではない）。三全音も無い"),
-              ("和声的短音階の V7: E7 → Am（V7 → Im）", ["D4", "G#4", "B4"], ["C4", "A4", "C5"], ["−2", "+1", "+1"],
-               [SIG, SIG, MUT], "E7", "G♯ は主音 A の半音下の導音。D–G♯ は三全音")]
-    for k, (title, up1, up2, labs, cols, sym, note) in enumerate(panels):
+    s = 12
+    panels = [("自然短音階の V: Em → Am（Vm → Im）", ["E4", "G4", "B4"], ["E4", "A4", "C5"], [MUT, ALI, MUT], {"G4": ALI}, "Em",
+               "G は主音 A の全音下（導音ではない）。三全音も無い", ALI),
+              ("和声的短音階の V7: E7 → Am（V7 → Im）", ["D4", "G#4", "B4"], ["C4", "A4", "C5"], [SIG, SIG, MUT], {"D4": SIG, "G♯4": SIG}, "E7",
+               "G♯ は主音 A の半音下の導音。D–G♯ は三全音", SIG)]
+    for k, (title, up1, up2, cols, fills, sym, note, nc) in enumerate(panels):
         px = 12 + k * 352
-        o.append(RECT(px, 8, 336, 236, 10, "none", LIN, 1.2))
+        o.append(RECT(px, 8, 336, 286, 10, "none", LIN, 1.2))
         o.append(T(px + 168, 30, title, "middle", 12, INK, True))
         info = {}
-        fills = {"D4": SIG, "G♯4": SIG} if k == 1 else {"G4": ALI}
-        chords = [dict(x=90, up=up1, bass=["E2"], k="a", fill=INK, fills=fills, sym=sym),
-                  dict(x=230, up=up2, bass=["A2"], k="b", fill=BLU, sym="Am", symcol=BLU)]
-        o.append(_f10_gs(px + 14, 66, 290, s, chords, info=info))
-        for (p, q), lab, c in zip(zip(info["au"], info["bu"]), labs, cols):
-            if lab == "0":
-                o.append(W(p[0] + 9, p[1], q[0] - 9, q[1], c=MUT, lw=1.3, dash="3,3"))
-            else:
-                o.append(_f10_move(p, q, c, lab, dy=-6 if q[1] < p[1] else 13))
-        o.append(_f10_move(info["ab"][0], info["bb"][0], MUT, "+5", dy=-6))
-        o.append(T(px + 168, 232, note, "middle", 11, ALI if k == 0 else SIG, True))
-    return SVG(712, 250, o, "イ短調で、V の和音から Im（Am）へ進むとき。自然短音階の Em では第 7 音 G が主音 A の全音下にあり、"
-               "半音で主音へ進む音が無い。和声的短音階の第 7 音 G♯ を使った E7 では、導音 G♯ が半音上の A へ、7 度の音 D が全音下の C へ進み、"
+        chords = [dict(x=88, up=up1, bass=["E2"], k="a", fill=INK, fills=fills, sym=sym),
+                  dict(x=220, up=up2, bass=["A2"], k="b", fill=BLU, sym="Am", symcol=BLU)]
+        o.append(_f10_gs(px + 12, 70, 290, s, chords, info=info))
+        o.append(_f10_arrows(info["au"], info["bu"], cols, _f10_mids(up1), _f10_mids(up2)))
+        o.append(_f10_arrows(info["ab"], info["bb"], [MUT], [40], [45]))
+        o.append(T(px + 168, 280, note, "middle", 11, nc, True))
+    return SVG(712, 302, o, "イ短調で、V の和音から Im（Am）へ進むとき（数は半音の数の変化）。自然短音階の Em では第 7 音 G が主音 A の全音下にあり、"
+               "半音 1 つで主音へ進む音が無い。和声的短音階の第 7 音 G♯ を使った E7 では、導音 G♯ が半音上の A へ、7 度の音 D が全音下の C へ進み、"
                "三全音 D–G♯（増 4 度）が長 6 度 C–A になる。")
 F["e10_minor"] = _f10_minor()
 
@@ -319,23 +341,22 @@ F["e10_cadences"] = _f10_cadences()
 # 4 節. 偽終止: 上の 3 つの声部は全終止と同じで、ベースだけが違う
 def _f10_deceptive():
     o = []
-    s = 9
-    panels = [("全終止 G7 → C（V7 → I）", "C", ["C3"], "C・E（I）", BLU),
-              ("偽終止 G7 → Am（V7 → VIm）", "Am", ["A2"], "A・C・E（VIm）", BLU)]
-    for k, (title, sym, bass2, res, c2) in enumerate(panels):
+    s = 12
+    panels = [("全終止 G7 → C（V7 → I）", "C", "C3", "C・E（I）"),
+              ("偽終止 G7 → Am（V7 → VIm）", "Am", "A2", "A・C・E（VIm）")]
+    up1, up2 = ["D4", "F4", "B4"], ["C4", "E4", "C5"]
+    for k, (title, sym, bass2, res) in enumerate(panels):
         px = 12 + k * 352
-        o.append(RECT(px, 8, 336, 236, 10, "none", LIN, 1.2))
+        o.append(RECT(px, 8, 336, 276, 10, "none", LIN, 1.2))
         o.append(T(px + 168, 30, title, "middle", 12.5, INK, True))
         info = {}
-        chords = [dict(x=96, up=["D4", "F4", "B4"], bass=["G2"], k="a", fill=INK, fills={"F4": SIG, "B4": SIG}, sym="G7"),
-                  dict(x=236, up=["C4", "E4", "C5"], bass=bass2, k="b", fill=c2, bfill=ALI, sym=sym, symcol=c2)]
-        o.append(_f10_gs(px + 14, 68, 290, s, chords, info=info))
-        for (p, q), lab, c in zip(zip(info["au"], info["bu"]), ["−2", "−1", "+1"], [MUT, SIG, SIG]):
-            o.append(_f10_move(p, q, c, lab, dy=-6 if q[1] < p[1] else 13))
-        d = parse(bass2[0])["midi"] - 43
-        o.append(_f10_move(info["ab"][0], info["bb"][0], ALI, "+%d" % d, dy=-6 if d > 2 else -7))
-        o.append(T(px + 168, 222, "ベース G → %s、和音の音は %s" % (nname(bass2[0], False), res), "middle", 11.5, ALI, True))
-    return SVG(712, 252, o, "全終止と偽終止で、G7 から先の動きを比べる。上の 3 つの声部の動き（B → C、F → E、D → C）はまったく同じで、"
+        chords = [dict(x=92, up=up1, bass=["G2"], k="a", fill=INK, fills={"F4": SIG, "B4": SIG}, sym="G7"),
+                  dict(x=226, up=up2, bass=[bass2], k="b", fill=BLU, bfill=ALI, sym=sym, symcol=BLU)]
+        o.append(_f10_gs(px + 12, 70, 290, s, chords, info=info))
+        o.append(_f10_arrows(info["au"], info["bu"], [MUT, SIG, SIG], _f10_mids(up1), _f10_mids(up2)))
+        o.append(_f10_arrows(info["ab"], info["bb"], [ALI], [43], [parse(bass2)["midi"]]))
+        o.append(T(px + 168, 268, "ベース G → %s、和音の音は %s" % (nname(bass2, False), res), "middle", 11.5, ALI, True))
+    return SVG(712, 292, o, "全終止と偽終止で、G7 から先の動きを比べる（数は半音の数の変化）。上の 3 つの声部の動き（B → C、F → E、D → C）はまったく同じで、"
                "違うのはベースが C へ進むか A へ進むかだけである。VIm（A・C・E）は、三全音の解決先の C と E を両方含んでいる。")
 F["e10_deceptive"] = _f10_deceptive()
 
@@ -355,8 +376,7 @@ def _f10_phrase():
         xb = x0 + b * (w + g) + (14 if b >= 4 else 0) + w
         o.append(W(xa, 46, xa, 40, xb, 40, xb, 46, c=col, lw=1.6))
         o.append(T((xa + xb) / 2, 32, title, "middle", 11.5, col, True))
-        o.append(T(xb - 8, y + 72, mark, "middle", 22, col, True))
-        o.append(T(xb - 30, y + 70, "区切り" if k == 0 else "終わり", "end", 10.5, col, True))
+        o.append(T((xa + xb) / 2, y + 70, "区切り（文章の「%s」のよう）" % mark if k == 0 else "終わり（文章の「%s」のよう）" % mark, "middle", 11, col, True))
     return SVG(712, y + 86, o, "2 つのフレーズを続けた進行。1 つ目は V で止まる半終止で区切られ、続きを求める（文章の「、」のような区切り）。"
                "2 つ目は全終止で、はっきり終わる（「。」）。")
 F["e10_phrase"] = _f10_phrase()
@@ -365,48 +385,49 @@ F["e10_phrase"] = _f10_phrase()
 # 5 節. 機能の流れ
 def _f10_flow():
     o = []
-    pos = {"T": (110, 120), "SD": (350, 120), "D": (590, 120)}
-    r = 40
+    pos = {"T": (100, 130), "SD": (356, 130), "D": (612, 130)}
+    r = 48
     def node(fn, sub):
         x, y = pos[fn]
         o.append(CIRC(x, y, r, _f10_FC[fn], 2.2, _f10_FS[fn]))
-        o.append(T(x, y + 2, fn, "middle", 17, _f10_FC[fn], True))
-        o.append(T(x, y + 19, sub, "middle", 10, INK))
-    # T → SD, SD → D（上の段）
-    o.append(ARR(pos["T"][0] + r, 108, pos["SD"][0] - r - 2, 108, INK, 2.2, 8))
-    o.append(ARR(pos["SD"][0] + r, 108, pos["D"][0] - r - 2, 108, INK, 2.2, 8))
-    o.append(T(230, 100, "T → SD", "middle", 11, INK, True))
-    o.append(T(470, 100, "SD → D", "middle", 11, INK, True))
-    # SD → T（変終止）、D → SD（避けることが多い）（下の段）
-    o.append(ARR(pos["SD"][0] - r, 134, pos["T"][0] + r + 2, 134, GRN2, 1.6, 7))
-    o.append(T(230, 150, "SD → T（変終止）", "middle", 10.5, GRN2, True))
-    o.append(W(pos["D"][0] - r, 134, pos["SD"][0] + r + 8, 134, c=ALI, lw=1.4, dash="5,4"))
-    o.append(ARR(pos["SD"][0] + r + 10, 134, pos["SD"][0] + r + 2, 134, ALI, 1.4, 7))
-    o.append(T(470, 150, "D → SD（クラシックでは避ける）", "middle", 10.5, ALI, True))
+        o.append(T(x, y + 1, fn, "middle", 18, _f10_FC[fn], True))
+        o.append(T(x, y + 20, sub, "middle", 10, INK))
+    # T → SD、SD → D（上の線）
+    o.append(ARR(pos["T"][0] + r, 118, pos["SD"][0] - r - 2, 118, INK, 2.4, 9))
+    o.append(ARR(pos["SD"][0] + r, 118, pos["D"][0] - r - 2, 118, INK, 2.4, 9))
+    o.append(T(228, 108, "T → SD", "middle", 11.5, INK, True))
+    o.append(T(484, 108, "SD → D", "middle", 11.5, INK, True))
+    # SD → T（変終止）、D → SD（下の線）
+    o.append(ARR(pos["SD"][0] - r, 142, pos["T"][0] + r + 2, 142, GRN2, 1.6, 7))
+    o.append(T(228, 160, "SD → T（変終止）", "middle", 10.5, GRN2, True))
+    o.append(W(pos["D"][0] - r, 142, pos["SD"][0] + r + 8, 142, c=ALI, lw=1.5, dash="5,4"))
+    o.append(ARR(pos["SD"][0] + r + 10, 142, pos["SD"][0] + r + 2, 142, ALI, 1.5, 7))
+    o.append(T(484, 160, "D → SD", "middle", 10.5, ALI, True))
+    o.append(T(484, 174, "（クラシックでは避ける）", "middle", 10, ALI))
     # D → T（解決）: 下の大きな弧
     pts = []
     for i in range(41):
         t = i / 40.0
-        x = pos["D"][0] - 10 + (pos["T"][0] + 10 - (pos["D"][0] - 10)) * t
-        y = 160 + 70 * math.sin(math.pi * t)
+        x = pos["D"][0] - 14 + (pos["T"][0] + 14 - (pos["D"][0] - 14)) * t
+        y = 172 + 72 * math.sin(math.pi * t)
         pts.append((x, y))
-    o.append(PL(pts[:-2], SIG, 2.2))
-    o.append(ARR(pts[-3][0], pts[-3][1], pts[-1][0], pts[-1][1] - 2, SIG, 2.2, 9))
-    o.append(T(350, 248, "D → T（解決。全終止・偽終止）", "middle", 11.5, SIG, True))
+    o.append(PL(pts[:-2], SIG, 2.4))
+    o.append(ARR(pts[-3][0], pts[-3][1], pts[-1][0], pts[-1][1] - 2, SIG, 2.4, 9))
+    o.append(T(356, 262, "D → T（解決。全終止・偽終止）", "middle", 11.5, SIG, True))
     # T → D: 上の大きな弧
     pts = []
     for i in range(41):
         t = i / 40.0
-        x = pos["T"][0] + 10 + (pos["D"][0] - 10 - (pos["T"][0] + 10)) * t
-        y = 80 - 58 * math.sin(math.pi * t)
+        x = pos["T"][0] + 14 + (pos["D"][0] - 14 - (pos["T"][0] + 14)) * t
+        y = 86 - 58 * math.sin(math.pi * t)
         pts.append((x, y))
     o.append(PL(pts[:-2], BLU, 1.6))
     o.append(ARR(pts[-3][0], pts[-3][1], pts[-1][0], pts[-1][1] + 2, BLU, 1.6, 8))
-    o.append(T(350, 16, "T → D（SD を通らずに）", "middle", 10.5, BLU, True))
+    o.append(T(356, 20, "T → D（SD を通らずに）", "middle", 10.5, BLU, True))
     node("T", "I・VIm・IIIm")
     node("SD", "IV・IIm")
     node("D", "V・V7・VIIdim")
-    return SVG(712, 262, o, "機能の進み方。太い矢印の T → SD → D → T が基本の流れで、T からはどの機能へも進め、SD からは D か T へ、D からは T へ進む。"
+    return SVG(712, 276, o, "機能の進み方。太い矢印の T → SD → D → T が基本の流れで、T からはどの機能へも進め、SD からは D か T へ、D からは T へ進む。"
                "D → SD（破線）は、クラシックの和声では避けるのが基本とされるが、ポピュラー音楽ではよく使われる。同じ機能どうし（T → T など）の進行もある。")
 F["e10_flow"] = _f10_flow()
 
