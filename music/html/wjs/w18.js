@@ -85,9 +85,11 @@
       var yb=Y(lo)+14;
       for(var q=0;q<=ux.nb*4;q++){var x=ml+q*2*px;b.push(ln(x,8,x,yb-8,q%4===0?V("muted"):V("grid"),q%4===0?1.2:1));if(q<ux.nb*4)b.push(tx(x+px,yb+4,String(q%4+1),"middle",10,V("muted")));}
       for(q=0;q<ux.nb;q++)b.push(tx(ml+(q*8+4)*px,yb+20,"X: "+(ux.b0+q)+" / Y: "+(uy.b0+q)+" 小節","middle",10,V("muted")));
-      function seg(g,col,w,op,off,dash){for(var k=0;k<N;k++){var n=g.n[k];if(!n)continue;var x1=ml+k*px+2,x2=ml+(k+1)*px-2,y=Y(n.dia-off);
-        b.push('<line x1="'+x1+'" y1="'+y+'" x2="'+x2+'" y2="'+y+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round" opacity="'+op+'"'+(dash?' stroke-dasharray="3,3"':'')+'/>');
-        if(g.on[k])b.push('<circle cx="'+(x1+1)+'" cy="'+y+'" r="'+(w>4?5:3)+'" fill="'+col+'" opacity="'+op+'"/>');}}
+      /* 1 つの音を、鳴っている長さの 1 本の線で描く（8 分音符ずつに切らない） */
+      function seg(g,col,w,op,off,dash){var k=0;while(k<N){var n=g.n[k];if(!n){k++;continue;}var j=k;while(j+1<N&&g.n[j+1]===n)j++;
+        var x1=ml+k*px+3,x2=ml+(j+1)*px-4,y=Y(n.dia-off);
+        b.push('<line x1="'+x1+'" y1="'+y+'" x2="'+x2+'" y2="'+y+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round" opacity="'+op+'"'+(dash?' stroke-dasharray="4,4"':'')+'/>');
+        if(g.on[k])b.push('<circle cx="'+x1+'" cy="'+y+'" r="'+(w>4?5:3)+'" fill="'+col+'" opacity="'+op+'"/>');k=j+1;}}
       seg(gx,V("blue"),8,0.42,0);
       if(shift&&dk!==0&&dk!=null)seg(gy,V("purple"),2.2,0.9,dk,true);
       seg(gy,V("purple"),2.4,1,0);
@@ -135,7 +137,8 @@
     b.push(tx(x0+2,top-8,String(b0),"start",9,V("muted")));for(k=1;k<nb;k++)b.push(tx(x0+BXr(k)-3,top-8,String(b0+k),"end",9,V("muted")));
     if(L.form)(S.form||[]).forEach(function(f){if(f[0]>=b0&&f[0]<b0+nb){var xf=f[0]===b0?x0+2:x0+BXr(f[0]-b0)+4;b.push(tx(xf+(f[0]===b0?14:0),14,f[2],"start",14,V("signal"),true));}});
     if(L.sym)rc.forEach(function(ci){var c=A.chords[ci];b.push(tx(X(c.t-t0)-5,top-18,_w18_sym(c.sym),"start",12.5,ci===cur.c?V("signal"):V("ink"),true));});
-    var yb=top+4*s+12;
+    var ppm=0;rn.forEach(function(i){ppm=Math.min(ppm,parse(A.notes[i].n).dia-30);});
+    var yb=top+4*s+12+Math.max(0,-ppm*s/2-2);
     if(L.nct){rn.forEach(function(i){var n=A.notes[i];if(n.nct&&!n.cont)b.push(tx(X(n.t-t0),yb+10,n.nct,"middle",10,V("gold"),true));});yb+=15;}
     if(L.deg){var two=rc.some(function(ci){return A.chords[ci].deg.length>1;});
       rc.forEach(function(ci){var c=A.chords[ci],x=X(c.t-t0)-5;if(c.deg.length===1)b.push(tx(x,yb+11,c.deg[0],"start",11.5,V("ink"),true));
@@ -211,9 +214,9 @@
         grid.appendChild(box);}
       preset("ex");}
     function update(){
-      var strong=0,flows=[],cads=[],nb=A.notes[A.notes.length-1].bar;
+      var strong=[0,0],flows=[],cads=[],nb=A.notes[A.notes.length-1].bar;
       slots.forEach(function(s,i){var sym=s.sel.value,pc=_w18_pcs(sym),h=[];
-        A.notes.forEach(function(n){if(n.cont||n.t<s.t0-1e-9||n.t>=s.t0+2-1e-9)return;var ok=pc.indexOf(n.midi%12)>=0,stg=Math.abs(n.t-s.t0)<1e-9;if(!ok&&stg)strong++;
+        A.notes.forEach(function(n){if(n.cont||n.t<s.t0-1e-9||n.t>=s.t0+2-1e-9)return;var ok=pc.indexOf(n.midi%12)>=0,stg=Math.abs(n.t-s.t0)<1e-9;if(!ok&&stg)strong[i%2]++;
           h.push('<span style="color:'+(ok?'var(--green)':stg?'var(--alias)':'var(--gold)')+';font-weight:'+(ok?400:700)+(stg?';text-decoration:underline':'')+'">'+nname(n.n,false)+'</span>');});
         s.nt.innerHTML=h.join(" ")||"&nbsp;";var f=fnOf(sym);
         s.dg.innerHTML='<b>'+deg(sym)+'</b> <span style="color:var(--'+_w18_FNC[f]+')">'+f+'</span>';
@@ -227,7 +230,7 @@
         if(last==="C"&&p==="D"&&!SEC[prev])kind="全終止";else if(last==="C"&&(p==="SD"||p==="SDm"))kind="変終止";else if(l==="D"&&!SEC[last])kind="半終止";
         else if(last==="Am"&&p==="D")kind="偽終止";else kind="終止の形になっていない";
         cads.push("第 "+e+" 小節: "+(prev?_w18_sym(prev)+" → ":"")+_w18_sym(last)+" <b>"+kind+"</b>");}
-      ro.innerHTML='強拍（1・3 拍目）の音で和音に含まれないもの: <b'+(strong?' class="warn"':'')+'>'+strong+'</b> か所（下線付きの赤）<br>'+
+      ro.innerHTML='和音に含まれない音（下線付きの赤）: 1 拍目（強拍） <b'+(strong[0]?' class="warn"':'')+'>'+strong[0]+'</b> か所、3 拍目（中強拍） <b>'+strong[1]+'</b> か所<br>'+
         '機能の流れに合わない動き: '+(flows.length?'<span class="warn">'+flows.join("、")+'</span>':'<b>なし</b>')+'<br>フレーズの終わり: '+cads.join("、")+
         '<br><span style="color:var(--green)">緑</span> = 和音の音、<span style="color:var(--gold)">金</span> = 弱拍の非和声音';
     }

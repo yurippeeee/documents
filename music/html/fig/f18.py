@@ -190,7 +190,7 @@ def _f18_fnbox(o, x1, x2, y, fn, sec=False, h=17):
 _f18_BAND = {"C": (BLU, BSOFT), "G": (GLD, GOSOFT), "P": (MUT, PAN)}
 
 
-def _f18_chart(spec, rows, show, xL=16, top=6, time=True, fills_extra=None, hl=None, endbar=None):
+def _f18_chart(spec, rows, show, xL=16, top=6, time=True, fills_extra=None, hl=None, endbar=None, head=None):
     """分析譜。rows は段ごとの (最初の小節, 小節の数)。show に含める層:
        sym（コードネーム）deg（ディグリーネーム）fn（機能）nct（非和声音）cad（終止）key（調の帯）num（小節番号）
        hl は枠で囲む音の (開始の拍, 長さ) の列"""
@@ -207,13 +207,21 @@ def _f18_chart(spec, rows, show, xL=16, top=6, time=True, fills_extra=None, hl=N
     fills.update(fills_extra or {})
     info = []
     for ri, (b0, nb) in enumerate(rows):
-        ytop = y + (34 if "sym" in show else 22)
+        ytop = y + (head if head is not None else (34 if "sym" in show else 22))
         t0 = 4.0 * (b0 - 1)
         X = lambda rel, xL=xL: xL + _f18_X(rel)
         eb = (b0 + nb - 1 == nbars) if endbar is None else endbar
         for (ht, hd) in (hl or []):
             if t0 - 1e-9 <= ht < t0 + 4 * nb - 1e-9:
-                o.append(RECT(X(ht - t0) - 10, ytop - 6, max(20, _f18_U * hd - 12), 4 * s + 12, 6, "none", GLD, 1.6))
+                n = [q for q in notes if abs(q["t"] - ht) < 1e-9][0]
+                yn = _f18_yn(n["n"], ytop)
+                if n["d"] >= 4:
+                    y1, y2 = yn - 9, yn + 9
+                elif parse(n["n"])["dia"] - 30 < 4:          # 符幹が上
+                    y1, y2 = yn - 3.4 * s - 4, yn + 8
+                else:
+                    y1, y2 = yn - 8, yn + 3.4 * s + 4
+                o.append(RECT(X(ht - t0) - 10, y1, max(22, _f18_U * hd - 12), y2 - y1, 6, "none", GLD, 1.6))
         wrow = _f18_row(o, xL, ytop, notes, b0, nb, time and ri == 0, eb, fills)
         xend = xL + wrow
         if "num" in show:
@@ -225,7 +233,8 @@ def _f18_chart(spec, rows, show, xL=16, top=6, time=True, fills_extra=None, hl=N
             _f18_tie_half(o, X(rn[-1]["t"] - t0) + 4, xend - 1, _f18_yn(rn[-1]["n"], ytop))
         if rn and rn[0]["cont"]:
             _f18_tie_half(o, xL + _f18_xs() - 16, X(0) - 4, _f18_yn(rn[0]["n"], ytop))
-        yb = ytop + 4 * s + 12
+        ppmin = min([parse(n["n"])["dia"] - 30 for n in rn] or [0])   # 五線より下の音の分だけ下の層を下げる
+        yb = ytop + 4 * s + 12 + max(0, -ppmin * s / 2 - 2)
         if "nct" in show:
             for n in rn:
                 if n["nct"] and not n["cont"]:
@@ -268,7 +277,8 @@ def _f18_chart(spec, rows, show, xL=16, top=6, time=True, fills_extra=None, hl=N
             yb += 27
         if "key" in show:
             for (a, b, lab, k) in S.get("band", []):
-                if a >= b0 and b < b0 + nb:
+                a, b = max(a, b0), min(b, b0 + nb - 1)
+                if a <= b:
                     x1 = xL + (_f18_barx(a - b0) if a > b0 else _f18_xs() - 12) + 3
                     x2 = xL + _f18_barx(b - b0 + 1) - 3
                     c, fl = _f18_BAND[k]
@@ -284,41 +294,35 @@ def _f18_chart(spec, rows, show, xL=16, top=6, time=True, fills_extra=None, hl=N
 # 1. 分析の 7 つの段と、後の段が前の段の結果を使う関係
 def _f18_steps():
     o = []
-    steps = [("① 拍子と調", "何拍ずつまとまり、主音はどれか", "16・07 章"),
-             ("② フレーズの区切り", "どこで区切れるか", "10 章"),
-             ("③ 和音とディグリーネーム", "何の和音が鳴っているか", "08・09・11 章"),
-             ("④ 機能と終止", "落ち着くか、続きを求めるか", "10・13 章"),
-             ("⑤ 非和声音", "和音に含まれない旋律の音はどれか", "17 章"),
-             ("⑥ 転調", "主音が移る所はあるか", "14 章"),
-             ("⑦ 全体の形", "フレーズがどう並ぶか", "この章 2 節")]
-    x0, w, h, pitch, y0 = 66, 268, 44, 58, 14
-    cy = lambda i: y0 + i * pitch + h / 2
-    for i, (a, b, c) in enumerate(steps):
+    steps = [("① 拍子と調", "何拍ずつまとまり、主音はどれか", "16・07 章", ""),
+             ("② フレーズの区切り", "どこで区切れるか", "10 章", ""),
+             ("③ 和音とディグリーネーム", "何の和音が鳴っているか", "08・09・11 章", "① の主音"),
+             ("④ 機能と終止", "落ち着くか、続きを求めるか", "10・13 章", "② の区切り、③ の和音"),
+             ("⑤ 非和声音", "和音に含まれない旋律の音はどれか", "17 章", "③ の和音"),
+             ("⑥ 転調", "主音が移る所はあるか", "14 章", "④ の終止"),
+             ("⑦ 全体の形", "フレーズがどう並ぶか", "この章 2 節", "② のフレーズ")]
+    x0, w, h, pitch, y0 = 70, 300, 44, 58, 30
+    o.append(T(x0 + w + 46, 20, "前の段の結果で使うもの", "start", 11, SIG, True))
+    for i, (a, b, c, u) in enumerate(steps):
         y = y0 + i * pitch
         o.append(RECT(x0, y, w, h, 8, PAN, LIN, 1.3))
         o.append(T(x0 + 12, y + 18, a, "start", 13, INK, True))
-        o.append(T(x0 + w - 10, y + 18, c, "end", 10.5, BLU, True))
         o.append(T(x0 + 12, y + 35, b, "start", 11, MUT))
+        o.append(T(x0 + w - 10, y + 35, c, "end", 10.5, BLU, True))
+        if u:
+            o.append(ARR(x0 + w + 40, y + h / 2, x0 + w + 6, y + h / 2, SIG, 1.4, 6))
+            o.append(T(x0 + w + 46, y + h / 2 + 4, u, "start", 11.5, SIG, True))
         if i < len(steps) - 1:
             o.append(ARR(x0 + 40, y + h + 1, x0 + 40, y + pitch - 2, MUT, 1.3, 6))
-    xr = x0 + w
-    deps = [(0, 2, "主音", 34), (1, 3, "区切り", 64), (2, 3, "和音", 16), (2, 4, "和音", 34), (3, 5, "終止", 64), (1, 6, "フレーズ", 100)]
-    for a, b, lab, bul in deps:
-        ya, yb_ = cy(a) + 6, cy(b) - 6
-        xm = xr + bul
-        o.append('<path d="M%g,%g C%g,%g %g,%g %g,%g" fill="none" stroke="%s" stroke-width="1.4"/>'
-                 % (xr + 2, ya, xm, ya, xm, yb_, xr + 9, yb_, SIG))
-        o.append('<polygon points="%g,%g %g,%g %g,%g" fill="%s"/>' % (xr + 2, yb_, xr + 10, yb_ - 4, xr + 10, yb_ + 4, SIG))
-        o.append(T(xm - 0.25 * bul + 6, (ya + yb_) / 2 + 4, lab, "start", 10.5, SIG, True))
-    # ⑥ → ③（戻る）
+    cy = lambda i: y0 + i * pitch + h / 2
     ya, yb_ = cy(5), cy(2)
     o.append('<path d="M%g,%g C%g,%g %g,%g %g,%g" fill="none" stroke="%s" stroke-width="1.4" stroke-dasharray="4,3"/>'
              % (x0 - 2, ya, x0 - 30, ya, x0 - 30, yb_, x0 - 9, yb_, GLD))
     o.append('<polygon points="%g,%g %g,%g %g,%g" fill="%s"/>' % (x0 - 2, yb_, x0 - 10, yb_ - 4, x0 - 10, yb_ + 4, GLD))
     o.append(T(x0 - 34, (ya + yb_) / 2 - 4, "数え", "end", 10.5, GLD, True))
     o.append(T(x0 - 34, (ya + yb_) / 2 + 10, "直す", "end", 10.5, GLD, True))
-    return SVG(500, y0 + 7 * pitch, o, "分析の 7 つの段。各段の右上は、使う道具を定義した章。右の赤い弧は、後の段が前の段の結果"
-               "（主音・区切り・和音・終止・フレーズ）を使うことを表す。⑥ で転調が見つかったら、その部分の ③・④ を新しい調で数え直す（金色の破線）。")
+    return SVG(560, y0 + 7 * pitch, o, "分析の 7 つの段。各段の右下は、使う道具を定義した章。右の赤い文字は、その段が前の段の結果のうち何を使うかを表す。"
+               "⑥ で転調が見つかったら、その部分の ③・④ を新しい調で数え直す（金色の破線）。")
 F["e18_steps"] = _f18_steps()
 
 
@@ -371,7 +375,7 @@ def _f18_tw_cand():
     o.append(T(x0 - 12, 26, "小節", "end", 11, MUT, True))
     o.append(T(x0 - 12, 56, "旋律の音 x", "end", 11, MUT, True))
     for j, (rn, dl) in enumerate(roles):
-        o.append(T(x0 - 12, 92 + 38 * j, "x が" + rn, "end", 11, MUT, True))
+        o.append(T(x0 - 12, 92 + 38 * j, "x が " + rn, "end", 11, MUT, True))
     o.append(T(x0 - 12, 222, "選んだ和音", "end", 11, INK, True))
     for k in range(4):
         xa = x0 + 2 * k * cw
@@ -427,8 +431,7 @@ def _f18_tw_form():
     o.append(T(88, i2[0]["ytop"] + 21, "第 5〜6 小節", "end", 11.5, SIG, True))
     for a_, b_ in zip(n1[:7], n1[7:]):
         xa = i1[0]["X"](a_["t"])
-        ya, yb_ = _f18_yn(a_["n"], i1[0]["ytop"]) + 10, _f18_yn(b_["n"], i2[0]["ytop"]) - 7
-        o.append(ARR(xa + 7, ya + 14, xa + 7, yb_, SIG, 1.2, 5))
+        o.append(ARR(xa, i1[0]["ytop"] + 4 * _f18_s + 14, xa, i2[0]["ytop"] - 8, SIG, 1.3, 5))
     o.append(T(96 + _f18_barx(2) + 8, (i1[0]["ytop"] + i2[0]["ytop"]) / 2 + 26, "各音を文字 1 つ上へ", "start", 11, SIG, True))
     return SVG(560, h2 + 4, o, "きらきら星の楽式は a b a（上）。b の 2 小節（第 5〜6 小節と、同じ形の第 7〜8 小節）は、"
                "a の第 3〜4 小節の各音を文字 1 つずつ上へずらした形で、リズムも同じである（下）。")
@@ -443,14 +446,14 @@ _f18_SONGS["odes"]["mel"] = _f18_SONGS["ode"]["mel"].replace("C4 D4 G3 E4~ | E4 
 def _f18_ode_score():
     S, notes, ch = _f18_song("ode")
     hl = [(n["t"], n["d"]) for n in notes if n["d"] >= 2]
-    o, h, info, notes = _f18_chart("ode", [(1, 4), (5, 4), (9, 4), (13, 4)], {"num"}, hl=hl)
+    o, h, info, notes = _f18_chart("ode", [(1, 4), (5, 4), (9, 4), (13, 4)], {"num"}, hl=hl, head=46)
     att = [n for n in notes if not n["cont"]]
     for a, b in zip(att, att[1:]):
         d = abs(b["dia"] - a["dia"]) + 1
         if d >= 3:
             r = info[(b["bar"] - 1) // 4]
             x = r["X"](b["t"] - r["t0"])
-            yy = r["ytop"] - 10 - (12 if (d == 6) else 0)
+            yy = r["ytop"] - 24 - (13 if d == 6 else 0)
             o.append(T(x, yy, "%d 度%s" % (d, "↑" if b["dia"] > a["dia"] else "↓"), "middle", 10.5, ALI, True))
     return SVG(640, h, o, "よろこびの歌の旋律（ハ長調に移したもの）。赤い文字は 3 度以上の跳躍で、全体で 4 か所しかない。"
                "金色の枠は 2 拍の長い音。第 12 小節の 4 拍目の E は、タイで第 13 小節へつながる。")
@@ -497,10 +500,10 @@ def _f18_ode_sync():
         S, notes, ch = _f18_song(nm)
         e = [i for i, n in enumerate(notes) if n["bar"] in (12, 13) and n["n"] == "E4" and not n["cont"]][0]
         o.append(T(16, y + 14, title, "start", 12.5, INK, True))
-        oo, h, info, nn = _f18_chart(nm, [(12, 2)], {"num"}, top=y + 10, time=False, fills_extra={e: SIG}, endbar=False)
+        oo, h, info, nn = _f18_chart(nm, [(12, 2)], {"num"}, top=y + 22, time=False, fills_extra={e: SIG}, endbar=False)
         o += oo
         r = info[0]
-        yg = r["ytop"] + 4 * _f18_s + 26
+        yg = r["ytop"] + 4 * _f18_s + 42
         for b in range(8):
             x = r["X"](b)
             on = abs(b - (notes[e]["t"] - r["t0"])) < 1e-9
@@ -526,7 +529,7 @@ def _f18_ode_form():
     for (t, d) in hl:
         r = info[int(t // 16)]
         x1 = r["X"](t - r["t0"]) - 12
-        o.append(RECT(x1, r["ytop"] - 8, _f18_barx(4) - _f18_barx(3) - 2, 4 * _f18_s + 16, 6, ASOFT, ALI, 1, "4,3"))
+        o.append(RECT(x1, r["ytop"] - 8, _f18_barx(4) - _f18_barx(3) - 2, 4 * _f18_s + 22, 6, ASOFT, ALI, 1, "4,3"))
     o += oo
     for r, (a, b, lab) in zip(info, _f18_SONGS["ode"]["form"]):
         col = GLD if lab == "b" else BLU
@@ -541,7 +544,7 @@ def _f18_ex3_score():
     S, notes, ch = _f18_song("ex3")
     acc = {i: SIG for i, n in enumerate(notes) if parse(n["n"])["acc"] != 0}
     hl = [(n["t"], n["d"]) for n in notes if n["d"] >= 2]
-    o, h, info, notes = _f18_chart("ex3", [(1, 4), (5, 4), (9, 4), (13, 4)], {"num"}, fills_extra=acc, hl=hl)
+    o, h, info, notes = _f18_chart("ex3", [(1, 4), (5, 4), (9, 4), (13, 4)], {"num"}, fills_extra=acc, hl=hl, head=36)
     for b in (1, 5, 13):
         r = info[(b - 1) // 4]
         x1, x2 = r["X"](0) - 6, r["X"](3) + 6
@@ -569,12 +572,12 @@ def _f18_ex3_acc():
         o += oo
         r = info[0]
         tx = r["xend"] + 24
-        o.append(RECT(tx - 10, y + 6, 330, h - y - 12, 8, PAN, LIN, 1.1))
+        o.append(RECT(tx - 10, y + 6, 334, 100, 8, PAN, LIN, 1.1))
         o.append(T(tx, y + 28, nm, "start", 15, SIG, True))
         for j, f in enumerate(facts):
             o.append(T(tx + 34, y + 28 + 19 * j, f, "start", 11.5, INK))
-        o.append(T(tx, y + 28 + 19 * 3 + 4, "→ " + concl, "start", 12, col, True))
-        y = h + 4
+        o.append(T(tx, y + 94, "→ " + concl, "start", 12, col, True))
+        y = max(h, y + 110) + 4
     return SVG(712, y, o, "例 3 の 3 つの臨時記号の比較。C♯ と A♭ は 1 回だけ現れて半音で次の音へ進み、ハ長調の終止で閉じる。"
                "F♯ は 5 小節にわたって続き、G を主和音とする終止を 2 回作る。")
 F["e18_ex3_acc"] = _f18_ex3_acc()
@@ -584,7 +587,7 @@ def _f18_ex3_pivot():
     o = []
     S, notes, chords = _f18_song("ex3")
     bars = list(range(5, 14))
-    x0, cw = 112, 64
+    x0, cw = 112, 66
     rowsy = [22, 48, 80, 118, 156, 194]
     labs = ["小節", "コードネーム", "F の音", "ハ長調で読む", "ト長調で読む", "読み方"]
     for y, lab in zip(rowsy, labs):
@@ -619,14 +622,14 @@ def _f18_ex3_pivot():
                 degs.append(d)
             col, fl = (BLU, BSOFT) if k == "C" else (GLD, GOSOFT)
             o.append(RECT(cx - cw / 2 + 3, y, cw - 6, 26, 5, fl if ok else PAN, col if ok else ALI, 1.3 if ok else 1.4, None if ok else "4,3"))
-            o.append(T(cx, y + 18, " ".join(degs), "middle", 11 if len(cs) > 1 else 12, INK if ok else ALI, True))
+            o.append(T(cx, y + 18, " ".join(degs), "middle", 10 if len(cs) > 1 else 12, INK if ok else ALI, True))
     band = [(5, 5, "ハ長調", "C"), (6, 6, "両方", "P"), (7, 10, "ト長調", "G"), (11, 11, "両方", "P"), (12, 13, "ハ長調", "C")]
     for a, b, lab, k in band:
         xa, xb = x0 + (a - 5) * cw + 3, x0 + (b - 4) * cw - 3
         c, fl = _f18_BAND[k]
         o.append(RECT(xa, rowsy[5] - 15, xb - xa, 24, 5, fl, c, 1.3, "4,3" if k == "P" else None))
         o.append(T((xa + xb) / 2, rowsy[5] + 2, lab if k != "P" else "ピボット", "middle", 11.5, c, True))
-    return SVG(700, 214, o, "第 5〜13 小節の和音を、ハ長調とト長調の 2 通りで読んだ。塗った枠はその調のダイアトニックコード、赤い破線の枠は"
+    return SVG(712, 214, o, "第 5〜13 小節の和音を、ハ長調とト長調の 2 通りで読んだ。塗った枠はその調のダイアトニックコード、赤い破線の枠は"
                "その調に無い和音。第 6 小節の Am7 と第 11 小節の G は両方の調に属し、F♯ が続く第 7〜10 小節はト長調で読む。")
 F["e18_ex3_pivot"] = _f18_ex3_pivot()
 
@@ -646,14 +649,14 @@ def _f18_goodbad():
                            ("良い例: 3 拍目の F・E を経過音と読む（2 小節で 2 つ）", "C | G7", GRN2)):
         sp = dict(mel="E4 E4 F4 G4 | G4 F4 E4 D4", ch=ch)
         o.append(T(16, y + 14, title, "start", 12.5, col, True))
-        oo, h, info, nn = _f18_chart(sp, [(1, 2)], {"sym", "deg", "fn", "nct", "num"}, top=y + 14, time=False, endbar=False)
+        oo, h, info, nn = _f18_chart(sp, [(1, 2)], {"sym", "deg", "fn", "nct", "num"}, top=y + 18, time=False, endbar=False)
         o += oo
         if col == ALI:
             r = info[0]
-            xg, xd = r["X"](4) - 9, r["X"](6) - 12
-            yy = h - 12
-            o.append(T((xg + xd) / 2 + 30, yy + 4, "D → SD（10 章 5 節の流れに合わない）", "middle", 11, ALI, True))
-            o.append(ARR(r["X"](4) + 6, yy - 18, r["X"](5) - 6, yy - 18, ALI, 1.4, 6))
+            x1, x2 = r["X"](4) - 13, r["X"](6) - 8
+            o.append(RECT(x1, h - 36, x2 - x1, 25, 6, "none", ALI, 1.8))
+            o.append(T((x1 + x2) / 2, h + 4, "D → SD（10 章 5 節の流れに合わない）", "middle", 11, ALI, True))
+            h += 12
         y = h + 10
     return SVG(520, y, o, "よろこびの歌の第 1〜2 小節。上は旋律のすべての音を和音の音にしようとして、拍ごとに和音を変えた読み。"
                "下は 3 拍目の F・E を経過音（金色）と読んだもの。和音は C と G7 の 2 つで足り、機能の流れも T → D になる。")
