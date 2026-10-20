@@ -95,7 +95,7 @@ def _f11_stack():
              dict(x=214, notes=["C4", "E4", "G4", "B4"], fill=BLU, fills={"C4": INK, "B4": SIG})]
     o.append(_f11_staff(X, Y, 270, s, "treble", items))
     o.append(T(X + 74, Y + 4 * s + 30, "三和音 C", "middle", 12, BLU, True))
-    o.append(T(X + 214, Y + 4 * s + 30, "セブンスコード CM7", "middle", 12, SIG, True))
+    o.append(T(X + 214, Y + 4 * s + 30, "セブンスコード", "middle", 12, SIG, True))
     o.append(ARR(X + 104, Y - 18, X + 186, Y - 18, MUT, 1.4))
     o.append(T(X + 145, Y - 26, "B を重ねる", "middle", 10.5, MUT))
     # 3 度の積み重ね（下から根音・3 度・5 度・7 度）
@@ -187,8 +187,8 @@ def _f11_six():
         o.append(T(cx, y + 18, "半音 " + steps, "middle", 10.5, MUT))
         o.append(T(cx, y + 36, tq + "三和音", "middle", 11, _f11_TC[tq], True))
         o.append(T(cx, y + 52, "+ %s 7 度" % sq, "middle", 11, _f11_TC[sq], True))
-    return SVG(712, Y + 4 * s + 98, o, "C を根音とする 6 種類のセブンスコード。根音（黒）・3 度の音と 5 度の音（三和音の種類の色）・"
-               "7 度の音（7 度の大きさの色）。Cdim7 の 7 度の音は B♭♭（B を半音 2 つ下げた音、鍵盤では A と同じ鍵）と書く。")
+    return SVG(712, Y + 4 * s + 98, o, "C を根音とする 6 種類のセブンスコード。3 度の音と 5 度の音を三和音の種類の色、"
+               "7 度の音を 7 度の大きさの色で示した。Cdim7 の 7 度の音は B♭♭（B を半音 2 つ下げた音、鍵盤では A と同じ鍵）と書く。")
 F["e11_six"] = _f11_six()
 
 
@@ -588,8 +588,8 @@ def _f11_guide():
     for j, (h, c) in enumerate(heads):
         o.append(T(x0 + j * cw + cw / 2, y0 - 12, h, "middle", 11.5, c, True))
     # ガイドトーンの括弧
-    o.append(T(x0 + 1 * cw + cw / 2, y0 - 34, "ガイドトーン", "middle", 11, SIG, True))
-    o.append(T(x0 + 3 * cw + cw / 2, y0 - 34, "ガイドトーン", "middle", 11, SIG, True))
+    o.append(T(x0 + 1 * cw + cw / 2, y0 - 34, "種類で違う", "middle", 11, SIG, True))
+    o.append(T(x0 + 3 * cw + cw / 2, y0 - 34, "種類で違う", "middle", 11, SIG, True))
     types = [_f11_TYPES[0], _f11_TYPES[1], _f11_TYPES[2], _f11_TYPES[3]]
     for i, (suf, jp, tq, sq, ivs) in enumerate(types):
         y = y0 + i * rh
@@ -615,7 +615,7 @@ def _f11_guide():
     yb = y0 + 4 * rh + 20
     o.append(T(x0 + 2 * cw + cw / 2, yb, "4 つとも同じ G", "middle", 10.5, MUT, True))
     return SVG(712, yb + 12, o, "C を根音とする 4 種類のセブンスコード。5 度の音はどれも同じ G（完全 5 度）で、種類の違いは "
-               "3 度の音と 7 度の音の組み合わせだけで決まる。この 2 音をガイドトーンという。")
+               "3 度の音と 7 度の音の組み合わせだけで決まる。")
 F["e11_guide"] = _f11_guide()
 
 

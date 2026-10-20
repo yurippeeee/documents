@@ -86,7 +86,7 @@
     }
     function draw(){
       setOpts(); var c=cur(); sv.disabled=!c.tri; sv.parentNode.style.opacity=c.tri?"1":"0.45";
-      var s=10, top=3.8*s, kc=keyCount(c.k)||0, xa=staffStart(s,kc)+22, xb=xa+150;
+      var s=12, top=3.6*s, kc=keyCount(c.k)||0, xa=staffStart(s,kc)+22, xb=xa+150;
       var cols=c.role.map(function(r){return r==="導音"||r==="7 度の音"?"signal":r==="3 度の音"?"alias":"ink";});
       var items=[{x:xa,notes:c.an.slice(1),staff:"treble",fill:V("ink"),fills:cols.slice(1).map(V),sym:_w10_disp(c.dsym)+"（"+c.ch[0]+"）",symcol:V("signal")},
                  {x:xa,notes:[c.an[0]],staff:"bass",fill:V("ink")},
