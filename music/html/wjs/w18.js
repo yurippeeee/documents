@@ -1,22 +1,22 @@
   /* ============ 18. 共通: 3 曲の旋律と和音付けの一例（fig/f18.py と同じデータ） ============ */
   var _w18_SONGS={
     tw:{name:"きらきら星",tempo:100,
-      mel:"C5 C5 G5 G5 | A5 A5 G5:2 | F5 F5 E5 E5 | D5 D5 C5:2 | G5 G5 F5 F5 | E5 E5 D5:2 | G5 G5 F5 F5 | E5 E5 D5:2 | C5 C5 G5 G5 | A5 A5 G5:2 | F5 F5 E5 E5 | D5 D5 C5:2",
+      mel:"C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2 | G4 G4 F4 F4 | E4 E4 D4:2 | G4 G4 F4 F4 | E4 E4 D4:2 | C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2",
       ch:"C | F C | F C | G C | C F | C G | C F | C G | C | F C | F C | G C",
       cad:{4:"全終止",8:"半終止",12:"全終止"},form:[[1,4,"a"],[5,8,"b"],[9,12,"a"]]},
     ode:{name:"よろこびの歌",tempo:104,
-      mel:"E5 E5 F5 G5 | G5 F5 E5 D5 | C5 C5 D5 E5 | E5:1.5 D5:0.5 D5:2 | E5 E5 F5 G5 | G5 F5 E5 D5 | C5 C5 D5 E5 | D5:1.5 C5:0.5 C5:2 | D5 D5 E5 C5 | D5 E5:0.5 F5:0.5 E5 C5 | D5 E5:0.5 F5:0.5 E5 D5 | C5 D5 G4 E5~ | E5 E5 F5 G5 | G5 F5 E5 D5 | C5 C5 D5 E5 | D5:1.5 C5:0.5 C5:2",
+      mel:"E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | E4:1.5 D4:0.5 D4:2 | E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | D4:1.5 C4:0.5 C4:2 | D4 D4 E4 C4 | D4 E4:0.5 F4:0.5 E4 C4 | D4 E4:0.5 F4:0.5 E4 D4 | C4 D4 G3 E4~ | E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | D4:1.5 C4:0.5 C4:2",
       ch:"C | G7 | C | C G | C | G7 | C | G7 C | G C | G7 C | G7 C | D7 G | C | G7 | C | G7 C",
       deg:{"D7@44":"V7/V"},cad:{4:"半終止",8:"全終止",12:"半終止",16:"全終止"},form:[[1,4,"a"],[5,8,"a'"],[9,12,"b"],[13,16,"a'"]]},
     ex3:{name:"例 3（作例）",tempo:96,
-      mel:"C5 D5 E5 G5 | A5 G5 E5 C#5 | D5 E5 F5 D5 | E5 D5 C5:2 | C5 D5 E5 G5 | A5 G5 E5 C5 | D5 E5 F#5 D5 | B4 A4 G4:2 | G5 F#5 G5 D5 | C5 E5 D5 F#5 | G5:4 | G5 F5 D5 B4 | C5 D5 E5 G5 | A5:2 Ab5:2 | G5:2 F5 D5 | E5 D5 C5:2",
+      mel:"C4 D4 E4 G4 | A4 G4 E4 C#4 | D4 E4 F4 D4 | E4 D4 C4:2 | C4 D4 E4 G4 | A4 G4 E4 C4 | D4 E4 F#4 D4 | B3 A3 G3:2 | G4 F#4 G4 D4 | C4 E4 D4 F#4 | G4:4 | G4 F4 D4 B3 | C4 D4 E4 G4 | A4:2 Ab4:2 | G4:2 F4 D4 | E4 D4 C4:2",
       ch:"C | A7 | Dm G7 | C | C | Am7 | D7 | G | G | Am D7 | G | G7 | C | F Fm | C G7 | C",
       key:{6:"G",7:"G",8:"G",9:"G",10:"G",11:"G"},deg:{"A7@4":"V7/IIm","Am7@20":["VIm7","IIm7"],"G@40":["I","V"]},dkey:{"Am7@20":["C","G"],"G@40":["G","C"]},
       cad:{4:"全終止",8:"全終止（ト長調）",11:"全終止（ト長調）",12:"半終止",16:"全終止"},
       band:[[1,5,"ハ長調","C"],[6,6,"ピボット","P"],[7,10,"ト長調","G"],[11,11,"ピボット","P"],[12,16,"ハ長調","C"]],form:[[1,4,"a"],[5,8,"a'"],[9,12,"b"],[13,16,"a''"]]}
   };
   (function(){var o=_w18_SONGS.ode,s={};for(var k in o)s[k]=o[k];
-    s.mel=o.mel.replace("C5 D5 G4 E5~ | E5 E5 F5 G5","C5 D5 G4:2 | E5 E5 F5 G5");s.name="よろこびの歌（先取りを省いた形）";_w18_SONGS.odes=s;})();
+    s.mel=o.mel.replace("C4 D4 G3 E4~ | E4 E4 F4 G4","C4 D4 G3:2 | E4 E4 F4 G4");s.name="よろこびの歌（先取りを省いた形）";_w18_SONGS.odes=s;})();
   var _w18_FNC={T:"blue",SD:"green",D:"signal",SDm:"purple"};
   function _w18_mel(s){var out=[],t=0;s.split("|").forEach(function(b,bi){b.trim().split(/\s+/).forEach(function(tok){if(!tok)return;
     var tie=/~$/.test(tok),p=tok.replace(/~$/,"").split(":"),d=p[1]?parseFloat(p[1]):1;out.push({t:t,d:d,n:p[0],tie:tie,bar:bi+1});t+=d;});});return out;}
@@ -44,7 +44,7 @@
     var evs=[],prev=null;
     A.notes.forEach(function(n,i){if(n.cont||n.t<t0-1e-9||n.t>=t1-1e-9)return;var d=n.d,j=i;while(A.notes[j].tie&&j+1<A.notes.length){j++;d+=A.notes[j].d;}
       evs.push({t:(n.t-t0)*spb,d:Math.max(0.1,d*spb*0.94),m:[n.midi],v:1,ni:i});});
-    if(withCh)A.chords.forEach(function(c,ci){if(c.t<t0-1e-9||c.t>=t1-1e-9)return;var v=voiceLead(c.sym,prev,52,60);prev=v;var cp=chordParse(c.sym),bp=cp.bassPc!=null?cp.bassPc:cp.rootPc;
+    if(withCh)A.chords.forEach(function(c,ci){if(c.t<t0-1e-9||c.t>=t1-1e-9)return;var v=voiceLead(c.sym,prev,45,52);prev=v;var cp=chordParse(c.sym),bp=cp.bassPc!=null?cp.bassPc:cp.rootPc;
       evs.push({t:(c.t-t0)*spb,d:c.d*spb*0.98,m:[40+((bp-40)%12+12)%12].concat(v),v:0.8,ci:ci});});
     evs.sort(function(a,b){return a.t-b.t;});return evs;
   }
@@ -233,7 +233,7 @@
     }
     function play(){var spb=60/A.S.tempo,evs=[],prev=null;
       A.notes.forEach(function(n,i){if(n.cont)return;var d=n.d,j=i;while(A.notes[j].tie&&j+1<A.notes.length){j++;d+=A.notes[j].d;}evs.push({t:n.t*spb,d:d*spb*0.94,m:[n.midi],v:1});});
-      var k=0;while(k<slots.length){var sym=slots[k].sel.value,j=k;while(j+1<slots.length&&slots[j+1].sel.value===sym)j++;var v=voiceLead(sym,prev,52,60);prev=v;var cp=chordParse(sym);
+      var k=0;while(k<slots.length){var sym=slots[k].sel.value,j=k;while(j+1<slots.length&&slots[j+1].sel.value===sym)j++;var v=voiceLead(sym,prev,45,52);prev=v;var cp=chordParse(sym);
         evs.push({t:slots[k].t0*spb,d:(j-k+1)*2*spb*0.98,m:[40+((cp.rootPc-40)%12+12)%12].concat(v),v:0.8,si:k});k=j+1;}
       evs.sort(function(a,b){return a.t-b.t;});
       _w18_play(evs,"piano",function(i){if(evs[i].si!=null){hot=evs[i].si;update();}},function(){hot=-1;update();},bp,"▶ 鳴らす");return true;}

@@ -7,23 +7,23 @@ import re as _f18_re
 
 _f18_SONGS = {
     "tw": dict(
-        mel="C5 C5 G5 G5 | A5 A5 G5:2 | F5 F5 E5 E5 | D5 D5 C5:2 | G5 G5 F5 F5 | E5 E5 D5:2 | "
-            "G5 G5 F5 F5 | E5 E5 D5:2 | C5 C5 G5 G5 | A5 A5 G5:2 | F5 F5 E5 E5 | D5 D5 C5:2",
+        mel="C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2 | G4 G4 F4 F4 | E4 E4 D4:2 | "
+            "G4 G4 F4 F4 | E4 E4 D4:2 | C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2",
         ch="C | F C | F C | G C | C F | C G | C F | C G | C | F C | F C | G C",
         cad={4: "全終止", 8: "半終止", 12: "全終止"},
         form=[(1, 4, "a"), (5, 8, "b"), (9, 12, "a")]),
     "ode": dict(
-        mel="E5 E5 F5 G5 | G5 F5 E5 D5 | C5 C5 D5 E5 | E5:1.5 D5:0.5 D5:2 | E5 E5 F5 G5 | G5 F5 E5 D5 | "
-            "C5 C5 D5 E5 | D5:1.5 C5:0.5 C5:2 | D5 D5 E5 C5 | D5 E5:0.5 F5:0.5 E5 C5 | D5 E5:0.5 F5:0.5 E5 D5 | "
-            "C5 D5 G4 E5~ | E5 E5 F5 G5 | G5 F5 E5 D5 | C5 C5 D5 E5 | D5:1.5 C5:0.5 C5:2",
+        mel="E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | E4:1.5 D4:0.5 D4:2 | E4 E4 F4 G4 | G4 F4 E4 D4 | "
+            "C4 C4 D4 E4 | D4:1.5 C4:0.5 C4:2 | D4 D4 E4 C4 | D4 E4:0.5 F4:0.5 E4 C4 | D4 E4:0.5 F4:0.5 E4 D4 | "
+            "C4 D4 G3 E4~ | E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | D4:1.5 C4:0.5 C4:2",
         ch="C | G7 | C | C G | C | G7 | C | G7 C | G C | G7 C | G7 C | D7 G | C | G7 | C | G7 C",
         deg={"D7@44": "V7/V"},
         cad={4: "半終止", 8: "全終止", 12: "半終止", 16: "全終止"},
         form=[(1, 4, "a"), (5, 8, "a'"), (9, 12, "b"), (13, 16, "a'")]),
     "ex3": dict(
-        mel="C5 D5 E5 G5 | A5 G5 E5 C#5 | D5 E5 F5 D5 | E5 D5 C5:2 | C5 D5 E5 G5 | A5 G5 E5 C5 | "
-            "D5 E5 F#5 D5 | B4 A4 G4:2 | G5 F#5 G5 D5 | C5 E5 D5 F#5 | G5:4 | G5 F5 D5 B4 | "
-            "C5 D5 E5 G5 | A5:2 Ab5:2 | G5:2 F5 D5 | E5 D5 C5:2",
+        mel="C4 D4 E4 G4 | A4 G4 E4 C#4 | D4 E4 F4 D4 | E4 D4 C4:2 | C4 D4 E4 G4 | A4 G4 E4 C4 | "
+            "D4 E4 F#4 D4 | B3 A3 G3:2 | G4 F#4 G4 D4 | C4 E4 D4 F#4 | G4:4 | G4 F4 D4 B3 | "
+            "C4 D4 E4 G4 | A4:2 Ab4:2 | G4:2 F4 D4 | E4 D4 C4:2",
         ch="C | A7 | Dm G7 | C | C | Am7 | D7 | G | G | Am D7 | G | G7 | C | F Fm | C G7 | C",
         key={6: "G", 7: "G", 8: "G", 9: "G", 10: "G", 11: "G"},
         deg={"A7@4": "V7/IIm", "Am7@20": ["VIm7", "IIm7"], "G@40": ["I", "V"]},
@@ -419,7 +419,7 @@ def _f18_tw_form():
             xk = x0 + (k - 1) * bw
             o.append(RECT(xk + 4, y + 36, 2 * bw - 8, 18, 4, SSOFT if k in (3, 5, 7) else SCR, SIG if k in (3, 5, 7) else LIN, 1.1))
             o.append(T(xk + bw, y + 49, "%d〜%d" % (k, k + 1), "middle", 10, INK if k in (3, 5, 7) else MUT, k in (3, 5, 7)))
-    sp = dict(mel="F5 F5 E5 E5 | D5 D5 C5:2 | G5 G5 F5 F5 | E5 E5 D5:2", ch="F C | G C | C F | C G")
+    sp = dict(mel="F4 F4 E4 E4 | D4 D4 C4:2 | G4 G4 F4 F4 | E4 E4 D4:2", ch="F C | G C | C F | C G")
     o1, h1, i1, n1 = _f18_chart(sp, [(1, 2)], {}, xL=96, top=y + 62, time=False, endbar=False)
     o2, h2, i2, n2 = _f18_chart(sp, [(3, 2)], {}, xL=96, top=h1 + 8, time=False, endbar=False)
     o += o1 + o2
@@ -437,7 +437,7 @@ F["e18_tw_form"] = _f18_tw_form()
 
 # ===================== 3 節 よろこびの歌 =====================
 _f18_SONGS["odes"] = dict(_f18_SONGS["ode"])
-_f18_SONGS["odes"]["mel"] = _f18_SONGS["ode"]["mel"].replace("C5 D5 G4 E5~ | E5 E5 F5 G5", "C5 D5 G4:2 | E5 E5 F5 G5")
+_f18_SONGS["odes"]["mel"] = _f18_SONGS["ode"]["mel"].replace("C4 D4 G3 E4~ | E4 E4 F4 G4", "C4 D4 G3:2 | E4 E4 F4 G4")
 
 
 def _f18_ode_score():
@@ -495,7 +495,7 @@ def _f18_ode_sync():
     y = 4
     for k, (nm, title) in enumerate((("odes", "先取りを省いた形"), ("ode", "原曲のリズム"))):
         S, notes, ch = _f18_song(nm)
-        e = [i for i, n in enumerate(notes) if n["bar"] in (12, 13) and n["n"] == "E5" and not n["cont"]][0]
+        e = [i for i, n in enumerate(notes) if n["bar"] in (12, 13) and n["n"] == "E4" and not n["cont"]][0]
         o.append(T(16, y + 14, title, "start", 12.5, INK, True))
         oo, h, info, nn = _f18_chart(nm, [(12, 2)], {"num"}, top=y + 10, time=False, fills_extra={e: SIG}, endbar=False)
         o += oo
@@ -508,7 +508,7 @@ def _f18_ode_sync():
             o.append(T(x, yg, str(b % 4 + 1), "middle", 11.5, SIG if on else INK, True))
             o.append(T(x, yg + 15, lab, "middle", 10, SIG if on else MUT, on))
         xe = r["X"](notes[e]["t"] - r["t0"])
-        o.append(W(xe, _f18_yn("E5", r["ytop"]) + 8, xe, yg - 12, c=SIG, lw=1.2, dash="3,3"))
+        o.append(W(xe, _f18_yn("E4", r["ytop"]) + 8, xe, yg - 12, c=SIG, lw=1.2, dash="3,3"))
         o.append(T(r["xend"] + 14, r["ytop"] + 20, "E は第 13 小節の 1 拍目（強拍）で鳴る" if k == 0 else "E は第 12 小節の 4 拍目（弱拍）で鳴り、",
                    "start", 11.5, INK, True))
         if k == 1:
@@ -644,7 +644,7 @@ def _f18_goodbad():
     y = 4
     for title, ch, col in (("悪い例: 4 分音符ごとに和音を変える（2 小節で 6 回変わる）", "C:2 F:1 C:1 | G:1 Dm:1 C:1 G:1", ALI),
                            ("良い例: 3 拍目の F・E を経過音と読む（2 小節で 2 つ）", "C | G7", GRN2)):
-        sp = dict(mel="E5 E5 F5 G5 | G5 F5 E5 D5", ch=ch)
+        sp = dict(mel="E4 E4 F4 G4 | G4 F4 E4 D4", ch=ch)
         o.append(T(16, y + 14, title, "start", 12.5, col, True))
         oo, h, info, nn = _f18_chart(sp, [(1, 2)], {"sym", "deg", "fn", "nct", "num"}, top=y + 14, time=False, endbar=False)
         o += oo
