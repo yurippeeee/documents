@@ -139,7 +139,7 @@ def convert_blocks(lines):
                     if not l:
                         continue
                     mm = re.match(r"^(\w+)\s*:\s*(.*)$", l)
-                    if mm and mm.group(1) in ("notes", "mode", "label", "show", "timbre", "tempo", "colors", "keys", "note", "range", "window", "gap", "hold"):
+                    if mm and mm.group(1) in ("notes", "mode", "label", "show", "timbre", "tempo", "colors", "keys", "note", "range", "window", "gap", "hold", "harmonics"):
                         spec[mm.group(1)] = mm.group(2).strip()
                     elif "notes" not in spec:
                         spec["notes"] = l

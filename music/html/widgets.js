@@ -309,6 +309,66 @@
       b.push(tx(cx+(r+16)*Math.cos(a2),cy+(r+16)*Math.sin(a2)+4,labels[k],"middle",o.sz||11,on?V("ink"):V("muted"),on));}
     return b.join("");
   }
+  /* ---------- 倍音のスペクトル（音の組み合わせの相性） ----------
+     各音の第 1〜H 倍音（振幅 1/h）を段ごとに描き、周波数が一致する倍音を緑の線、
+     近いのに一致せずぶつかる倍音（粗さが一定以上）を赤い波線で結ぶ。粗さは Plomp–Levelt の曲線（Sethares の式）。 */
+  function roughG(u){return Math.exp(-3.51*u)-Math.exp(-5.75*u);}
+  function roughPair(fa,aa,fb,ab){var lo=Math.min(fa,fb),s=0.24/(0.0207*lo+18.96);return Math.min(aa,ab)*roughG(s*Math.abs(fb-fa));}
+  function specAnalyze(fs,H,tol,thr){
+    tol=tol==null?16:tol; thr=thr==null?0.015:thr; var co=[],cl=[],R=0;
+    for(var i=0;i<fs.length;i++)for(var j=i+1;j<fs.length;j++)for(var h=1;h<=H;h++)for(var k=1;k<=H;k++){
+      var fa=fs[i]*h,fb=fs[j]*k,r=roughPair(fa,1/h,fb,1/k),c=Math.abs(1200*Math.log(fb/fa)/Math.LN2); R+=r;
+      if(c<=tol)co.push([i,h,j,k,Math.abs(fb-fa)]); else if(r>=thr)cl.push([i,h,j,k,r]);
+    }
+    return {co:co,cl:cl,R:R};
+  }
+  var RREF={};
+  function roughRef(H){if(RREF[H]==null)RREF[H]=specAnalyze([261.6256,261.6256*Math.pow(2,1/12)],H).R;return RREF[H];}
+  /* (x1,y1) から (x2,y2) へ向かう波線（path の d）。半波長ごとに 2 次ベジェで左右に振る */
+  function wavy(x1,y1,x2,y2,wl,amp){wl=wl||8;amp=amp||2.2;var dx=x2-x1,dy=y2-y1,L=Math.sqrt(dx*dx+dy*dy)||1,nx=-dy/L,ny=dx/L,n=Math.max(2,Math.round(L/(wl/2))),d=["M"+x1.toFixed(1)+","+y1.toFixed(1)];
+    for(var t=0;t<n;t++){var um=(t+0.5)/n,u1=(t+1)/n,sg=t%2?-1:1;d.push("Q"+(x1+dx*um+nx*2*amp*sg).toFixed(1)+","+(y1+dy*um+ny*2*amp*sg).toFixed(1)+" "+(x1+dx*u1).toFixed(1)+","+(y1+dy*u1).toFixed(1));}
+    return d.join(" ");}
+  var SPEC_COLS=["signal","blue","green","gold","purple"];
+  /* notes: [{f: 周波数, label: 表示名, c: 色名}]。返り値 {svg, w, h, co, cl, rel} */
+  function spec(notes,o){
+    o=o||{}; var H=o.H||8, W=o.w||640, lh=o.lane||36, fs=notes.map(function(n){return n.f;});
+    var lw=o.lw||Math.max(58,16+7*Math.max.apply(null,notes.map(function(n){return String(n.label).length;})));
+    var fmin=o.fmin||Math.min.apply(null,fs)*0.82, fmax=o.fmax||Math.max.apply(null,fs)*H*1.12;
+    var X=function(f){return lw+(W-lw-8)*Math.log(f/fmin)/Math.log(fmax/fmin);};
+    var order=fs.map(function(f,i){return i;}).sort(function(a,b){return fs[b]-fs[a];}), base={}, top={}, b=[], y0=o.top||8;
+    order.forEach(function(i,r){base[i]=y0+(r+1)*lh-5;});
+    order.forEach(function(i){var n=notes[i],col=V(n.c||SPEC_COLS[i%5]);
+      b.push(ln(lw,base[i],W-6,base[i],V("line"),1));
+      b.push(tx(lw-8,base[i]-6,n.label,"end",11,col,true));
+      for(var h=1;h<=H;h++){var x=X(fs[i]*h),hh=(lh-10)/h;b.push('<rect x="'+(x-2).toFixed(1)+'" y="'+(base[i]-hh).toFixed(1)+'" width="4" height="'+hh.toFixed(1)+'" rx="1" fill="'+col+'"/>');top[i+":"+h]=[x,base[i]-hh];}
+    });
+    var a=specAnalyze(fs,H,o.tol,o.thr);
+    a.cl.forEach(function(q){var p1=top[q[0]+":"+q[1]],p2=top[q[2]+":"+q[3]],op=Math.min(1,0.25+q[4]*8);
+      b.push('<path d="'+wavy(p1[0],p1[1],p2[0],p2[1])+'" fill="none" stroke="'+V("alias")+'" stroke-width="1.4" stroke-opacity="'+op.toFixed(2)+'"/>');});
+    var segs=a.co.map(function(q){var p1=top[q[0]+":"+q[1]],p2=top[q[2]+":"+q[3]];return [p1,p2];});
+    segs.forEach(function(s){
+      b.push(ln(s[0][0],s[0][1],s[1][0],s[1][1],V("green"),2.4));
+      b.push('<circle cx="'+s[0][0].toFixed(1)+'" cy="'+s[0][1].toFixed(1)+'" r="3.6" fill="'+V("green")+'"/><circle cx="'+s[1][0].toFixed(1)+'" cy="'+s[1][1].toFixed(1)+'" r="3.6" fill="'+V("green")+'"/>');});
+    /* うなりの速さのラベル: 他のラベル・緑の線と重ならない位置を、右上 → 左上 → 右の中ほど → 左の中ほど の順に探す */
+    if(o.beats!==false){
+      var boxes=[], gl=segs.map(function(s){return [Math.min(s[0][0],s[1][0])-4,Math.max(s[0][0],s[1][0])+4,Math.min(s[0][1],s[1][1])-4,Math.max(s[0][1],s[1][1])+4];});
+      var hit=function(r){return boxes.concat(gl).some(function(q){return r[0]<q[1]&&q[0]<r[1]&&r[2]<q[3]&&q[2]<r[3];})||r[0]<lw||r[1]>W-2||r[2]<0;};
+      a.co.forEach(function(q,qi){
+        if(q[4]<0.3)return;
+        var s=segs[qi],xr=Math.max(s[0][0],s[1][0]),xl=Math.min(s[0][0],s[1][0]),yt=Math.min(s[0][1],s[1][1]),ym=(s[0][1]+s[1][1])/2,t=q[4].toFixed(1)+" Hz",tw=t.length*5.9;
+        var own=gl[qi]; gl[qi]=[0,0,0,0];
+        var cand=[[xr+6,yt+3,"start"],[xl-6,yt+3,"end"],[xr+6,ym+3,"start"],[xl-6,ym+3,"end"],[xr+6,yt-9,"start"]], pick=cand[0];
+        for(var c=0;c<cand.length;c++){var k=cand[c],x0=k[2]==="start"?k[0]:k[0]-tw;if(!hit([x0,x0+tw,k[1]-9,k[1]+2])){pick=k;break;}}
+        var px0=pick[2]==="start"?pick[0]:pick[0]-tw; boxes.push([px0-1,px0+tw+1,pick[1]-9,pick[1]+2]); gl[qi]=own;
+        b.push(tx(pick[0],pick[1],t,pick[2],9.5,V("green"),true));});
+    }
+    var yb=y0+order.length*lh+2;
+    b.push(ln(lw,yb,W-6,yb,V("muted"),1));
+    for(var m=24;m<=120;m+=12){var f0=mfreq(m);if(f0>=fmin&&f0<=fmax){var xx=X(f0);b.push(ln(xx,yb,xx,yb+5,V("muted"),1));b.push(tx(xx,yb+17,"C"+(m/12-1),"middle",9.5,V("muted")));}}
+    return {svg:b.join(""),w:W,h:yb+24,co:a.co,cl:a.cl,rel:100*a.R/roughRef(H)};
+  }
+  function specStats(a){return '一致 <b style="color:var(--green)">'+a.co.length+'</b> 組 ・ ぶつかり <b style="color:var(--alias)">'+a.cl.length+'</b> 組 ・ 粗さ <b>'+Math.round(a.rel)+'</b>（短 2 度 C4–C♯4 を 100）';}
+
   var REG={};
 
   /* ---------- 再生カード（Markdown の ```play から作る） ----------
@@ -351,6 +411,11 @@
         else{items.push({x:x+8,notes:steps[0].notes,fills:steps[0].m.map(function(m){return act.indexOf(m)>=0?V("signal"):V(colOf[m]==="signal"?"ink":colOf[m]);})}); x+=46;}
         var st=staff({s:s,w:x+10,clef:clf,items:items});
         h.push(svgWrap(st.w,st.h,st.svg,"stf"));
+      }
+      if(show.indexOf("spec")>=0&&mode!=="seq"){
+        var fsS=(steps[0].f||steps[0].m.map(mfreq)), Hs=+(sp.harmonics||8);
+        var sv=spec(fsS.map(function(fq,i){return {f:fq,label:keys[i]||lab0(steps[0].notes[i])||steps[0].notes[i],c:SPEC_COLS[i%5]};}),{H:Hs,w:620,lane:fsS.length>2?30:36});
+        h.push('<div style="width:100%">'+svgWrap(sv.w,sv.h,sv.svg,"spec")+'<div class="pn2">'+specStats(sv)+'</div></div>');
       }
       if(show.indexOf("wave")>=0){
         var fs0=(steps[0].f||steps[0].m.map(mfreq)), W=Math.min(560,Math.max(300,(el.clientWidth||600)-40)), H=96, ms=+(sp.window||10);

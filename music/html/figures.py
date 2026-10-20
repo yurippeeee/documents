@@ -565,6 +565,93 @@ def CLOCK(cx, cy, r, active=(), fills=None, labels=None, poly=True, pcol=SIG, sz
         o.append(T(lx, ly, labels[k], "middle", sz, INK if on else MUT, on))
     return "".join(o)
 
+# ---------- 倍音のスペクトル（音の組み合わせの相性） ----------
+def _rough_g(u):
+    return math.exp(-3.51 * u) - math.exp(-5.75 * u)
+
+def rough_pair(fa, aa, fb, ab):
+    """2 つの純音成分の粗さ（Plomp–Levelt の実験曲線を Sethares が式にしたもの）"""
+    lo = min(fa, fb)
+    s_ = 0.24 / (0.0207 * lo + 18.96)
+    return min(aa, ab) * _rough_g(s_ * abs(fb - fa))
+
+def spec_analyze(fs, H=8, tol=16.0, thr=0.015):
+    """fs: 各音の基本周波数。倍音は第 1〜H 倍音、振幅 1/h。
+    返り値: 一致（差が tol セント以内）の組、ぶつかり（粗さ thr 以上）の組、粗さの合計"""
+    co, cl, R = [], [], 0.0
+    for i in range(len(fs)):
+        for j in range(i + 1, len(fs)):
+            for h in range(1, H + 1):
+                for k in range(1, H + 1):
+                    fa, fb = fs[i] * h, fs[j] * k
+                    r = rough_pair(fa, 1.0 / h, fb, 1.0 / k)
+                    R += r
+                    c = abs(1200 * math.log2(fb / fa))
+                    if c <= tol:
+                        co.append((i, h, j, k, abs(fb - fa)))
+                    elif r >= thr:
+                        cl.append((i, h, j, k, r))
+    return co, cl, R
+
+ROUGH_REF = spec_analyze([261.6256, 261.6256 * 2 ** (1 / 12)])[2]   # 短 2 度（C4–C♯4）を 100 とする
+
+def _wave(x1, y1, x2, y2, wl=8.0, amp=2.2):
+    """(x1,y1) から (x2,y2) へ向かう波線（path の d）。半波長ごとに 2 次ベジェで左右に振る"""
+    dx, dy = x2 - x1, y2 - y1
+    L = math.hypot(dx, dy) or 1
+    nx, ny = -dy / L, dx / L
+    n = max(2, int(round(L / (wl / 2))))
+    d = ["M%.1f,%.1f" % (x1, y1)]
+    for t in range(n):
+        um, u1 = (t + 0.5) / n, (t + 1) / n
+        sg = 1 if t % 2 == 0 else -1
+        d.append("Q%.1f,%.1f %.1f,%.1f" % (x1 + dx * um + nx * 2 * amp * sg, y1 + dy * um + ny * 2 * amp * sg, x1 + dx * u1, y1 + dy * u1))
+    return " ".join(d)
+
+def SPECTRUM(x, y, w, notes, H=8, lane_h=46, fmin=None, fmax=None, tol=16.0, thr=0.015, label_w=86, axis=True, stats=True):
+    """notes: [dict(f=周波数, label=表示名, c=色)]。高い音を上の段に描く。
+    各段に第 1〜H 倍音の棒（高さは振幅 1/h）。一致する倍音を緑の線、ぶつかる倍音を赤の波線で結ぶ。"""
+    o = []
+    fs = [n["f"] for n in notes]
+    fmin = fmin or min(fs) * 0.82
+    fmax = fmax or max(fs) * H * 1.12
+    X = lambda f: x + label_w + (w - label_w) * math.log(f / fmin) / math.log(fmax / fmin)
+    order = sorted(range(len(notes)), key=lambda i: -fs[i])     # 上の段ほど高い音
+    lane_y = {i: y + r * lane_h for r, i in enumerate(order)}
+    base = {i: lane_y[i] + lane_h - 6 for i in order}
+    top = {}
+    for i in order:
+        n = notes[i]
+        o.append(W(x + label_w, base[i], x + w, base[i], c=LIN, lw=1))
+        o.append(T(x + label_w - 10, base[i] - 8, n["label"], "end", 11.5, n["c"], True))
+        for h in range(1, H + 1):
+            fx = X(fs[i] * h)
+            hh = (lane_h - 12) / h
+            o.append('<rect x="%.1f" y="%.1f" width="4" height="%.1f" rx="1" fill="%s"/>' % (fx - 2, base[i] - hh, hh, n["c"]))
+            top[(i, h)] = (fx, base[i] - hh)
+    co, cl, R = spec_analyze(fs, H, tol, thr)
+    for (i, h, j, k, r) in cl:
+        (x1, y1), (x2, y2) = top[(i, h)], top[(j, k)]
+        op = min(1.0, 0.25 + r * 8)
+        o.append('<path d="%s" fill="none" stroke="%s" stroke-width="1.4" stroke-opacity="%.2f"/>' % (_wave(x1, y1, x2, y2), ALI, op))
+    for (i, h, j, k, df) in co:
+        (x1, y1), (x2, y2) = top[(i, h)], top[(j, k)]
+        o.append(W(x1, y1, x2, y2, c=GRN2, lw=2.4))
+        o.append(CIRC(x1, y1, 3.6, GRN2, 1.4, GRN2))
+        o.append(CIRC(x2, y2, 3.6, GRN2, 1.4, GRN2))
+    yb = y + len(notes) * lane_h
+    if axis:
+        o.append(W(x + label_w, yb + 2, x + w, yb + 2, c=MUT, lw=1))
+        for m in range(24, 121, 12):
+            f = freq(m)
+            if fmin <= f <= fmax:
+                xx = X(f)
+                o.append(W(xx, yb + 2, xx, yb + 7, c=MUT, lw=1))
+                o.append(T(xx, yb + 19, "C%d" % (m // 12 - 1), "middle", 9.5, MUT))
+    if stats:
+        o.append(T(x + w, y - 6, "一致 %d 組 ・ ぶつかり %d 組 ・ 粗さ %d" % (len(co), len(cl), round(100 * R / ROUGH_REF)), "end", 10.5, INK, True))
+    return "".join(o), (len(co), len(cl), 100 * R / ROUGH_REF)
+
 # 章ごとの図は fig/fNN.py に置く（このファイルの関数と F をそのまま使える）
 import glob as _glob
 for _p in sorted(_glob.glob(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "fig", "f*.py"))):
