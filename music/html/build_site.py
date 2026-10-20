@@ -1,29 +1,46 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """music/*.md -> music/html/NN.html（KaTeX 数式・図・再生カード・章間ナビ）。"""
-import os, re, html, hashlib, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import os, re, html, hashlib, sys, argparse, glob, shutil
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+_ap = argparse.ArgumentParser(description="音楽理論シリーズのビルド")
+_ap.add_argument("--only", help="ビルドする章（例 05 または 05,06）。指定時は図もその章の fig/fNN.py だけを読む")
+_ap.add_argument("--out", help="出力先ディレクトリ（指定時はリポジトリの widgets.js と HTML を書き換えない）")
+ARGS = _ap.parse_args()
+ONLY = [x.strip() for x in ARGS.only.split(",")] if ARGS.only else None
+if ONLY:
+    os.environ["MUSIC_FIGS"] = ",".join(ONLY)
 from figures import F as FIGS
+_A = "  /* ===== CHAPTER WIDGETS (build_site.py が wjs/*.js から生成) ===== */\n"
+_E = "  /* ===== END CHAPTER WIDGETS ===== */"
+def _merged(files):
+    s = open(os.path.join(HERE, "widgets.js"), encoding="utf-8").read()
+    i, j = s.index(_A) + len(_A), s.index(_E)
+    body = "".join(open(q, encoding="utf-8").read().rstrip() + "\n\n" for q in files)
+    return s[:i] + body + s[j:]
 def _merge_widgets():
     """wjs/*.js を widgets.js の CHAPTER WIDGETS 区間へ流し込む"""
-    import glob
-    here = os.path.dirname(os.path.abspath(__file__))
-    p = os.path.join(here, "widgets.js")
-    s = open(p, encoding="utf-8").read()
-    a = "  /* ===== CHAPTER WIDGETS (build_site.py が wjs/*.js から生成) ===== */\n"
-    e = "  /* ===== END CHAPTER WIDGETS ===== */"
-    i, j = s.index(a) + len(a), s.index(e)
-    body = "".join(open(q, encoding="utf-8").read().rstrip() + "\n\n"
-                   for q in sorted(glob.glob(os.path.join(here, "wjs", "w*.js"))))
-    t = s[:i] + body + s[j:]
-    if t != s:
+    p = os.path.join(HERE, "widgets.js")
+    t = _merged(sorted(glob.glob(os.path.join(HERE, "wjs", "w*.js"))))
+    if t != open(p, encoding="utf-8").read():
         tmp = p + ".%d.tmp" % os.getpid()
         open(tmp, "w", encoding="utf-8").write(t)
         os.replace(tmp, p)
-_merge_widgets()
+if ARGS.out:
+    # 隔離ビルド: 指定章の wjs だけを入れた widgets.js と、CSS・KaTeX を出力先に用意する
+    os.makedirs(ARGS.out, exist_ok=True)
+    sel = sorted(q for q in glob.glob(os.path.join(HERE, "wjs", "w*.js"))
+                 if not ONLY or os.path.basename(q)[1:3] in ONLY)
+    open(os.path.join(ARGS.out, "widgets.js"), "w", encoding="utf-8").write(_merged(sel))
+    shutil.copy(os.path.join(HERE, "music.css"), os.path.join(ARGS.out, "music.css"))
+    if not os.path.exists(os.path.join(ARGS.out, "katex")):
+        os.symlink(os.path.join(HERE, "katex"), os.path.join(ARGS.out, "katex"))
+else:
+    _merge_widgets()
 def _ver(name):
     """キャッシュ対策: ファイル内容のハッシュを ?v= に付ける。"""
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), name), 'rb') as f:
+    with open(os.path.join(OUT, name), 'rb') as f:
         return hashlib.sha1(f.read()).hexdigest()[:8]
 def slugify(raw):
     s = raw
@@ -48,16 +65,13 @@ def fix_href(h):
     if m: return "../../%s/html/%s.html%s" % (m.group(1), m.group(2), m.group(3) or "")
     return h
 
-SRC = "/home/user/documents/music"
-OUT = "/home/user/documents/music/html"
+SRC = os.path.dirname(HERE)
+OUT = ARGS.out or HERE
 os.makedirs(OUT, exist_ok=True)
 
-CHAPTERS = [
-    ("01", "01_音の正体.md"),
-    ("02", "02_音名と鍵盤と五線.md"),
-    ("03", "03_音程.md"),
-    ("04", "04_協和と不協和.md"),
-]
+# 章は music/NN_タイトル.md を番号順に自動で集める（00 の目次は入口ページ music.html が担う）
+CHAPTERS = sorted((m.group(1), fn) for fn in os.listdir(SRC)
+                  for m in [re.match(r"^(\d\d)_.*\.md$", fn)] if m and m.group(1) != "00")
 
 # 章ごとのインタラクティブ部品の差し込み: 見出しに含む文字列 -> widget名 (見出し直後に挿入)
 WIDGETS = {}
@@ -141,7 +155,8 @@ def convert_blocks(lines):
                     if not l:
                         continue
                     mm = re.match(r"^(\w+)\s*:\s*(.*)$", l)
-                    if mm and mm.group(1) in ("notes", "mode", "label", "show", "timbre", "tempo", "colors", "keys", "note", "range", "window", "gap", "hold", "harmonics"):
+                    if mm and mm.group(1) in ("notes", "mode", "label", "show", "timbre", "tempo", "colors", "keys", "note", "range", "window", "gap", "hold", "harmonics",
+                                                        "v1", "v2", "v3", "v4", "chords", "bass", "click", "time", "key", "clef", "low", "high"):
                         spec[mm.group(1)] = mm.group(2).strip()
                     elif "notes" not in spec:
                         spec["notes"] = l
@@ -347,8 +362,17 @@ def page(num, title, body, prev_c, next_c):
 </html>
 """
 
+def _title_of(path):
+    for l in open(path, encoding="utf-8"):
+        if l.startswith("# "):
+            return l[2:].strip()
+    return ""
+
 metas = []
 for num, fn in CHAPTERS:
+    if ONLY and num not in ONLY:
+        metas.append((num, _title_of(os.path.join(SRC, fn)), None))
+        continue
     t, b = parse_file(os.path.join(SRC, fn))
     metas.append((num, t, b))
 
@@ -356,10 +380,12 @@ def short(t):
     return re.sub(r'^[0-9]+[.\s]*', '', t)
 
 for k, (num, title, body) in enumerate(metas):
+    if body is None:
+        continue
     body = inject_widgets(num, body)
     prev_c = (metas[k-1][0], short(metas[k-1][1])) if k > 0 else None
     next_c = (metas[k+1][0], short(metas[k+1][1])) if k < len(metas)-1 else None
     open(os.path.join(OUT, "%s.html" % num), "w", encoding="utf-8").write(page(num, title, body, prev_c, next_c))
-    print("wrote", num, title)
+    print("wrote", os.path.join(OUT, "%s.html" % num), title)
 
 print("titles:", [short(m[1]) for m in metas])

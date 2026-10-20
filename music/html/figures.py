@@ -474,93 +474,434 @@ def staff_pos(n, clef):
     d = parse(n)["dia"] if isinstance(n, str) else n
     return d - (30 if clef == "treble" else 18)   # E4 / G2
 
-def STAFF(x, ytop, w, s=10, clef="treble", items=(), lc=None, clef_fill=INK, info=None):
-    """items: dict(x=五線左端からの x, notes=[...], dur="whole"/"half"/"quarter", fill=色, acc=True,
-    label=下に書く文字, lcol=, stem="up"/"down"/None)。clef="grand" なら大譜表（下に低音部）。"""
+# ---------- 調・音階・和音の名前 ----------
+# 調号: 正の数 = ♯ の数、負の数 = ♭ の数
+KEY_SIGS = {"C": 0, "G": 1, "D": 2, "A": 3, "E": 4, "B": 5, "F#": 6, "C#": 7,
+            "F": -1, "Bb": -2, "Eb": -3, "Ab": -4, "Db": -5, "Gb": -6, "Cb": -7,
+            "Am": 0, "Em": 1, "Bm": 2, "F#m": 3, "C#m": 4, "G#m": 5, "D#m": 6, "A#m": 7,
+            "Dm": -1, "Gm": -2, "Cm": -3, "Fm": -4, "Bbm": -5, "Ebm": -6, "Abm": -7}
+SHARP_ORDER = "FCGDAEB"
+FLAT_ORDER = "BEADGCF"
+MAJOR = [2, 2, 1, 2, 2, 2, 1]
+NAT_MINOR = [2, 1, 2, 2, 1, 2, 2]
+HARM_MINOR = [2, 1, 2, 2, 1, 3, 1]
+MEL_MINOR = [2, 1, 2, 2, 2, 2, 1]
+
+def _norm_acc(s):
+    return s.replace("♯", "#").replace("♭", "b")
+
+def key_count(key):
+    """'G' → 1、'F' → -1、'Am' → 0 のように調号の数を返す（♯ が正、♭ が負）"""
+    return KEY_SIGS[_norm_acc(key)]
+
+def key_acc(key):
+    """調号で変わる文字ごとの変化: {'F': 1, ...}。key は数でも調の名前でもよい"""
+    n = key if isinstance(key, int) else key_count(key)
+    acc = {L: 0 for L in LETTERS}
+    for L in (SHARP_ORDER[:n] if n > 0 else FLAT_ORDER[:-n]):
+        acc[L] = 1 if n > 0 else -1
+    return acc
+
+def spell_scale(tonic, steps=MAJOR, n=None):
+    """主音（例 'D4'）から、全音・半音の並び steps で音階を作る。7 つの文字を 1 回ずつ使って綴る。
+    n を指定すると n 音（オクターブ上の主音まで含めるなら 8）。"""
+    p = parse(tonic)
+    out = [tonic]
+    n = n or (len(steps) + 1)
+    pc = p["midi"]
+    for i in range(1, n):
+        pc += steps[(i - 1) % len(steps)]
+        dia = p["dia"] + i
+        li, octv = dia % 7, dia // 7
+        nat = 12 * (octv + 1) + PC_OF_LETTER[li]
+        a = pc - nat
+        if a < -2 or a > 2:
+            raise ValueError("cannot spell %s step %d" % (tonic, i))
+        out.append("%s%s%d" % (LETTERS[li], {0: "", 1: "#", -1: "b", 2: "x", -2: "bb"}[a], octv))
+    return out
+
+# コードネーム（例 C, Am7, G7(♭9), Bm7(♭5), F/A, Cdim7, Caug, Csus4, CM7, C6, Cadd9）
+_CH_TOK = _re.compile(r"(M13|M9|M7|13|11|9|7|6|sus4|sus2|add9|add2|\([^)]*\))")
+
+def chord_parse(sym):
+    """返り値 dict(root='C♯', root_pc, ivs=[根音からの半音数], bass=None or 'E', bass_pc, suffix)"""
+    m = _re.match(r"^([A-G])([#♯b♭]?)(.*)$", sym.strip())
+    if not m:
+        raise ValueError("bad chord %r" % sym)
+    L, a, rest = m.group(1), _norm_acc(m.group(2)), m.group(3)
+    bass = None
+    mb = _re.match(r"^(.*)/([A-G][#♯b♭]?)$", rest)
+    if mb:
+        rest, bass = mb.group(1), _norm_acc(mb.group(2))
+    suffix = rest
+    r = _norm_acc(rest).replace("△", "M").replace("Δ", "M").replace("maj", "M").replace("ø", "m7(b5)") \
+        .replace("°7", "dim7").replace("°", "dim").replace("-5", "b5").replace("m7b5", "m7(b5)")
+    if r.startswith("+"):
+        r = "aug" + r[1:]
+    ivs = None
+    if r.startswith("mM7") or r.startswith("m(M7)"):
+        ivs = [0, 3, 7, 11]; r = r[3:] if r.startswith("mM7") else r[5:]
+    elif r.startswith("m7(b5)"):
+        ivs = [0, 3, 6, 10]; r = r[6:]
+    elif r.startswith("dim7"):
+        ivs = [0, 3, 6, 9]; r = r[4:]
+    elif r.startswith("dim"):
+        ivs = [0, 3, 6]; r = r[3:]
+    elif r.startswith("aug"):
+        ivs = [0, 4, 8]; r = r[3:]
+    elif r.startswith("m") and not r.startswith("maj"):
+        ivs = [0, 3, 7]; r = r[1:]
+    else:
+        ivs = [0, 4, 7]
+    for t in _CH_TOK.findall(r):
+        if t in ("M7", "M9", "M13"):
+            ivs.append(11)
+            if t != "M7": ivs.append(14)
+            if t == "M13": ivs.append(21)
+        elif t == "7": ivs.append(10)
+        elif t == "9": ivs += [10, 14]
+        elif t == "11": ivs += [10, 14, 17]
+        elif t == "13": ivs += [10, 14, 21]
+        elif t == "6": ivs.append(9)
+        elif t in ("add9", "add2"): ivs.append(14)
+        elif t == "sus4": ivs = [5 if v in (3, 4) else v for v in ivs]
+        elif t == "sus2": ivs = [2 if v in (3, 4) else v for v in ivs]
+        elif t.startswith("("):
+            for x in t[1:-1].split(","):
+                x = x.strip()
+                tab = {"9": 14, "b9": 13, "#9": 15, "11": 17, "#11": 18, "13": 21, "b13": 20}
+                if x in tab: ivs.append(tab[x])
+                elif x == "b5": ivs = [6 if v == 7 else v for v in ivs]
+                elif x == "#5": ivs = [8 if v == 7 else v for v in ivs]
+    seen = []
+    for v in ivs:
+        if v not in seen: seen.append(v)
+    root_pc = (PC_OF_LETTER[LETTERS.index(L)] + {"": 0, "#": 1, "b": -1}[a]) % 12
+    bass_pc = None
+    if bass:
+        bass_pc = (PC_OF_LETTER[LETTERS.index(bass[0])] + {"": 0, "#": 1, "b": -1}[bass[1:]]) % 12
+    sh = lambda s: s.replace("#", "♯").replace("b", "♭")
+    return dict(root=L + sh(a), root_letter=L, root_pc=root_pc, ivs=sorted(seen), bass=sh(bass) if bass else None,
+                bass_pc=bass_pc, suffix=sh(suffix))
+
+def chord_midis(sym, root_lo=48):
+    """密集配置（根音を root_lo 以上の最も低い位置に置き、上へ積む）。分数コードは低音を 1 オクターブ下に足す。"""
+    c = chord_parse(sym)
+    r = root_lo + (c["root_pc"] - root_lo) % 12
+    ms = [r + v for v in c["ivs"]]
+    if c["bass_pc"] is not None and c["bass_pc"] != c["root_pc"]:
+        b = r - 12 + (c["bass_pc"] - r) % 12
+        ms = [b] + ms
+    return ms
+
+def roman(sym, key):
+    """コードネームを調の主音から見たローマ数字（ディグリーネーム）にする。例: roman('Am7','C') → 'VIm7'。
+    文字の数で I〜VII を決め、主音の長音階からの変化を ♭・♯ で付ける。"""
+    k = _norm_acc(key)
+    minor = k.endswith("m")
+    tk = k[:-1] if minor else k
+    tl, ta = tk[0], {"": 0, "#": 1, "b": -1}[tk[1:]]
+    t_pc = (PC_OF_LETTER[LETTERS.index(tl)] + ta) % 12
+    c = chord_parse(sym)
+    def num(letter, pc):
+        d = (LETTERS.index(letter) - LETTERS.index(tl)) % 7
+        exp = (t_pc + MAJOR_CUM[d]) % 12
+        diff = (pc - exp + 6) % 12 - 6
+        return {0: "", -1: "♭", 1: "♯", -2: "♭♭", 2: "𝄪"}.get(diff, "?") + ["I", "II", "III", "IV", "V", "VI", "VII"][d]
+    s = num(c["root_letter"], c["root_pc"]) + c["suffix"]
+    if c["bass"]:
+        s += "/" + num(c["bass"][0], c["bass_pc"])
+    return s
+
+MAJOR_CUM = [0, 2, 4, 5, 7, 9, 11]
+
+# ---------- 五線 ----------
+PERC_PP = {"%kick": 1, "%snare": 5, "%hat": 9, "%click": 4, "%accent": 4}   # 打楽器の五線での位置（第 1 線 = 0）
+
+def staff_start(s=10, key=0, time=None):
+    """音部記号・調号・拍子記号のあとで、最初の音符を置ける x（五線の左端から）"""
+    n = abs(key if isinstance(key, int) else key_count(key))
+    return 4.0 * s + n * 1.05 * s + (2.6 * s if time else 0) + 1.7 * s
+
+_KS_POS = {("treble", 1): [8, 5, 9, 6, 3, 7, 4], ("treble", -1): [4, 7, 3, 6, 2, 5, 1],
+           ("bass", 1): [6, 3, 7, 4, 1, 5, 2], ("bass", -1): [2, 5, 1, 4, 0, 3, -1]}
+
+def KEYSIG(x, ytop, s, clef, key, fill=INK):
+    """調号を、音部記号の右（x = 五線の左端）に描く"""
+    n = key if isinstance(key, int) else key_count(key)
+    if n == 0 or clef not in ("treble", "bass"):
+        return ""
+    sg = 1 if n > 0 else -1
+    o = []
+    for i, pp in enumerate(_KS_POS[(clef, sg)][:abs(n)]):
+        yn = ytop + 4 * s - pp * s / 2
+        o.append(ACC(sg, x + 4.0 * s + i * 1.05 * s + 0.9 * s, yn, s, fill))
+    return "".join(o)
+
+def TIMESIG(cx, ytop, s, time, fill=INK):
+    a, b = time.split("/")
+    st = ' text-anchor="middle" font-size="%g" fill="%s" font-family="Georgia, \'Times New Roman\', serif" font-weight="700"' % (2.75 * s, fill)
+    return ('<text x="%g" y="%g"%s>%s</text><text x="%g" y="%g"%s>%s</text>'
+            % (cx, ytop + 1.97 * s, st, a, cx, ytop + 3.97 * s, st, b))
+
+def REST(cx, ytop, s, dur="quarter", fill=INK, dot=False):
+    """休符。ytop は第 5 線（打楽器の 1 本線では、線を真ん中の線とみなした第 5 線の位置）"""
+    o = []
+    if dur == "whole":
+        o.append('<rect x="%g" y="%g" width="%g" height="%g" fill="%s"/>' % (cx - 0.6 * s, ytop + s, 1.2 * s, 0.5 * s, fill))
+    elif dur == "half":
+        o.append('<rect x="%g" y="%g" width="%g" height="%g" fill="%s"/>' % (cx - 0.6 * s, ytop + 1.5 * s, 1.2 * s, 0.5 * s, fill))
+    elif dur == "quarter":
+        k = 2.9 * s / 596.0
+        o.append(_glyph("qrest", cx - 159.5 * k, ytop + 0.55 * s + 658 * k, k, fill))
+    elif dur == "eighth":
+        k = 1.9 * s / 366.0
+        o.append(_glyph("erest", cx - 126.5 * k, ytop + 1.1 * s + 532 * k, k, fill))
+    else:   # 16th: 8 分休符の旗を 2 つ重ねる
+        k = 1.9 * s / 366.0
+        o.append(_glyph("erest", cx - 126.5 * k + 0.22 * s, ytop + 0.6 * s + 532 * k, k, fill))
+        o.append(_glyph("erest", cx - 126.5 * k - 0.1 * s, ytop + 1.6 * s + 532 * k, k, fill))
+    if dot:
+        o.append('<circle cx="%g" cy="%g" r="%g" fill="%s"/>' % (cx + 1.0 * s, ytop + 1.5 * s, 0.17 * s, fill))
+    return "".join(o)
+
+def _flag(xs, y1, s, up, fill, n=1):
+    o = []
+    for j in range(n):
+        d = 1 if up else -1
+        yy = y1 + d * j * 0.85 * s
+        o.append('<path d="M%g,%g c%g,%g %g,%g %g,%g c%g,%g %g,%g %g,%gZ" fill="%s"/>'
+                 % (xs, yy, 0.2 * s, d * 1.2 * s, 1.6 * s, d * 1.4 * s, 1.1 * s, d * 2.8 * s,
+                    0.1 * s, -d * 1.0 * s, -0.6 * s, -d * 1.6 * s, -1.1 * s, -d * 1.9 * s, fill))
+    return "".join(o)
+
+def STAFF(x, ytop, w, s=10, clef="treble", items=(), lc=None, clef_fill=INK, info=None, key=0, time=None):
+    """五線。clef: "treble" / "bass" / "grand"（大譜表）/ "perc"（打楽器用の 1 本線）。
+    key: 調号（♯ の数を正、♭ の数を負。'G' のような調の名前でもよい）。time: 拍子記号（例 "3/4"）。
+    最初の音符を置ける x は staff_start(s, key, time) で求まる。
+    items の各要素（dict）:
+      x（五線の左端から）, notes=[音名…], dur="whole"/"half"/"quarter"/"eighth"/"16th", dot=True（付点）,
+      rest=True（音符の代わりに dur の休符）, bar=True / "double" / "end"（その x に小節線）,
+      fill=色, fills={音名: 色}, acc=False（臨時記号を書かない）, stem="up"/"down", staff="treble"/"bass"（大譜表で段を指定）,
+      tie=True（次の音符の同じ高さへタイ）, beam=任意の値（同じ値の 8 分・16 分音符を連桁でつなぐ）,
+      label=五線の下の文字, lcol, lsz, lbold, label_dy, sym=五線の上の文字（コードネームなど）, symcol, head="x"（× の符頭）。
+    調号があるときの臨時記号: 調号と同じ変化なら書かず、違えば書く（本位記号 ♮ を含む）。"""
     lc = lc or MUT
     o = []
-    staves = [("treble", ytop)] if clef == "treble" else [("bass", ytop)] if clef == "bass" else \
-             [("treble", ytop), ("bass", ytop + 8 * s)]
+    if clef in ("perc", "rhythm"):
+        staves = [(clef, ytop)]
+    elif clef in ("treble", "bass"):
+        staves = [(clef, ytop)]
+    else:
+        staves = [("treble", ytop), ("bass", ytop + 8 * s)]
+    ka = key_acc(key)
+    kn = key if isinstance(key, int) else key_count(key)
     for kind, yt in staves:
-        for i in range(5):
-            o.append(W(x, yt + i * s, x + w, yt + i * s, c=lc, lw=1))
-        o.append(CLEF(kind, x + 0.8 * s, yt, s, clef_fill))
+        if kind in ("perc", "rhythm"):
+            if kind == "rhythm":
+                o.append(W(x, yt + 2 * s, x + w, yt + 2 * s, c=lc, lw=1))
+            else:
+                for i in range(5):
+                    o.append(W(x, yt + i * s, x + w, yt + i * s, c=lc, lw=1))
+            o.append('<rect x="%g" y="%g" width="%g" height="%g" fill="%s"/>' % (x + 1.3 * s, yt + s, 0.38 * s, 2 * s, clef_fill))
+            o.append('<rect x="%g" y="%g" width="%g" height="%g" fill="%s"/>' % (x + 2.1 * s, yt + s, 0.38 * s, 2 * s, clef_fill))
+        else:
+            for i in range(5):
+                o.append(W(x, yt + i * s, x + w, yt + i * s, c=lc, lw=1))
+            o.append(CLEF(kind, x + 0.8 * s, yt, s, clef_fill))
+            o.append(KEYSIG(x, yt, s, kind, kn, clef_fill))
+        if time:
+            o.append(TIMESIG(x + 4.0 * s + abs(kn) * 1.05 * s + 1.3 * s, yt, s, time, clef_fill))
     if clef == "grand":
         o.append(W(x, ytop, x, ytop + 12 * s, c=lc, lw=1.2))
-    for it in items:
+    ybot_all = staves[-1][1] + 4 * s
+    heads = []     # 各 item の音符の位置（タイ・連桁用）
+    for idx, it in enumerate(items):
         cx = x + it["x"]
         fill = it.get("fill", INK)
         dur = it.get("dur", "whole")
-        ns = [parse(n) for n in it["notes"]]
+        if it.get("bar"):
+            y0, y1 = (ytop + s, ytop + 3 * s) if clef == "rhythm" else (ytop, ybot_all)
+            kind = it["bar"]
+            if kind == "double":
+                o.append(W(cx - 0.45 * s, y0, cx - 0.45 * s, y1, c=lc, lw=1.1)); o.append(W(cx, y0, cx, y1, c=lc, lw=1.1))
+            elif kind == "end":
+                o.append(W(cx - 0.75 * s, y0, cx - 0.75 * s, y1, c=lc, lw=1.1))
+                o.append('<rect x="%g" y="%g" width="%g" height="%g" fill="%s"/>' % (cx - 0.4 * s, y0, 0.45 * s, y1 - y0, INK))
+            else:
+                o.append(W(cx, y0, cx, y1, c=lc, lw=1.1))
+            heads.append(None)
+            continue
+        if it.get("rest"):
+            yt = staves[0][1] if clef != "grand" else (ytop + 8 * s if it.get("staff") == "bass" else ytop)
+            o.append(REST(cx, yt, s, dur, fill, it.get("dot")))
+            heads.append(None)
+            if it.get("label"):
+                ly = (ytop + (12 * s if clef == "grand" else 4 * s)) + it.get("label_dy", 2.6 * s)
+                o.append(T(cx, ly, it["label"], "middle", it.get("lsz", 11), it.get("lcol", fill), it.get("lbold", True)))
+            continue
         placed = []
-        for p in sorted(ns, key=lambda q: q["dia"]):
+        for n in it.get("notes", []):
+            if clef == "rhythm":
+                if not placed:
+                    placed.append((dict(letter="B", acc=0, midi=-4, oct=4), "rhythm", ytop, 4, ytop + 2 * s))
+                continue
+            if n.startswith("%"):
+                pp = PERC_PP.get(n, 4)
+                placed.append((dict(letter="B", acc=0, midi=-1, oct=4, perc=n), "perc", ytop, pp, ytop + 4 * s - pp * s / 2))
+                continue
+            p = parse(n)
             if clef == "grand":
                 kind = it.get("staff") or ("treble" if p["midi"] >= 60 else "bass")
                 yt = ytop if kind == "treble" else ytop + 8 * s
             else:
-                kind, yt = staves[0]
+                kind, yt = ("treble", ytop) if clef == "perc" else staves[0]
             pp = p["dia"] - (30 if kind == "treble" else 18)
-            yb = yt + 4 * s
-            yn = yb - pp * s / 2
-            placed.append((p, kind, yt, pp, yn))
-        # 2 度でぶつかる音は右にずらす
+            placed.append((p, kind, yt, pp, yt + 4 * s - pp * s / 2))
+        placed.sort(key=lambda q: -q[4])
         shifted = set()
         for i in range(1, len(placed)):
             if placed[i][1] == placed[i - 1][1] and placed[i][3] - placed[i - 1][3] == 1 and (i - 1) not in shifted:
                 shifted.add(i)
         hw = 0.78 * s if dur == "whole" else 0.64 * s
+        hd = []
         for i, (p, kind, yt, pp, yn) in enumerate(placed):
             nx = cx + (2 * hw - 0.1 * s if i in shifted else 0)
-            # 加線
             lw_ = hw * 1.55
-            if pp <= -2:
-                for q in range(-2, pp - 1, -2):
-                    yy = yt + 4 * s - q * s / 2
-                    o.append(W(nx - lw_, yy, nx + lw_, yy, c=lc, lw=1.1))
-            if pp >= 10:
-                for q in range(10, pp + 1, 2):
-                    yy = yt + 4 * s - q * s / 2
-                    o.append(W(nx - lw_, yy, nx + lw_, yy, c=lc, lw=1.1))
-            col = it.get("fills", {}).get(nname("%s%s%d" % (p["letter"], acc_str(p["acc"]), p["oct"])), fill) if it.get("fills") else fill
-            o.append(HEAD(nx, yn, s, dur, col))
-            if p["acc"] != 0 and it.get("acc", True):
+            if kind != "rhythm":
+                if pp <= -2:
+                    for q in range(-2, pp - 1, -2):
+                        yy = yt + 4 * s - q * s / 2
+                        o.append(W(nx - lw_, yy, nx + lw_, yy, c=lc, lw=1.1))
+                if pp >= 10:
+                    for q in range(10, pp + 1, 2):
+                        yy = yt + 4 * s - q * s / 2
+                        o.append(W(nx - lw_, yy, nx + lw_, yy, c=lc, lw=1.1))
+            nm = p.get("perc") or (nname("%s%s%d" % (p["letter"], {0: "", 1: "#", -1: "b", 2: "x", -2: "bb"}[p["acc"]], p["oct"])) if kind != "rhythm" else "")
+            col = it.get("fills", {}).get(nm, fill) if it.get("fills") else fill
+            if it.get("head") == "x" or p.get("perc") == "%hat":
+                r_ = 0.5 * s
+                o.append(W(nx - r_, yn - r_, nx + r_, yn + r_, c=col, lw=1.6)); o.append(W(nx - r_, yn + r_, nx + r_, yn - r_, c=col, lw=1.6))
+            else:
+                o.append(HEAD(nx, yn, s, "quarter" if dur in ("eighth", "16th") else dur, col))
+            if it.get("dot"):
+                o.append('<circle cx="%g" cy="%g" r="%g" fill="%s"/>' % (nx + hw + 0.5 * s, yn - (0.5 * s if pp % 2 == 0 else 0), 0.17 * s, col))
+            need = p["acc"] != ka[p["letter"]] if kind not in ("perc", "rhythm") else False
+            if need and it.get("acc", True):
                 ax = cx - hw - 0.35 * s - (0.9 * s if (i % 2 and len(placed) > 1 and any(q[0]["acc"] for q in placed[:i])) else 0)
                 o.append(ACC(p["acc"], ax, yn, s, col))
+            hd.append((p["midi"], kind, nx, yn, pp))
             if info is not None:
                 info.setdefault(it.get("key", len(info)), []).append((nx, yn))
-        if dur in ("half", "quarter") and placed:
-            st = it.get("stem") or ("down" if placed[-1][3] >= 4 else "up")
-            if st == "up":
-                xs_ = cx + hw - 0.06 * s; y0 = placed[0][4] - 0.1 * s; y1 = placed[-1][4] - 3.4 * s
-            else:
-                xs_ = cx - hw + 0.06 * s; y0 = placed[-1][4] + 0.1 * s; y1 = placed[0][4] + 3.4 * s
-            o.append(W(xs_, y0, xs_, y1, c=fill, lw=1.2))
+        heads.append(dict(it=it, cx=cx, hw=hw, hd=hd, placed=placed, fill=fill, dur=dur))
+        if it.get("sym"):
+            ys = min([ytop - 1.0 * s] + [q[4] - 1.7 * s for q in placed])
+            o.append(T(cx, ys, it["sym"], "middle", it.get("symsz", 1.3 * s), it.get("symcol", INK), True))
         if it.get("label"):
             ly = (ytop + (12 * s if clef == "grand" else 4 * s)) + it.get("label_dy", 2.6 * s)
             o.append(T(cx, ly, it["label"], "middle", it.get("lsz", 11), it.get("lcol", fill), it.get("lbold", True)))
+    # 符幹・旗・連桁
+    groups = {}
+    for k, h in enumerate(heads):
+        if h and h["dur"] in ("eighth", "16th") and h["it"].get("beam") is not None:
+            groups.setdefault(h["it"]["beam"], []).append(k)
+    beamed = set(k for g in groups.values() if len(g) > 1 for k in g)
+    for k, h in enumerate(heads):
+        if not h or k in beamed or h["dur"] not in ("half", "quarter", "eighth", "16th") or not h["placed"]:
+            continue
+        s_ = s; hw = h["hw"]; cx = h["cx"]
+        parts = [h["placed"]] if clef != "grand" else [g for g in ([q for q in h["placed"] if q[1] == "bass"], [q for q in h["placed"] if q[1] == "treble"]) if g]
+        for pl in parts:
+            st = h["it"].get("stem") or ("down" if pl[-1][3] >= 4 else "up")
+            if st == "up":
+                xs_ = cx + hw - 0.06 * s_; y0 = pl[0][4] - 0.1 * s_; y1 = pl[-1][4] - 3.4 * s_
+            else:
+                xs_ = cx - hw + 0.06 * s_; y0 = pl[-1][4] + 0.1 * s_; y1 = pl[0][4] + 3.4 * s_
+            o.append(W(xs_, y0, xs_, y1, c=h["fill"], lw=1.2))
+            if h["dur"] in ("eighth", "16th"):
+                o.append(_flag(xs_, y1, s_, st == "up", h["fill"], 1 if h["dur"] == "eighth" else 2))
+    for g in groups.values():
+        if len(g) < 2:
+            continue
+        hs = [heads[k] for k in g]
+        allpp = [q[3] for h in hs for q in h["placed"]]
+        up = (sum(allpp) / len(allpp)) < 4 if not hs[0]["it"].get("stem") else hs[0]["it"]["stem"] == "up"
+        xs = [(h["cx"] + h["hw"] - 0.06 * s) if up else (h["cx"] - h["hw"] + 0.06 * s) for h in hs]
+        ext = [(min(q[4] for q in h["placed"]) - 3.3 * s) if up else (max(q[4] for q in h["placed"]) + 3.3 * s) for h in hs]
+        slope = (ext[-1] - ext[0]) / (xs[-1] - xs[0]) if xs[-1] != xs[0] else 0
+        slope = max(-0.12, min(0.12, slope * 0.5))
+        b0 = ext[0]
+        for xi, ei in zip(xs, ext):
+            yb = b0 + slope * (xi - xs[0])
+            if up and yb > ei: b0 -= yb - ei
+            if not up and yb < ei: b0 += ei - yb
+        by = lambda xx: b0 + slope * (xx - xs[0])
+        bt = 0.48 * s
+        for h, xi in zip(hs, xs):
+            far = (max if up else min)(q[4] for q in h["placed"])
+            o.append(W(xi, far + (-0.1 * s if up else 0.1 * s), xi, by(xi), c=h["fill"], lw=1.2))
+        def beam(xa, xb, off):
+            d = off if up else -off
+            ya, yb_ = by(xa) + d, by(xb) + d
+            t_ = bt if up else -bt
+            return '<path d="M%g,%g L%g,%g L%g,%g L%g,%gZ" fill="%s"/>' % (xa, ya, xb, yb_, xb, yb_ + t_, xa, ya + t_, hs[0]["fill"])
+        o.append(beam(xs[0], xs[-1], 0))
+        for j, h in enumerate(hs):
+            if h["dur"] != "16th":
+                continue
+            nb = j + 1 < len(hs) and hs[j + 1]["dur"] == "16th"
+            pb = j > 0 and hs[j - 1]["dur"] == "16th"
+            if nb:
+                o.append(beam(xs[j], xs[j + 1], 0.8 * s))
+            elif not pb:
+                if j + 1 < len(hs):
+                    o.append(beam(xs[j], xs[j] + 1.1 * s, 0.8 * s))
+                else:
+                    o.append(beam(xs[j] - 1.1 * s, xs[j], 0.8 * s))
+    # タイ
+    for k, h in enumerate(heads):
+        if not h or not h["it"].get("tie"):
+            continue
+        nxt = next((heads[j] for j in range(k + 1, len(heads)) if heads[j]), None)
+        if not nxt:
+            continue
+        st = h["it"].get("stem") or ("down" if h["placed"] and h["placed"][-1][3] >= 4 else "up")
+        nh = len(h["hd"])
+        for ti, (m1, kd1, x1, y1, pp1) in enumerate(h["hd"]):
+            for (m2, kd2, x2, y2, pp2) in nxt["hd"]:
+                if m1 == m2 and kd1 == kd2:
+                    # 1 音なら符幹と反対側へ。和音なら上半分の音は上へ、下半分の音は下へ曲げる
+                    d = (1 if st == "up" else -1) if nh == 1 else (-1 if ti >= (nh + 1) // 2 else 1)
+                    xa, xb = x1 + 0.55 * h["hw"], x2 - 0.55 * nxt["hw"]
+                    ya = y1 + d * 0.55 * s
+                    xm = (xa + xb) / 2
+                    o.append('<path d="M%g,%g Q%g,%g %g,%g Q%g,%g %g,%gZ" fill="%s"/>'
+                             % (xa, ya, xm, ya + d * 1.1 * s, xb, ya, xm, ya + d * 0.8 * s, xa, ya, h["fill"]))
     return "".join(o)
 
 # ---------- 12 音の円 ----------
-def CLOCK(cx, cy, r, active=(), fills=None, labels=None, poly=True, pcol=SIG, sz=11, dot=7, start=0):
-    """12 の音（ピッチクラス）を円周に並べる。0 = C を真上に置き、時計回りに半音ずつ。"""
+def CLOCK(cx, cy, r, active=(), fills=None, labels=None, poly=True, pcol=SIG, sz=11, dot=7, start=0, order="chroma"):
+    """12 の音（ピッチクラス）を円周に並べる。0 = C を真上に置き、時計回りに半音ずつ。
+    order="fifths" なら完全 5 度ずつ（C G D A E B F♯ C♯ G♯ D♯ A♯ F）に並べる（五度圏）。labels は音（0〜11）ごとの文字。"""
     labels = labels or NAMES_SHARP
     fills = fills or {}
     o = [CIRC(cx, cy, r, LIN, 1.2)]
+    pos = (lambda k: (7 * k) % 12) if order == "fifths" else (lambda k: k)
     pts = {}
     for k in range(12):
-        a = math.radians(-90 + 30 * k)
+        a = math.radians(-90 + 30 * pos(k))
         px, py = cx + r * math.cos(a), cy + r * math.sin(a)
         pts[k] = (px, py)
     act = [k % 12 for k in active]
     if poly and len(act) >= 2:
-        seq = sorted(set(act), key=lambda k: (k - start) % 12)
+        seq = sorted(set(act), key=lambda k: (pos(k) - pos(start % 12)) % 12)
         o.append(PL([pts[k] for k in seq] + [pts[seq[0]]], c=pcol, lw=1.8, fill="none"))
     for k in range(12):
         px, py = pts[k]
         on = k in act
         o.append(CIRC(px, py, dot if on else 3.2, fills.get(k, pcol) if on else MUT, 1.4,
                       fills.get(k, pcol) if on else PAN))
-        a = math.radians(-90 + 30 * k)
+        a = math.radians(-90 + 30 * pos(k))
         lx, ly = cx + (r + 16) * math.cos(a), cy + (r + 16) * math.sin(a) + sz * 0.36
         o.append(T(lx, ly, labels[k], "middle", sz, INK if on else MUT, on))
     return "".join(o)
@@ -654,5 +995,8 @@ def SPECTRUM(x, y, w, notes, H=8, lane_h=46, fmin=None, fmax=None, tol=16.0, thr
 
 # 章ごとの図は fig/fNN.py に置く（このファイルの関数と F をそのまま使える）
 import glob as _glob
+_SEL = [x for x in _os.environ.get("MUSIC_FIGS", "").split(",") if x]
 for _p in sorted(_glob.glob(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "fig", "f*.py"))):
+    if _SEL and _os.path.basename(_p)[1:3] not in _SEL:
+        continue
     exec(compile(open(_p, encoding="utf-8").read(), _p, "exec"), globals())

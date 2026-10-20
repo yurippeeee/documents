@@ -167,3 +167,9 @@ blockquote .dia svg{background:var(--panel)}
 .kbd-key{cursor:pointer;transition:fill .08s}
 .widget .pbtns{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.7rem}
 .widget svg.mus{max-width:100%;height:auto;display:block;margin:0 auto}
+.play .cs{display:flex;flex-wrap:wrap;gap:4px;width:100%}
+.play .cs span{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:3.2rem;border:1px solid var(--line);border-radius:8px;padding:.3rem .2rem;background:var(--screen);font-family:var(--mono);font-size:.8rem;line-height:1.3}
+.play .cs span b{font-family:var(--sans);font-size:.92rem;color:var(--ink)}
+.play .cs span i{font-style:normal;color:var(--purple);font-size:.74rem}
+.play .cs span.on{border-color:var(--signal);background:var(--signal-soft)}
+.play .stfs{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;max-width:100%}
