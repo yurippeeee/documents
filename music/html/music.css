@@ -12,6 +12,7 @@
   --sans:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
   --paper:#141012; --panel:#1c1719; --screen:#120e10;
   --ink:#f0e9e4; --muted:#a59a92; --faint:#6f655f;
   --line:#30282a; --grid:rgba(240,222,210,.07);
@@ -22,6 +23,7 @@
   --key-white:#ded8d2; --key-black:#0d0a0b; --key-line:#4d4446; --key-ink:#1d1717;
 }}
 :root[data-theme="light"]{
+  color-scheme:light;
   --paper:#f3f0eb; --panel:#ffffff; --screen:#f8f5f0;
   --ink:#201a17; --muted:#6b625b; --faint:#9b918a;
   --line:#ded6cc; --grid:rgba(48,30,12,.08);
@@ -32,6 +34,7 @@
   --key-white:#ffffff; --key-black:#2b2522; --key-line:#b9b0a6; --key-ink:#201a17;
 }
 :root[data-theme="dark"]{
+  color-scheme:dark;
   --paper:#141012; --panel:#1c1719; --screen:#120e10;
   --ink:#f0e9e4; --muted:#a59a92; --faint:#6f655f;
   --line:#30282a; --grid:rgba(240,222,210,.07);
