@@ -144,7 +144,7 @@
       {n:"全音上（ニ長調）へ — 直接転調",c:"C F G7 C D G A7 D:4",z:"oooonnnn",d:"I IV V7 I I IV V7 I",cad:{3:"ハ長調",7:"ニ長調"},
        r:"ハ長調 → ニ長調。共通和音を通らず、C の直後から F♯・C♯ が現れる。"},
       {n:"半音上（変ニ長調）へ — 直接転調",c:"C F G7 C Db Gb Ab7 Db:4",z:"oooonnnn",d:"I IV V7 I I IV V7 I",cad:{3:"ハ長調",7:"変ニ長調"},
-       r:"ハ長調 → 変ニ長調。共通和音が無く、ハ長調に無い 5 つの音（D♭・E♭・G♭・A♭・B♭）が一度に現れる。"},
+       r:"ハ長調 → 変ニ長調。共通和音が無く、C の直後から、ハ長調に無い 5 つの音（D♭・E♭・G♭・A♭・B♭）が続けて現れる。"},
       {n:"半音上（変ニ長調）へ — 新しい調の V7 を先に置く",c:"C F G7 C Ab7 Db Gb Ab7 Db:4",z:"oooonnnnn",d:"I IV V7 I V7 I IV V7 I",cad:{3:"ハ長調",5:"変ニ長調",8:"変ニ長調"},
        r:"ハ長調 → 変ニ長調。A♭7 → D♭（V7 → I）で新しい主音を示してから、変ニ長調の進行が始まる。"}];
     var row=ctrls(el),sp=select(row,"例",PRE.map(function(p){return p.n;}));sp.value="1";

@@ -151,7 +151,7 @@
       view.innerHTML=_w11_row(svgWrap(st.w,st.h,st.svg+br),svgWrap(k.w,k.h,k.svg))+svgWrap(sv.w,sv.h,sv.svg,"spec");
       var verdict=x.out?'<b style="color:var(--alias)">音階の外の ♭9</b>（V7 では例外として使われる）':q.bad?'<b style="color:var(--alias)">アボイドノート</b>':'<b style="color:var(--green)">使えるテンション</b>';
       var note=(c.nm==="Dm7"&&x.tn==="13")?'<br>B は 3 度の音 F と三全音を作るので、書物によってはこれも避ける音に数える':'';
-      ro.innerHTML='<b>'+esc(x.lab)+'</b> の相手は'+_w11_ROLE[x.pi]+' <b>'+nname(c.ns[x.pi],false)+'</b>。'+nname(c.ns[x.pi])+' から '+nname(x.n)+' まで半音 <b>'+q.sm+'</b> = '+
+      ro.innerHTML='<b>'+esc(x.lab)+'</b> の相手は '+_w11_ROLE[x.pi]+' <b>'+nname(c.ns[x.pi],false)+'</b>。'+nname(c.ns[x.pi])+' から '+nname(x.n)+' まで半音 <b>'+q.sm+'</b> = '+
         (q.bad?'短 9 度':'長 9 度')+' → '+verdict+note+'<br>相手との 2 音: '+specStats(sv)+'（使えるテンションの組は 12〜25、短 9 度の組は 28〜36）';
     }
     _w11_btn(bar,"▶ 和音とテンション",function(){var q=cur();return [{t:0,d:2.6,m:q.c.ms.concat([q.tm])}];},"organ");
@@ -164,7 +164,7 @@
   REG.w11_voicing=function(el){
     head(el,"Voicing","和音と並べ方を選ぶと、配置と粗さが表示される");
     var CH=[["CM7(9)","C",[4,7,11],14],["Dm7(9)","D",[3,7,10],14],["G7(13)","G",[4,7,10],21],["Am7(11)","A",[3,7,10],17],["FM7(♯11)","F",[4,7,11],18]];
-    var AR=["全部を根音のすぐ上に詰める","根音だけ低く、残りは 1 オクターブ上から詰める","根音だけ低く、5 度を省いて広げる（根音・3・7・テンション）","根音だけ低く、5 度を省いて広げる（根音・7・3・テンション）"];
+    var AR=["全部を根音のすぐ上に詰める","根音だけ低く、残りを詰める","5 度を省く: 根音・3・7・テンション","5 度を省く: 根音・7・3・テンション"];
     var row=ctrls(el),sc=select(row,"和音",CH.map(function(c){return c[0];})),sa=select(row,"並べ方",AR),sb=select(row,"根音の高さ",["オクターブ 2","オクターブ 3"]);
     sa.value="2";
     var bar=mk("div","pbtns");el.appendChild(bar);
@@ -184,7 +184,7 @@
     function draw(){
       var q=cur(),s=8,x1=staffStart(s,0)+2.4*s;
       var st=_w11_staff({s:s,w:x1+40,clef:"grand",items:[{x:x1,notes:q.ns,fills:q.v.map(function(p){return V(RC[p[1]]);})}],bottom:5*s});
-      var k=_w11_kbd(q.ms,q.ns.map(function(n){return "";}),q.v.map(function(p){return RC[p[1]];}));
+      var k=_w11_kbd(q.ms,q.ns.map(function(n){return "";}),q.v.map(function(p){return p[1]?RC[p[1]]:"blue";}));
       view.innerHTML=_w11_row(svgWrap(st.w,st.h,st.svg),svgWrap(k.w,k.h,k.svg));
       var gaps=[];for(var i=1;i<q.ms.length;i++)gaps.push(q.ns[i-1]+'–'+q.ns[i]+' <b>'+(q.ms[i]-q.ms[i-1])+'</b>');
       var a=specAnalyze(q.ms.map(mfreq),8);a.rel=100*a.R/roughRef(8);

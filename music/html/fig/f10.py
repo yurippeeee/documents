@@ -168,40 +168,32 @@ F["e10_chain"] = _f10_chain()
 # 3 節. 属七の和音: V の上に 3 度をもう 1 つ重ねる
 def _f10_v7():
     o = []
-    s = 12
-    yt = 52
-    items = [dict(x=70, notes=["G4", "B4", "D5"], fill=INK, label="V（G）", lcol=INK, lsz=12),
-             dict(x=170, notes=["G4", "B4", "D5", "F5"], fill=INK, fills={"B4": SIG, "F5": SIG}, label="V7（G7）", lcol=SIG, lsz=12)]
-    o.append(STAFF(16, yt, 220, s=s, clef="treble", items=items))
-    # 3 度の積み重ね（下から G・B・D・F）
-    X0, Y0, dy = 330, 176, 40
-    seq = [("G", "根音", INK), ("B", "3 度の音（導音）", SIG), ("D", "5 度の音", INK), ("F", "7 度の音", SIG)]
-    for i, (n, role, c) in enumerate(seq):
-        y = Y0 - i * dy
-        o.append(CIRC(X0, y, 13, c, 1.6, PAN))
-        o.append(T(X0, y + 5, n, "middle", 13, c, True))
-        o.append(T(X0 + 22, y + 4, role, "start", 10.5, c, c == SIG))
-        if i:
-            o.append(T(X0 - 22, y + dy / 2 + 4, ["長 3 度（半音 4）", "短 3 度（半音 3）", "短 3 度（半音 3）"][i - 1], "end", 10.5, INK))
-    o.append(W(X0 - 132, Y0, X0 - 140, Y0, X0 - 140, Y0 - 3 * dy, X0 - 132, Y0 - 3 * dy, c=MUT, lw=1.3))
-    o.append(T(X0 - 146, Y0 - 1.5 * dy - 4, "短 7 度", "end", 10.5, INK, True))
-    o.append(T(X0 - 146, Y0 - 1.5 * dy + 11, "（半音 10）", "end", 10, INK))
-    xb = X0 + 116
-    o.append(W(xb - 6, Y0 - dy, xb, Y0 - dy, xb, Y0 - 3 * dy, xb - 6, Y0 - 3 * dy, c=SIG, lw=1.6))
-    o.append(T(xb + 6, Y0 - 2 * dy - 4, "三全音", "start", 11, SIG, True))
-    o.append(T(xb + 6, Y0 - 2 * dy + 11, "（減 5 度、半音 6）", "start", 10, SIG))
+    s = 15
+    yt = 44
+    items = [dict(x=78, notes=["G4", "B4", "D5"], fill=INK, label="V（G）", lcol=INK, lsz=12),
+             dict(x=188, notes=["G4", "B4", "D5", "F5"], fill=INK, fills={"B4": SIG, "F5": SIG}, label="V7（G7）", lcol=SIG, lsz=12)]
+    o.append(STAFF(16, yt, 300, s=s, clef="treble", items=items))
+    Y = lambda pp: yt + 4 * s - pp * s / 2
+    xb = 16 + 188 + 18
+    for p1, p2, lab in [(2, 4, "長 3 度（半音 4）"), (4, 6, "短 3 度（半音 3）"), (6, 8, "短 3 度（半音 3）")]:
+        o.append(W(xb, Y(p1) - 1.5, xb + 5, Y(p1) - 1.5, xb + 5, Y(p2) + 1.5, xb, Y(p2) + 1.5, c=MUT, lw=1.2))
+        o.append(T(xb + 10, (Y(p1) + Y(p2)) / 2 + 4, lab, "start", 10.5, INK))
+    o.append(T(176, yt + 4 * s + 66, "3 度の音 B と 7 度の音 F の間は 減 5 度（半音 6）= 三全音", "middle", 11, SIG, True))
+    o.append(T(176, yt + 4 * s + 84, "根音 G から 7 度の音 F までは 短 7 度（半音 10）", "middle", 11, INK))
     info = {}
     hl = {67: dict(c=MUT, label="G"), 71: dict(c=SIG, label="B", strong=True), 74: dict(c=MUT, label="D"), 77: dict(c=SIG, label="F", strong=True)}
-    kx, ky = 486, 46
+    kx, ky = 456, 40
     o.append(KEYBOARD(kx, ky, 67, 79, ww=26, wh=100, hl=hl, names=None, info=info))
     yb = ky + 100 + 12
     for a, b, n in [(67, 71, 4), (71, 74, 3), (74, 77, 3)]:
         xa, xb2 = info[a][0], info[b][0]
         o.append(PL([(xa, yb - 4), ((xa + xb2) / 2, yb + 8), (xb2, yb - 4)], MUT, 1.4))
         o.append(T((xa + xb2) / 2, yb + 22, "%d" % n, "middle", 11, INK, True))
-    o.append(T(kx + kb_width(67, 79, 26) / 2, 30, "G7 = G・B・D・F", "middle", 12, INK, True))
-    return SVG(712, 206, o, "V（G・B・D）の上に、音階の音で 3 度をもう 1 つ重ねると F が加わり、属七の和音 V7（ハ長調では G7）になる。"
-               "根音 G から 7 度の音 F までは短 7 度。3 度の音 B は導音で、7 度の音 F との間は三全音である。")
+    o.append(T(info[71][0], yb + 42, "導音", "middle", 10.5, SIG, True))
+    o.append(T(info[77][0], yb + 42, "7 度の音", "middle", 10.5, SIG, True))
+    o.append(T(kx + kb_width(67, 79, 26) / 2, 26, "G7 = G・B・D・F", "middle", 12, INK, True))
+    return SVG(712, yt + 4 * s + 98, o, "V（G・B・D）の上に、音階の音で 3 度をもう 1 つ重ねると F が加わり、属七の和音 V7（ハ長調では G7）になる。"
+               "3 度の音 B は導音で、7 度の音 F との間は三全音である。")
 F["e10_v7"] = _f10_v7()
 
 
@@ -386,12 +378,12 @@ F["e10_phrase"] = _f10_phrase()
 def _f10_flow():
     o = []
     pos = {"T": (100, 130), "SD": (356, 130), "D": (612, 130)}
-    r = 48
+    r = 52
     def node(fn, sub):
         x, y = pos[fn]
         o.append(CIRC(x, y, r, _f10_FC[fn], 2.2, _f10_FS[fn]))
         o.append(T(x, y + 1, fn, "middle", 18, _f10_FC[fn], True))
-        o.append(T(x, y + 20, sub, "middle", 10, INK))
+        o.append(T(x, y + 20, sub, "middle", 9.5, INK))
     # T → SD、SD → D（上の線）
     o.append(ARR(pos["T"][0] + r, 118, pos["SD"][0] - r - 2, 118, INK, 2.4, 9))
     o.append(ARR(pos["SD"][0] + r, 118, pos["D"][0] - r - 2, 118, INK, 2.4, 9))

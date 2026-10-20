@@ -130,7 +130,7 @@
     function draw(){
       var c=cur(), ty=c.ty, rc=[ "signal",_w08_QC[ty.t],_w08_QC[ty.f]], cols=c.roles.map(function(r){return rc[r];}), ms=c.ns.map(function(n){return parse(n).midi;});
       var hl={}; ms.forEach(function(m,k){hl[m]={c:cols[k],label:nname(c.ns[k],false),strong:true};});
-      var kb=kbd(48,83,{ww:12,wh:52,hl:hl,names:"c"});
+      var kb=kbd(48,88,{ww:11,wh:50,hl:hl,names:"c"});   /* 最高音は D6（例 G/B の開離配置）まで */
       var stf=staff({s:8,w:150,clef:"grand",items:[{x:96,notes:c.ns,fills:cols.map(V)}]});
       var sv=spec(c.ns.map(function(n,i){return {f:mfreq(ms[i]),label:nname(n),c:cols[i]};}),{H:8,w:640,lane:28});
       var sym=c.ch[0]+(c.bi?"/"+_w08_disp(c.pcs[c.bi]):""), RN=["根音","3 度の音","5 度の音"], FN=["基本形","第 1 転回形","第 2 転回形"];
