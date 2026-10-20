@@ -28,7 +28,7 @@
   /* 主音からの半音の数（12 列）の上に音を点で並べる図
      rows: [{lab, lcol, cum, names, col, hot:{半音:1}, ghost:[[旧,新]], ring, right, rcol, band, small}] */
   function _w15_grid(rows,o){
-    o=o||{}; var x0=o.x0||124, cw=34, rh=o.rh||32, y0=60, W=x0+12*cw+(o.rw||92), H=y0+(rows.length-1)*rh+22, b=[];
+    o=o||{}; var x0=o.x0||136, cw=34, rh=o.rh||32, y0=60, W=x0+12*cw+(o.rw||92), H=y0+(rows.length-1)*rh+22, b=[];
     for(var k=0;k<12;k++){var cx=x0+k*cw+cw/2;
       b.push(tx(cx,20,String(k),"middle",9.5,V("muted")));
       b.push(tx(cx,40,_w15_DEG[k],"middle",k===6?8.5:10.5,V("ink"),true));
@@ -89,7 +89,7 @@
   /* ============ 15. w15_ladder — 明るさの順のはしご ============ */
   REG.w15_ladder=function(el){
     head(el,"Ladder","主音を決めて、明るい順に 1 音ずつ半音下げる");
-    var L=_w15_L, row=ctrls(el), sT=select(row,"主音",L.split("")), sR=slider(row,"段（1 = いちばん明るい）",1,7,4,1), dr=checkbox(row,"ドローン",true);
+    var L=_w15_L, row=ctrls(el), sT=select(row,"主音",L.split("")), sR=slider(row,"明るさの段",1,7,4,1), dr=checkbox(row,"ドローン",true);
     var bar=mk("div","pbtns"); el.appendChild(bar);
     var b1=button(bar,"▶ この段の音階"), b2=button(bar,"▶ 上の段から順に 7 つ");
     var view=mk("div","wscreen"); view.style.padding=".6rem"; el.appendChild(view);

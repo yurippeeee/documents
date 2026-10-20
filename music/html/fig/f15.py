@@ -121,7 +121,7 @@ def _f15_drone():
     o.append(T(x0 + 8 * bw, 24, "旋律: 白鍵を D から D まで上がって下がる", "middle", 11.5, BLU, True))
     o.append(ARR(x0, 238, x0 + 16 * bw, 238, MUT, 1.3))
     o.append(T(x0 + 16 * bw, 254, "時間", "end", 10.5, MUT))
-    o.append(T(x0 - 10, 132, "高さ", "end", 10.5, MUT))
+    o.append(T(x0 - 10, 30, "高さ ↑", "end", 10.5, MUT))
     return SVG(680, 262, o,
                "ドローンの上で旋律を鳴らすようす（横が時間、縦が高さ）。D3 のドローンが鳴り続ける間、旋律のどの音も D からの音程として聞こえる。"
                "旋律の D4・D5（赤）はドローンと 1 オクターブ・2 オクターブの関係で重なる（点線）。")
@@ -283,7 +283,6 @@ def _f15_chain():
     o.append(T(x0 + 12 * dx + 14, 68, "完全 5 度上 →", "end", 10, MUT))
     yr0, rh = 96, 32
     o.append(W(xc, 74, xc, yr0 + 6 * rh + 14, c=SIG, lw=1.1, dash="3,3"))
-    o.append(T(x0 + 12 * dx + 34, yr0 - 18, "入れ替わる音", "start", 10.5, MUT, True))
     for k, r in enumerate(_f15_ORD):
         y = yr0 + k * rh
         a, b = 6 - k, 12 - k
@@ -297,18 +296,18 @@ def _f15_chain():
             gx = x0 + (b + 1) * dx
             o.append(T(gx, y + 4.5, chain[b + 1], "middle", 12, MUT))
             o.append(W(gx - 9, y, gx + 9, y, c=MUT, lw=1.2))
-            o.append(T(x0 + 12 * dx + 34, y + 4.5, "%s → %s" % (chain[b + 1], chain[a]), "start", 12, SIG, True))
+            o.append(T(706, y + 4.5, "%s → %s" % (chain[b + 1], chain[a]), "end", 12, SIG, True))
     return SVG(712, yr0 + 6 * rh + 24, o,
                "完全 5 度ずつ並べた音の列（5 度の列）の上に、主音 C の 7 つのモードの音を置いた。どのモードも、となり合う 7 つの音を使う。"
                "C（赤の破線）は、リディアンでは左から 1 番目、イオニアンでは 2 番目、…、ロクリアンでは 7 番目にある。1 段下がるごとに、使う 7 つが 1 つ左へずれ、"
-               "右端の音が抜けて（灰色の線で消した音）、左端に 7 つ離れた同じ文字の音（赤）が入る。")
+               "右端の音が抜けて（灰色の線で消した音）、左端に 7 つ離れた同じ文字の音（赤）が入る。右の列は、前の段から入れ替わった音（抜けた音 → 入った音）。")
 F["e15_chain"] = _f15_chain()
 
 
 # 8. 特性音: 主音の上の 3 度が同じ長音階・自然短音階と比べる
 def _f15_char():
     o = []
-    x0, cw = 196, 36
+    x0, cw = 170, 36
     rr = 12
     rows = [(0, None), (3, 0), (4, 0), ("sep", None), (5, None), (1, 5), (2, 5), (6, 5)]
     o.append(T(x0 - 12, 42, "長音階を基準にした書き方", "end", 10, MUT))
@@ -326,9 +325,10 @@ def _f15_char():
         if ref is None:
             o.append(T(x0 - 12, y - 1, _f15_NM[r], "end", 12, MUT, True))
             o.append(T(x0 - 12, y + 12, "（比べる音階）", "end", 10, MUT))
-            for c in cum:
+            for c, nm in zip(cum, _f15_names("C4", r, 7)):
                 cx = x0 + c * cw + cw / 2
                 o.append(CIRC(cx, y, rr, MUT, 1.1, PAN))
+                o.append(T(cx, y + 4, nm, "middle", 10.5, MUT))
             o.append(T(x0 + 12 * cw + 10, y + 4.5, "長音階" if r == 0 else "自然短音階", "start", 11, MUT, True))
         else:
             rc = _f15_cum(ref)

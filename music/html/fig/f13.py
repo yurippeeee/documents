@@ -266,10 +266,10 @@ def _f13_parallel():
                 ns = [sc[j + 2 * k] for k in range(n)]
                 _f13_chk(sym, ns)
                 y = yb + 20 + r * 54
-                o.append(T(cx, y, disp(sym), "middle", 12, INK, True))
-                o.append(T(cx, y + 15, roman(sym, "C"), "middle", 10.5, MUT))
-                o.append(_f13_label_notes(cx, y + 31, ns, lambda q: SIG if _f13_out(q) else INK, sz=10.5,
-                                          step=19 if n == 4 else 20))
+                o.append(T(cx, y, disp(sym), "middle", 13, INK, True))
+                o.append(T(cx, y + 15, roman(sym, "C"), "middle", 11, MUT))
+                o.append(_f13_label_notes(cx, y + 32, ns, lambda q: SIG if _f13_out(q) else INK, sz=11.5,
+                                          step=20 if n == 4 else 22))
     return SVG(712, 32 + 2 * 128, o, "ハ長調とハ短調（自然短音階）のダイアトニックコード（上の行が三和音、下の行がセブンスコード）。"
                "同じ番号の和音は同じ文字を使い、E・A・B が E♭・A♭・B♭ に変わる（色付きの音）。ハ短調の 7 つの和音は、"
                "どれもハ長調の外の音を含む。ディグリーネームは C 長音階を基準に ♭ を付けて書く。")

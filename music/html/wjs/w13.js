@@ -19,6 +19,11 @@
   /* 和音の列を、ベース付きで順に鳴らす形にする（各和音の長さ d[i] 秒） */
   function _w13_seq(list,d){var t=0;return list.map(function(c,i){var e={t:t,d:d[i]*0.98,m:[c.b].concat(c.m)};t+=d[i];return e;});}
   function _w13_names(ns){return ns.map(function(n){return nname(n,false);});}
+  /* 半音の数を +2 / −7 / 0 の形にする */
+  function _w13_sg(d){return d>0?"+"+d:d<0?"−"+(-d):"0";}
+  /* 和音の構成音の名前を、根音・3 度・5 度・7 度の順に並べる */
+  function _w13_order(sym,ms,ns){var r=chordParse(sym).rootPc,ix=ms.map(function(m,i){return i;});
+    ix.sort(function(a,b){return ((ms[a]-r)%12+12)%12-((ms[b]-r)%12+12)%12;});return ix.map(function(i){return nname(ns[i],false);});}
 
   /* ============ 13. w13_secdom — 目標の和音とセカンダリードミナント ============ */
   REG.w13_secdom=function(el){
@@ -184,9 +189,9 @@
       view.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;align-items:center">'+clk+boards+'</div>';
       var bx=c.x.b, sx=_w13_names(chordSpell(t.x,[bx]))[0];
       var dsteps=bx-c.d.b, ssteps=bx-c.s.b;
-      ro.innerHTML='<b style="color:var(--blue)">'+dd+'</b>（'+_w13_names(dn).join(" ")+'） と <b style="color:var(--gold)">'+ss+'</b>（'+_w13_names(sn).join(" ")+'）<br>'+
+      ro.innerHTML='<b style="color:var(--blue)">'+dd+'</b>（'+_w13_order(t.d,dAll,dn).join(" ")+'） と <b style="color:var(--gold)">'+ss+'</b>（'+_w13_order(t.s,sAll,sn).join(" ")+'）<br>'+
         '共有する三全音: <b style="color:var(--signal)">'+lab[tri[0]]+' と '+lab[tri[1]]+'</b>（半音 6 つ） ／ 根音 '+_w13_names(dn)[0]+' と '+_w13_names(sn)[0]+' も半音 6 つ離れている<br>'+
-        '目標 '+t.x+' への ベース: '+_w13_names(dn)[0]+' → '+sx+'（'+(dsteps>0?'+':'')+dsteps+'） ／ '+_w13_names(sn)[0]+' → '+sx+'（'+(ssteps>0?'+':'')+ssteps+'、半音下）';
+        '目標 '+t.x+' へのベース: '+_w13_names(dn)[0]+' → '+sx+'（'+_w13_sg(dsteps)+'） ／ '+_w13_names(sn)[0]+' → '+sx+'（'+_w13_sg(ssteps)+'、半音下）';
     }
     sel.addEventListener("change",function(){stopAll();act=null;draw();});
     draw();
@@ -219,7 +224,7 @@
       for(var i=1;i<bs.length;i++)steps.push(bs[i]-bs[i-1]);
       var bn=L.map(function(s){return nname(chordSpell(s,[_w13_bass(s)])[0],false);});
       var nOut=L.filter(function(s){var c=chordParse(s);return c.ivs.some(function(v){return _w13_CMAJ.indexOf((c.rootPc+v)%12)<0;});}).length;
-      ro.innerHTML='ベースの動き（半音の数）: '+bn.map(function(n,i){return i?'<span style="color:var(--muted)">('+(steps[i-1]>0?'+':'')+steps[i-1]+')</span> '+n:n;}).join(" → ")+'<br>'+
+      ro.innerHTML='ベースの動き（半音の数）: '+bn.map(function(n,i){return i?'<span style="color:var(--muted)">('+_w13_sg(steps[i-1])+')</span> '+n:n;}).join(" → ")+'<br>'+
         '調の外の音を含む和音: <b>'+nOut+'</b> 個（各和音の下の赤い音名が調の外の音）';
     }
     [sA,sB,sC].forEach(function(s){s.addEventListener("change",draw);});

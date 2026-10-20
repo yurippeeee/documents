@@ -96,7 +96,7 @@
     function opts(){A=analyze();var o=A.com.map(function(c,i){return ["p"+i,"ピボットコード "+_w14_cn(c.a.sym)+"（"+c.a.deg+" / "+c.b.deg+"）"];});
       o.push(["dI","直接転調（新しい調の I から）"],["dV","直接転調（新しい調の V7 から）"]);
       sm.innerHTML=o.map(function(x){return '<option value="'+x[0]+'">'+esc(x[1])+'</option>';}).join("");
-      var sd=-1;A.com.forEach(function(c,i){if(sd<0&&/^(IIm|IV|IVm|IIdim)$/.test(c.b.deg))sd=i;});
+      var sd=-1;[/^(IIm|IVm)$/,/^(IV|IIdim)$/].forEach(function(re){A.com.forEach(function(c,i){if(sd<0&&re.test(c.b.deg))sd=i;});});
       sm.value=A.com.length?"p"+(sd>=0?sd:0):"dI";}
     function build(){var mi2=/m$/.test(A.k2),I1=A.t1[0],IV1=A.t1[3],V1=_w14_v7(A.k1),I2=A.t2[0],IV2=A.t2[3],SD2=mi2?A.t2[3]:A.t2[1],V2=_w14_v7(A.k2),q=[],m=sm.value;
       function add(s,b,z,d1,d2){q.push({sym:s,b:b,z:z,d1:d1,d2:d2});}
@@ -145,7 +145,7 @@
        r:"ハ長調 → ニ長調。共通和音を通らず、C の直後から F♯・C♯ が現れる。"},
       {n:"半音上（変ニ長調）へ — 直接転調",c:"C F G7 C Db Gb Ab7 Db:4",z:"oooonnnn",d:"I IV V7 I I IV V7 I",cad:{3:"ハ長調",7:"変ニ長調"},
        r:"ハ長調 → 変ニ長調。共通和音が無く、ハ長調に無い 5 つの音（D♭・E♭・G♭・A♭・B♭）が一度に現れる。"},
-      {n:"半音上（変ニ長調）へ — 新しい調の V7 を先に置く",c:"C F G7 C Ab7 Db Gb Ab7 Db:4",z:"ooooonnnn".slice(0,4)+"nnnnn",d:"I IV V7 I V7 I IV V7 I",cad:{3:"ハ長調",5:"変ニ長調",8:"変ニ長調"},
+      {n:"半音上（変ニ長調）へ — 新しい調の V7 を先に置く",c:"C F G7 C Ab7 Db Gb Ab7 Db:4",z:"oooonnnnn",d:"I IV V7 I V7 I IV V7 I",cad:{3:"ハ長調",5:"変ニ長調",8:"変ニ長調"},
        r:"ハ長調 → 変ニ長調。A♭7 → D♭（V7 → I）で新しい主音を示してから、変ニ長調の進行が始まる。"}];
     var row=ctrls(el),sp=select(row,"例",PRE.map(function(p){return p.n;}));sp.value="1";
     var row2=ctrls(el),cb=checkbox(row2,"手がかりを表示",true);
@@ -153,7 +153,7 @@
     var view=mk("div","wscreen");view.style.padding=".55rem .6rem";el.appendChild(view);
     var ro=readout(el),hot=-1;
     var CMAJ=_w14_scale("C");
-    function seq(){var p=PRE[+sp.value],ds=p.d.split(" ");return p.c.split(" ").map(function(tok,i){var m=tok.split(":");return {sym:m[0],b:m[1]?+m[1]:2,z:p.z[i],d:ds[i].replace("/"," / ").replace(" /  / "," / ")};});}
+    function seq(){var p=PRE[+sp.value],ds=p.d.split(" ");return p.c.split(" ").map(function(tok,i){var m=tok.split(":");return {sym:m[0],b:m[1]?+m[1]:2,z:p.z[i],d:ds[i].replace("/"," / ")};});}
     function fixDeg(d){return d==="V7 / V"?"V7/V":d;}
     function draw(){
       var p=PRE[+sp.value],q=seq(),show=cb.checked,cnt={};
@@ -161,7 +161,7 @@
       var chips=q.map(function(e,i){var nn=_w14_tones(e.sym).filter(function(n){return CMAJ.indexOf(n)<0;});
         nn.forEach(function(n){cnt[n]=(cnt[n]||0)+1;});
         if(!show)return _w14_chip(_w14_cn(e.sym),[],{hot:i===hot});
-        var lines=[[fixDeg(e.d)],[nn.length?nn.map(_w14_cn).join(" "):"·",nn.length?"var(--signal)":"var(--faint)"],[p.cad[i]?"終止: "+p.cad[i]:"·",p.cad[i]?"var(--green)":"var(--faint)"]];
+        var lines=[[fixDeg(e.d)],[nn.length?nn.map(_w14_cn).join(" "):"·",nn.length?"var(--signal)":"var(--faint)"],[p.cad[i]?"終止":"·",p.cad[i]?"var(--green)":"var(--faint)"]];
         var s0=st[e.z];return _w14_chip(_w14_cn(e.sym),lines,{c:s0.c,dash:s0.dash,bg:s0.bg,hot:i===hot});});
       view.innerHTML=(show?'<div style="font-family:var(--mono);font-size:.7rem;color:var(--muted);margin-bottom:.35rem">各札: コードネーム ／ ディグリーネーム ／ ハ長調に無い音（①） ／ 終止（②）</div>':'')+
         '<div style="display:flex;flex-wrap:wrap;gap:4px">'+chips.join("")+'</div>'+
