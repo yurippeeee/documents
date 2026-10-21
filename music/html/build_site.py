@@ -22,7 +22,8 @@ def _merged(files):
 def _merge_widgets():
     """wjs/*.js を widgets.js の CHAPTER WIDGETS 区間へ流し込む"""
     p = os.path.join(HERE, "widgets.js")
-    t = _merged(sorted(glob.glob(os.path.join(HERE, "wjs", "w*.js"))))
+    t = _merged(sorted(q for q in glob.glob(os.path.join(HERE, "wjs", "w*.js"))
+                       if os.path.basename(q)[1:3] not in PENDING))   # 準備中の章の書きかけは公開しない
     if t != open(p, encoding="utf-8").read():
         tmp = p + ".%d.tmp" % os.getpid()
         open(tmp, "w", encoding="utf-8").write(t)
@@ -36,8 +37,6 @@ if ARGS.out:
     shutil.copy(os.path.join(HERE, "music.css"), os.path.join(ARGS.out, "music.css"))
     if not os.path.exists(os.path.join(ARGS.out, "katex")):
         os.symlink(os.path.join(HERE, "katex"), os.path.join(ARGS.out, "katex"))
-else:
-    _merge_widgets()
 def _ver(name):
     """キャッシュ対策: ファイル内容のハッシュを ?v= に付ける。"""
     with open(os.path.join(OUT, name), 'rb') as f:
@@ -80,6 +79,8 @@ if os.environ.get("MUSIC_SHOW_PENDING"):   # 書きかけの章を隔離ビル�
     PENDING = {}
 _have = {n for n, fn in CHAPTERS}
 CHAPTERS = sorted([(n, fn) for n, fn in CHAPTERS if n not in PENDING] + [(n, None) for n in PENDING])
+if not ARGS.out:
+    _merge_widgets()
 
 # 章ごとのインタラクティブ部品の差し込み: 見出しに含む文字列 -> widget名 (見出し直後に挿入)
 WIDGETS = {}
