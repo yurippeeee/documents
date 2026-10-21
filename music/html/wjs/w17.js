@@ -3,7 +3,7 @@
   function _w17_isCT(m,sym){return !!_w17_pcs(sym)[((m%12)+12)%12];}
   /* 加わる粗さ（f17.py の _f17_added と同じ式）: メロディの第 1〜8 倍音のうち和音の倍音と一致しないものと、和音の全倍音との粗さの和 */
   function _w17_added(chord,mel){
-    var fm0=mfreq(mel),fmax=fm0*8*1.03,cp=[],R=0,co=[],cl=[],nw=[];
+    var fm0=mfreq(mel),fmax=fm0*8*Math.pow(2,16/1200),cp=[],R=0,co=[],cl=[],nw=[];
     chord.forEach(function(m,i){var f=mfreq(m);for(var h=1;f*h<=fmax;h++)cp.push([f*h,1/h,i,h]);});
     for(var k=1;k<=8;k++){
       var fk=fm0*k,ak=1/k,hit=null;
@@ -140,7 +140,7 @@
   REG.w17_beat=function(el){
     head(el,"Beat","非和声音 C5 を置く拍と長さを変え、加わる粗さの帯と音を比べる");
     var row=ctrls(el),sE=select(row,"1 小節目の 3・4 拍目の音",["C5（C の和音のコードトーン）","G4（ここから跳ぶ）"]),
-        sS=select(row,"2 小節目で C5 を鳴らし始める拍",["1 拍目（強拍）","2 拍目（弱拍）","3 拍目（中強拍）","4 拍目（弱拍）"]),
+        sS=select(row,"2 小節目で C5 を鳴らし始める位置",["1 拍目（強拍）","1 拍目の裏（裏拍）","2 拍目（弱拍）","2 拍目の裏（裏拍）","3 拍目（中強拍）","3 拍目の裏（裏拍）","4 拍目（弱拍）","4 拍目の裏（裏拍）"]),
         sL=select(row,"C5 の長さ",["半拍","1 拍","2 拍","3 拍"]);
     sL.value="3";
     var bar=mk("div","pbtns");el.appendChild(bar);
@@ -150,7 +150,7 @@
     function split(len){var out=[],V2=[2,1.5,1,0.5];while(len>1e-9){for(var i=0;i<V2.length;i++)if(V2[i]<=len+1e-9){out.push(V2[i]);len-=V2[i];break;}}return out;}
     function seg(n,len,tieLast){var p=split(len);return p.map(function(d,i){return {n:n,d:d,tie:i<p.length-1||(tieLast&&i===p.length-1)};});}
     function melody(){
-      var st=+sS.value,L=[0.5,1,2,3][+sL.value],end=Math.min(4,st+L),e1=sE.value==="0"?"C5":"G4",m=[{n:"E5",d:2}];
+      var st=(+sS.value)/2,L=[0.5,1,2,3][+sL.value],end=Math.min(4,st+L),e1=sE.value==="0"?"C5":"G4",m=[{n:"E5",d:2}];
       var hold=(st===0&&e1==="C5");
       m.push({n:e1,d:2,tie:hold});
       if(st>0)m=m.concat(seg("B4",st,false));
@@ -180,9 +180,9 @@
       b.push(tx(x0-8,yb-4,"加わる粗さ","end",10,V("muted")));
       b.push(tx(x0-8,30,"拍","end",10,V("muted")));
       view.innerHTML='<div style="display:flex;justify-content:center">'+svgWrap(st.w,st.h,st.svg)+'</div>'+svgWrap(W,H,b.join(""));
-      var strong=M.st===0||M.st===2||(M.st<2&&M.st+M.L>2);
+      var strong=M.st===0||(M.st<=2&&M.st+M.L>2),POS=["1 拍目（強拍）","1 拍目の裏（裏拍）","2 拍目（弱拍）","2 拍目の裏（裏拍）","3 拍目（中強拍）","3 拍目の裏（裏拍）","4 拍目（弱拍）","4 拍目の裏（裏拍）"];
       ro.innerHTML='2 小節目の C5: <b style="color:var(--alias)">'+(typ?typ.type:"—")+'</b>（入り方 '+(typ?typ.inn:"—")+'、出方 '+(typ?typ.out:"—")+'）<br>'+
-        '加わる粗さ <b>'+R.toFixed(1)+'</b>（G の和音 B3・D4・G4 の上） ／ 強拍・中強拍に重なる: <b>'+(strong?"はい":"いいえ")+'</b> ／ 続く長さ <b>'+M.L+'</b> 拍 ／ 加わる粗さ × 長さ <b>'+(R*M.L).toFixed(1)+'</b>';
+        '鳴り始め <b>'+POS[Math.round(M.st*2)]+'</b> ／ 強拍・中強拍に重なる: <b>'+(strong?"はい":"いいえ")+'</b> ／ 続く長さ <b>'+M.L+'</b> 拍<br>加わる粗さ <b>'+R.toFixed(1)+'</b>（G の和音 B3・D4・G4 の上） ／ 加わる粗さ × 長さ <b>'+(Math.round(R*10)/10*M.L).toFixed(1)+'</b>';
     }
     function play(btn,none){
       if(btn.getAttribute("aria-pressed")==="true"){stopAll();cur=-1;draw();return;}

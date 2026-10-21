@@ -36,7 +36,7 @@ def _f17_added(chord, mel, tol=16.0, thr=0.015):
     """加わる粗さ。メロディの第 1〜8 倍音のうち和音の倍音と一致しないものと、和音の全倍音（メロディの第 8 倍音の高さまで）との粗さの和。
     返り値 (値, 一致 [(k,[(i,h)])], 新しい倍音 [k], ぶつかり [(k,i,h,r)], 和音の倍音 [(f,a,i,h)])"""
     fm0 = freq(mel)
-    fmax = fm0 * 8 * 1.03
+    fmax = fm0 * 8 * 2 ** (16 / 1200.0)   # 第 8 倍音と一致するかを調べられる高さ（16 セント上）まで
     cp = []
     for i, m in enumerate(chord):
         f, h = freq(m), 1
@@ -299,6 +299,8 @@ def _f17_table():
             o.append(RECT(x0 + j * cw + 2, y0 + i * rh + 2, cw - 4, rh - 4, 6, PAN, LIN, 1))
     def cell(i, j, span, name, sub):
         xx = x0 + j * cw + 4
+        o.append(RECT(xx - 3, y0 + i * rh + 1, span * cw - 2, rh - 2, 6, SCR, SCR, 0))
+        o.append(RECT(xx, y0 + i * rh + 4, span * cw - 8, rh - 8, 6, PAN, ALI, 0))
         o.append(RECT(xx, y0 + i * rh + 4, span * cw - 8, rh - 8, 6, ASOFT, ALI, 1.4))
         o.append(T(xx + (span * cw - 8) / 2, y0 + i * rh + rh / 2 + (0 if sub else 4), name, "middle", 13, ALI, True))
         if sub:
@@ -326,11 +328,15 @@ def _f17_blocks(x, y, mel, chords, u=72, h=24, nct_col=ALI, show_beats=True, rou
         st = bt % 4
         fill = SSOFT if st == 0 else (GOSOFT if st == 2 else PAN)
         o.append(RECT(bx, y, u, h, 0, fill, LIN, 0.8))
+        if st in (0, 2):
+            o.append(RECT(bx + 2, y + h + 2, u - 4, 3, 1, SIG if st == 0 else GLD, SIG if st == 0 else GLD, 0))
         if show_beats:
-            o.append(T(bx + u / 2, y - 6, "%d 拍目（%s）" % (st + 1, strength[st]), "middle", 9.5, SIG if st == 0 else (GLD if st == 2 else MUT), st != 1 and st != 3))
+            cc = SIG if st == 0 else (GLD if st == 2 else MUT)
+            o.append(T(bx + u / 2, y - 19, "%d 拍目" % (st + 1), "middle", 10, cc, st in (0, 2)))
+            o.append(T(bx + u / 2, y - 6, strength[st], "middle", 10, cc, st in (0, 2)))
     for k, (b, sym) in enumerate(chords):
         if show_chords:
-            o.append(T(x + b * u + 4, y - (20 if show_beats else 6), sym + " の和音", "start", 10.5, INK, True))
+            o.append(T(x + b * u + 4, y - (33 if show_beats else 6), sym + " の和音", "start", 10.5, INK, True))
     o.append(W(x + 4 * u, y - 4, x + 4 * u, y + h + 4, c=INK, lw=1.6))
     b, prev = 0, None
     for q in mel:
@@ -339,6 +345,7 @@ def _f17_blocks(x, y, mel, chords, u=72, h=24, nct_col=ALI, show_beats=True, rou
         sym = [c for (bb, c) in chords if bb <= b][-1]
         ok = _f17_is_ct(nm, sym)
         col, fl = (GRN2, GSOFT) if ok else (nct_col, ASOFT)
+        o.append(RECT(x + b * u + 3, y + 3, d * u - 6, h - 6, 4, PAN, col, 0))
         o.append(RECT(x + b * u + 3, y + 3, d * u - 6, h - 6, 4, fl, col, 1.4))
         o.append(T(x + b * u + d * u / 2, y + h / 2 + 4, nname(nm) + ("（タイ）" if tied else ""), "middle", 10.5, col, True))
         if rough is not None:
@@ -357,11 +364,11 @@ def _f17_beatmap():
     o = []
     u, x0 = 66, 132
     for idx, (title, mel, nct, tin, tout) in enumerate(_F17_SIX):
-        y = 56 + idx * 40
+        y = 66 + idx * 40
         o.append(T(x0 - 10, y + 16, title, "end", 11.5, ALI, True))
         o.append(_f17_blocks(x0, y, mel, [(0, "C"), (4, "G")], u=u, h=26, show_beats=(idx == 0), show_chords=(idx == 0)))
-    o.append(T(x0 + 4 * u, 300, "↑ 和音が変わる強拍", "middle", 10.5, INK, True))
-    return SVG(712, 308, o, "2 節の 6 つの例の、拍ごとの音（緑 = コードトーン、赤 = 非和声音）。ピンクの列が強拍（1 拍目）、金色の列が中強拍（3 拍目）。"
+    o.append(T(x0 + 4 * u, 310, "↑ 和音が変わる強拍", "middle", 10.5, INK, True))
+    return SVG(712, 318, o, "2 節の 6 つの例の、拍ごとの音（緑 = コードトーン、赤 = 非和声音）。帯の下のピンクの印が強拍（1 拍目）、金色の印が中強拍（3 拍目）。"
                "倚音と掛留音は和音が変わる強拍に置かれて 2 拍続き、ほかの 4 つは弱拍に 1 拍だけ置かれている。")
 F["e17_beatmap"] = _f17_beatmap()
 
@@ -374,12 +381,12 @@ def _f17_timeline():
     vo = {"G": _f17_vl("G", None), "C": None}
     vo["C"] = _f17_vl("C", vo["G"])
     for idx, (title, mel, chs) in enumerate(rows):
-        y = 44 + idx * 118
+        y = 54 + idx * 118
         o.append(T(x0 - 10, y + 16, title, "end", 11.5, INK, True))
         o.append(T(x0 - 10, y + 84, "加わる粗さ", "end", 10, MUT))
         o.append(_f17_blocks(x0, y, mel, chs, u=u, h=26, show_beats=(idx == 0), rough=vo))
-    return SVG(712, 44 + 3 * 118 - 22, o, "各拍で鳴っているメロディの音の加わる粗さ（下の棒）。(A) と (B) は同じ D5（71.9）を、弱拍と強拍に置いたもの。"
-               "(C) の掛留音 C5（102.6）は、前の和音で溶け合っていた音が残り、和音が G に変わる強拍からぶつかり始める。和音の配置は C4・E4・G4 と B3・D4・G4。")
+    return SVG(712, 54 + 3 * 118 - 22, o, "各拍で鳴っているメロディの音の加わる粗さ（下の棒）。(A) と (B) は同じ D5（71.9）を、弱拍と強拍に置いたもの。"
+               "(C) の掛留音 C5（102.5）は、前の和音で溶け合っていた音が残り、和音が G に変わる強拍からぶつかり始める。和音の配置は C4・E4・G4 と B3・D4・G4。")
 F["e17_timeline"] = _f17_timeline()
 
 
@@ -403,8 +410,8 @@ def _f17_proc():
     return SVG(680, y - 4, o, "和音付けの手順。① で区切りを決め、②・③ で強拍の音を含む和音を候補にし、④・⑤ で機能と終止から選び、⑥ で残った非和声音を確かめる。")
 F["e17_proc"] = _f17_proc()
 
-_F17_TW = ["C5", "C5", "G5", "G5", "A5", "A5", "G5", "G5", "F5", "F5", "E5", "E5", "D5", "D5", "C5", "C5",
-           "G5", "G5", "F5", "F5", "E5", "E5", "D5", "D5", "G5", "G5", "F5", "F5", "E5", "E5", "D5", "D5"]
+_F17_TW = ["C4", "C4", "G4", "G4", "A4", "A4", "G4", "G4", "F4", "F4", "E4", "E4", "D4", "D4", "C4", "C4",
+           "G4", "G4", "F4", "F4", "E4", "E4", "D4", "D4", "G4", "G4", "F4", "F4", "E4", "E4", "D4", "D4"]
 _F17_TW_CH = ["C", "C", "F", "C", "F", "C", "G", "C", "C", "F", "C", "G", "C", "F", "C", "G"]
 
 def _f17_cand():
@@ -446,7 +453,7 @@ F["e17_cand"] = _f17_cand()
 def _f17_badgood():
     o = []
     rows = [("手順どおり", ["C", "C", "F", "C", "F", "C", "G", "C"], "全終止（G → C）", GRN2),
-            ("強拍の音を含まない", ["C", "C", "F", "C", "C", "C", "G", "C"], "第 3 小節の F5 が非和声音", ALI),
+            ("強拍の音を含まない", ["C", "C", "F", "C", "C", "C", "G", "C"], "第 3 小節の強拍の F が非和声音", ALI),
             ("機能と終止を外す", ["C", "C", "F", "C", "F", "C", "G", "F"], "D → SD、終止にならない", ALI)]
     u, x0 = 33, 132
     for r, (title, chs, res, col) in enumerate(rows):
@@ -471,7 +478,7 @@ def _f17_badgood():
             o.append(W(x0 + bl * 4 * u, y - 4, x0 + bl * 4 * u, y + 54, c=MUT, lw=1))
         o.append(T(x0 + 16 * u, y + 72, res, "end", 11, col, True))
     o.append(T(x0, 300, "下線: 強拍（1・3 拍目）の音。音名の色: 緑 = コードトーン、赤 = 非和声音", "start", 10, MUT))
-    return SVG(712, 308, o, "きらきら星の第 1〜4 小節の 3 つの和音付け。中段は第 3 小節を C だけにしたため、強拍の F5 が非和声音になる。"
+    return SVG(712, 308, o, "きらきら星の第 1〜4 小節の 3 つの和音付け。中段は第 3 小節を C だけにしたため、強拍の F が非和声音になる。"
                "下段は最後を F にしたため、G → F（D → SD）と動き、SD で終わって終止にならない。")
 F["e17_badgood"] = _f17_badgood()
 
