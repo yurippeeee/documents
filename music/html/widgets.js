@@ -322,6 +322,8 @@
     if(a===1){var k=2.8*s/954;return glyph("sharp",x-365*k,yn+198*k,k,fill);}
     if(a===-1){var k2=2.45*s/836;return glyph("flat",x-329*k2,yn+205*k2,k2,fill);}
     if(a===0){var k3=2.7*s/965;return glyph("natural",x-324*k3,yn+192.5*k3,k3,fill);}
+    if(a===-2)return accGlyph(-1,x,yn,s,fill)+accGlyph(-1,x-0.84*s,yn,s,fill);   /* ダブルフラット = フラット 2 つ */
+    if(a===2){var r=0.32*s;return ln(x-2*r,yn-r,x,yn+r,fill,0.3*s)+ln(x-2*r,yn+r,x,yn-r,fill,0.3*s);}   /* ダブルシャープ = × */
     return "";
   }
   function ell(cx,cy,rx,ry,rot){var a=rot*Math.PI/180,dx=rx*Math.cos(a),dy=rx*Math.sin(a);
@@ -590,7 +592,8 @@
     var staffV=voices.filter(function(v){return v.kind!=="click"&&!(v.kind==="chord"&&voices.some(function(w){return w.kind==="mel";})&&show.indexOf("voicing")<0);});
     var smel=[]; staffV.forEach(function(v){v.steps.forEach(function(e){e.m.forEach(function(m){if(m>=0)smel.push(m);});});});
     var slo=smel.length?Math.min.apply(null,smel):60, shi=smel.length?Math.max.apply(null,smel):72;
-    var clf=sp.clef||(perc?"perc":slo>=55?"treble":shi<=64?"bass":"grand");
+    var hasB=staffV.some(function(v){return v.kind==="bass";})&&staffV.length>1;   /* 低音を足したときは大譜表にし、旋律を高音部、低音を低音部に置く（和音は音の高さで振り分ける） */
+    var clf=sp.clef||(perc?"perc":hasB?"grand":slo>=55?"treble":shi<=64?"bass":"grand");
     if(perc&&!sp.clef){var kinds={}; voices.forEach(function(v){if(v.kind!=="click")v.steps.forEach(function(e){e.notes.forEach(function(n){kinds[n]=1;});});}); clf=Object.keys(kinds).length>1?"perc":"rhythm";}
     /* 拍 b0 から beats 拍の音を、小節線と書ける音価（付点を含む）で区切る（区切った音はタイでつなぐ） */
     function pieces(b0,beats){var VALS=[4,3,2,1.5,1,0.75,0.5,0.375,0.25], out=[], bq=b0, end=b0+beats;
@@ -620,11 +623,11 @@
             var fill=on[vi+":"+si]?V("signal"):(v.kind==="mel"&&vi===0?V("ink"):V(v.col)), ps=pieces(e.b,e.beats);
             ps.forEach(function(pc,pj){
               var dd=durDot(pc.beats), it={b:pc.b,x:X(pc.b),dur:dd.dur,dot:dd.dot,fill:fill};
-              if(!e.m.length){it.rest=true; if(clf==="grand")it.staff=v.kind==="bass"||vk>0?"bass":"treble";}
+              if(!e.m.length){it.rest=true; if(clf==="grand")it.staff=v.kind==="bass"||(!hasB&&vk>0)?"bass":"treble";}
               else{it.notes=e.notes.filter(function(n,j){return e.m[j]>=0||n[0]==="%";});
                 if(dd.dur==="eighth"||dd.dur==="16th")it.beam=vi+":"+Math.floor(pc.b/grp+1e-9);
                 if(pj<ps.length-1)it.tie=true;
-                if(clf==="grand"&&v.kind==="bass")it.staff="bass";
+                if(clf==="grand"&&hasB&&v.kind!=="chord")it.staff=v.kind==="bass"?"bass":"treble";
                 if(two)it.stem=vk===0?"up":"down";}
               if(pj===0&&chordSteps&&v.kind==="chord")it.sym=symTxt(e.sym);
               items.push(it);});});});

@@ -453,6 +453,11 @@ def ACC(acc, x, yn, s, fill=INK):
         k = 2.45 * s / 836.0; return _glyph("flat", x - 329 * k, yn + 205 * k, k, fill)
     if acc == 0:
         k = 2.7 * s / 965.0; return _glyph("natural", x - 324 * k, yn + 192.5 * k, k, fill)
+    if acc == -2:   # ダブルフラット = フラット 2 つ
+        return ACC(-1, x, yn, s, fill) + ACC(-1, x - 0.84 * s, yn, s, fill)
+    if acc == 2:    # ダブルシャープ = ×
+        r = 0.32 * s
+        return W(x - 2 * r, yn - r, x, yn + r, c=fill, lw=0.3 * s) + W(x - 2 * r, yn + r, x, yn - r, c=fill, lw=0.3 * s)
     return ""
 
 def _ell(cx, cy, rx, ry, rot):
