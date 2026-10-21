@@ -139,8 +139,8 @@ def _f12_famous():
         o.append(RECT(lx, y + 2, 14, 14, 3, _f12_FS[f], _f12_FC[f], 1.3))
         o.append(T(lx + 20, y + 14, nm, "start", 11, _f12_FC[f], True))
         lx += 170
-    o.append(T(632, y + 14, "箱の中: コードネーム（ハ長調）・ディグリーネーム・機能", "end", 10.5, MUT))
-    return SVG(646, y + 24, o, "4 つの定番進行を、機能の色で並べた。セブンスコードは、7 度の音を除いた三和音と同じ機能として読む。"
+    o.append(T(16, y + 38, "箱の中は、上からコードネーム（ハ長調）・ディグリーネーム・機能", "start", 10.5, MUT))
+    return SVG(646, y + 48, o, "4 つの定番進行を、機能の色で並べた。セブンスコードは、7 度の音を除いた三和音と同じ機能として読む。"
                "どの進行でも、D の次には T が来ている。")
 F["e12_famous"] = _f12_famous()
 
@@ -176,7 +176,7 @@ def _f12_rootmoves():
             o.append(CIRC(X[i], cy, 17, _f12_FC[f], 1.6, _f12_FS[f]))
             o.append(T(X[i], cy + 5, _f12_ROOT[_f12_deg(dg)], "middle", 14, INK, True))
             o.append(T(X[i], cy + 33, dg, "middle", 10.5, MUT))
-        y += 90
+        y += 98
     o.append(ARR(16, y + 8, 52, y + 8, INK, 2.8, 8))
     o.append(T(60, y + 12, "4 度上（= 5 度下）", "start", 11, INK, True))
     o.append(ARR(200, y + 8, 236, y + 8, MUT, 1.3, 6))
@@ -232,7 +232,7 @@ def _f12_cycle():
     deg = {"C": "I", "D": "IIm", "E": "IIIm", "F": "IV", "G": "V", "A": "VIm", "B": "VIIdim"}
     fills = {pcs[L]: _f12_FC[_f12_fn(deg[L])] for L in pcs}
     labels = ["C", "D♭", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
-    o.append(CLOCK(cx, cy, r, active=list(pcs.values()), fills=fills, labels=labels, poly=False, sz=12.5, dot=8))
+    o.append(CLOCK(cx, cy, r, active=list(pcs.values()), fills=fills, labels=labels, poly=False, sz=12.5, dot=8, order="fifths"))
     def pt(pc, rr):
         a = math.radians(-90 + 30 * ((7 * pc) % 12))
         return cx + rr * math.cos(a), cy + rr * math.sin(a)
@@ -308,7 +308,7 @@ def _f12_canonbass():
             o.append(T((x1 + x2) / 2 + 16, yt + 4 * s + 30, lab, "middle", 11, INK if step else ALI, True))
         yt += 128
     return SVG(640, yt - 128 + 4 * s + 46, o, "カノン進行のベース（いちばん低い音）。根音をそのままベースにすると、4 度・5 度の跳躍（赤）が混じる。"
-               "2・4・6 番目の和音を転回形にすると、ベースは C から E まで 1 段ずつ下がり、F・G と上がる。")
+               "2・4・6 番目の和音を転回形にすると、ベースは C から E まで 2 度ずつ下がり、F・G と上がる。")
 F["e12_canonbass"] = _f12_canonbass()
 
 
@@ -331,9 +331,18 @@ def _f12_voices():
         o.append(T(x, ytop + 12 * s + 56, d, "middle", 11, MUT))
     # 声部名（最後の和音の右）
     xl = pos[(4, "S")][0] + 22
+    ys = {v: pos[(4, v)][1] for v in "SATB"}
+    order = sorted("SATB", key=lambda v: ys[v])          # 上から
+    lab_y = {}
+    for v in order:                                      # 13 px 以上あける
+        y = ys[v]
+        prev = [lab_y[u] for u in lab_y]
+        if prev and y < max(prev) + 13:
+            y = max(prev) + 13
+        lab_y[v] = y
+    shift = (sum(ys[v] for v in "SATB") - sum(lab_y[v] for v in "SATB")) / 4.0   # 全体を元の位置の中心へ戻す
     for v in "SATB":
-        x, y = pos[(4, v)]
-        o.append(T(xl, y + 4, _f12_VJ[v], "start", 11.5, _f12_VC[v], True))
+        o.append(T(xl, lab_y[v] + shift + 4, _f12_VJ[v], "start", 11.5, _f12_VC[v], True))
     # 音域の棒（目安）
     rg = {"S": ("C4", "G5", "treble"), "A": ("G3", "C5", "treble"), "T": ("C3", "G4", "bass"), "B": ("E2", "C4", "bass")}
     bx0 = 470
@@ -360,7 +369,7 @@ def _f12_smooth():
     s = 8
     good = _f12_EX3
     bad = [["C3", "C4", "E4", "G4"], ["A2", "A3", "C4", "E4"], ["D3", "D4", "F4", "A4"], ["G2", "G3", "B3", "D4"], ["C3", "C4", "E4", "G4"]]
-    x0, dx = staff_start(s) + 2.2 * s, 84
+    x0, dx = staff_start(s) + 2.2 * s, 116
     W = x0 + 4 * dx + 4 * s
     y = 20
     for ci, d in enumerate(_f12_EX3_DEG):
@@ -391,9 +400,9 @@ F["e12_smooth"] = _f12_smooth()
 # 導出の図: 根音の動きごとに、上の 3 声部がどう対応するか
 def _f12_steps():
     o = []
-    panels = [("3 度の動き", "C → Am", ["C4", "D4", "E4", "F4", "G4", "A4"], ["C4", "E4", "G4"], ["C4", "E4", "A4"], "共通音 2 つ ・ 1 声部が 1 段"),
-              ("4 度の動き", "C → F", ["C4", "D4", "E4", "F4", "G4", "A4"], ["C4", "E4", "G4"], ["C4", "F4", "A4"], "共通音 1 つ ・ 2 声部が 1 段"),
-              ("2 度の動き", "F → G", ["F4", "G4", "A4", "B4", "C5", "D5"], ["F4", "A4", "C5"], ["G4", "B4", "D5"], "共通音 0 ・ 3 声部が 1 段")]
+    panels = [("3 度の動き", "C → Am", ["C4", "D4", "E4", "F4", "G4", "A4"], ["C4", "E4", "G4"], ["C4", "E4", "A4"], "共通音 2 つ ・ 1 声部が 2 度"),
+              ("4 度の動き", "C → F", ["C4", "D4", "E4", "F4", "G4", "A4"], ["C4", "E4", "G4"], ["C4", "F4", "A4"], "共通音 1 つ ・ 2 声部が 2 度"),
+              ("2 度の動き", "F → G", ["F4", "G4", "A4", "B4", "C5", "D5"], ["F4", "A4", "C5"], ["G4", "B4", "D5"], "共通音 0 ・ 3 声部が 2 度")]
     for p, (title, ex, lad, c1, c2, note) in enumerate(panels):
         x = 14 + p * 210
         o.append(RECT(x, 10, 198, 262, 10, PAN, LIN, 1.2))
@@ -425,15 +434,18 @@ def _f12_steps():
             else:
                 ang = math.atan2(yb - ya, xr - xl)
                 o.append(ARR(xl + 9 * math.cos(ang), ya + 9 * math.sin(ang), xr - 9 * math.cos(ang), yb - 9 * math.sin(ang), INK, 1.6))
-                o.append(T((xl + xr) / 2 + 10, (ya + yb) / 2 - 4, "1 段", "start", 9.5, INK))
+                mx, my = (xl + xr) / 2, (ya + yb) / 2
+                L_ = math.hypot(xr - xl, yb - ya)
+                nx_, ny_ = (yb - ya) / L_, -(xr - xl) / L_      # 矢印の左上側の法線
+                o.append(T(mx + 11 * nx_, my + 11 * ny_ + 3, "2 度", "middle", 9.5, INK))
         for n in c1:
             o.append(CIRC(xl, Y[n], 8, INK, 1.4, SSOFT if n in held else PAN))
         for n in c2:
             o.append(CIRC(xr, Y[n], 8, INK, 1.4, SSOFT if n in held else PAN))
         o.append(T(x + 99, 250, note, "middle", 10.5, INK, True))
-    o.append(T(14, 292, "左の数字: 前の和音の根音から数えた段の番号。赤い線は共通音の保持、矢印は 1 段の動き", "start", 10.5, MUT))
-    return SVG(646, 302, o, "根音の動きごとに、上の 3 声部（前の和音の 0・2・4 段目の音）を、次の和音の音へ 1 つずつ対応させた。"
-               "どの場合も、共通音を保持すれば、ほかの声部は隣の音（1 段）へ動くだけでつながる。2 度の動きでは、3 つとも同じ向きに動く。")
+    o.append(T(14, 292, "左の数字: 前の和音の根音を 0 とした、音階の上の番号。赤い線は共通音の保持、矢印は 2 度の動き", "start", 10.5, MUT))
+    return SVG(646, 302, o, "根音の動きごとに、上の 3 声部（前の和音の 0・2・4 番の音）を、次の和音の音へ 1 つずつ対応させた。"
+               "どの場合も、共通音を保持すれば、ほかの声部は隣の音（2 度）へ動くだけでつながる。2 度の動きでは、3 つとも同じ向きに動く。")
 F["e12_steps"] = _f12_steps()
 
 
@@ -442,14 +454,14 @@ def _f12_parallel():
     o = []
     s = 8
     c1 = ["F2", "A3", "C4", "F4"]
-    variants = [("上の 3 声部も上へ（すべて 1 段）", ["G2", "B3", "D4", "G4"], ALI),
+    variants = [("上の 3 声部も上へ（すべて 2 度）", ["G2", "B3", "D4", "G4"], ALI),
                 ("上の 3 声部を下へ（バスと反対）", ["G2", "G3", "B3", "D4"], GRN2)]
     x0, dx = staff_start(s) + 2.5 * s, 112
     for p, (title, c2, col) in enumerate(variants):
         x = 8 + p * 318
-        o.append(RECT(x, 8, 308, 290, 10, "none", col, 1.4))
+        o.append(RECT(x, 8, 308, 302, 10, "none", col, 1.4))
         o.append(T(x + 154, 30, title, "middle", 12, col, True))
-        yt = 66
+        yt = 80
         svg, pos = _f12_grand(x + 8, yt, [c1, c2], s, x0, dx, w=x0 + dx + 7 * s)
         o.append(svg)
         for ci, nm in enumerate(["F（IV）", "G（V）"]):
@@ -472,7 +484,7 @@ def _f12_parallel():
             o.append(T(x + 154, yb + 40, txt, "middle", 11, ALI, True))
         else:
             o.append(T(x + 154, yb + 40, "連続 5 度・連続 8 度なし", "middle", 11, GRN2, True))
-    return SVG(636, 306, o, "IV → V（F → G）でバスが上がるとき。左は上の 3 声部も 1 段ずつ上げたもので、バスとソプラノが 2 オクターブのまま、"
+    return SVG(636, 318, o, "IV → V（F → G）でバスが上がるとき。左は上の 3 声部も 2 度ずつ上げたもので、バスとソプラノが 2 オクターブのまま、"
                "バスとアルトが完全 5 度（12 度）のまま一緒に動く（赤い破線）。右は上の 3 声部を下げたもので、動きの合計は同じ 6 半音のまま連続が無くなる。")
 F["e12_parallel"] = _f12_parallel()
 
@@ -483,17 +495,15 @@ def _f12_guide():
     s, yt = 9, 52
     cols = [["D3", "C4", "F4", "A4"], ["G2", "B3", "F4", "G4"], ["C3", "B3", "E4", "G4"]]
     x0, dx = staff_start(s) + 2.5 * s, 110
-    svg, pos = _f12_grand(14, yt, cols, s, x0, dx, w=x0 + 2 * dx + 18 * s, held=True)
+    svg, pos = _f12_grand(14, yt, cols, s, x0, dx, w=x0 + 2 * dx + 3.5 * s, held=True)
     o.append(svg)
     for ci, nm in enumerate(["Dm7（IIm7）", "G7（V7）", "CM7（IM7）"]):
         o.append(T(pos[(ci, "S")][0], yt - 26, nm, "middle", 12, INK, True))
-    roles = [{"A": "3 度", "T": "7 度"}, {"A": "7 度", "T": "3 度"}, {"A": "3 度", "T": "7 度"}]
     for ci in range(3):
         for v in "AT":
             x, y = pos[(ci, v)]
             o.append(CIRC(x, y, 9.5, SIG, 1.8))
-            o.append(T(x + 13, y + 15 if v == "T" else y - 8, roles[ci][v], "start", 10, SIG, True))
-    xr = pos[(2, "S")][0] + 64
+    xr = pos[(2, "S")][0] + 52
     o.append(T(xr, yt + 26, "アルト: F → F → E", "start", 12, BLU, True))
     o.append(T(xr, yt + 44, "（3 度の音 → 7 度の音 → 3 度の音）", "start", 10.5, MUT))
     o.append(T(xr, yt + 88, "テノール: C → B → B", "start", 12, GRN2, True))
@@ -512,7 +522,7 @@ def _f12_worked():
     degs = ["I", "VIm", "IV", "V", "I"]
     cols = [["C3", "G3", "C4", "E4"], ["A2", "A3", "C4", "E4"], ["F2", "A3", "C4", "F4"], ["G2", "G3", "B3", "D4"], ["C3", "G3", "C4", "E4"]]
     X = [190 + i * 104 for i in range(5)]
-    rows = {"f": 30, "c": 76, "b": 132, "S": 192, "A": 222, "T": 252, "m": 292}
+    rows = {"f": 30, "c": 76, "b": 132, "S": 202, "A": 232, "T": 262, "m": 304}
     o.append(T(14, rows["f"] + 5, "① 機能", "start", 12, INK, True))
     o.append(T(14, rows["c"] + 5, "② 和音", "start", 12, INK, True))
     o.append(T(14, rows["b"] + 5, "③ ベース", "start", 12, INK, True))
@@ -528,8 +538,8 @@ def _f12_worked():
         for k, v in [(3, "S"), (2, "A"), (1, "T")]:
             o.append(T(X[i], rows[v] + 5, nname(cols[i][k]), "middle", 13, INK, True))
     o.append(W(14, 106, 622, 106, c=LIN, lw=1))
-    o.append(W(14, 164, 622, 164, c=LIN, lw=1))
-    o.append(W(14, 272, 622, 272, c=LIN, lw=1))
+    o.append(W(14, 168, 622, 168, c=LIN, lw=1))
+    o.append(W(14, 284, 622, 284, c=LIN, lw=1))
     for i in range(4):
         xm = (X[i] + X[i + 1]) / 2
         a, b = parse(cols[i][0]), parse(cols[i + 1][0])
@@ -544,8 +554,8 @@ def _f12_worked():
         o.append(T(xm, rows["m"] + 5, "%d" % _f12_upper_total(cols[i], cols[i + 1]), "middle", 12.5, INK, True))
     o.append(T(622, rows["m"] + 30, "合計 12 半音 ・ 連続 5 度・連続 8 度なし", "end", 11.5, INK, True))
     xm = (X[2] + X[3]) / 2
-    o.append(RECT(xm - 26, rows["S"] - 16, 52, 82, 8, "none", INK, 1.2, "4,3"))
-    o.append(T(xm, rows["T"] + 32, "バスと反対へ", "middle", 10, INK))
+    o.append(RECT(xm - 26, rows["S"] - 15, 52, 92, 8, "none", INK, 1.2, "4,3"))
+    o.append(T(xm, rows["S"] - 20, "バスと反対へ", "middle", 10, INK))
     o.append(_f12_ln(160, rows["m"] + 26, 184, rows["m"] + 26, SIG, 3.2))
     o.append(T(190, rows["m"] + 30, "保持", "start", 10.5, MUT))
     return SVG(636, rows["m"] + 40, o, "手順どおりに I–VIm–IV–V–I を組み立てた。④では、共通音を保持し（赤い線）、ほかの声部を近い音へ動かす。"
