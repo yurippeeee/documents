@@ -15,7 +15,7 @@
     }
     function stop(){if(!run)return; run=false; clearTimeout(tid); cancelAnimationFrame(raf); q=[]; cur=-1; o.onStop();}
     return {
-      start:function(){stopAll(); run=true; k=0; q=[]; cur=-1; nextT=ac().currentTime+0.1; hold(stop); sched(); frame();},
+      start:function(){stopAll(); run=true; k=0; q=[]; cur=-1; nextT=ac().currentTime+0.1; hold(stop); if(o.onStart)o.onStart(); sched(); frame();},
       stop:function(){if(run)stopAll();},
       restart:function(){if(run){stopAll(); this.start();}},
       running:function(){return run;}
@@ -58,12 +58,13 @@
         else note(-3,t,0.05,"piano",0.32);},
       dur:function(){return spb()/sub();},
       onVis:function(k){var m=met(),n=sub();cur=k%(m.n*n);draw();},
+      onStart:function(){_w16_btn(bp,true);},
       onStop:function(){cur=-1;_w16_btn(bp,false);draw();}
     });
     function draw(){
       var m=met(),n=sub(),N=m.n*n,W=_w16_W(el,640),s=8,x0=staffStart(s,0,m.time)+10,wb=(W-x0-26)/m.n,its=[],b=[];
       for(var i=0;i<N;i++){
-        var on=i===cur,col=on?V("signal"):V("ink"),dur,dot=false;
+        var col=V("ink"),dur,dot=false;
         if(m.comp)dur=n===1?"quarter":"eighth",dot=n===1;
         else dur=n===1?"quarter":n===4?"16th":"eighth";
         var it={x:x0+i*wb/n,notes:["A4"],dur:dur,dot:dot,fill:col,stem:"up"};
@@ -72,6 +73,7 @@
       }
       its.push({x:x0+m.n*wb-6,bar:"end"});
       var top=4.4*s,stf=staff({s:s,w:x0+m.n*wb-4,clef:"treble",time:m.time,items:its,top:top,bottom:1.5*s});
+      if(cur>=0)b.push('<rect x="'+(2+x0+cur*wb/n-9)+'" y="'+(top-3.6*s)+'" width="'+Math.max(18,wb/n-2)+'" height="'+(stf.h-top+3.6*s+52)+'" rx="5" fill="'+V("signal-soft")+'"/>');
       b.push(stf.svg);
       if(n===3&&!m.comp)for(var bi=0;bi<m.n;bi++){var xa=2+x0+bi*wb+0.58*s,xb=2+x0+(bi+2/3)*wb+0.58*s;b.push(_w16_tup(xa,xb,top+2.5*s-3.4*s-16,V("ink")));}
       var y=stf.h+20;
@@ -91,7 +93,7 @@
     sT.input.addEventListener("input",function(){sT.val.textContent=sT.input.value;draw();});
     sM.addEventListener("change",function(){fillSubs(true);cur=-1;draw();lp.restart();});
     sD.addEventListener("change",function(){cur=-1;draw();lp.restart();});
-    bp.addEventListener("click",function(){if(lp.running()){lp.stop();return;}lp.start();_w16_btn(bp,true);});
+    bp.addEventListener("click",function(){if(lp.running()){lp.stop();return;}lp.start();});
     fillSubs(false);sT.val.textContent=sT.input.value;draw();reg(null,draw);
   };
 
@@ -113,28 +115,31 @@
       return out;
     }
     function draw(){
-      var sq=seq(),W=_w16_W(el,640),s=8,x0=staffStart(s,0,"4/4")+6,G=16,u=(W-x0-G-30)/8,its=[];
+      var sq=seq(),W=_w16_W(el,640),s=8,x0=staffStart(s,0,"4/4")+6,G=16,u=(W-x0-G-30)/8,its=[],band=null;
       var X=function(q){return x0+q*u+Math.floor(q/4+1e-9)*G;};
       sq.forEach(function(e,i){
         var ps=_w16_pieces(e[1],e[2],4),off=e[0]!=="r"&&Math.abs(e[1]*2-Math.round(e[1]*2))<1e-9&&Math.round(e[1]*2)%2===1;
-        var col=i===onI?V("signal"):off?V("alias"):V("ink");
+        var col=off?V("signal"):V("ink");
+        if(i===onI&&e[0]!=="r")band=[X(e[1]),X(e[1]+e[2])];
         ps.forEach(function(p,j){var dd=durDot(p[1]),it={x:X(p[0]),dur:dd.dur,dot:dd.dot,fill:col};
           if(e[0]==="r")it.rest=true;else{it.notes=[e[0]];if(dd.dur==="eighth"||dd.dur==="16th")it.beam="b"+Math.floor(p[0]+1e-9);if(j<ps.length-1)it.tie=true;}
           its.push(it);});
       });
       its.push({x:X(4)-G/2-4,bar:true});its.push({x:X(8)-G+4,bar:"end"});
       its.sort(function(p,q){return p.x-q.x;});
-      var stf=staff({s:s,w:X(8)-G+6,clef:"treble",time:"4/4",items:its,top:3.6*s,bottom:2*s}),b=[stf.svg];
+      var stf=staff({s:s,w:X(8)-G+6,clef:"treble",time:"4/4",items:its,top:3.6*s,bottom:2*s}),b=[];
+      if(band)b.push('<rect x="'+(band[0]-8)+'" y="'+(1.6*s)+'" width="'+Math.max(18,band[1]-band[0]-4)+'" height="'+(stf.h+10)+'" rx="5" fill="'+V("signal-soft")+'"/>');
+      b.push(stf.svg);
       /* 時間の格子 */
       var y=stf.h+16,ons={};sq.forEach(function(e){if(e[0]!=="r")ons[Math.round(e[1]*2)]=1;});
       b.push(ln(2+X(0)-8,y,2+X(7.5)+16,y,V("line"),1.2));b.push(tx(2+X(0)-14,y+4,"時間","end",10,V("muted")));
-      var sOn=0,offOn=0;
+      var sOn=0,offOn=0,rR=Math.min(9,u*0.26),rD=Math.min(4.5,u*0.13);
       for(var k=0;k<16;k++){var x=2+X(k/2);
         if(k%2===0)b.push(ln(x,y-6,x,y+6,V("muted"),1));
-        if(k%4===0){b.push('<circle cx="'+x+'" cy="'+y+'" r="9" fill="none" stroke="'+V("ink")+'" stroke-width="1.6"/>');if(ons[k])sOn++;}
-        if(ons[k]){var off2=k%2===1;if(off2)offOn++;b.push('<circle cx="'+x+'" cy="'+y+'" r="4.5" fill="'+(off2?V("alias"):V("ink"))+'"/>');}}
+        if(k%4===0){b.push('<circle cx="'+x+'" cy="'+y+'" r="'+rR+'" fill="none" stroke="'+V("ink")+'" stroke-width="1.6"/>');if(ons[k])sOn++;}
+        if(ons[k]){var off2=k%2===1;if(off2)offOn++;b.push('<circle cx="'+x+'" cy="'+y+'" r="'+rD+'" fill="'+(off2?V("signal"):V("ink"))+'"/>');}}
       view.innerHTML=svgWrap(W,y+16,b.join(""));
-      ro.innerHTML='強拍・中強拍（1・3 拍目、全部で 4 つ）のうち、新しい音が鳴り始めるのは <b>'+sOn+'</b> つ ／ 裏拍で鳴り始める音（赤）は <b>'+offOn+'</b> つ'+
+      ro.innerHTML='強拍・中強拍（1・3 拍目、全部で 4 つ）のうち、新しい音が鳴り始めるのは <b>'+sOn+'</b> つ ／ 裏拍で鳴り始める音（赤い音符）は <b>'+offOn+'</b> つ'+
         '<br>再生では、最初の 1 小節はクリックだけ鳴る（拍を数え始めるため）';
     }
     function play(){
@@ -185,11 +190,12 @@
       step:function(k,t){var i=k%16;_w16_KIT.forEach(function(q,r){if(P[r][i])note(q[3],t,0.1,"piano",r===0?(i%2===0?0.6:0.42):r===1?0.95:1);});},
       dur:function(){return 60/(+sT.input.value)/4;},
       onVis:function(k){cur=k%16;draw();},
+      onStart:function(){_w16_btn(bp,true);},
       onStop:function(){cur=-1;_w16_btn(bp,false);draw();}
     });
     function draw(){
       var W=_w16_W(el,640),lw=W<420?62:84,cw=Math.min(30,(W-lw-12)/16),ch=Math.max(18,Math.min(24,cw)),gx=lw,gy=22,b=[];
-      if(cur>=0)b.push('<rect x="'+(gx+cur*cw)+'" y="'+(gy-2)+'" width="'+cw+'" height="'+(3*ch+4)+'" rx="4" fill="'+V("signal-soft")+'"/>');
+      if(cur>=0)b.push('<rect x="'+(gx+cur*cw)+'" y="'+(gy-2)+'" width="'+cw+'" height="'+(3*ch+4+4.4*7+30)+'" rx="4" fill="'+V("signal-soft")+'"/>');
       for(var j=0;j<16;j++){var lab=j%4===0?String(j/4+1):j%4===2?"と":"";if(lab)b.push(tx(gx+j*cw+cw/2,gy-7,lab,"middle",10.5,j%4===0?V("ink"):V("muted"),j%4===0));}
       _w16_KIT.forEach(function(q,r){
         b.push(tx(gx-6,gy+r*ch+ch/2+4,q[1],"end",W<420?10:11,V(q[2]),true));
@@ -198,7 +204,7 @@
       });
       for(var k=0;k<5;k++)b.push(ln(gx+4*k*cw,gy-2,gx+4*k*cw,gy+3*ch+2,V("muted"),1.2));
       var s=7,top=gy+3*ch+30,st0=staffStart(s,0,"4/4"),xL=gx+cw/2-st0-2;
-      var its=_w16_drumItems(P,function(j){return st0+2+j*cw;},cur);its.push({x:st0+2+16*cw-cw/2+2,bar:"end"});
+      var its=_w16_drumItems(P,function(j){return st0+2+j*cw;},-1);its.push({x:st0+2+16*cw-cw/2+2,bar:"end"});
       var stf=staff({s:s,x:xL,w:st0+16*cw-cw/2+6,clef:"perc",time:"4/4",items:its,top:top,bottom:1.5*s});
       b.push(stf.svg);
       view.innerHTML=svgWrap(W,stf.h,b.join(""));
@@ -213,7 +219,7 @@
       P[r][j]=!P[r][j];draw();if(!lp.running()&&P[r][j])note(_w16_KIT[r][3],ac().currentTime+0.01,0.1,"piano",0.9);});
     sp.addEventListener("change",function(){P=PRE[+sp.value].map(st);draw();});
     sT.input.addEventListener("input",function(){sT.val.textContent=sT.input.value;draw();});
-    bp.addEventListener("click",function(){if(lp.running()){lp.stop();return;}lp.start();_w16_btn(bp,true);});
+    bp.addEventListener("click",function(){if(lp.running()){lp.stop();return;}lp.start();});
     sT.val.textContent=sT.input.value;draw();reg(null,draw);
   };
 
@@ -233,6 +239,7 @@
         else note(-3,t,0.05,"piano",0.5);},
       dur:function(k){return spb()*(k%2===0?pos():1-pos());},
       onVis:function(k){cur=k%8;draw();},
+      onStart:function(){_w16_btn(bp,true);},
       onStop:function(){cur=-1;_w16_btn(bp,false);draw();}
     });
     function draw(){
@@ -264,6 +271,6 @@
     function setR(v){sR.input.value=v;draw();}
     b1.addEventListener("click",function(){setR(100);});b2.addEventListener("click",function(){setR(200);});b3.addEventListener("click",function(){setR(300);});
     sR.input.addEventListener("input",draw);sT.input.addEventListener("input",draw);
-    bp.addEventListener("click",function(){if(lp.running()){lp.stop();return;}lp.start();_w16_btn(bp,true);});
+    bp.addEventListener("click",function(){if(lp.running()){lp.stop();return;}lp.start();});
     draw();reg(null,draw);
   };

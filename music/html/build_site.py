@@ -73,7 +73,6 @@ CHAPTERS = sorted((m.group(1), fn) for fn in os.listdir(SRC)
                   for m in [re.match(r"^(\d\d)_.*\.md$", fn)] if m and m.group(1) != "00")
 # まだ書き上がっていない章: 原稿があっても本文を出さず、「準備中」のページにする（他の章からのリンクを切らないため）
 PENDING = {"12": "12. コード進行と声部の動き — なめらかにつなぐ",
-           "16": "16. リズムと拍子 — 時間の長さを数える",
            "17": "17. メロディと和音 — 溶け合う音とぶつかる音"}
 if os.environ.get("MUSIC_SHOW_PENDING"):   # 書きかけの章を隔離ビルドで確かめるとき
     PENDING = {}
