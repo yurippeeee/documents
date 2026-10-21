@@ -86,7 +86,7 @@
       var T1=spb(),bn=m.comp?"1 拍（付点 4 分音符）":"1 拍（4 分音符）";
       ro.innerHTML=bn+' = 60 ÷ '+sT.input.value+' = <b>'+f(T1,3)+' 秒</b> ／ 1 小節 = '+m.n+' 拍 = <b>'+f(T1*m.n,2)+' 秒</b>'+
         (n>1?'<br>1 拍を '+n+' つに分けた 1 つ（'+(m.comp?'8 分音符':n===2?'8 分音符':n===3?'3 連符の 1 つ':'16 分音符')+'）= <b>'+f(T1/n,3)+' 秒</b>':'')+
-        '<br>音: 強拍は高いクリック、中強・弱は低いクリック（中強のほうが大きい）'+(n>1?'、分けた音は短い雑音':'');
+        '<br>音: 強拍は高いクリック、中強拍と弱拍は低いクリック（中強拍のほうが大きい）'+(n>1?'。分けた音は短い「チッ」':'');
     }
     sT.input.addEventListener("input",function(){sT.val.textContent=sT.input.value;draw();});
     sM.addEventListener("change",function(){fillSubs(true);cur=-1;draw();lp.restart();});
@@ -134,7 +134,7 @@
         if(k%4===0){b.push('<circle cx="'+x+'" cy="'+y+'" r="9" fill="none" stroke="'+V("ink")+'" stroke-width="1.6"/>');if(ons[k])sOn++;}
         if(ons[k]){var off2=k%2===1;if(off2)offOn++;b.push('<circle cx="'+x+'" cy="'+y+'" r="4.5" fill="'+(off2?V("alias"):V("ink"))+'"/>');}}
       view.innerHTML=svgWrap(W,y+16,b.join(""));
-      ro.innerHTML='強拍（1・3 拍目）4 つのうち、新しい音が鳴り始めるのは <b>'+sOn+'</b> つ ／ 裏拍で鳴り始める音（赤）は <b>'+offOn+'</b> つ'+
+      ro.innerHTML='強拍・中強拍（1・3 拍目、全部で 4 つ）のうち、新しい音が鳴り始めるのは <b>'+sOn+'</b> つ ／ 裏拍で鳴り始める音（赤）は <b>'+offOn+'</b> つ'+
         '<br>再生では、最初の 1 小節はクリックだけ鳴る（拍を数え始めるため）';
     }
     function play(){

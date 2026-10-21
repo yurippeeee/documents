@@ -112,32 +112,6 @@ def _f12_parallels(c1, c2):
 
 
 # ============ 1 節 ============
-# 進行を機能で読む手順（Am–F–G–C）
-def _f12_read():
-    o = []
-    degs = ["VIm", "IV", "V", "I"]
-    X = [200 + i * 104 for i in range(4)]
-    rows = [(34, "① コードネーム"), (112, "② ディグリーネーム"), (190, "③ 機能")]
-    for y, lab in rows:
-        o.append(T(16, y + 5, lab, "start", 12, INK, True))
-    for i, d in enumerate(degs):
-        o.append(RECT(X[i] - 36, 34 - 16, 72, 30, 7, PAN, LIN, 1.3))
-        o.append(T(X[i], 34 + 5, _f12_name(d), "middle", 14, INK, True))
-        o.append(RECT(X[i] - 36, 112 - 16, 72, 30, 7, PAN, LIN, 1.3))
-        o.append(T(X[i], 112 + 5, d, "middle", 14, INK, True))
-        o.append(_f12_tag(X[i], 190, _f12_fn(d), 56, 28, 13))
-        o.append(ARR(X[i], 52, X[i], 92, MUT, 1.3))
-        o.append(ARR(X[i], 130, X[i], 172, MUT, 1.3))
-    o.append(T(16, 70, "主音 C から文字を数える", "start", 10.5, MUT))
-    o.append(T(16, 84, "（09 章 3 節）", "start", 10.5, MUT))
-    o.append(T(16, 148, "T: I・VIm・IIIm ／ SD: IV・IIm", "start", 10.5, MUT))
-    o.append(T(16, 162, "D: V・VIIdim（10 章 2 節）", "start", 10.5, MUT))
-    for i in range(3):
-        o.append(ARR(X[i] + 30, 190, X[i + 1] - 30, 190, INK, 1.4))
-    o.append(T(200 - 36, 232, "T → SD、SD → D、D → T。どれも使える動き（10 章 5 節）に入っている", "start", 11, INK))
-    return SVG(600, 246, o, "ハ長調の Am–F–G–C を、3 段の手順で読む。①のコードネームを②のディグリーネームに直し、③の機能を決める。"
-               "最後に、隣り合う機能の動きが使える動きに入っているかを確かめる。")
-F["e12_read"] = _f12_read()
 
 
 # 4 つの定番進行を機能の色で並べる
@@ -172,79 +146,48 @@ F["e12_famous"] = _f12_famous()
 
 
 # ============ 2 節 ============
-# 根音の動き: 4 度上と 5 度下は同じ動き
-def _f12_rootkinds():
-    o = []
-    ns = ["F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4"]
-    X = [70 + i * 64 for i in range(len(ns))]
-    y = 112
-    for i, n in enumerate(ns):
-        col, fl, lw = LIN, PAN, 1.3
-        if n == "C4":
-            col, fl, lw = SIG, SSOFT, 2
-        if n[0] == "F":
-            col, fl, lw = BLU, BSOFT, 2
-        o.append(CIRC(X[i], y, 17, col, lw, fl))
-        o.append(T(X[i], y + 5, nname(n), "middle", 13, INK, True))
-    # 上向き 4 度: C4 → F4
-    o.append(_f12_arc(X[4], y - 19, X[7], y - 19, 34, BLU, 1.8))
-    o.append(T((X[4] + X[7]) / 2, y - 62, "4 度上（C・D・E・F の 4 つ）", "middle", 12, BLU, True))
-    # 下向き 5 度: C4 → F3
-    o.append(_f12_arc(X[4], y + 19, X[0], y + 19, -40, BLU, 1.8))
-    o.append(T((X[0] + X[4]) / 2, y + 80, "5 度下（C・B・A・G・F の 5 つ）", "middle", 12, BLU, True))
-    o.append(T(X[7] + 10, y + 52, "どちらへ進んでも", "middle", 10.5, MUT))
-    o.append(T(X[7] + 10, y + 66, "次は F の和音", "middle", 10.5, MUT))
-    # 対応表
-    y2 = 222
-    pairs = [("2 度上", "7 度下"), ("3 度上", "6 度下"), ("4 度上", "5 度下")]
-    for i, (a, b) in enumerate(pairs):
-        x = 40 + i * 190
-        o.append(RECT(x, y2, 170, 34, 8, PAN, LIN, 1.3))
-        o.append(T(x + 85, y2 + 22, "%s ＝ %s" % (a, b), "middle", 12.5, INK, True))
-    o.append(T(320, y2 + 56, "上向きの度数と下向きの度数の和は 9（03 章 5 節の転回）。下向きの場合も同じに対応する", "middle", 10.5, MUT))
-    return SVG(640, y2 + 66, o, "根音が C から F へ進むとき、上の F（4 度上）へ進んでも下の F（5 度下）へ進んでも、次の和音は同じ F の和音である。"
-               "上向きと下向きの度数は転回の関係にあるので、和は 9 になる。")
-F["e12_rootkinds"] = _f12_rootkinds()
+_f12_MOVE = {1: "2 度上", 2: "3 度上", 3: "4 度上", 4: "4 度下", 5: "3 度下", 6: "2 度下"}
 
 
-# 根音の動きと共通音の数（I から見た 6 つの和音）
-def _f12_common():
+def _f12_rootmoves():
+    """4 つの定番進行の根音の動き（4 度上を太い矢印で）"""
     o = []
-    L = list("CDEFGAB")
-    rows = [("I", "C", "基準", None), ("IIIm", "Em", "3 度上", 2), ("VIm", "Am", "3 度下", 2),
-            ("IV", "F", "4 度上", 1), ("V", "G", "4 度下（5 度上）", 1), ("IIm", "Dm", "2 度上", 0), ("VIIdim", "Bdim", "2 度下", 0)]
-    x0, y0, cw, rh = 140, 54, 40, 30
-    o.append(T(x0 + 3 * cw, 20, "ハ長調の音階の音", "middle", 11, MUT))
-    for j, l in enumerate(L):
-        o.append(T(x0 + j * cw, 40, l, "middle", 12.5, INK, True))
-    o.append(T(430, 40, "I からの根音の動き", "start", 11, MUT))
-    o.append(T(584, 40, "共通音", "middle", 11, MUT))
-    base = {0, 2, 4}
-    for i, (dg, nm, mv, cnt) in enumerate(rows):
-        y = y0 + i * rh + (8 if i > 0 else 0) + (6 * ((i - 1) // 2) if i > 0 else 0)
-        o.append(T(16, y + 15, "%s（%s）" % (dg, nm), "start", 12, INK, True))
-        r = "CDEFGAB".index(nm[0])
-        tones = {r % 7, (r + 2) % 7, (r + 4) % 7}
-        for j in range(7):
-            cx = x0 + j * cw
-            if j in tones:
-                if i == 0:
-                    o.append(CIRC(cx, y + 11, 11, SIG, 1.8, SSOFT))
-                elif j in base:
-                    o.append(CIRC(cx, y + 11, 11, SIG, 2.2, SSOFT))
-                else:
-                    o.append(CIRC(cx, y + 11, 11, INK, 1.2, PAN))
-                o.append(T(cx, y + 15.5, L[j], "middle", 11.5, INK, True))
-            else:
-                o.append(D(cx, y + 11, LIN, 2.5))
-        o.append(T(430, y + 15, mv, "start", 12, INK, i > 0))
-        if cnt is not None:
-            o.append(T(584, y + 15.5, "%d" % cnt, "middle", 14, SIG if cnt else MUT, True))
-    o.append(W(16, y0 + rh + 1, 610, y0 + rh + 1, c=LIN, lw=1))
-    o.append(T(16, 312, "赤い丸: I（C・E・G）と共通の音。3 度動くと 2 つ、4 度動くと 1 つ、2 度動くと 0", "start", 10.5, MUT))
-    return SVG(626, 324, o, "ハ長調のダイアトニックコードのうち、I から根音が 3 度・4 度・2 度動いた和音の構成音。"
-               "I と共通の音（赤い丸）の数は、根音の動きの種類だけで決まる。")
-F["e12_common"] = _f12_common()
+    rows = [("小室進行", ["VIm", "IV", "V", "I"]),
+            ("ツーファイブワン", ["IIm7", "V7", "IM7"]),
+            ("王道進行", ["IVM7", "V7", "IIIm7", "VIm"]),
+            ("カノン進行", ["I", "V", "VIm", "IIIm", "IV", "I", "IV", "V"])]
+    step = 77
+    y = 14
+    count = {}
+    for title, degs in rows:
+        o.append(T(16, y + 13, title, "start", 12.5, INK, True))
+        cy = y + 52
+        X = [16 + 35 + i * step for i in range(len(degs))]
+        for i in range(len(degs) - 1):
+            a, b = _f12_ROOT[_f12_deg(degs[i])], _f12_ROOT[_f12_deg(degs[i + 1])]
+            d = ("CDEFGAB".index(b) - "CDEFGAB".index(a)) % 7
+            strong = d == 3
+            count[d] = count.get(d, 0) + 1
+            x1, x2 = X[i] + 20, X[i + 1] - 20
+            o.append(ARR(x1, cy, x2, cy, INK if strong else MUT, 2.8 if strong else 1.3, 8 if strong else 6))
+            o.append(T((x1 + x2) / 2, cy - 9, _f12_MOVE[d], "middle", 10.5, INK if strong else MUT, strong))
+        for i, dg in enumerate(degs):
+            f = _f12_fn(dg)
+            o.append(CIRC(X[i], cy, 17, _f12_FC[f], 1.6, _f12_FS[f]))
+            o.append(T(X[i], cy + 5, _f12_ROOT[_f12_deg(dg)], "middle", 14, INK, True))
+            o.append(T(X[i], cy + 33, dg, "middle", 10.5, MUT))
+        y += 90
+    o.append(ARR(16, y + 8, 52, y + 8, INK, 2.8, 8))
+    o.append(T(60, y + 12, "4 度上（= 5 度下）", "start", 11, INK, True))
+    o.append(ARR(200, y + 8, 236, y + 8, MUT, 1.3, 6))
+    o.append(T(244, y + 12, "そのほかの動き（小さいほうの度数で書く）", "start", 11, MUT))
+    o.append(T(16, y + 34, "丸の中は根音（ハ長調）、丸の色は機能（青 T・緑 SD・赤 D）", "start", 10.5, MUT))
+    return SVG(646, y + 44, o, "1 節の 4 つの進行の根音の動き。4 度上（= 5 度下）の動き（太い矢印）は、どの進行にも含まれている。"
+               "4 度上と 5 度下は同じ文字に着く同じ動きなので、小さいほうの度数で書いた（09 章 5 節）。")
+F["e12_rootmoves"] = _f12_rootmoves()
+
+
+
 
 
 # 強進行: 前の根音が次の根音の倍音に含まれる
@@ -408,40 +351,6 @@ def _f12_voices():
 F["e12_voices"] = _f12_voices()
 
 
-# 声部の間隔: 3 度を低い所に置くと粗い
-def _f12_spacing():
-    o = []
-    s, ytop = 9, 30
-    cols = [["C3", "E3", "G3", "C4"], ["C3", "G3", "C4", "E4"], ["C3", "C4", "E4", "G4"]]
-    rough = []
-    for c in cols:
-        fs = [freq(parse(n)["midi"]) for n in c]
-        rough.append(100 * spec_analyze(fs)[2] / ROUGH_REF)
-    x0, dx = staff_start(s) + 4 * s, 170
-    svg, pos = _f12_grand(14, ytop, cols, s, x0, dx, w=x0 + 2 * dx + 6 * s, lines=False)
-    o.append(svg)
-    tags = ["(a) 下に 3 度を 2 つ", "(b) 下は 5 度、3 度は上", "(c) 下は 8 度、3 度は上"]
-    for ci, c in enumerate(cols):
-        # 3 度の組に印
-        ms = [parse(n)["midi"] for n in c]
-        vs = "BTAS"
-        for k in range(3):
-            if ms[k + 1] - ms[k] in (3, 4):
-                (xa, ya), (xb, yb) = pos[(ci, vs[k])], pos[(ci, vs[k + 1])]
-                bx = xa + 16
-                o.append(W(bx, ya, bx + 5, ya, bx + 5, yb, bx, yb, c=ALI, lw=1.4))
-                o.append(T(bx + 9, (ya + yb) / 2 + 4, "3 度", "start", 10, ALI, True))
-        x = pos[(ci, "S")][0]
-        yb = ytop + 12 * s + 40
-        o.append(T(x, yb, tags[ci], "middle", 11, INK, True))
-        o.append(T(x, yb + 18, " ".join(nname(n) for n in c), "middle", 10.5, MUT))
-        R = rough[ci]
-        o.append(RECT(x - 60, yb + 30, 120, 10, 3, PAN, LIN, 1))
-        o.append(RECT(x - 60, yb + 30, 120 * R / 340.0, 10, 3, ALI, ALI, 1))
-        o.append(T(x, yb + 58, "粗さ %d" % round(R), "middle", 12, ALI, True))
-    return SVG(600, ytop + 12 * s + 112, o, "同じ C・C・E・G の 4 音でも、並べ方で粗さ（04 章 3 節の計算。短 2 度 C4–C♯4 を 100 とする）が変わる。"
-               "3 度（赤い印）を低い所に置く (a) がいちばん粗く、低い所を広くあけて 3 度を上に置く (b)(c) ほど粗さが小さい。")
-F["e12_spacing"] = _f12_spacing()
 
 
 # ============ 4 節 ============
@@ -596,15 +505,6 @@ def _f12_guide():
 F["e12_guide"] = _f12_guide()
 
 
-# ============ 5 節 ============
-def _f12_flow():
-    o = []
-    items = [("① 機能の流れ", "T → SD → D → T など"), ("② 和音を選ぶ", "代理も使う（1 節）"),
-             ("③ ベースの線", "根音か転回形か（2 節）"), ("④ 上の 3 声部", "保持・近い音・連続の確認")]
-    svg, _ = flowright(10, 46, items, w=136, bh=60, gap=22)
-    o.append(svg)
-    return SVG(636, 92, o, "進行を組み立てる 4 つの段。①②で和音の並びを、③④で各声部の音を決める。")
-F["e12_flow"] = _f12_flow()
 
 
 def _f12_worked():
