@@ -72,7 +72,7 @@ os.makedirs(OUT, exist_ok=True)
 CHAPTERS = sorted((m.group(1), fn) for fn in os.listdir(SRC)
                   for m in [re.match(r"^(\d\d)_.*\.md$", fn)] if m and m.group(1) != "00")
 # まだ書き上がっていない章: 原稿があっても本文を出さず、「準備中」のページにする（他の章からのリンクを切らないため）
-PENDING = {"17": "17. メロディと和音 — 溶け合う音とぶつかる音"}
+PENDING = {}
 if os.environ.get("MUSIC_SHOW_PENDING"):   # 書きかけの章を隔離ビルドで確かめるとき
     PENDING = {}
 _have = {n for n, fn in CHAPTERS}
