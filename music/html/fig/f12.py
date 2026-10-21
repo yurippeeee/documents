@@ -307,7 +307,7 @@ def _f12_canonbass():
             step = abs(d) == 1
             o.append(T((x1 + x2) / 2 + 16, yt + 4 * s + 30, lab, "middle", 11, INK if step else ALI, True))
         yt += 128
-    return SVG(640, yt - 128 + 4 * s + 46, o, "カノン進行のベース（いちばん低い音）。根音をそのままベースにすると、4 度・5 度の跳躍（赤）が混じる。"
+    return SVG(640, yt - 128 + 4 * s + 46, o, "カノン進行のベース（いちばん低い音）。根音をそのままベースにすると、4 度・5 度離れた音へ跳ぶ動き（赤）が混じる。"
                "2・4・6 番目の和音を転回形にすると、ベースは C から E まで 2 度ずつ下がり、F・G と上がる。")
 F["e12_canonbass"] = _f12_canonbass()
 
