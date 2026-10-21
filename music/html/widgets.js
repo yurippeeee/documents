@@ -438,6 +438,12 @@
       hs.forEach(function(h,j){if(h.dur!=="16th")return; var nb=j+1<hs.length&&hs[j+1].dur==="16th", pb=j>0&&hs[j-1].dur==="16th";
         if(nb)b.push(beam(xs[j],xs[j+1],0.8*s)); else if(!pb)b.push(j+1<hs.length?beam(xs[j],xs[j]+1.1*s,0.8*s):beam(xs[j]-1.1*s,xs[j],0.8*s));});
     });
+    function tieDir(h,ti){var up=h.it.stem?h.it.stem==="up":(h.pl.length&&h.pl[h.pl.length-1].pp<4), nh=h.hd.length; return nh===1?(up?1:-1):(ti>=Math.floor((nh+1)/2)?-1:1);}
+    function halfTie(xa,xb,ya,d,fill){var xm=(xa+xb)/2; return '<path d="M'+xa+','+ya+' Q'+xm+','+(ya+d*1.1*s)+' '+xb+','+ya+' Q'+xm+','+(ya+d*0.8*s)+' '+xa+','+ya+'Z" fill="'+fill+'"/>';}
+    /* 行の終わりで切れるタイ（tieout）は右へ、行の始めで続くタイ（tiein）は左から、半分の弧で描く */
+    heads.forEach(function(h){if(!h)return;
+      if(h.it.tieout)h.hd.forEach(function(a,ti){var d=tieDir(h,ti), xa=a.x+0.55*h.hw; b.push(halfTie(xa,xa+2.4*s,a.y+d*0.55*s,d,h.fill));});
+      if(h.it.tiein)h.hd.forEach(function(a,ti){var d=tieDir(h,ti), xb=a.x-0.55*h.hw-(h.pl.some(function(q){return q.p.acc!==ka[q.p.letter];})?1.2*s:0); b.push(halfTie(xb-2.4*s,xb,a.y+d*0.55*s,d,h.fill));});});
     heads.forEach(function(h,k){
       if(!h||!h.it.tie)return; var nx=null; for(var j=k+1;j<heads.length;j++)if(heads[j]){nx=heads[j];break;} if(!nx)return;
       var up=h.it.stem?h.it.stem==="up":(h.pl.length&&h.pl[h.pl.length-1].pp<4), nh=h.hd.length;
@@ -622,11 +628,11 @@
           v.steps.forEach(function(e,si){
             var fill=on[vi+":"+si]?V("signal"):(v.kind==="mel"&&vi===0?V("ink"):V(v.col)), ps=pieces(e.b,e.beats);
             ps.forEach(function(pc,pj){
-              var dd=durDot(pc.beats), it={b:pc.b,x:X(pc.b),dur:dd.dur,dot:dd.dot,fill:fill};
+              var dd=durDot(pc.beats), it={b:pc.b,pb:pc.beats,x:X(pc.b),dur:dd.dur,dot:dd.dot,fill:fill};
               if(!e.m.length){it.rest=true; if(clf==="grand")it.staff=v.kind==="bass"||(!hasB&&vk>0)?"bass":"treble";}
               else{it.notes=e.notes.filter(function(n,j){return e.m[j]>=0||n[0]==="%";});
                 if(dd.dur==="eighth"||dd.dur==="16th")it.beam=vi+":"+Math.floor(pc.b/grp+1e-9);
-                if(pj<ps.length-1)it.tie=true;
+                if(pj<ps.length-1)it.tie=true; if(pj>0)it.tiein=true;
                 if(clf==="grand"&&hasB&&v.kind!=="chord")it.staff=v.kind==="bass"?"bass":"treble";
                 if(two)it.stem=vk===0?"up":"down";}
               if(pj===0&&chordSteps&&v.kind==="chord")it.sym=symTxt(e.sym);
@@ -638,7 +644,9 @@
         var sv=[];
         lines.forEach(function(L,li){
           var xs=(li===0?x0:staffStart(s,key?keyCount(key):0,null)), off=X(L[0]);
-          var its=items.filter(function(it){return it.b>=L[0]-1e-9&&it.b<L[1]-1e-9;}).map(function(it){var c={}; for(var k in it)c[k]=it[k]; c.x=xs+it.x-off; return c;});
+          var its=items.filter(function(it){return it.b>=L[0]-1e-9&&it.b<L[1]-1e-9;}).map(function(it){var c={}; for(var k in it)c[k]=it[k]; c.x=xs+it.x-off;
+            if(c.tie&&c.b+c.pb>=L[1]-1e-9&&L[1]<total-1e-9){c.tie=false;c.tieout=true;}   /* 続きは次の行 */
+            if(c.tiein&&c.b>L[0]+1e-9)c.tiein=false; return c;});
           if(time){for(var k2=Math.floor(L[0]/barB)+1;k2*barB<L[1]-1e-9;k2++)its.push({bar:true,x:xs+X(k2*barB)-off-0.6*G});
             its.push({bar:L[1]>=total-1e-9?"end":true,x:xs+X(L[1])-off-0.6*G+(L[1]>=total-1e-9?0.5*s:0)});}
           its.sort(function(p,q){return p.x-q.x;});
@@ -3177,7 +3185,7 @@
       var T1=spb(),bn=m.comp?"1 拍（付点 4 分音符）":"1 拍（4 分音符）";
       ro.innerHTML=bn+' = 60 ÷ '+sT.input.value+' = <b>'+f(T1,3)+' 秒</b> ／ 1 小節 = '+m.n+' 拍 = <b>'+f(T1*m.n,2)+' 秒</b>'+
         (n>1?'<br>1 拍を '+n+' つに分けた 1 つ（'+(m.comp?'8 分音符':n===2?'8 分音符':n===3?'3 連符の 1 つ':'16 分音符')+'）= <b>'+f(T1/n,3)+' 秒</b>':'')+
-        '<br>音: 強拍は高いクリック、中強・弱は低いクリック（中強のほうが大きい）'+(n>1?'、分けた音は短い雑音':'');
+        '<br>音: 強拍は高いクリック、中強拍と弱拍は低いクリック（中強拍のほうが大きい）'+(n>1?'。分けた音は短い「チッ」':'');
     }
     sT.input.addEventListener("input",function(){sT.val.textContent=sT.input.value;draw();});
     sM.addEventListener("change",function(){fillSubs(true);cur=-1;draw();lp.restart();});
@@ -3225,7 +3233,7 @@
         if(k%4===0){b.push('<circle cx="'+x+'" cy="'+y+'" r="9" fill="none" stroke="'+V("ink")+'" stroke-width="1.6"/>');if(ons[k])sOn++;}
         if(ons[k]){var off2=k%2===1;if(off2)offOn++;b.push('<circle cx="'+x+'" cy="'+y+'" r="4.5" fill="'+(off2?V("alias"):V("ink"))+'"/>');}}
       view.innerHTML=svgWrap(W,y+16,b.join(""));
-      ro.innerHTML='強拍（1・3 拍目）4 つのうち、新しい音が鳴り始めるのは <b>'+sOn+'</b> つ ／ 裏拍で鳴り始める音（赤）は <b>'+offOn+'</b> つ'+
+      ro.innerHTML='強拍・中強拍（1・3 拍目、全部で 4 つ）のうち、新しい音が鳴り始めるのは <b>'+sOn+'</b> つ ／ 裏拍で鳴り始める音（赤）は <b>'+offOn+'</b> つ'+
         '<br>再生では、最初の 1 小節はクリックだけ鳴る（拍を数え始めるため）';
     }
     function play(){
