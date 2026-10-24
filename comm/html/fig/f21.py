@@ -360,8 +360,8 @@ def _f21_arch():
     o.append(T(455, 150, "下りのゲートウェイを選ぶ", "middle", 9.5, MUT))
     o.append(ARR(294, 76, 378, 100, c=GLD, lw=1.5))
     o.append(ARR(294, 160, 378, 136, c=GLD, lw=1.5))
-    o.append(T(336, 76, "機器 B の", "middle", 9.5, GLD, True, halo=True))
-    o.append(T(336, 168, "機器 B の", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(336, 76, "機器 B の上り", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(336, 168, "機器 B の上り", "middle", 9.5, GLD, True, halo=True))
     o.append(RECT(570, 70, 118, 96, 8, GSOFT, GRN, 1.4))
     o.append(T(629, 94, "アプリケーション", "middle", 10.5, GRN, True))
     o.append(T(629, 109, "サーバ", "middle", 10.5, GRN, True))
@@ -382,15 +382,16 @@ def _f21_frame():
     for name, nb, c, val in fields:
         w = nb * unit
         if name == "FPort":
-            # FOpts（0 バイト）を細い破線で示す
-            o.append(RECT(x - 1, y0 - 6, 3, h + 12, 1, "none", MUT, 1.0, dash="2 2"))
+            # FOpts（0 バイト）を細い破線で示す。文字に重ならないように、前後の欄との間をあける
+            x += 8
+            o.append(RECT(x - 5.5, y0 - 6, 3, h + 12, 1, "none", MUT, 1.0, dash="2 2"))
         o.append(RECT(x, y0, w, h, 3, soft(c), c, 1.3))
         o.append(T(x + w / 2, y0 + 16, name, "middle", 10 if nb > 1 else 9, c, True))
         o.append(T(x + w / 2, y0 + 32, val, "middle", 9.5, INK, False, nb > 1 and "暗号" not in val and "バイト" not in val))
         o.append(T(x + w / 2, y0 + h + 14, "%d B" % nb, "middle", 9, MUT))
         pos[name] = (x, x + w)
         x += w
-    o.append(T(pos["FPort"][0] - 2, y0 + h + 28, "↑ FOpts（0〜15 B）", "middle", 9, MUT))
+    o.append(T(pos["FPort"][0] - 4, y0 + h + 28, "↑ FOpts（0〜15 B）", "middle", 9, MUT))
     # 上の括弧
     xa, xb = pos["MHDR"][0], pos["FRMPayload（データ）"][1]
     o.append(W(xa, 30, xa, 24, xb, 24, xb, 30, c=ALI, lw=1.2))
