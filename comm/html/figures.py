@@ -334,7 +334,8 @@ def seq(lanes, msgs, x=10, y=10, w=640, head_h=30, dy=34, label_sz=10.5, lane_w=
       (frm, to, ラベル, {オプション})        c=色, dash=True, lost=True（途中で × 失われる）, sub=2 行目,
                                              dy=この行の高さ, slant=縦に下がる量（時間がかかる送信）
       ("note", lane, 文字, {c=色})           ライフラインの上の注記（箱）
-      ("gap", 文字)                          時間の経過（波線と文字）
+      ("gap", 文字, {lane=k})                時間の経過（波線と文字）。文字は右端に置き、いちばん右のライフラインに
+                                             重なるときは右の 2 本の間に置く。lane=k なら k 番と k+1 番の間に置く
       ("span", lane, 行の数, 文字, {c=色, side=1/-1})  直前の k 行の範囲を、ライフラインの右（左）に括弧で示す（タイマなど）
       ("space", 高さ)                        空白
     """
@@ -368,7 +369,15 @@ def seq(lanes, msgs, x=10, y=10, w=640, head_h=30, dy=34, label_sz=10.5, lane_w=
                 body.append(W(xx - 6, yy - 3, xx + 6, yy + 3, c=FNT, lw=1.2))
                 body.append(W(xx - 6, yy + 3, xx + 6, yy + 9, c=FNT, lw=1.2))
             if text:
-                body.append(T(x + w - 2, yy + 7, text, "end", 10, FNT))
+                op = m[2] if len(m) > 2 else {}
+                tw_ = tw(text, 10)
+                k = op.get("lane")
+                if k is None and n >= 2 and x + w - 2 - tw_ < xs[-1] + 12:
+                    k = n - 2          # 右端に置くと、いちばん右のライフラインに重なる
+                if k is None:
+                    body.append(T(x + w - 2, yy + 7, text, "end", 10, FNT, halo=True))
+                else:
+                    body.append(T((xs[k] + xs[k + 1]) / 2, yy + 7, text, "middle", 10, FNT, halo=True))
             rows.append(yy); yy += 22
             continue
         if m[0] == "space":
@@ -391,10 +400,11 @@ def seq(lanes, msgs, x=10, y=10, w=640, head_h=30, dy=34, label_sz=10.5, lane_w=
         sl = op.get("slant", 0)
         x1, x2 = xs[frm], xs[to]
         y1, y2 = yy + 8, yy + 8 + sl
-        if frm == to:      # 自分への矢印（処理）
-            body.append(PATH("M%g,%g h26 v12 h-20" % (x1, y1), c=c, lw=1.5))
-            body.append(_head(x1 + 26, y1 + 12, x1 + 4, y1 + 12, c, 6))
-            body.append(T(x1 + 32, y1 + 10, label, "start", label_sz, c, halo=True))
+        if frm == to:      # 自分への矢印（処理）。右にはみ出すときは左側に描く
+            sd = -1 if x1 + 32 + tw(label, label_sz) > x + w - 2 else 1
+            body.append(PATH("M%g,%g h%g v12 h%g" % (x1, y1, 26 * sd, -20 * sd), c=c, lw=1.5))
+            body.append(_head(x1 + 26 * sd, y1 + 12, x1 + 4 * sd, y1 + 12, c, 6))
+            body.append(T(x1 + 32 * sd, y1 + 10, label, "start" if sd > 0 else "end", label_sz, c, halo=True))
             rows.append(y1); yy += h + 6
             continue
         if op.get("lost"):
