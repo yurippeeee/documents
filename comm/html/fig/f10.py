@@ -46,17 +46,6 @@ def _f10_span(o, x, y0, y1, label=None, c=TEA, side=-1, sz=9.5, lines=None):
     for i, l in enumerate(ls):
         o.append(T(xb + side * 9, (y0 + y1) / 2 + 4 + (i - (len(ls) - 1) / 2) * (sz + 3), l, "end" if side < 0 else "start", sz, c))
 
-def _f10_note(o, x, y, lines, c, a="start", sz=9.5, b=False):
-    """注記の箱。a は x の基準（start なら x が左端）。返り値は (幅, 高さ)。"""
-    w = max(tw(l, sz) for l in lines) + 12
-    h = len(lines) * sz * 1.4 + 7
-    x0 = x - w if a == "end" else (x - w / 2 if a == "middle" else x)
-    o.append(RECT(x0, y, w, h, 5, PAN, "none", 0))
-    o.append(RECT(x0, y, w, h, 5, soft(c), c, 1))
-    for i, l in enumerate(lines):
-        o.append(T(x0 + w / 2, y + 3.5 + sz + i * sz * 1.4, l, "middle", sz, c, b))
-    return w, h
-
 # ---- 1 節: フラグ ----
 def _f10_flags():
     o = []
@@ -80,7 +69,7 @@ def _f10_flags():
     # 4 つのフラグの意味
     yl = ye + 62
     rows = [("SYN", "コネクションを始め、自分の番号の始まり（ISN）を知らせる"),
-            ("ACK", "確認応答番号の欄が有効（最初の SYN 以外は、すべてこれを立てる）"),
+            ("ACK", "確認応答番号の欄が有効（コネクションができた後は、必ず立てる）"),
             ("FIN", "こちらからはもう送らない（7 節）"),
             ("RST", "コネクションを直ちに打ち切る（7 節）")]
     for i, (nm, t) in enumerate(rows):
@@ -478,7 +467,6 @@ def _f10_backoff():
     for i in range(len(sends) - 1):
         a, b = sends[i], sends[i + 1]
         w = b - a
-        yy = ya - 64 - (0 if i % 2 == 0 else 0)
         o.append(DIM(X(a), ya + 32, X(b), ya + 32, None, c=TEA))
         o.append(T((X(a) + X(b)) / 2, ya + 46, "%d s" % w, "middle", 9.5, TEA, True))
     o.append(T(x0, ya + 64, "待つ時間（RTO）: 1 s から始めて、時間切れのたびに 2 倍", "start", 10, TEA))
@@ -529,11 +517,341 @@ def _f10_fastrtx():
     for xx in (xa2, xb2):
         o.append(W(xx - 6, Y(8.6) - 3, xx + 6, Y(8.6) + 3, c=FNT, lw=1.2))
         o.append(W(xx - 6, Y(8.6) + 3, xx + 6, Y(8.6) + 9, c=FNT, lw=1.2))
-    o.append(T(xa2 - 22, Y(5.6), "RTO（1 秒以上）", "end", 9.5, TEA, True))
-    o.append(T(xa2 - 22, Y(6.7), "待つ", "end", 9.5, TEA, True))
+    o.append(T(xa2 - 22, Y(10.2), "RTO（1 秒以上）", "end", 9.5, TEA, True))
+    o.append(T(xa2 - 22, Y(11.3), "待つ", "end", 9.5, TEA, True))
     _f10_msg(o, xa2, Y(12.3), xb2, Y(15.3), None, ALI)
     o.append(T(xa2 - 10, Y(13.3), "送り直す", "end", 9.5, ALI))
     _f10_msg(o, xb2, Y(15.3), xa2, Y(18.3), None, GRN)
     o.append(T(xa2 - 10, Y(18.3) + 3.5, "ack", "end", 9.5, GRN))
     return SVG(700, Y(18.6) + 8, o, "高速再送が働く場合と働かない場合（#k は k 番目のセグメント、ack #k は「#k の先頭が欲しい」という確認応答番号。RTT は図の縦で 6 目盛り分）。(a) 失われたセグメントの後に 3 つが届けば、重複 ACK 3 つで、時間切れを待たずに送り直せる。(b) 後に送るものが無ければ、重複 ACK は来ないので、RTO（1 秒以上。RTT の数十倍のこともある。図では途中を省いた）を待つ。")
 F["e10_fastrtx"] = _f10_fastrtx()
+
+# ---- 5 節: 輻輳 ----
+def _f10_cong():
+    o = []
+    o.append(BOX(16, 30, 120, 44, "送り手 1（機器）", None, SIG, SSOFT, SIG, sz=10.5))
+    o.append(BOX(16, 128, 120, 44, "送り手 2（PC など）", None, PUR, PSOFT, PUR, sz=10.5))
+    o.append(RECT(248, 60, 214, 96, 10, GOSOFT, GLD, 1.5))
+    o.append(T(355, 80, "ルータ", "middle", 11, GLD, True))
+    # 待ち行列
+    qx, qy = 268, 100
+    for i in range(8):
+        o.append(RECT(qx + i * 22, qy, 20, 24, 3, SSOFT if i % 3 else PSOFT, SIG if i % 3 else PUR, 1.0))
+    o.append(T(qx + 88, qy + 42, "待ち行列（いっぱい）", "middle", 9.5, GLD, True))
+    # 入ってくるパケット
+    for y1, c in ((52, SIG), (150, PUR)):
+        o.append(ARR(138, y1, 246, 108, c=c, lw=1.6))
+    o.append(T(170, 54, "100 Mbps", "start", 9.5, SIG))
+    o.append(T(170, 158, "100 Mbps", "start", 9.5, PUR))
+    o.append(RECT(218, 84, 16, 18, 3, ASOFT, ALI, 1.0))
+    o.append(W(220, 86, 232, 100, c=ALI, lw=2)); o.append(W(220, 100, 232, 86, c=ALI, lw=2))
+    o.append(T(214, 112, "捨てる", "end", 9.5, ALI, True))
+    # 出口
+    o.append(ARR(464, 108, 584, 108, c=GLD, lw=2.2))
+    o.append(T(524, 100, "出口 10 Mbps", "middle", 9.5, GLD, True))
+    o.append(BOX(586, 86, 96, 44, "サーバ", None, GRN, GSOFT, GRN, sz=11))
+    y = 200
+    o.append(T(16, y, "入ってくる速さの合計（最大 200 Mbps）が、出口の速さ（10 Mbps）を超えると:", "start", 10.5, INK, True))
+    o.append(T(30, y + 20, "① 待ち行列が延びる → パケットが待つ時間が増え、RTT が延びる", "start", 10.5, GLD))
+    o.append(T(30, y + 40, "② 待ち行列があふれる → パケットが捨てられる（喪失）→ 送り直しで、さらに混む", "start", 10.5, ALI))
+    return SVG(700, y + 52, o, "輻輳の起こり方。複数の送り手のパケットが、同じルータの同じ出口に集まる。出口から送り出せる速さを超えた分は待ち行列にたまり、あふれた分は捨てられる。送り手は、途中のルータの出口の速さを知らない。")
+F["e10_cong"] = _f10_cong()
+
+# ---- 5 節: 輻輳ウィンドウの推移 ----
+def _f10_cwnd():
+    o = []
+    # (a) 受信ウィンドウが大きいとき
+    seq = []
+    cw = 4.0
+    for r in range(0, 31):
+        seq.append((r, cw))
+        if r < 4: cw *= 2
+        elif r == 4: seq.append((r, 32.0)); cw = 33.0
+        elif r < 13: cw += 1
+        elif r == 13: seq.append((r, 20.0)); cw = 21.0
+        elif r < 19: cw += 1
+        elif r == 19: seq.append((r, 1.0)); cw = 2.0
+        elif r < 22: cw *= 2
+        elif r == 22: cw = 12.0
+        else: cw += 1
+    p = Plot(70, 30, 600, 190, (0, 30), (0, 70))
+    o.append(T(20, 16, "(a) 受信ウィンドウが十分大きいとき", "start", 11, INK, True))
+    o.append(p.axes(xl="時間 [RTT]", yl="cwnd [MSS]", xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 10, 20, 30, 40, 50, 60, 70],
+                    xfmt=lambda v: "%d" % v, yfmt=lambda v: "%d" % v))
+    o.append(p.steps([(4, 32), (13, 20), (19, 12), (30, 12)], c=MUT, lw=1.2, dash="5 4"))
+    o.append(p.line(seq, c=SIG, lw=2.3))
+    o.append(T(p.X(2.3), p.Y(10), "スロースタート", "start", 9.5, SIG, True))
+    o.append(T(p.X(2.3), p.Y(10) + 13, "（RTT ごとに 2 倍）", "start", 9.5, SIG))
+    o.append(T(p.X(5.2), p.Y(43), "輻輳回避（RTT ごとに +1 MSS）", "start", 9.5, SIG, True))
+    for r, v, lab, dy in ((4, 64, "重複 ACK 3 つ → 半分", -6), (13, 41, "重複 ACK 3 つ → 半分", -8), (19, 26, "時間切れ → 1 MSS", -8)):
+        o.append(D(p.X(r), p.Y(v), ALI, 4))
+        o.append(T(p.X(r) + 6, p.Y(v) + dy, lab, "start", 9.5, ALI, True))
+    o.append(T(p.X(30) - 2, p.Y(12) + 14, "ssthresh", "end", 9.5, MUT))
+    # (b) 受信ウィンドウが小さいとき
+    y2 = 290
+    p2 = Plot(70, y2, 600, 110, (0, 14), (0, 10))
+    o.append(T(20, y2 - 14, "(b) 機器が受け手で、受信ウィンドウが 2144 バイト（MSS 536 の 4 倍）のとき", "start", 11, INK, True))
+    o.append(p2.axes(xl="時間 [RTT]", yl="[MSS]", xt=[0, 2, 4, 6, 8, 10, 12, 14], yt=[0, 2, 4, 6, 8, 10],
+                     xfmt=lambda v: "%d" % v, yfmt=lambda v: "%d" % v))
+    o.append(p2.line([(0, 4), (14, 4)], c=GRN, lw=1.4, dash="6 4"))
+    o.append(p2.line([(0, 4), (1, 8), (1.25, 10)], c=SIG, lw=1.2, dash="2 3"))
+    o.append(T(p2.X(1.4), p2.Y(9.2), "cwnd は受信ウィンドウより大きくなる", "start", 9.5, SIG))
+    eff = [(0, 4), (7, 4), (7, 1), (8, 1), (9, 2), (10, 4), (14, 4)]
+    o.append(p2.line(eff, c=INK, lw=2.4))
+    o.append(T(p2.X(14) - 2, p2.Y(4) - 7, "受信ウィンドウ = 4 MSS", "end", 9.5, GRN, True))
+    o.append(D(p2.X(7), p2.Y(4), ALI, 4))
+    o.append(T(p2.X(10.3), p2.Y(1.6), "時間切れ → cwnd = 1 MSS から", "start", 9.5, ALI, True))
+    o.append(T(p2.X(0.3), p2.Y(2.3), "実効のウィンドウ = min(受信ウィンドウ, cwnd)", "start", 9.5, INK, True))
+    return SVG(700, y2 + 110 + 44, o, "輻輳ウィンドウ（cwnd）の推移の例（模式図）。(a) スロースタートで RTT ごとに 2 倍になり、ssthresh（破線）からは輻輳回避で 1 RTT に 1 MSS ずつ増える。重複 ACK 3 つで気づくと半分に、時間切れで気づくと 1 MSS に戻る。(b) 受信ウィンドウが小さい機器では、実効のウィンドウ（太線）はほとんどの時間、受信ウィンドウで決まり、cwnd が効くのは失われた直後だけである。")
+F["e10_cwnd"] = _f10_cwnd()
+
+# ---- 6 節: Nagle アルゴリズム ----
+def _f10_nagle():
+    o = []
+    u = 13
+    Y = lambda t: 62 + t * u
+    for side in range(2):
+        px = 4 + side * 350
+        xa, xb = px + 130, px + 290
+        title = "(a) Nagle アルゴリズムなし" if side == 0 else "(b) Nagle アルゴリズムあり"
+        o.append(T(px + 175, 16, title, "middle", 11, ALI if side == 0 else GRN, True))
+        _f10_lane(o, xa, 24, Y(10.6), "機器", SIG, 10.5)
+        _f10_lane(o, xb, 24, Y(10.6), "サーバ", GRN, 10.5)
+        for k in range(5):
+            o.append(T(xa - 10, Y(k) + 3.5, "1 バイト書く", "end", 9.5, PUR))
+        if side == 0:
+            for k in range(5):
+                _f10_msg(o, xa, Y(k), xb, Y(k + 3), "1 B" if k == 0 else None, INK, lpos=0.25, ldy=-4, mono=True)
+                _f10_msg(o, xb, Y(k + 3), xa, Y(k + 6), None, GRN)
+            o.append(T(px + 175, Y(10.6) + 22, "セグメント 5 個（データ 5 B に、ヘッダ 200 B）", "middle", 10, ALI, True))
+        else:
+            _f10_msg(o, xa, Y(0), xb, Y(3), "1 B", INK, lpos=0.25, ldy=-4, mono=True)
+            _f10_msg(o, xb, Y(3), xa, Y(6), None, GRN)
+            _f10_span(o, xa, Y(1), Y(6), None, c=SIG, side=1)
+            o.append(T(xa + 18, Y(3.4) + 3.5, "ためる", "start", 9.5, SIG, True))
+            _f10_msg(o, xa, Y(6), xb, Y(9), "4 B", INK, lpos=0.25, ldy=-4, mono=True)
+            _f10_msg(o, xb, Y(9), xa, Y(12) - 18, None, GRN)
+            o.append(T(xa - 10, Y(6) + 3.5, "ACK → まとめて送る", "end", 9.5, GRN, True))
+            o.append(T(px + 175, Y(10.6) + 22, "セグメント 2 個（データ 5 B に、ヘッダ 80 B）", "middle", 10, GRN, True))
+    return SVG(700, Y(10.6) + 34, o, "1 バイトずつ 5 回書いたときに送られるセグメント（RTT は縦の 6 目盛り分）。(a) 書くたびに 1 つ送ると、1 バイトごとに 40 バイトのヘッダが付く。(b) Nagle アルゴリズムでは、確認されていないデータがある間は小さなデータをためておき、ACK が届いたらまとめて送る。")
+F["e10_nagle"] = _f10_nagle()
+
+# ---- 6 節: 遅延 ACK ----
+def _f10_delack():
+    o = []
+    u = 13
+    Y = lambda t: 62 + t * u
+    titles = ["(a) 応答に ACK を載せる", "(b) 2 つ目の満杯で返す", "(c) 何も来なければ D 後に"]
+    for k in range(3):
+        px = 4 + k * 232
+        xa, xb = px + 52, px + 184
+        o.append(T(px + 118, 16, titles[k], "middle", 10.5, INK, True))
+        _f10_lane(o, xa, 24, Y(12), "送り手", SIG, 10.5)
+        _f10_lane(o, xb, 24, Y(12), "受け手", GRN, 10.5)
+        if k == 0:
+            _f10_msg(o, xa, Y(0), xb, Y(3), "要求", INK, lpos=0.35, ldy=-5)
+            _f10_span(o, xb, Y(3), Y(5), None, c=TEA, side=1)
+            o.append(T(xb + 16, Y(4) + 3.5, "応答を書く", "start", 9.5, PUR))
+            _f10_msg(o, xb, Y(5), xa, Y(8), "応答 + ACK", GRN, lpos=0.5, ldy=-5)
+            o.append(T(px + 118, Y(12) + 20, "ACK だけのセグメントが要らない", "middle", 9.5, GRN, True))
+        elif k == 1:
+            _f10_msg(o, xa, Y(0), xb, Y(3), "満杯 1", INK, lpos=0.35, ldy=-5)
+            _f10_msg(o, xa, Y(1), xb, Y(4), "満杯 2", INK, lpos=0.5, ldy=14)
+            _f10_msg(o, xb, Y(4), xa, Y(7), "ACK（2 つ分）", GRN, lpos=0.5, ldy=-5)
+            o.append(T(px + 118, Y(12) + 20, "2 つに 1 つは ACK を返す", "middle", 9.5, GRN, True))
+        else:
+            _f10_msg(o, xa, Y(0), xb, Y(3), "データ", INK, lpos=0.35, ldy=-5)
+            _f10_span(o, xb, Y(3), Y(8), None, c=TEA, side=1)
+            o.append(T(xb + 16, Y(5.6) + 3.5, "D 待つ", "start", 9.5, TEA, True))
+            _f10_msg(o, xb, Y(8), xa, Y(11), "ACK だけ", GRN, lpos=0.5, ldy=-5)
+            o.append(T(px + 118, Y(12) + 20, "ACK が D だけ遅れる", "middle", 9.5, ALI, True))
+    return SVG(700, Y(12) + 32, o, "遅延 ACK。受け手は、データを受け取ってもすぐには ACK を返さず、最大 D だけ待つ。(a) 待つ間に応答を書けば ACK を応答に載せ、(b) 満杯のセグメントが 2 つ届けばすぐ返す。(c) 何も起きなければ、D たってから ACK だけを送る。")
+F["e10_delack"] = _f10_delack()
+
+# ---- 6 節: 書く・書く・読む ----
+def _f10_stall():
+    o = []
+    y0 = 74
+    Y = lambda ms: y0 + ms * 1.0
+    # (a)
+    xa, xb = 190, 380
+    o.append(T(285, 16, "(a) 書く・書く・読む（Nagle と遅延 ACK）", "middle", 11, ALI, True))
+    _f10_lane(o, xa, 26, Y(296), "機器", SIG, 10.5)
+    _f10_lane(o, xb, 26, Y(296), "サーバ", GRN, 10.5)
+    for ms in range(0, 281, 40):
+        o.append(W(28, Y(ms), 34, Y(ms), c=MUT, lw=1))
+        o.append(T(40, Y(ms) + 3.5, "%d ms" % ms, "start", 9, MUT))
+    o.append(W(31, Y(0), 31, Y(280), c=MUT, lw=1))
+    _f10_msg(o, xa, Y(0), xb, Y(20), "ヘッダ", INK, lpos=0.5, ldy=-6)
+    o.append(T(xa - 10, Y(0) + 3.5, "書く・書く", "end", 9.5, PUR, True))
+    _f10_span(o, xb, Y(20), Y(220), None, c=TEA, side=1)
+    o.append(T(xb + 18, Y(112), "遅延 ACK", "start", 9.5, TEA, True))
+    o.append(T(xb + 18, Y(126), "D = 200 ms", "start", 9.5, TEA, True))
+    o.append(T(xb + 18, Y(140), "（応答はまだ", "start", 9.5, MUT))
+    o.append(T(xb + 18, Y(153), "書けない）", "start", 9.5, MUT))
+    _f10_span(o, xa, Y(4), Y(240), None, c=SIG, side=-1)
+    o.append(T(xa - 18, Y(112), "本体は", "end", 9.5, SIG, True))
+    o.append(T(xa - 18, Y(126), "ためておかれる", "end", 9.5, SIG, True))
+    o.append(T(xa - 18, Y(140), "（Nagle）", "end", 9.5, SIG))
+    _f10_msg(o, xb, Y(220), xa, Y(240), "ACK", GRN, lpos=0.5, ldy=-6)
+    _f10_msg(o, xa, Y(240), xb, Y(260), "本体", INK, lpos=0.5, ldy=-6)
+    _f10_msg(o, xb, Y(260), xa, Y(280), "応答", GRN, lpos=0.5, ldy=-6)
+    o.append(T(xa - 10, Y(280) + 3.5, "読む", "end", 9.5, PUR, True))
+    # (b)
+    xa2, xb2 = 520, 660
+    o.append(T(590, 16, "(b) 1 回で書く・または TCP_NODELAY", "middle", 11, GRN, True))
+    _f10_lane(o, xa2, 26, Y(296), "機器", SIG, 10.5)
+    _f10_lane(o, xb2, 26, Y(296), "サーバ", GRN, 10.5)
+    _f10_msg(o, xa2, Y(0), xb2, Y(20), "要求", INK, lpos=0.5, ldy=-6)
+    _f10_msg(o, xb2, Y(20), xa2, Y(40), "応答", GRN, lpos=0.5, ldy=-6)
+    o.append(T(xa2 - 10, Y(40) + 3.5, "読む", "end", 9.5, PUR, True))
+    o.append(T(590, Y(80), "1 回 = RTT", "middle", 10.5, GRN, True))
+    o.append(T(590, Y(96), "= 40 ms", "middle", 10.5, GRN, True))
+    o.append(T(285, Y(310) + 6, "1 回 = 2 RTT + D = 280 ms", "middle", 10.5, ALI, True))
+    return SVG(700, Y(310) + 16, o, "要求をヘッダと本体の 2 回に分けて書き、応答を読むときの時間（縮尺どおり。RTT 40 ms、遅延 ACK の待ち時間 D = 200 ms の例）。(a) 本体は、ヘッダの ACK が届くまで Nagle アルゴリズムにためられ、ヘッダの ACK は、応答が書けないサーバで D だけ遅れる。(b) 要求を 1 回で書くか、Nagle アルゴリズムを止めれば、1 回は RTT で済む。")
+F["e10_stall"] = _f10_stall()
+
+# ---- 6 節: 送信バッファと遅延 ACK ----
+def _f10_sndbuf():
+    o = []
+    u = 13
+    Y = lambda t: 60 + t * u
+    # (a) 1 MSS
+    xa, xb = 170, 318
+    o.append(T(190, 16, "(a) 送信バッファ = MSS 1 つ分", "middle", 11, ALI, True))
+    _f10_lane(o, xa, 24, Y(17.4), "機器（送り手）", SIG, 10.5)
+    _f10_lane(o, xb, 24, Y(17.4), "受け手", GRN, 10.5)
+    for c0, lab in ((0, "0 ms"), (8.4, "240 ms")):
+        _f10_msg(o, xa, Y(c0), xb, Y(c0 + 1.4), "満杯", INK, lpos=0.5, ldy=-5)
+        _f10_span(o, xb, Y(c0 + 1.4), Y(c0 + 7), None, c=TEA, side=1)
+        o.append(T(xb + 16, Y(c0 + 4.6), "D 待つ", "start", 9.5, TEA, True))
+        _f10_msg(o, xb, Y(c0 + 7), xa, Y(c0 + 8.4), "ACK", GRN, lpos=0.5, ldy=-5)
+        o.append(T(xa - 10, Y(c0) + 3.5, lab + ": 1 つ送る", "end", 9.5, INK))
+        o.append(T(xa - 10, Y(c0) + 16.5, "→ バッファがいっぱい", "end", 9.5, ALI))
+    o.append(T(xa - 10, Y(16.8) + 3.5, "480 ms: 次を送る", "end", 9.5, INK))
+    o.append(T(190, Y(17.4) + 22, "536 バイト / 240 ms ≈ 2233 B/s", "middle", 10.5, ALI, True))
+    # (b) 2 MSS
+    xa2, xb2 = 500, 636
+    o.append(T(560, 16, "(b) 送信バッファ = MSS 2 つ分", "middle", 11, GRN, True))
+    _f10_lane(o, xa2, 24, Y(17.4), "機器（送り手）", SIG, 10.5)
+    _f10_lane(o, xb2, 24, Y(17.4), "受け手", GRN, 10.5)
+    for c0, lab in ((0, "0 ms"), (5.4, "40 ms"), (10.8, "80 ms")):
+        _f10_msg(o, xa2, Y(c0), xb2, Y(c0 + 1.4), None, INK)
+        _f10_msg(o, xa2, Y(c0 + 1.2), xb2, Y(c0 + 2.6), None, INK)
+        _f10_msg(o, xb2, Y(c0 + 2.6), xa2, Y(c0 + 4.0), None, GRN)
+        o.append(T(xa2 - 10, Y(c0) + 3.5, lab + ": 2 つ送る", "end", 9.5, INK))
+    o.append(T(xb2 + 8, Y(2.6) + 3.5, "すぐ ACK", "start", 9.5, GRN, True))
+    o.append(T(560, Y(17.4) + 22, "1072 バイト / 40 ms = 26,800 B/s", "middle", 10.5, GRN, True))
+    return SVG(700, Y(17.4) + 34, o, "大きなデータを送るときの送信バッファの大きさと遅延 ACK（RTT 40 ms、D = 200 ms、MSS 536 バイトの例。縮尺どおりではなく、左右で時間の縮尺も違う）。(a) 送信バッファに 1 つ分しか持てないと、受け手は 2 つ目の満杯のセグメントを待って ACK を D だけ遅らせ、1 つごとに RTT + D かかる。(b) 2 つ分を持てれば、2 つ目で ACK がすぐ返る。")
+F["e10_sndbuf"] = _f10_sndbuf()
+
+# ---- 7 節: FIN と TIME_WAIT ----
+def _f10_fin():
+    o = []
+    xa, xb = 150, 340
+    _f10_lane(o, xa, 10, 372, "機器", SIG, 11)
+    _f10_lane(o, xb, 10, 372, "サーバ", GRN, 11)
+    _f10_tag(o, xa - 10, 62, "ESTABLISHED", SIG)
+    _f10_tag(o, xb + 10, 62, "ESTABLISHED", GRN, a="start")
+    _f10_msg(o, xa, 82, xb, 104, "FIN", INK, b=True, sub="seq=1301 ack=5051", subdy=15)
+    _f10_tag(o, xa - 10, 94, "FIN_WAIT_1", SIG)
+    _f10_msg(o, xb, 128, xa, 150, "ACK", GRN, b=True, sub="ack=1302", subdy=15)
+    _f10_tag(o, xb + 10, 140, "CLOSE_WAIT", GRN, a="start")
+    _f10_tag(o, xa - 10, 162, "FIN_WAIT_2", SIG)
+    o.append(T(xb + 10, 178, "まだ送ってよい", "start", 9.5, MUT))
+    _f10_msg(o, xb, 200, xa, 222, "FIN", INK, b=True, sub="seq=5051 ack=1302", subdy=15)
+    _f10_tag(o, xb + 10, 212, "LAST_ACK", GRN, a="start")
+    _f10_msg(o, xa, 246, xb, 268, "ACK", GRN, b=True, sub="ack=5052", subdy=15)
+    _f10_tag(o, xa - 10, 238, "TIME_WAIT", SIG)
+    _f10_tag(o, xb + 10, 280, "CLOSED", GRN, a="start")
+    _f10_span(o, xa, 246, 346, None, c=TEA, side=-1)
+    o.append(T(xa - 22, 292, "2MSL 待つ", "end", 9.5, TEA, True))
+    o.append(T(xa - 22, 305, "（情報を持ち続ける）", "end", 9.5, TEA))
+    _f10_tag(o, xa - 10, 362, "CLOSED", SIG)
+    # 右: 最後の ACK が失われたら
+    xc, xd = 506, 648
+    o.append(RECT(452, 34, 244, 330, 8, "none", LIN, 1.0, dash="4 3"))
+    o.append(T(573, 54, "最後の ACK が失われたら", "middle", 10.5, INK, True))
+    o.append(W(xc, 70, xc, 350, c=SIG, lw=1.2, dash="3 4"))
+    o.append(W(xd, 70, xd, 350, c=GRN, lw=1.2, dash="3 4"))
+    o.append(T(xc, 82, "機器", "middle", 10, SIG, True))
+    o.append(T(xd, 82, "サーバ", "middle", 10, GRN, True))
+    _f10_msg(o, xd, 100, xc, 122, "FIN", INK, b=True)
+    _f10_msg(o, xc, 140, xd, 162, "ACK", GRN, lost=0.55, b=True)
+    _f10_span(o, xd, 100, 236, None, c=TEA, side=1)
+    o.append(T(xd + 18, 172, "RTO", "start", 9.5, TEA, True))
+    _f10_msg(o, xd, 236, xc, 258, "FIN（再送）", INK, b=True)
+    _f10_msg(o, xc, 276, xd, 298, "ACK（再送）", GRN, b=True)
+    o.append(T(573, 326, "TIME_WAIT の間なら、", "middle", 9.5, SIG))
+    o.append(T(573, 340, "ACK を送り直せる", "middle", 9.5, SIG))
+    return SVG(700, 380, o, "FIN によるコネクションの終わり方（機器が先に閉じる例。2 節の例の続きで、機器は 1001〜1300、サーバは 5001〜5050 を送り終えている）。FIN も番号を 1 つ使う。先に FIN を送った機器は、最後の ACK の後も TIME_WAIT で 2MSL 待つ。右: その間に最後の ACK が失われて FIN が送り直されてきても、ACK を送り直せる。")
+F["e10_fin"] = _f10_fin()
+
+# ---- 7 節: RST ----
+def _f10_rst():
+    o = []
+    for side in range(2):
+        px = 4 + side * 350
+        xa, xb = px + 92, px + 262
+        title = "(a) 待っているプログラムが無いポートへの SYN" if side == 0 else "(b) 再起動した機器に、古いコネクションのデータ"
+        o.append(T(px + 173, 16, title, "middle", 10.5, INK, True))
+        _f10_lane(o, xa, 26, 214, "機器", SIG, 10.5)
+        _f10_lane(o, xb, 26, 214, "サーバ", GRN, 10.5)
+        if side == 0:
+            _f10_msg(o, xa, 76, xb, 98, "SYN（ポート 1883）", INK, b=True)
+            o.append(T(xb + 8, 112, "待つ者が", "start", 9.5, MUT))
+            o.append(T(xb + 8, 125, "いない", "start", 9.5, MUT))
+            _f10_msg(o, xb, 124, xa, 146, "RST", ALI, b=True)
+            o.append(T(xa - 8, 172, "接続が", "end", 9.5, ALI, True))
+            o.append(T(xa - 8, 185, "断られる", "end", 9.5, ALI, True))
+        else:
+            o.append(RECT(xa - 40, 66, 80, 22, 5, ASOFT, ALI, 1.1))
+            o.append(T(xa, 81, "再起動", "middle", 10, ALI, True))
+            o.append(T(xa - 8, 106, "コネクションの", "end", 9.5, MUT))
+            o.append(T(xa - 8, 119, "情報が消えた", "end", 9.5, MUT))
+            _f10_msg(o, xb, 104, xa, 126, "データ（古いコネクション）", INK, b=True)
+            _f10_msg(o, xa, 146, xb, 168, "RST", ALI, b=True)
+            o.append(T(xb + 8, 182, "コネクションを", "start", 9.5, ALI, True))
+            o.append(T(xb + 8, 195, "捨てる", "start", 9.5, ALI, True))
+    return SVG(700, 222, o, "RST が送られる 2 つの例。(a) 誰も待っていないポートに SYN が届くと、サーバは RST を返し、接続は断られる。(b) 再起動してコネクションの情報を失った機器は、古いコネクションのセグメントに RST を返し、サーバはそのコネクションを捨てる。")
+F["e10_rst"] = _f10_rst()
+
+# ---- 7 節: ハーフオープンと TCP キープアライブ ----
+def _f10_halfopen():
+    o = []
+    x0, x1 = 196, 680
+    tmax = 9000.0
+    X = lambda t: x0 + t / tmax * (x1 - x0)
+    o.append(T(186, 54, "機器", "end", 10.5, SIG, True))
+    o.append(T(186, 104, "サーバの TCP", "end", 10.5, GRN, True))
+    o.append(T(186, 118, "（キープアライブは既定）", "end", 9.5, GRN))
+    o.append(T(186, 174, "アプリケーション層の", "end", 10.5, PUR, True))
+    o.append(T(186, 188, "キープアライブ（60 秒ごと）", "end", 9.5, PUR))
+    # 機器
+    td = 900
+    o.append(RECT(X(0), 42, X(td) - X(0), 18, 3, SSOFT, SIG, 1.1))
+    o.append(W(X(td) - 6, 45, X(td) + 6, 57, c=ALI, lw=2)); o.append(W(X(td) - 6, 57, X(td) + 6, 45, c=ALI, lw=2))
+    o.append(T(X(td) + 12, 56, "電源が切れる（FIN も RST も送らない）", "start", 10, ALI, True))
+    # サーバの TCP
+    tk = 7200 + 9 * 75
+    o.append(RECT(X(0), 94, X(tk) - X(0), 18, 3, GSOFT, GRN, 1.1))
+    o.append(T(X(td) + 12, 107, "コネクションがあると思い続ける（ハーフオープン）", "start", 10, GRN))
+    for k in range(9):
+        t = 7200 + k * 75
+        o.append(W(X(t), 88, X(t), 118, c=TEA, lw=1.2))
+    o.append(T(X(7200) - 4, 136, "2 時間後から 75 秒ごとに 9 回", "end", 9.5, TEA, True))
+    o.append(T(X(tk), 136, "▲", "middle", 9.5, ALI))
+    o.append(T(X(tk) - 4, 150, "切れたと分かる: 2 時間 11 分", "end", 10, ALI, True))
+    # アプリケーション層
+    for t in range(0, td + 1, 60):
+        o.append(W(X(t), 166, X(t), 184, c=PUR, lw=1.2))
+    ta = td + 90
+    o.append(T(X(ta) + 8, 180, "◀ 90 秒（1.5 回分）応答が無い → 約 1.5 分で気づく", "start", 10, PUR, True))
+    # 時間軸
+    ya = 214
+    o.append(W(x0, ya, x1, ya, c=MUT, lw=1.2))
+    for h in (0, 0.5, 1, 1.5, 2, 2.5):
+        o.append(W(X(h * 3600), ya, X(h * 3600), ya + 5, c=MUT, lw=1))
+        o.append(T(X(h * 3600), ya + 18, "%g 時間" % h, "middle", 9.5, MUT))
+    return SVG(700, ya + 28, o, "相手が黙って消えたとき（電源が切れた例。最後のやり取りを時刻 0 とする）。機器はもう何も送らないので、サーバの TCP は既定の TCP キープアライブ（Linux の既定値）で、2 時間 11 分たってようやく気づく。アプリケーション層で 60 秒ごとに確かめていれば、1.5 分ほどで気づける。")
+F["e10_halfopen"] = _f10_halfopen()
