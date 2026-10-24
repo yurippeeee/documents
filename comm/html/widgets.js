@@ -21,20 +21,33 @@
   function btnrow(el){var d=mk("div","btns");el.appendChild(d);return d;}
   function readout(el){var r=mk("div","readout");el.appendChild(r);return r;}
   function note(el,h){var r=mk("div","wnote",h);el.appendChild(r);return r;}
-  /* スライダー: o = {min, max, step, value, fmt(v)→文字列, log:true で対数目盛（値は有効数字 3 桁に丸める。o.snap(v) で丸め方を変えられる）, onInput(v)}
-     返り値 {get(), set(v), input} 。log のときも get() は実際の値を返す。 */
+  /* スライダー: o = {min, max, step, value, fmt(v)→文字列, onInput(v)}
+     log:true で対数目盛（値は有効数字 3 桁に丸める。int:true なら整数に、o.snap(v) なら独自に丸める）。右端・左端はちょうど max・min を返す。
+     values:[…] で決まった値の列から選ぶ（例 [64,128,256,512,1024]。このとき min・max・step・log は使わない）。
+     set(v) で決めた値は、利用者が動かすまでそのまま get() が返す。返り値 {get(), set(v), input}。 */
   function slider(row,label,o){
-    var c=mk("div","ctrl"); var lg=!!o.log;
-    var mn=lg?Math.log10(o.min):o.min, mx=lg?Math.log10(o.max):o.max, st=lg?(o.step||0.001):(o.step||1);
+    var c=mk("div","ctrl"); var lg=!!o.log, vals=o.values||null, exact=null;
+    var mn=vals?0:(lg?Math.log10(o.min):o.min), mx=vals?vals.length-1:(lg?Math.log10(o.max):o.max),
+        st=vals?1:(lg?(o.step||0.001):(o.step||1));
     c.innerHTML='<label><span>'+label+'</span><b class="val"></b></label><input type="range">';
     var inp=c.querySelector("input"), val=c.querySelector(".val");
     inp.min=mn; inp.max=mx; inp.step=st;
-    function raw2v(r){var v=lg?Math.pow(10,+r):+r; if(lg)v=o.snap?o.snap(v):+v.toPrecision(3); return v;}   /* 対数目盛は有効数字 3 桁に丸める */
+    function raw2v(r){
+      if(vals)return vals[Math.max(0,Math.min(vals.length-1,Math.round(+r)))];
+      if(exact!==null)return exact;
+      if(lg&&+r>mx-st)return o.max;
+      if(lg&&+r<=mn)return o.min;
+      var v=lg?Math.pow(10,+r):+r;
+      if(lg)v=o.snap?o.snap(v):(o.int?Math.round(v):+v.toPrecision(3));
+      return v;}
     function show(){val.textContent=o.fmt?o.fmt(api.get()):String(api.get());}
     var api={input:inp,el:c,
       get:function(){return raw2v(inp.value);},
-      set:function(v){inp.value=lg?Math.log10(v):v;show();}};
-    inp.addEventListener("input",function(){show();if(o.onInput)o.onInput(api.get());});
+      set:function(v){
+        if(vals){var k=0;vals.forEach(function(x,i){if(Math.abs(x-v)<Math.abs(vals[k]-v))k=i;});inp.value=k;exact=null;}
+        else{inp.value=lg?Math.log10(v):v;exact=v;}
+        show();}};
+    inp.addEventListener("input",function(){exact=null;show();if(o.onInput)o.onInput(api.get());});
     api.set(o.value); row.appendChild(c); return api;
   }
   /* 選択: opts は文字列の配列、または [{v:値, t:表示}] 。get() は値（文字列の配列なら番号）を返す。 */
