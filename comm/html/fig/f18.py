@@ -95,7 +95,7 @@ def _f18_connect():
     o.append(DIM(anchors[1], yp + ph + 30, anchors[2], yp + ph + 30, None, c=TEA))
     o.append(T((anchors[1] + anchors[2]) / 2, yp + ph + 44, "接続間隔", "middle", 9.5, TEA))
     o.append(T(690, yp + ph + 64, "（時間の目盛は正確ではない）", "end", 9.5, MUT))
-    return SVG(700, yp + ph + 72, o, "接続の始まり。イニシエータは ADV_IND を受け取った 150 µs 後に CONNECT_IND を送る。その終わりから 1.25 ms + WinOffset の後の送信窓の中で、セントラルが最初のパケットを送り、その時刻が最初のアンカーポイントになる。以後、接続間隔ごとに、毎回別のデータチャネル（ホップ量 7 なら 7、14、21、…）で接続イベントを行う。")
+    return SVG(700, yp + ph + 72, o, "接続の始まり。イニシエータは ADV_IND を受け取った 150 µs 後に CONNECT_IND を送る。その終わりから 1.25 ms + WinOffset × 1.25 ms の後の送信窓の中で、セントラルが最初のパケットを送り、その時刻が最初のアンカーポイントになる。以後、接続間隔ごとに、毎回別のデータチャネル（ホップ量 7 なら 7、14、21、…）で接続イベントを行う。")
 F["e18_connect"] = _f18_connect()
 
 def _f18_event():
@@ -114,7 +114,7 @@ F["e18_event"] = _f18_event()
 
 def _f18_latency():
     o = []
-    x0, dx, n = 70, 46, 13
+    x0, dx, n = 104, 45, 13
     yc, yp = 58, 112
     X = lambda k: x0 + k * dx
     o.append(T(14, yc + 12, "セントラル", "start", 10.5, PUR, True))
@@ -267,13 +267,13 @@ def _f18_roles():
     for x0, title, att, arr in panels:
         o.append(T(x0, 20, title, "start", 10.5, INK, True))
         for k, (nm, c, ll) in enumerate((("スマートフォン", PUR, "セントラル"), ("機器 TH-01", SIG, "ペリフェラル"))):
-            bx = x0 + k * 204
-            o.append(RECT(bx, 34, 122, 92, 8, soft(c), c, 1.4))
-            o.append(T(bx + 61, 54, nm, "middle", 11, c, True))
-            s, w = CHIP(bx + 61, 80, ll, MUT, 9.5, a="middle"); o.append(s)
-            s, w = CHIP(bx + 61, 108, att[k], GLD if "サーバ" in att[k] else TEA, 9.5, a="middle"); o.append(s)
+            bx = x0 + k * 214
+            o.append(RECT(bx, 34, 112, 92, 8, soft(c), c, 1.4))
+            o.append(T(bx + 56, 54, nm, "middle", 11, c, True))
+            s, w = CHIP(bx + 56, 80, ll, MUT, 9.5, a="middle"); o.append(s)
+            s, w = CHIP(bx + 56, 108, att[k], GLD if "サーバ" in att[k] else TEA, 9.5, a="middle"); o.append(s)
         for (lab, d), y in zip(arr, (70, 104)):
-            o.append(ARR(x0 + 126, y, x0 + 200, y, c=MUT, lw=1.3, head=6) if d > 0 else ARR(x0 + 200, y, x0 + 126, y, c=MUT, lw=1.3, head=6))
+            o.append(ARR(x0 + 116, y, x0 + 210, y, c=MUT, lw=1.3, head=6) if d > 0 else ARR(x0 + 210, y, x0 + 116, y, c=MUT, lw=1.3, head=6))
             o.append(T(x0 + 163, y - 8, lab, "middle", 9.5, INK))
     o.append(T(14, 150, "灰色の札: リンク層の役割（どちらが接続を始めたか）。色の札: ATT の役割（データを持つのがサーバ、読み書きするのがクライアント）。", "start", 9.5, MUT))
     return SVG(700, 162, o, "リンク層の役割（セントラル・ペリフェラル）と ATT の役割（クライアント・サーバ）は別の軸である。(a) が多いが、(b) のように、ペリフェラルの機器がクライアントになることもある。1 台が両方の役を同時に持つこともできる。")
@@ -439,7 +439,7 @@ def _f18_disc():
         ("span", 0, 2, "記述子\nの探索", {"c": TEA, "side": -1}),
     ]
     s, h = seq(lanes, msgs, x=96, y=12, w=594, dy=30, label_sz=10)
-    return SVG(700, h + 20, [s], "3 節の表の探索（ATT_MTU 23）。サービス、独自のサービスの中のキャラクタリスティック、温度の値の後ろの記述子の順に調べる。範囲の中に見つからないと Error Response（0x0A）が返り、そこで次へ進む。128 ビットの UUID の宣言は 1 つで 21 バイトの組なので、1 往復で 1 つずつしか集められない。")
+    return SVG(700, h + 20, [s], "3 節の表の探索（ATT の PDU の長さの上限は既定の 23 バイト）。サービス、独自のサービスの中のキャラクタリスティック、温度の値の後ろの記述子の順に調べる。範囲の中に見つからないと Error Response（0x0A）が返り、そこで次へ進む。128 ビットの UUID の宣言は 1 つで 21 バイトの組なので、1 往復で 1 つずつしか集められない。")
 F["e18_disc"] = _f18_disc()
 
 def _f18_ops():
@@ -690,7 +690,7 @@ def _f18_txq():
             else:
                 o.append(RECT(x - 8, ry[1] - 8, 16, 16, 3, GOSOFT, GLD, 1.1, dash="3 2")); o.append(T(x, ry[1] + 4, str(i + 1), "middle", 9.5, GLD, True))
         if not good:
-            o.append(T(X(2.1) + 14, ry[1] + 22, "BUSY → 4・5・6 を捨てた", "start", 9.5, ALI, True))
+            o.append(T(X(2.1) + 14, ry[1] + 22, "BUSY → 4・5・6 を捨てた", "start", 9.5, ALI, True, halo=True))
         else:
             o.append(T(X(2.1) + 14, ry[1] + 22, "BUSY → 残して待つ", "start", 9.5, GLD, True))
             for k in range(3):
