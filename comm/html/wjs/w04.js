@@ -21,6 +21,7 @@
       var Tb=10/baud;
       var t0=Math.max(4*Tb,0.15*(blk+D*Tb));
       var W=t0+blk+Math.max(10*Tb,0.35*blk,1.2*D*Tb);
+      if(tisr>Tb)W=Math.max(W,t0+1.6*D/(1/Tb-1/tisr)+10*Tb);   /* ISR が追いつけないときは、FIFO があふれる所まで見せる */
       var dt=Math.min(Tb,tisr)/4,n=Math.ceil(W/dt);
       if(n>400000){dt=W/400000;n=400000;}
       var fifo=0,lost=0,busy=0,nextArr=Tb,lv=[[0,0]],lostT=[],spans=[],maxf=0;
@@ -123,7 +124,7 @@
     var S=U.S;
     U.head(el,"ORDER","読み書きの順番と、ISR が割り込む位置");
     var row=U.ctrls(el);
-    var sc=U.select(row,"場面",["受信: ISR が書き、タスクが読む","送信: タスクが書き、ISR が読む"],0,draw);
+    var sc=U.select(row,"場面",["受信（ISR → タスク）","送信（タスク → ISR）"],0,draw);
     var od=U.select(row,"タスクの文の順番",["正しい（データ → 添字）","逆（添字 → データ）"],0,draw);
     var stt=U.select(row,"始めの受信バッファ",["満杯（A B C D）","3 個（A B C）"],0,draw);
     var row2=U.ctrls(el);
@@ -243,9 +244,9 @@
       var avgIn=inSum/Wms*1000,capAvg=C===Infinity?Infinity:C/P*1000;
       var Ts=P+(SL>0&&fq>0?SL:0),est=r*1000*Ts/1000;
       if(burst)est=Math.min(est,B);
-      var html="届く速さ（届いている間）r = "+U.fmt.int(r*1000)+" バイト/秒 ・ 平均 "+U.fmt.int(avgIn)+" バイト/秒 ・ 読み手が取り出せる平均 "+(capAvg===Infinity?"制限なし":U.fmt.int(capAvg)+" バイト/秒")+"<br>"+
+      var html="届く速さ（届いている間）v = "+U.fmt.int(r*1000)+" バイト/秒 ・ 平均 "+U.fmt.int(avgIn)+" バイト/秒 ・ 読み手が取り出せる平均 "+(capAvg===Infinity?"制限なし":U.fmt.int(capAvg)+" バイト/秒")+"<br>"+
         "最大の量 <b>"+Math.round(maxl)+"</b> バイト（N = "+N+"） ・ あふれて失われた "+(drops>0.5?'<span class="warn">'+U.fmt.int(drops)+" バイト</span>":'<span class="ok">0 バイト</span>')+"<br>"+
-        "読み手が読まない最長の時間 T_s = 周期 + 止まる長さ = "+F.time(Ts/1000)+"（この図の中の最長 "+F.time(longest/1000)+"） ・ 見積もり r × T_s = <b>"+U.fmt.int(est)+"</b> バイト"+(burst?"（まとまりの大きさ "+Math.round(B)+" バイトを上限とする）":"");
+        "読み手が読まない最長の時間 T_s = 周期 + 止まる長さ = "+F.time(Ts/1000)+"（この図の中の最長 "+F.time(longest/1000)+"） ・ 見積もり v × T_s = <b>"+U.fmt.int(est)+"</b> バイト"+(burst?"（まとまりの大きさ "+Math.round(B)+" バイトを上限とする）":"");
       if(capAvg<avgIn*0.999)html+='<br><span class="warn">読み手の平均の速さが、届く平均の速さより小さい。どの大きさでもいつかはあふれる</span>';
       ro.innerHTML=html;
     }
@@ -263,7 +264,7 @@
     var row2=U.ctrls(el);
     var vr=U.checkbox(row2,"長さを乱数で変える（半分〜1.5 倍）",true,draw);
     var idl=U.checkbox(row2,"アイドルライン検出を使う",true,draw);
-    var dl=U.slider(row2,"知らせを処理するまでの遅れ d",{min:0,max:200,step:1,value:2,fmt:function(v){return v+" バイト分";},onInput:draw});
+    var dl=U.slider(row2,"割り込みが待たされる時間",{min:0,max:200,step:1,value:10,fmt:function(v){return v+" バイト分";},onInput:draw});
     var brw=U.btnrow(el);
     U.button(brw,"もう一度（別の乱数で）",function(){seed++;draw();});
     var box=U.svgbox(el); var ro=U.readout(el);
@@ -273,31 +274,39 @@
       /* メッセージの列（時刻は 1 バイトの時間を単位とする。バイトは整数の時刻に受け取り終わる） */
       var msgs=[],t=2;
       while(true){var l=vr.get()?Math.max(1,Math.round(L*rg.range(0.5,1.5))):L;if(t+l>TE-8)break;msgs.push([t,t+l]);t+=l+G;}
-      var slot=[],seqAt=[],pos=0,wseq=0,ev=[],arrT=[],msgOf=[];
-      for(var i=0;i<N;i++){slot.push(-1);}
-      msgs.forEach(function(m,mi){for(var tt=m[0]+1;tt<=m[1];tt++){slot[pos]=wseq;arrT.push(tt);msgOf.push(mi);wseq++;pos++;
-          if(pos===N/2)ev.push([tt,"半分"]);if(pos===N){pos=0;ev.push([tt,"全部"]);}
-          seqAt.push([tt,pos]);}
+      /* 割り込みが待たされる区間: 2N ごとに 1 回、長さ d、置く位置は乱数 */
+      var blocks=[];
+      if(d>0){var per=Math.max(2*N,d+N/2);for(var b0=0;b0<TE;b0+=per){var bs0=Math.round(b0+rg.range(0,per-d));if(bs0<TE)blocks.push([bs0,bs0+d]);}}
+      function blockEnd(tq){for(var i=0;i<blocks.length;i++)if(tq>=blocks[i][0]&&tq<blocks[i][1])return blocks[i][1];return null;}
+      var arrT=[],msgOf=[],pos=0,ev=[];
+      msgs.forEach(function(m,mi){for(var tt=m[0]+1;tt<=m[1];tt++){arrT.push(tt);msgOf.push(mi);pos++;
+          if(pos===N/2)ev.push([tt,"半分"]);if(pos===N){pos=0;ev.push([tt,"全部"]);}}
         if(useIdle)ev.push([m[1]+1,"アイドル"]);});
-      /* DMA が書く位置と、各スロットの中身を時刻ごとに求める */
-      function stateAt(tq){var p=0,sl=[];for(var i=0;i<N;i++)sl.push(-1);for(var k=0;k<arrT.length&&arrT[k]<=tq;k++){sl[p]=k;p=(p+1)%N;}return {pos:p,slot:sl};}
       ev.sort(function(a,b){return a[0]-b[0];});
-      var last=0,deliv=[],rows=[],procT=[],deliveredAt=[];
-      ev.forEach(function(e){var tp=e[0]+d;var stt=stateAt(tp),p=stt.pos,rngs=[];
-        function take(a,b){for(var q=a;q<b;q++){var sq=stt.slot[q];deliv.push(sq);if(sq>=0&&deliveredAt[sq]==null)deliveredAt[sq]=tp;}rngs.push(a+"〜"+(b-1));}
+      /* 各知らせを処理する時刻: 待たされる区間の中なら区間の終わり（まとめて 1 回）、そうでなければすぐ */
+      var procs=[];
+      ev.forEach(function(e){var be=blockEnd(e[0]),tp=be==null?e[0]:be;
+        if(procs.length&&procs[procs.length-1].t===tp)procs[procs.length-1].ev.push(e);else procs.push({t:tp,ev:[e]});});
+      function stateAt(tq){var p=0,sl=[];for(var i=0;i<N;i++)sl.push(-1);for(var k=0;k<arrT.length&&arrT[k]<=tq;k++){sl[p]=k;p=(p+1)%N;}return {pos:p,slot:sl};}
+      var last=0,deliv=[],rows=[],deliveredAt=[];
+      procs.forEach(function(q){var stt=stateAt(q.t),p=stt.pos,rngs=[];
+        function take(a,b){for(var k=a;k<b;k++){var sq=stt.slot[k];deliv.push(sq);if(sq>=0&&deliveredAt[sq]==null)deliveredAt[sq]=q.t;}rngs.push(a+"〜"+(b-1));}
         if(p>last)take(last,p);else if(p<last){take(last,N);if(p>0)take(0,p);}
-        last=p;procT.push([tp,p,e[1]]);
-        rows.push([String(e[0]),e[1],String(tp),String(p),rngs.length?rngs.join("、"):"（なし）"]);});
-      /* 結果: 送った順に全部届いたか */
-      var okSeq=true,miss=0,seen={};
-      for(var k=0;k<deliv.length;k++){if(deliv[k]!==k)okSeq=false;seen[deliv[k]]=1;}
-      for(var s2=0;s2<wseq;s2++)if(!seen[s2])miss++;
+        last=p;q.pos=p;
+        rows.push([q.ev.map(function(e){return e[0];}).join("・"),q.ev.map(function(e){return e[1];}).join("・"),String(q.t),String(p),rngs.length?rngs.join("、"):"（なし）"]);});
+      /* 処理した列を、送った順（0, 1, 2, …）と比べる。最後に処理したものより後は「まだ処理していない」 */
+      var okSeq=true,seen={},maxD=-1;
+      for(var k=0;k<deliv.length;k++){if(deliv[k]!==k)okSeq=false;if(deliv[k]>=0){seen[deliv[k]]=1;maxD=Math.max(maxD,deliv[k]);}}
+      var miss=0,pend=arrT.length-1-maxD;
+      for(var s2=0;s2<=maxD;s2++)if(!seen[s2])miss++;
       var dup=deliv.length-Object.keys(seen).length;
-      /* メッセージごとの遅れ（最後のバイトを受け取り終えてから、処理されるまで） */
-      var dls=[];msgs.forEach(function(m,mi){var lastSeq=-1;for(var k=0;k<msgOf.length;k++)if(msgOf[k]===mi)lastSeq=k;if(lastSeq>=0&&deliveredAt[lastSeq]!=null)dls.push(deliveredAt[lastSeq]-m[1]);});
+      var dls=[];msgs.forEach(function(m,mi){var ls=-1;for(var k=0;k<msgOf.length;k++)if(msgOf[k]===mi)ls=k;if(ls>=0&&deliveredAt[ls]!=null)dls.push(deliveredAt[ls]-m[1]);});
+      /* 処理と処理の間に書かれたバイト数の最大 */
+      var maxGap=0,prevCnt=0;procs.forEach(function(q){var c=0;for(var k=0;k<arrT.length&&arrT[k]<=q.t;k++)c++;maxGap=Math.max(maxGap,c-prevCnt);prevCnt=c;});
       var o=[],p=U.plot(110,56,560,120,[0,TE],[0,N]);
       o.push(S.T(100,34,"RX の線","end",9.5,"muted"));
       msgs.forEach(function(m){o.push(S.RECT(p.X(m[0]),24,Math.max(1.5,p.X(m[1])-p.X(m[0])),14,2,U.soft("signal"),"signal",1));});
+      blocks.forEach(function(q){if(q[0]<TE)o.push(S.RECT(p.X(q[0]),p.y,Math.max(1,p.X(Math.min(q[1],TE))-p.X(q[0])),p.h,0,U.soft("teal"),"none",0));});
       o.push(p.axes({xl:"時間（1 バイトの時間を単位とする。115200 bps なら 1 = 86.8 µs）",yl:"次に書く位置",xt:U.nice(0,TE,6),yt:[0,N/2,N],yfmt:function(v){return String(v);}}));
       o.push(p.line([[0,N/2],[TE,N/2]],"faint",1,"3 3"));
       var pl=[[0,0]],pp=0;
@@ -308,15 +317,16 @@
       o.push(S.T(100,ye+4,"知らせ","end",9.5,"muted"));
       ev.forEach(function(e){var c=e[1]==="アイドル"?"signal":"gold";o.push(S.L(p.X(e[0]),ye-6,p.X(e[0]),ye+6,c,2));});
       o.push(S.T(100,ye+26,"処理","end",9.5,"muted"));
-      procT.forEach(function(q){o.push(S.D(p.X(q[0]),ye+22,"purple",2.6));});
-      o.push(S.T(p.x,ye+44,"金: 半分完了・全部完了、青: アイドルライン、紫の点: 処理した時刻","start",9.5,"muted"));
+      procs.forEach(function(q){o.push(S.D(p.X(q.t),ye+22,"purple",2.6));});
+      o.push(S.T(p.x,ye+44,"金: 半分完了・全部完了、青: アイドルライン、紫の点: 処理した時刻、青緑の帯: ときどき割り込みが待たされる間","start",9.5,"muted"));
       box.set(S.svg(700,ye+54,o));
       var cond=d<N/2;
       var mx=dls.length?Math.max.apply(null,dls):0,av=dls.length?dls.reduce(function(a,b){return a+b;},0)/dls.length:0;
       var html="知らせ: 半分 "+ev.filter(function(e){return e[1]==="半分";}).length+" 回、全部 "+ev.filter(function(e){return e[1]==="全部";}).length+" 回、アイドル "+ev.filter(function(e){return e[1]==="アイドル";}).length+" 回 ・ "+
-        "メッセージの最後のバイトから処理まで: 平均 <b>"+U.sig(av,3)+"</b>、最大 <b>"+mx+"</b> バイト分（115200 bps なら最大 "+F.time(mx*10/115200)+"）<br>"+
-        "条件 d < N/2: d = "+d+"、N/2 = "+(N/2)+" → "+(cond?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+" ・ "+
-        (okSeq&&miss===0?'<span class="ok">送ったバイトを、順番どおり全部処理した</span>':'<span class="warn">上書きされて失われたバイト '+miss+(dup>0?"、2 回処理したバイト "+dup:"")+'（順番も乱れた）</span>');
+        "メッセージの最後のバイトから処理まで: 平均 <b>"+U.sig(av,3)+"</b>、最大 <b>"+Math.round(mx)+"</b> バイト分（115200 bps なら最大 "+F.time(mx*10/115200)+"）<br>"+
+        "処理と処理の間に書かれたバイト数の最大 <b>"+maxGap+"</b>（N = "+N+" 未満なら失わない） ・ 条件 L_max < (N/2) T_B: 待たされる時間 "+d+" バイト分、N/2 = "+(N/2)+" バイト分 → "+(cond?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"<br>"+
+        (okSeq&&miss===0&&dup===0?'<span class="ok">送ったバイトを、順番どおりに抜けなく処理した</span>':'<span class="warn">上書きされて失われたバイト '+miss+(dup>0?"、2 回処理したバイト "+dup:"")+'（処理した順番も乱れた）</span>')+
+        (pend>0?" ・ 図の終わりの時点で、まだ処理されていないバイト "+pend:"");
       if(!useIdle)html+="<br>アイドルライン検出がないので、メッセージの終わりは、次の「半分」か「全部」まで処理されない。";
       html+=U.tbl(["知らせの時刻","種類","処理した時刻","pos","処理した範囲"],rows.slice(0,8),["right","left","right","right","left"])+(rows.length>8?'<div class="wnote">（最初の 8 回だけを表示）</div>':"");
       ro.innerHTML=html;
