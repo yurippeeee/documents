@@ -67,18 +67,18 @@ def _f19_packet():
     xb = xa + 56 + 120 + 60
     o.append(W(xa, 44, xa, 38, xb, 38, xb, 44, c=SIG, lw=1.2))
     o.append(T((xa + xb) / 2, 32, "PDU（17 章 2 節）", "middle", 9.5, SIG, True))
-    o.append(T(14, 244, "P: ペイロードのバイト数（DLE なしは 0〜27、DLE ありは 0〜251。暗号化しているときは MIC の 4 を足す）。", "start", 9.5, MUT))
+    o.append(T(14, 244, "P: ペイロードのバイト数（接続中はもとは 0〜27。延ばすと 0〜251。暗号化しているときは MIC の 4 を足す）。", "start", 9.5, MUT))
     o.append(T(14, 260, "MIC は、接続を暗号化しているときに、ペイロードのあるパケットにだけ付く（ペイロードの無いパケットには付かない）。", "start", 9.5, MUT))
     return SVG(700, 270, o, "リンク層のパケットの形と、各部分の時間。LE 1M は 1 バイトを 8 µs、LE 2M は 4 µs で送る。LE 2M のプリアンブルは 2 バイトなので、どちらもプリアンブルは 8 µs になる。接続中のパケットも、17 章のアドバタイズのパケットも、この形をしている。")
 F["e19_packet"] = _f19_packet()
 
 def _f19_airtime():
     o = []
-    rows = [("ペイロード 0 バイト", "LE 1M", 0, "1M"), ("", "LE 2M", 0, "2M"),
+    rows = [("空パケット", "LE 1M", 0, "1M"), ("", "LE 2M", 0, "2M"),
             ("ペイロード 27 バイト", "LE 1M", 27, "1M"), ("", "LE 2M", 27, "2M"),
             ("ペイロード 251 バイト", "LE 1M", 251, "1M"), ("", "LE 2M", 251, "2M"),
             ("ADV_IND（AdvData 31 バイト）", "LE 1M", 37, "1M"),
-            ("ペイロード 0 バイト", "LE Coded（S = 2）", 0, "S2"), ("", "LE Coded（S = 8）", 0, "S8")]
+            ("空パケット", "LE Coded（S = 2）", 0, "S2"), ("", "LE Coded（S = 8）", 0, "S8")]
     x0, sc, y0, rh = 250, 0.19, 16, 24
     X = lambda t: x0 + t * sc
     for t in (0, 500, 1000, 1500, 2000):
@@ -102,7 +102,7 @@ def _f19_airtime():
     yl = y0 + len(rows) * rh + 50
     o.append(LEGEND(14, yl, [(MUT, "プリアンブル・アクセスアドレス・ヘッダ・CRC（P によらない）"), (SIG, "ペイロード")]))
     o.append(LEGEND(14, yl + 18, [(GLD, "LE Coded（パケットの形が違う。符号化しない前半と、S 倍の時間で送る後半）")]))
-    return SVG(700, yl + 28, o, "パケットの空中時間（暗号化なし）。LE 1M では 10 バイト分（80 µs）、LE 2M では 11 バイト分（44 µs）が、ペイロードの長さによらずにかかる。LE Coded は、ペイロードが 0 バイトでも LE 1M の 5.8〜9 倍の時間がかかる。")
+    return SVG(700, yl + 28, o, "パケットの空中時間（暗号化なし）。LE 1M では 10 バイト分（80 µs）、LE 2M では 11 バイト分（44 µs）が、ペイロードの長さによらずにかかる。LE Coded は、空パケットでも LE 1M の 5.8〜9 倍の時間がかかる。")
 F["e19_airtime"] = _f19_airtime()
 
 # ---- 2 節: ヘッダのビット ----
@@ -117,7 +117,7 @@ def _f19_header():
              (x0 + 4.5 * bw, "MD（More Data）: まだ送るものがある", GLD, None),
              (x0 + 3.5 * bw, "SN（Sequence Number）: このパケットの 1 ビットの番号", GRN, None),
              (x0 + 2.5 * bw, "NESN（Next Expected SN）: 相手から次に受け取りたい番号", GRN, None),
-             (x0 + 1.0 * bw, "LLID: 中身の種類（L2CAP のメッセージの始まり・続き、リンク層の制御）", SIG, None)]
+             (x0 + 1.0 * bw, "LLID: 中身の種類（L2CAP のパケットの始まり・続き、リンク層の制御）", SIG, None)]
     for k, (xl, txt, c, xt) in enumerate(items):
         yy = yb + 22 + k * 17
         if k == 0:
@@ -223,7 +223,7 @@ def _f19_nest():
     for k in range(8):
         xx = pkt(xx, y, [("", 7, SIG), ("", 27, INK), ("", 5, SIG)]) + 4
     xx = pkt(xx, y, [("", 7, SIG), ("", 8, INK), ("", 5, SIG)])
-    o.append(T(xs, y + 44, "L2CAP のメッセージ 251 バイトが、ペイロード 27 バイトずつの 10 個のパケットに分かれる（9 × 27 + 8）", "start", 9, MUT))
+    o.append(T(xs, y + 44, "251 バイトの L2CAP のパケットが、ペイロード 27 バイトずつの 10 個のパケットに分かれる（9 × 27 + 8）", "start", 9, MUT))
     # (d)
     y = y0 + 3 * rh
     xe = pkt(xs, y, head + [("値 20", 70, INK), ("CRC 3", 44, SIG)])
@@ -233,7 +233,7 @@ def _f19_nest():
     yl = y0 + 4 * rh + 2
     o.append(LEGEND(14, yl, [(SIG, "リンク層（リンク層 7 = プリアンブル 1・アクセスアドレス 4・ヘッダ 2）"), (GRN, "L2CAP"), (PUR, "ATT")]))
     o.append(LEGEND(14, yl + 18, [(INK, "値（アプリケーションのデータ）。長さは縮尺どおりではない")]))
-    return SVG(700, yl + 28, o, "通知の値がリンク層のパケットに入る形（LE 1M）。L2CAP のヘッダ 4 バイト（長さとチャネル）と ATT のヘッダ 3 バイト（命令の番号とハンドル）が値の前に付く。DLE と ATT_MTU は、L2CAP のメッセージがちょうど 1 つのパケットに入るように、そろえて大きくする。")
+    return SVG(700, yl + 28, o, "通知の値がリンク層のパケットに入る形（LE 1M）。L2CAP のヘッダ 4 バイト（長さとチャネル ID）と、ATT のオペコードとハンドルの 3 バイトが、値の前に付く。DLE と ATT_MTU は、L2CAP のパケットがちょうど 1 つのリンク層のパケットに入るように、そろえて大きくする。")
 F["e19_nest"] = _f19_nest()
 
 # ---- 2 節: 理論値 ----
@@ -271,7 +271,7 @@ def _f19_theory():
         xx += _F19_IFS
         o.append(T(X(xx) + 6, y + 18, "%g µs" % Tex, "start", 9.5, INK, True))
     yl = y0 + len(rows) * rh + 6
-    o.append(LEGEND(14, yl, [(SIG, "値"), (GRN, "L2CAP・ATT のヘッダ 7"), (MUT, "リンク層の固定の部分"), (TEA, "MIC"), (PUR, "相手の空のパケット")], gap=12))
+    o.append(LEGEND(14, yl, [(SIG, "値"), (GRN, "L2CAP・ATT のヘッダ 7"), (MUT, "リンク層の固定の部分"), (TEA, "MIC"), (PUR, "相手の空パケット")], gap=12))
     o.append(T(14, yl + 18, "破線の枠は IFS（150 µs）。理論値 = 1 往復に運ぶ値のビット数 ÷ 1 往復の時間。", "start", 9.5, MUT))
     return SVG(700, yl + 28, o, "データのパケット 1 つ分の往復と、スループットの理論値（ペリフェラルが通知を送り続け、何も失われず、接続イベントが途切れない場合）。LE 1M・DLE なしでは、1 往復 676 µs のうち値を送っているのは 160 µs だけである。")
 F["e19_theory"] = _f19_theory()
@@ -282,7 +282,7 @@ def _f19_write():
     x0, s = 120, 8.0                      # px/ms
     X = lambda t: x0 + t * s
     ev = [0, 15, 30, 45]
-    rows = [("(a) 通知", "ペリフェラル → セントラル", 40), ("(b) 応答付きの書き込み", "セントラル → ペリフェラル", 140)]
+    rows = [("(a) 通知", "ペリフェラル → セントラル", 40), ("(b) Write Request", "セントラル → ペリフェラル", 140)]
     for nm, sub, y in rows:
         o.append(T(14, y + 2, nm, "start", 10.5, INK, True))
         o.append(T(14, y + 17, sub, "start", 9, MUT))
@@ -309,11 +309,11 @@ def _f19_write():
         if i % 2 == 0:
             o.append(RECT(X(e), y + 26, 1.048 * s, 12, 1, PSOFT, PUR, 0.9))
             o.append(RECT(X(e + 1.198), y + 54, 1.6, 8, 0.5, SSOFT, SIG, 0.8))
-            o.append(T(X(e) + 14, y + 35, "書き込み要求（値 244）", "start", 9, PUR, True))
+            o.append(T(X(e) + 14, y + 35, "Write Request（値 244）", "start", 9, PUR, True))
         else:
             o.append(RECT(X(e), y + 30, 1.6, 8, 0.5, PSOFT, PUR, 0.8))
             o.append(RECT(X(e + 0.194), y + 50, 2.0, 12, 0.5, SSOFT, SIG, 0.9))
-            o.append(T(X(e) + 8, y + 59, "書き込み応答", "start", 9, SIG, True))
+            o.append(T(X(e) + 8, y + 59, "Write Response", "start", 9, SIG, True))
     o.append(T(X(60) + 6, y + 47, "2 回の間隔で", "start", 9, PUR, True))
     o.append(T(X(60) + 6, y + 60, "244 バイト", "start", 9, PUR, True))
     # 時間軸
@@ -322,8 +322,8 @@ def _f19_write():
     for t in (0, 15, 30, 45, 60):
         o.append(W(X(t), ya, X(t), ya + 4, c=MUT, lw=1))
         o.append(T(X(t), ya + 16, "%d ms" % t, "middle", 9.5, MUT))
-    o.append(T(x0, ya + 34, "破線: アンカーポイント（接続間隔 15 ms）。LE 2M・DLE・ATT_MTU 247。小さな箱は空パケットと書き込み応答。", "start", 9.5, MUT))
-    return SVG(700, ya + 44, o, "通知（応答を待たない）と応答付きの書き込み（応答を待つ）。(a) は 1 回のイベントに間隔いっぱいの 10 往復を詰められるので 10 × 244 × 8 ÷ 15 ms ≈ 1301 kbps、(b) は応答が次のイベントで返り、次の要求がさらにその次のイベントになると、244 × 8 ÷ 30 ms ≈ 65 kbps にとどまる。")
+    o.append(T(x0, ya + 34, "破線: アンカーポイント（接続間隔 15 ms）。LE 2M・DLE・ATT_MTU 247。小さな箱は空パケットと Write Response。", "start", 9.5, MUT))
+    return SVG(700, ya + 44, o, "通知（応答を待たない）と Write Request（応答を待つ）。(a) は 1 回のイベントに間隔いっぱいの 10 往復を詰められるので 10 × 244 × 8 ÷ 15 ms ≈ 1301 kbps、(b) は応答が次のイベントで返り、次の要求がさらにその次のイベントになると、244 × 8 ÷ 30 ms ≈ 65 kbps にとどまる。")
 F["e19_write"] = _f19_write()
 
 # ---- 3 節: 理論値から実効値への落ち方 ----
@@ -452,7 +452,7 @@ def _f19_widen():
         o.append(RECT(X(-w), y + 24, (w + 80) * s, 12, 2, TSOFT, TEA, 1.0))
         o.append(T(X(80) + 8, y + 34, "受信 %g µs" % (w + 80), "start", 9.5, TEA, True))
     yl = 40 + 3 * 46 + 4
-    o.append(LEGEND(14, yl, [(PUR, "セントラルの空のパケット（80 µs）"), (GLD, "時計の誤差で、届きうる範囲（± 窓）"), (TEA, "ペリフェラルが受信している時間")], gap=12))
+    o.append(LEGEND(14, yl, [(PUR, "セントラルの空パケット（80 µs）"), (GLD, "時計の誤差で、届きうる範囲（± 窓）"), (TEA, "ペリフェラルが受信している時間")], gap=12))
     o.append(T(14, yl + 18, "窓 = 両者の時計の誤差の合計 ε × 前回のアンカーポイントからの時間（例 ε = 50 + 50 = 100 ppm）。", "start", 9.5, MUT))
     return SVG(700, yl + 28, o, "ペリフェラルが受信を始める時刻。前回のアンカーポイントから時間がたつほど、両者の時計のずれの最大の値が大きくなるので、ペリフェラルはそのぶん早く受信を始める。図は、セントラルのパケットが予定どおりに届いた場合。")
 F["e19_widen"] = _f19_widen()

@@ -17,7 +17,7 @@
     var ll=U.slider(r1,"ペイロードの最大（DLE）",{values:[27,60,100,123,160,200,251],value:251,fmt:function(v){return v+" バイト"+(v===27?"（DLE なし）":"");},onInput:draw});
     var mtu=U.slider(r1,"ATT_MTU",{values:[23,50,100,158,185,247,300,512],value:247,fmt:function(v){return String(v);},onInput:draw});
     var r2=U.ctrls(el);
-    var how=U.select(r2,"送り方",["通知・応答なしの書き込み","応答付きの書き込み（1 回に接続間隔 1 回分）","応答付きの書き込み（1 回に接続間隔 2 回分）"],0,draw);
+    var how=U.select(r2,"送り方",["通知・Write Command（待たない）","Write Request・指示（1 回に接続間隔 1 回分）","Write Request・指示（1 回に接続間隔 2 回分）"],0,draw);
     var enc=U.checkbox(r2,"暗号化（MIC 4 バイト）",true,draw);
     var r3=U.ctrls(el);
     var ci=U.slider(r3,"接続間隔",{values:[7.5,10,15,20,30,45,50,75,100,200,500,1000,4000],value:15,fmt:function(v){return v+" ms";},onInput:draw});
@@ -32,7 +32,7 @@
     U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
     var box=U.svgbox(el,{scroll:true}); var ro=U.readout(el);
 
-    /* frags: データのパケットの空中時間の列（L2CAP のメッセージ 1 つ分）、t0: 空パケット、k: 書き込みなら 1・2、通知なら 0 */
+    /* frags: データのパケットの空中時間の列（L2CAP のパケット 1 つ分）、t0: 空パケット、k: 書き込みなら 1・2、通知なら 0 */
     function simulate(o){
       var R=U.rng(o.seed),fi=0,pdus=0,lost=0,rounds=0,next=0,ev0=[];
       for(var e=0;e<o.Nev;e++){
@@ -102,10 +102,10 @@
       var warn="";
       if(!sQ.rounds)warn='<span class="warn">1 往復（'+F.time((frE[0]+300+t0)*1e-6)+'）が接続間隔より長く、1 つも送れない。実際には、データ長の更新で、間隔に入る長さのパケットに決まる。</span><br>';
       ro.innerHTML=warn+_w19_PHYNAME[P]+": データのパケット t_d = "+_w19_sig(frE[0],5)+" µs（ペイロード "+sizes[0]+" バイト"+(E?"・MIC あり":"")+"）、空パケット t_0 = "+t0+" µs、1 往復 T_ex = "+_w19_sig(frE[0]+300+t0,5)+" µs<br>"+
-        "値 D = ATT_MTU − 3 = <b>"+D+" バイト</b>、L2CAP のメッセージ "+Lm+" バイト → リンク層のパケット <b>"+f+" 個</b>"+(f>1?'（<span class="warn">分かれる</span>。ATT_MTU を '+(LL-4)+' 以下にするか DLE を大きくすると 1 個に収まる）':"")+(LL>Lm?'（ペイロードの最大 '+LL+' のうち '+Lm+' バイトしか使わない）':"")+"<br>"+
+        "値 D = ATT_MTU − 3 = <b>"+D+" バイト</b>、L2CAP のパケット "+Lm+" バイト → リンク層のパケット <b>"+f+" 個</b>"+(f>1?'（<span class="warn">分かれる</span>。ATT_MTU を '+(LL-4)+' 以下にするか DLE を大きくすると 1 個に収まる）':"")+(LL>Lm?'（ペイロードの最大 '+LL+' のうち '+Lm+' バイトしか使わない）':"")+"<br>"+
         "理論値 <b>"+_w19_sig(th0,4)+" kbps</b>"+(E?"（暗号化で "+_w19_sig(thE,4)+" kbps）":"")+" → 実効値の目安 <b>"+_w19_sig(fin,4)+" kbps</b>（理論値の "+_w19_sig(fin/th0*100,3)+" %）<br>"+
         "100 KB（102,400 バイト）を送る時間: 理論値で "+F.time(102400*8/(th0*1000))+"、目安で <b>"+(fin>0?F.time(102400*8/(fin*1000)):"—")+"</b>"+
-        '<div class="wnote">失われ方は、往復ごとに無関係に、決めた割合で失われるとした。失われた往復は次の往復で送り直す。応答付きの書き込みでは、1 回の要求の後、次の要求を間隔 1〜2 回分待つとした（実装による）。</div>';
+        '<div class="wnote">失われ方は、往復ごとに無関係に、決めた割合で失われるとした。失われた往復は次の往復で送り直す。Write Request・指示では、1 回の後、次を送るまで接続間隔 1〜2 回分待つとした（実装による）。</div>';
     }
     draw();
   };
@@ -223,7 +223,7 @@
         "I_avg = I_s"+(M===1?" + I_rx ε":"")+" + Q ÷ T_e = "+F.cur(Is)+(M===1?" + "+F.cur(Iw):"")+" + "+F.cur(Iev)+" = <b>"+F.cur(I)+"</b><br>"+
         "電池寿命 = "+cap.get()+" mAh ÷ "+F.cur(I)+" ≈ <b>"+_w19_life(lifeH)+"</b> ・ T* = Q ÷ (I_s"+(M===1?" + I_rx ε":"")+") = <b>"+F.time(Ts)+"</b> → "+
         (Te<Ts?'間隔が T* より<b>短い</b>ので、間隔を延ばす（1 回の電荷を減らす）のが効く':'間隔が T* より<b>長い</b>ので、眠りの電流'+(M===1?"と時計の誤差":"")+'を減らすのが効く')+
-        (M===1?"<br>上りの遅れ（ペリフェラル → セントラル）は最大 "+F.time(ci.get())+"、下りの遅れ（セントラル → ペリフェラル）は最大 "+F.time(Te)+" ・ 監視タイムアウトは "+F.time(sto)+" より長くする":"")+
+        (M===1?"<br>上りの遅れ（ペリフェラル → セントラル）は最大 "+F.time(ci.get())+"、下りの遅れ（セントラル → ペリフェラル）は最大 "+F.time(Te)+" ・ 監視タイムアウト（100 ms〜32 s）は 2 × (1 + L) × 接続間隔 = "+F.time(sto)+" より長くする":"")+
         '<div class="wnote">1 回の電荷は 4 節の例（アドバタイズ ADV_IND 14.2 µC、送るもののない接続イベント 3.69 µC + 窓の分、通知 20 バイトを毎回送るなら約 5.2 µC）。接続では、窓の分を受信の電流 × ε × T_e として別に数える。</div>';
     }
     draw();
