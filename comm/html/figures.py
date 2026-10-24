@@ -43,6 +43,8 @@ def tw(s, sz=11.5, mono=False):
             w += sz * (0.6 if mono else 0.56)
         elif 0xFF61 <= o <= 0xFF9F:
             w += sz * 0.55
+        elif o in (0xB2, 0xB3, 0xB9) or 0x2070 <= o <= 0x209F:   # 上付き・下付きの数字（10⁶ など）は幅が狭い
+            w += sz * 0.4
         else:
             w += sz * 1.0
     return w
