@@ -55,7 +55,7 @@
         st.push(r);if(i<37){cnt[r]++;if(r==="clear")clr.push(i);}
         var x0=p.X(f-0.9),x1=p.X(f+0.9),adv=i>=37;
         o.push(S.RECT(x0,yb+10,x1-x0,24,2,U.soft(COL[r]),COL[r],adv?2.2:1));
-        o.push(S.T((x0+x1)/2,yb+47,String(i),"middle",8.5,adv?"purple":COL[r],adv,true));}
+        o.push(S.T((x0+x1)/2,yb+48,String(i),"middle",9.5,adv?"purple":COL[r],adv,true));}
       o.push(S.T(62,yb+26,"BLE","end",10,"ink",true));o.push(S.T(62,yb+47,"番号","end",9,"muted"));
       var ya=yb+58;o.push(S.L(p.X(2400),ya,p.X(2484),ya,"muted",1.1));
       [2400,2420,2440,2460,2480].forEach(function(fr){o.push(S.L(p.X(fr),ya,p.X(fr),ya+4,"muted",1));o.push(S.T(p.X(fr),ya+16,String(fr),"middle",9.5,"muted"));});
@@ -164,7 +164,7 @@
         o.push(S.RECT(xa,14,xb-xa,8,2,"var(--muted-soft)","muted",0.8));o.push(S.T((xa+xb)/2,11,r[2],"middle",9,"muted"));});
       for(var c=0;c<37;c++){var u=map[c],col=u?"green":"alias";
         o.push('<g data-ch="'+c+'" style="cursor:pointer">'+S.RECT(x0+c*cw+1,yc-12,cw-2,24,2,U.soft(col),col,u?1.3:0.8)+
-          S.T(x0+c*cw+cw/2,yc+4,String(c),"middle",8.5,col,u,true)+'</g>');}
+          S.T(x0+c*cw+cw/2,yc+4,String(c),"middle",9.5,col,u,true)+'</g>');}
       o.push(S.T(x0-6,yc+4,"マップ","end",9.5,"ink",true));
       o.push(S.T(x0,yc+28,"升目を押すと、使う（緑）・使わない（赤）が切り替わる","start",9.5,"muted"));
       /* 接続イベントごとのチャネル */
@@ -181,8 +181,8 @@
       o.push(S.T(x0-6,yh-hh/2,"使った","end",9.5,"ink",true));o.push(S.T(x0-6,yh-hh/2+13,"回数","end",9.5,"ink",true));
       for(var c3=0;c3<37;c3++){var bh=mx?hh*cnt[c3]/mx:0;
         if(cnt[c3])o.push(S.RECT(x0+c3*cw+2,yh-bh,cw-4,bh,1,U.soft("green"),"green",1));
-        o.push(S.T(x0+c3*cw+cw/2,yh+12,String(c3),"middle",8,map[c3]?"green":"faint",false,true));
-        if(cnt[c3]&&mx<=99)o.push(S.T(x0+c3*cw+cw/2,yh-bh-3,String(cnt[c3]),"middle",8,"ink"));}
+        o.push(S.T(x0+c3*cw+cw/2,yh+13,String(c3),"middle",9.5,map[c3]?"green":"faint",false,true));
+        if(cnt[c3]&&mx<=99)o.push(S.T(x0+c3*cw+cw/2,yh-bh-3,String(cnt[c3]),"middle",9.5,"ink"));}
       o.push(S.L(x0,yh,x0+37*cw,yh,"muted",1));
       var lg=yh+30;
       o.push(S.D(x0+6,lg-4,"signal",3.5));o.push(S.T(x0+14,lg,"そのまま使った","start",9.5,"signal"));
@@ -197,7 +197,7 @@
       if(a===0&&N<37&&h%N===0)note='<br><span class="warn">h = '+h+' が N = '+N+' で割り切れるので、割り当て直しが続くと同じチャネルが続く。</span>';
       if(a===0&&N===37)note='<br>使わないチャネルが無いので、37 回で 37 本を 1 回ずつ使い、38 回目からは同じ列を繰り返す。';
       ro.innerHTML=msg+"使うチャネル N = <b>"+N+"</b> 本"+(N<37?"（"+used.join("・")+" 番）":"")+"<br>"+
-        "1〜12 回目: "+first+"（金は 割り当て直す前 → 使ったチャネル）<br>"+
+        "1〜12 回目: "+first+"（金は、割り当て直す前の番号 → 使ったチャネル）<br>"+
         "割り当て直した回数 <b>"+rm+"</b> / "+E+" 回 ・ 続く 2 回で同じチャネルになった回数 <b>"+same+"</b> / "+(E-1)+" ・ 使うチャネルごとの使った回数: 最少 "+mn+" 回、最多 "+mxu+" 回"+
         (a===1?"<br>#2 の接続ごとの 16 ビットの値 = 0x"+U.fmt.hex(cid,4)+(cid===0x305F?"（Core Specification の計算例と同じ値。全部使うとき 1〜4 回目は 25・20・6・21 番）":""):"")+note;
     }

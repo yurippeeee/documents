@@ -109,9 +109,9 @@ def _f16_chmap():
         c = PUR if i in _F16_ADV else SIG
         x0, x1 = p.X(f - 0.9), p.X(f + 0.9)
         o.append(RECT(x0, yc, x1 - x0, hc, 2, soft(c), c, 1.1))
-        o.append(T((x0 + x1) / 2, yc - 6, str(i), "middle", 9, c, i in _F16_ADV, True))
+        o.append(T((x0 + x1) / 2, yc - 6, str(i), "middle", 9.5, c, i in _F16_ADV, True))
         k = (f - 2402) // 2
-        o.append(T((x0 + x1) / 2, yc + hc + 14, str(k), "middle", 8.5, MUT, False, True))
+        o.append(T((x0 + x1) / 2, yc + hc + 14, str(k), "middle", 9.5, MUT, False, True))
     # 区間の括弧
     def brace(fa, fb, y, text, c):
         xa, xb = p.X(fa - 0.9), p.X(fb + 0.9)
@@ -156,7 +156,7 @@ def _f16_wifi():
         c = col[st]
         x0, x1 = p.X(f - 0.9), p.X(f + 0.9)
         o.append(RECT(x0, yc, x1 - x0, hc, 2, soft(c), c, 2.0 if i in _F16_ADV else 1.0))
-        o.append(T((x0 + x1) / 2, yc + hc + 13, str(i), "middle", 8.5, PUR if i in _F16_ADV else c, i in _F16_ADV, True))
+        o.append(T((x0 + x1) / 2, yc + hc + 14, str(i), "middle", 9.5, PUR if i in _F16_ADV else c, i in _F16_ADV, True))
     o.append(T(70, yc + 16, "BLE", "end", 10, INK, True))
     o.append(T(70, yc + hc + 13, "番号", "end", 9, MUT))
     ya = yc + hc + 26
@@ -233,8 +233,8 @@ def _f16_gfsk():
     # 1 ビットの寸法
     yd = yw + Aw + 18
     o.append(DIM(X(0), yd, X(1), yd, None, c=MUT))
-    o.append(T(X(1) + 8, yd + 4, "1 シンボル = 1 ビット = 1 µs（LE 1M）。1 の間は波が細かく（周波数が高く）、0 の間は粗くなる", "start", 9.5, MUT))
-    return SVG(700, yd + 16, o, "GFSK で、ビット 1 0 1 1 0 0 1 0 を送るときの周波数の動き（LE 1M、変調指数 0.5 の場合）。1 なら中心より約 250 kHz 高く、0 なら約 250 kHz 低くする。ビットが変わる所の急な変化（破線）を、ガウス形のフィルタでなめらかにしてから送る。いちばん下の波は、周波数の違いが見えるように大きく誇張して描いたもの（実際の中心の周波数は 2.4 GHz で、ずれは 1 万分の 1 ほど）。")
+    o.append(T(X(1) + 8, yd + 4, "1 シンボル = 1 ビット = 1 µs（1 Msym/s）。1 の間は周波数が高く、波が細かい", "start", 9.5, MUT))
+    return SVG(700, yd + 16, o, "GFSK で、ビット 1 0 1 1 0 0 1 0 を送るときの周波数の動き（1 Msym/s、変調指数 0.5 の場合）。1 なら中心より約 250 kHz 高く、0 なら約 250 kHz 低くする。ビットが変わる所の急な変化（破線）を、ガウス形のフィルタでなめらかにしてから送る。いちばん下の波は、周波数の違いが見えるように大きく誇張して描いたもの（実際の中心の周波数は 2.4 GHz で、ずれは 1 万分の 1 ほど）。")
 F["e16_gfsk"] = _f16_gfsk()
 
 # ---- 3 節: PHY ごとの 1 ビットの時間 ----
@@ -260,7 +260,7 @@ def _f16_phys():
                     xs = X(k * tb + s * tb / S)
                     o.append(W(xs, y + 8, xs, y + 26, c=c, lw=0.8, dash="2 2"))
             if e - a >= 7:
-                o.append(T((a + e) / 2 if S == 1 else a + 7, y + 21, str(b), "middle" if S == 1 else "start", 10 if e - a >= 12 else 9, c, True, True, halo=S > 1))
+                o.append(T((a + e) / 2 if S == 1 else a + 7, y + 21, str(b), "middle" if S == 1 else "start", 10 if e - a >= 12 else 9.5, c, True, True, halo=S > 1))
         o.append(T(X(4 * tb) + 6, y + 21, "%g µs" % (4 * tb), "start", 9.5, c, True) if 4 * tb < 28 else "")
     ya = y0 + 4 * rh + 6
     o.append(W(x0, ya, x1, ya, c=MUT, lw=1.1))
@@ -366,7 +366,7 @@ def _f16_roles():
         o.append(DARR(570, 102, 594, y + 17, c=GRN, lw=1.4))
     o.append(T(585, 184, "相手ごとに時刻をずらしてやり取りする", "middle", 9.5, MUT))
     o.append(W(14, 200, 690, 200, c=GRD, lw=1))
-    o.append(T(350, 222, "値を持つ側と読みに行く側（GATT のサーバとクライアント。18 章）は、この役割とは別に決まる。", "middle", 10, INK))
+    o.append(T(350, 222, "値を持つ側と読みに行く側（サーバとクライアント。18 章）は、この役割とは別に決まる。", "middle", 10, INK))
     return SVG(700, 234, o, "役割の組み合わせの例。(a) スマートフォンがセンサを見つけて接続する。(b) センサが値をアドバタイズに入れて送り続け、ゲートウェイがそれを集める（どちらも接続しない）。(c) 1 台のセントラルが、何台ものペリフェラルと同時に接続する。")
 F["e16_roles"] = _f16_roles()
 
@@ -469,7 +469,7 @@ def _f16_hop():
         x, y = P(i)
         o.append(D(x, y, SIG, 2.6))
         lx, ly = P(i, r + 13)
-        o.append(T(lx, ly + 3, str(i), "middle", 8.5, INK if i not in (0, 7, 14, 21, 28) else ALI, i in (0, 7, 14, 21, 28), True))
+        o.append(T(lx, ly + 3, str(i), "middle", 9.5, INK if i not in (0, 7, 14, 21, 28) else ALI, i in (0, 7, 14, 21, 28), True))
     o.append(T(cx, 290, "0 から 7 ずつ進む（37 以上になったら 37 を引く）。", "middle", 9.5, MUT))
     o.append(T(cx, 304, "赤い矢印が最初の 4 回（7・14・21・28）", "middle", 9.5, ALI))
     p = Plot(348, 26, 322, 238, (0, 38), (-1, 37))
@@ -493,9 +493,9 @@ def _f16_remap():
         used = i in _F16_USED9
         c = GRN if used else ALI
         o.append(RECT(x0 + i * cw + 1, yc, cw - 2, 22, 2, soft(c), c, 1.1 if used else 0.8))
-        o.append(T(x0 + i * cw + cw / 2, yc + 34, str(i), "middle", 8.5, c, used, True))
+        o.append(T(x0 + i * cw + cw / 2, yc + 35, str(i), "middle", 9.5, c, used, True))
         if used:
-            o.append(T(x0 + i * cw + cw / 2, yc + 15, str(_F16_USED9.index(i)), "middle", 9, GRN, True, True))
+            o.append(T(x0 + i * cw + cw / 2, yc + 15, str(_F16_USED9.index(i)), "middle", 9.5, GRN, True, True))
     o.append(T(x0 - 8, yc + 15, "使う順番", "end", 9.5, GRN, True))
     o.append(T(x0 - 8, yc + 34, "番号", "end", 9.5, MUT, True))
     # 筆算の表
