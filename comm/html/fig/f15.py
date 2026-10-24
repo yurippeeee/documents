@@ -138,7 +138,7 @@ def _f15_drift():
     o.append(p.axes(xl="経過した時間", yl="時計のずれ [s]", xt=[0, 0.5, 1, 1.5, 2], yt=[-3, -2, -1, 0, 1, 2, 3],
                     xfmt=lambda v: {0: "0", 0.5: "12 時間", 1: "1 日", 1.5: "36 時間", 2: "2 日"}[v],
                     yfmt=lambda v: ("%+d" % v) if v else "0"))
-    o.append(T(p.x + 8, p.Y(-1) - 6, "許すずれ E = ±1 s", "start", 9.5, GRN))
+    o.append(T(p.X(2) - 6, p.Y(-1) - 6, "許すずれ E = ±1 s", "end", 9.5, GRN))
     e = 20e-6 * 86400            # 1 日あたりのずれ [s]
     o.append(p.line([(0, 0), (2, 2 * e)], c=ALI, lw=2))
     o.append(p.line([(0, 0), (2, -2 * e)], c=ALI, lw=2, dash="6 4"))
@@ -176,12 +176,12 @@ def _f15_layers():
         o.append(T(x + 4, y, h, "start", 10.5, INK, True))
     y += 10
     for name, ch, c, ents in rows:
-        hh = 12 + 22 * len(ents)
+        hh = 16 + 22 * len(ents)
         o.append(RECT(xs[0], y, 128, hh - 6, 6, soft(c), c, 1.3))
         o.append(T(xs[0] + 64, y + (hh - 6) / 2 - 2, name, "middle", 11.5, c, True))
         o.append(T(xs[0] + 64, y + (hh - 6) / 2 + 12, "（%s）" % ch, "middle", 9, MUT))
         for k, (sig, kind, res) in enumerate(ents):
-            yy = y + 16 + 22 * k
+            yy = y + 17 + 22 * k
             o.append(T(xs[1], yy, sig, "start", 10, INK))
             s_, w_ = CHIP(xs[2], yy, kind, _F15_KIND[kind], sz=9.5)
             o.append(s_)
@@ -278,7 +278,7 @@ def _f15_sf():
     o.append(T(555, 150, "PUBACK", "middle", 9, GRN, True))
     o.append(T(465, 182, "確認が届いたら", "middle", 10, INK, True))
     o.append(T(465, 197, "列から外す（消す）", "middle", 10, INK, True))
-    return SVG(700, 270, o, "ストアアンドフォワード。測った値は RAM の送信待ちの列に入り、つながっていればすぐに送られる。切れている時間が長くなったときや深く眠る前は、フラッシュの列に移す。つながったら古い順（通し番号の小さい順）に送り、確認（PUBACK）が届いてから列から外す。ます目の数字は通し番号（下の図）。")
+    return SVG(700, 270, o, "ストアアンドフォワード。測った値は RAM の送信待ちの列に入り、つながっていればすぐに送られる。切れている時間が長くなったときや深く眠る前は、フラッシュの列に移す。つながったら古い順に送り、確認（PUBACK）が届いてから列から外す。ます目の数字は、1 件ごとに 1 ずつ増やして付ける番号（次の小節で通し番号として定義する）。")
 F["e15_sf"] = _f15_sf()
 
 def _f15_record():

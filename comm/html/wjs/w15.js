@@ -37,11 +37,11 @@
       o.push(S.T((a3+a4)/2+6,(yd+ys)/2-4,"d2 = "+Math.round(D2*1000)+" ms","start",10,"green"));
       /* 右: 計算 */
       var xr=530,yr=58,lh=19;
-      var L=[["T2 − T1 = θ + d1",_w15_s(T2-T1),"ink"],["T3 − T4 = θ − d2",_w15_s(T3-T4),"ink"],["θ̂ = 2 つの和 ÷ 2",_w15_s(est),"signal"],
-             ["δ = (T4 − T1) − (T3 − T2)",(del*1000).toFixed(0)+" ms","teal"],["誤差 θ̂ − θ = (d1 − d2)/2",_w15_s(err),Math.abs(err)>1e-9?"alias":"green"]];
+      var L=[["T2 − T1 = θ + d1",_w15_s(T2-T1),"ink"],["T3 − T4 = θ − d2",_w15_s(T3-T4),"ink"],["求めたずれ = 2 つの和 ÷ 2",_w15_s(est),"signal"],
+             ["δ = (T4 − T1) − (T3 − T2)",(del*1000).toFixed(0)+" ms","teal"],["誤差 = 求めたずれ − θ",_w15_s(err),Math.abs(err)>1e-9?"alias":"green"]];
       L.forEach(function(r,i){o.push(S.T(xr,yr+i*2*lh,r[0],"start",9.5,"muted"));o.push(S.T(xr+8,yr+i*2*lh+15,r[1],"start",11,r[2],true,true));});
       /* 下: ずれの数直線 */
-      var yl=232,lx0=120,lx1=640,R=Math.max(0.6*del,Math.abs(err)*1.4,0.004),c0=TH;
+      var yl=250,lx0=120,lx1=640,R=Math.max(1.1*del,0.004),c0=TH;
       var XN=function(v){return lx0+(v-(c0-R))/(2*R)*(lx1-lx0);};
       o.push(S.L(lx0,yl,lx1,yl,"muted",1.2));
       [-R,0,R].forEach(function(k){var xx=XN(c0+k);o.push(S.L(xx,yl-4,xx,yl+4,"muted",1));o.push(S.T(xx,yl+17,(c0+k>=0?"+":"−")+Math.abs(c0+k).toFixed(3)+" s","middle",9.5,"muted",false,true));});
@@ -49,14 +49,14 @@
       o.push(S.RECT(Math.max(lx0,lo),yl-9,Math.max(2,Math.min(lx1,hi)-Math.max(lx0,lo)),18,3,U.soft("signal"),"signal",1.2));
       o.push(S.D(XN(TH),yl,"green",5.5));o.push(S.D(XN(est),yl,"signal",4));
       o.push(S.T(XN(TH),yl-14,"本当の θ","middle",10,"green",true));
-      o.push(S.T(Math.min(lx1-40,Math.max(lx0+40,XN(est))),yl+34,"θ̂ ± δ/2（機器に分かる範囲）","middle",10,"signal",true));
+      o.push(S.T(Math.min(lx1-40,Math.max(lx0+40,XN(est))),yl+34,"求めたずれ ± δ/2（機器に分かる範囲）","middle",10,"signal",true));
       o.push(S.T(16,yl+4,"ずれ","start",10.5,"ink",true));
-      box.set(S.svg(W,280,o));
+      box.set(S.svg(W,298,o));
       var inside=Math.abs(err)<=del/2+1e-9;
-      ro.innerHTML="θ̂ = ((T2 − T1) + (T3 − T4)) / 2 = ("+_w15_s(T2-T1)+" + "+_w15_s(T3-T4)+") / 2 = <b>"+_w15_s(est)+"</b>"+
+      ro.innerHTML="求めたずれ = ((T2 − T1) + (T3 − T4)) / 2 = ("+_w15_s(T2-T1)+" + "+_w15_s(T3-T4)+") / 2 = <b>"+_w15_s(est)+"</b>"+
         " ・ δ = "+((T4-T1)*1000).toFixed(0)+" ms − "+((T3-T2)*1000).toFixed(0)+" ms = <b>"+(del*1000).toFixed(0)+" ms</b><br>"+
-        "誤差 θ̂ − θ = (d1 − d2) / 2 = <b>"+_w15_s(err)+"</b>（大きさの上限 δ/2 = "+(del*500).toFixed(1)+" ms）"+
-        (inside?' <span class="ok">本当のずれは θ̂ ± δ/2 の中にある</span>':' <span class="warn">範囲の外</span>')+
+        "誤差 = 求めたずれ − θ = (d1 − d2) / 2 = <b>"+_w15_s(err)+"</b>（大きさの上限 δ/2 = "+(del*500).toFixed(1)+" ms）"+
+        (inside?' <span class="ok">本当のずれは、求めたずれ ± δ/2 の中にある</span>':' <span class="warn">範囲の外</span>')+
         (Math.abs(err)>=del/2-1e-9&&del>0?' ・ 遅延が片方の向きだけにあるので、誤差がちょうど上限になる':'')+
         '<div class="wnote">機器の時計を基準に、T1 = 10.000 s とした。サーバの処理時間は T3 − T2 として除かれるので、ずれにも遅延にも入らない。</div>';
     }
@@ -74,8 +74,8 @@
     {t:"サーバのアドレスが変わった（古いアドレスを使い続ける）",start:4,clear:0,hz:240},
     {t:"RTC が戻っていた（機器は時刻が正しいと思っている）",start:4,clear:0,hz:60},
     {t:"ブローカがクライアント ID を拒む（設定の誤り）",start:4,clear:Infinity,hz:8000}];
-  function _w15_sim(sc,b,cap,esc,jit,seed){
-    var R=U_rng(seed),st={fresh:false,timeok:false},ev=[],wt=[],t=0,cur=sc.start,fails=0,up=null,notify=false,count=[0,0,0,0,0,0,0];
+  function _w15_sim(sc,b,cap,esc,jit,seed,rng){
+    var R=rng(seed),st={fresh:false,timeok:false},ev=[],wt=[],t=0,cur=sc.start,fails=0,up=null,notify=false,count=[0,0,0,0,0,0,0];
     var si=_w15_SC.indexOf(sc);
     function attempt(L){
       if(si===0&&L===4&&t<sc.clear)return {ok:false,c:"temp",d:0.1};
@@ -92,8 +92,7 @@
       ev.push([L,t,t+r.d,r.ok?"ok":r.c]);t+=r.d;
       if(r.ok){
         if(L===6){up=t;break;}
-        cur=(L===2)?(si===4&&st.timeok?3:4):(L===3?4:L+1);
-        if(L===2&&si===4&&!st.timeok)cur=4;      /* 時刻は正しいと思っているので SNTP を飛ばす */
+        cur=(L===2||L===3)?4:L+1;      /* どの場面も時刻は分かっている（と機器は思っている）ので、DNS の次は TCP */
         continue;
       }
       var base=L>=4?4:L,w;fails++;
@@ -108,9 +107,8 @@
     }
     return {ev:ev,wt:wt,up:up,count:count,fails:fails,notify:notify};
   }
-  var U_rng=null;
   REG.w15_reconn=function(el,U){
-    var S=U.S,F=U.fmt;U_rng=U.rng;
+    var S=U.S,F=U.fmt;
     U.head(el,"RECONNECT","故障を起こして、どの層からやり直すかを見る");
     var r1=U.ctrls(el);
     var sc=U.select(r1,"故障",_w15_SC.map(function(s){return s.t;}),0,draw);
@@ -124,8 +122,8 @@
     U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
     var box=U.svgbox(el,{scroll:true}); var ro=U.readout(el);
     function draw(){
-      var s=_w15_SC[sc.get()],res=_w15_sim(s,bb.get(),cp.get(),es.get(),ji.get(),seed*7919+3);
-      var W=700,x0=110,x1=688,hz=s.hz,rh=24,y0=26,o=[];
+      var s=_w15_SC[sc.get()],res=_w15_sim(s,bb.get(),cp.get(),es.get(),ji.get(),seed*7919+3,U.rng);
+      var W=700,x0=110,x1=672,hz=s.hz,rh=24,y0=26,o=[];
       var X=function(t){return x0+(x1-x0)*Math.min(t,hz)/hz;};
       var rows=_w15_L.concat(["待つ"]);
       rows.forEach(function(nm,i){var y=y0+i*rh;o.push(S.RECT(x0,y,x1-x0,rh-6,2,"screen","line",0.8));
@@ -251,11 +249,13 @@
       [0,0.25,0.5,0.75,1].forEach(function(f){o.push(S.L(X(f*win),y+46,X(f*win),y+50,"muted",1));o.push(S.T(X(f*win),y+62,F.time(f*win),"middle",9,"muted"));});
       /* 下: B と平均電流 */
       var p=U.plot(110,140,560,180,[Tm,Tm*1000],[1e-6,1e-3],{xlog:true,ylog:true});
-      o.push(p.axes({xl:"報告の間隔 B × T_m",yl:"平均電流",xt:[Tm,10*Tm,100*Tm,1000*Tm],yt:[1e-6,1e-5,1e-4,1e-3],xfmt:function(v){return F.time(v);},yfmt:function(v){return F.cur(v,1);},ylOff:52}));
+      var xt=[60,600,3600,6*3600,86400,7*86400,30*86400].filter(function(v){return v>=Tm&&v<=1000*Tm;});
+      var xl={60:"1 分",600:"10 分",3600:"1 時間",21600:"6 時間",86400:"1 日",604800:"7 日",2592000:"30 日"};
+      o.push(p.axes({xl:"報告の間隔 B × T_m",yl:"平均電流",xt:xt,yt:[1e-6,1e-5,1e-4,1e-3],xfmt:function(v){return xl[v];},yfmt:function(v){return F.cur(v,1);},ylOff:52}));
       var pts=[];for(var q=0;q<=90;q++){var Bq=Math.pow(10,q/30);var I=cur(Bq,Tm,Qc,Qm,Is,Ne,pack).I;if(I>=1e-6&&I<=1e-3)pts.push([Bq*Tm,I]);}
       o.push(p.line(pts,"signal",2.2));
       var IA=290e-6;o.push(p.line([[Tm,IA],[1000*Tm,IA]],"teal",1.2,"6 4"));o.push(S.T(p.X(1000*Tm)-4,p.Y(IA)-5,"つなぎ続ける（09 章 4 節の例）約 290 µA","end",9.5,"teal",true));
-      var fl=Is+(pack?0:Qm/Tm)+Ne*(Qc+Qm)/86400;
+      var fl=Is+(pack?QR/Tm:Qm/Tm)+Ne*(Qc+Qm)/86400;
       if(fl>=1e-6&&fl<=1e-3){o.push(p.line([[Tm,fl],[1000*Tm,fl]],"green",1.2,"6 4"));o.push(S.T(p.X(1000*Tm)-4,p.Y(fl)+13,"B を大きくしても下がらない分 "+F.cur(fl),"end",9.5,"green",true,false,null,true));}
       var Iy=Math.min(1e-3,Math.max(1e-6,r.I));o.push(S.D(p.X(B*Tm),p.Y(Iy),"alias",5));
       o.push(S.T(p.X(B*Tm)+8,p.Y(Iy)-8,"B = "+B+": "+F.cur(r.I),"start",10,"alias",true,false,null,true));
