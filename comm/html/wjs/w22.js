@@ -208,7 +208,7 @@
     var row3=U.ctrls(el);
     var vw=U.slider(row3,"フラッシュに書く速さ",{min:50,max:5000,log:true,value:649.1,fmt:function(v){return F.rate(v*1e3);},onInput:draw});
     var sf=U.select(row3,"拡散率",["SF7","SF8","SF9","SF10","SF11","SF12"],0,draw);
-    var ap=U.slider(row3,"LoRaWAN の 1 回のデータ",{min:10,max:240,step:1,value:200,fmt:function(v){return v+" バイト";},onInput:draw});
+    var ap=U.slider(row3,"LoRaWAN の 1 回のデータ",{min:10,max:250,step:1,value:242,fmt:function(v){return v+" バイト";},onInput:draw});
     var dc=U.select(row3,"デューティサイクル",["1 %","0.1 %","10 %"],0,draw);
     var br=U.btnrow(el);
     function pre(p,l,r,w,b,f,s,a){path.set(String(p));if(l)lk.set(l);if(r)rtt.set(r);if(w)wn.set(w);if(b)bl.set(b);if(f!=null)sf.set(String(f));if(a)ap.set(a);vw.set(649.1);sz.set(500);draw();}
@@ -218,8 +218,8 @@
     U.button(br,"Wi-Fi・LAN",function(){pre(1,20000,20,5840);});
     U.button(br,"LTE-M・TCP",function(){pre(1,300,200,5840);});
     U.button(br,"LTE-M・CoAP",function(){pre(2,300,200,null,1024);});
-    U.button(br,"LoRaWAN SF7",function(){pre(3,null,null,null,null,0,null,200);dc.set("0");draw();});
-    U.button(br,"LoRaWAN SF12",function(){pre(3,null,null,null,null,5,null,50);dc.set("0");draw();});
+    U.button(br,"LoRaWAN SF7",function(){pre(3,null,null,null,null,0,null,242);dc.set("0");draw();});
+    U.button(br,"LoRaWAN SF12",function(){pre(3,null,null,null,null,5,null,51);dc.set("0");draw();});
     var box=U.svgbox(el); var ro=U.readout(el);
     function toa(SF,pl){var ts=Math.pow(2,SF)/125e3,de=SF>=11?1:0,num=8*pl-4*SF+28+16;return (8+4.25)*ts+(8+Math.max(Math.ceil(num/(4*(SF-2*de)))*5,0))*ts;}
     function vis(c,on){c.el.style.display=on?"":"none";}
