@@ -24,7 +24,6 @@ CHAPTERS = sorted((m.group(1), fn) for fn in os.listdir(SRC)
                   for m in [re.match(r"^(\d\d)_.*\.md$", fn)] if m and m.group(1) != "00")
 # まだ書き上がっていない章: 原稿があっても本文を出さず、「準備中」のページにする（他の章からのリンクを切らないため）
 PENDING = {
-    "11": "11. ソケットと組み込みの TCP/IP スタック — UDP と lwIP",
     "12": "12. TLS — 通信路を暗号化し、相手を確かめる",
     "13": "13. MQTT — 小さな機器のためのパブリッシュとサブスクライブ",
     "14": "14. HTTP と CoAP — 要求と応答のプロトコル",
