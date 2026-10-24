@@ -53,7 +53,7 @@ def _f11_socket():
     for a, b, lab, f, c in segs:
         o.append(RECT(bx + a, 152, b - a, 24, 2, f, c, 1.2))
         o.append(T(bx + (a + b) / 2, 168, lab, "middle", 9.5, c, True))
-    o.append(T(bx, 190, "recv は左から取り出す（10 章 3 節）", "start", 9.5, MUT))
+    o.append(T(bx, 190, "recv は左から取り出す", "start", 9.5, MUT))
     o.append(ARR(166, 102, bx - 3, 102, c=PUR, lw=1.8))
     o.append(T(240, 96, "写す", "middle", 9.5, PUR, True))
     o.append(ARR(bx - 3, 164, 166, 164, c=PUR, lw=1.8))
@@ -106,8 +106,8 @@ F["e11_calls"] = _f11_calls()
 # ---- 2 節: 部分送信と部分受信 ----
 def _f11_partial():
     o = []
-    s = 0.11
-    x0 = 60
+    s = 0.108
+    x0 = 84
     X = lambda b: x0 + b * s
     o.append(T(20, 22, "送信バッファ（4096 バイト）に 2500 バイトが残っているとき、send(fd, データ, 3000) を呼ぶ", "start", 11, INK, True))
     o.append(T(x0 - 8, 54, "送信バッファ", "end", 9.5, MUT))
@@ -183,7 +183,7 @@ def _f11_select():
     def row(y, title, segs, ok):
         o.append(T(14, y - 10, title, "start", 11, INK, True))
         for t, lab, c in ev:
-            o.append(W(X(t), y - 2, X(t), y + 30, c=c, lw=1.4, dash="3 3"))
+            o.append(W(X(t), y - 2, X(t), y + 4, c=c, lw=1.4))
             o.append(D(X(t), y - 2, c, 3.6))
         for a, b, lab, c in segs:
             o.append(RECT(X(a), y + 4, X(b) - X(a), 22, 3, soft(c), c, 1.2))
@@ -193,9 +193,9 @@ def _f11_select():
     o.append(T(X(200), 24, "B にデータ（200 ms）", "middle", 9.5, GLD, True))
     o.append(T(X(400), 24, "期限（400 ms）", "middle", 9.5, TEA, True))
     o.append(T(X(700), 24, "A にデータ（700 ms）", "middle", 9.5, SIG, True))
-    row(56, "(a) ブロッキングの recv(A) で待つ", [(0, 700, "recv(A) の中で止まっている", ALI), (700, 760, "A", SIG), (760, 800, "B", GLD), (800, 840, "期限", TEA)], False)
+    row(56, "(a) ブロッキングの recv(A) で待つ", [(0, 700, "recv(A) の中で止まっている", ALI), (700, 750, "A", SIG), (750, 800, "B", GLD), (800, 860, "期限", TEA)], False)
     o.append(T(X(450), 104, "B のデータと期限は、A が届くまで扱えない", "middle", 10, ALI, True))
-    row(140, "(b) select で、A が読める・B が読める・期限 をまとめて待つ", [(0, 200, "select", MUT), (200, 240, "B", GLD), (240, 400, "select", MUT), (400, 440, "期限", TEA), (440, 700, "select", MUT), (700, 740, "A", SIG)], True)
+    row(140, "(b) select で、A が読める・B が読める・期限 をまとめて待つ", [(0, 200, "select", MUT), (200, 250, "B", GLD), (250, 400, "select", MUT), (400, 460, "期限", TEA), (460, 700, "select", MUT), (700, 750, "A", SIG)], True)
     o.append(T(X(450), 188, "起きた順に、すぐ扱える（何も無い間は眠っている）", "middle", 10, GRN, True))
     for t in range(0, 1001, 200):
         o.append(W(X(t), 198, X(t), 202, c=MUT, lw=1))
@@ -283,7 +283,7 @@ def _f11_errors():
             o.append(W(xa + 12, 128, xa + 22, 138, c=ALI, lw=1.6))
             o.append(W(xa + 12, 138, xa + 22, 128, c=ALI, lw=1.6))
             o.append(T(xa + 30, 137, "出ない", "start", 9, ALI))
-            res = ["send が −1", "SIGPIPE も来る"]
+            res = ["send が −1", "SIGPIPE も送られる"]
         else:
             _f11_marr(o, xa, xb, 96, "FIN", GRN, back=True)
             res = ["recv が 0", "（エラーではない）"]
@@ -306,17 +306,16 @@ def _f11_dgram():
     o.append(T(525, 20, "UDP（sendto ×3）", "middle", 11.5, GRN, True))
     blocks(30, 34, [("A", 8, SIG, None), ("B", 14, PUR, None), ("C", 7, GLD, None)])
     blocks(380, 34, [("A", 8, SIG, None), ("B", 14, PUR, None), ("C", 7, GLD, None)])
-    o.append(T(175, 84, "バイトの列として、順に全部届く", "middle", 10, MUT))
+    o.append(T(186, 88, "バイトの列として、順に全部届く", "start", 10, MUT))
     o.append(ARR(175, 64, 175, 104, c=GRN, lw=1.6))
     # UDP: B は失われ、C が A を追い越す
     o.append(ARR(416, 62, 470, 104, c=SIG, lw=1.5))
     o.append(W(503, 62, 530, 82, c=ALI, lw=1.5, dash="4 3"))
     o.append(W(526, 78, 534, 86, c=ALI, lw=1.8) + W(526, 86, 534, 78, c=ALI, lw=1.8))
-    o.append(T(552, 78, "B は失われる", "start", 9.5, ALI, True))
+    o.append(T(578, 80, "B は失われる", "start", 9.5, ALI, True))
     o.append(ARR(620, 62, 400, 104, c=GLD, lw=1.5))
-    o.append(T(552, 94, "C が A を追い越す", "start", 9.5, GLD, True))
+    o.append(T(578, 96, "C が A を追い越す", "start", 9.5, GLD, True))
     # 受け手
-    o.append(T(14, 128, "受け手", "start", 10, INK, True))
     o.append(RECT(30, 112, 8 * 9 + 6 * 9, 24, 3, PAN, TEA, 1.4))
     o.append(T(30 + 63, 128, "A と B の前半", "middle", 9.5, TEA, True))
     o.append(RECT(30 + 126 + 6, 112, 8 * 9 + 7 * 9, 24, 3, PAN, TEA, 1.4))
@@ -337,101 +336,115 @@ F["e11_dgram"] = _f11_dgram()
 
 def _f11_udparq():
     o = []
-    xa, xb = 190, 520
+    xa, xb = 210, 500
     o.append(RECT(xa - 70, 10, 140, 26, 7, SSOFT, SIG, 1.3))
     o.append(T(xa, 28, "機器（クライアント）", "middle", 11, SIG, True))
     o.append(RECT(xb - 50, 10, 100, 26, 7, GSOFT, GRN, 1.3))
     o.append(T(xb, 28, "サーバ", "middle", 11, GRN, True))
-    yend = 452
+    yend = 498
     o.append(W(xa, 36, xa, yend, c=SIG, lw=1.1, dash="3 4"))
     o.append(W(xb, 36, xb, yend, c=GRN, lw=1.1, dash="3 4"))
 
-    def arr(y1, y2, frm_a, lab, c, lost=False, lab_at=None, lsz=10):
-        x1, x2 = (xa, xb) if frm_a else (xb, xa)
+    def req(y, lab, lost=False):              # 機器 → サーバ（10 px で届く）
         if lost:
-            fx, fy = x1 + (x2 - x1) * 0.6, y1 + (y2 - y1) * 0.6
-            o.append(W(x1, y1, fx, fy, c=ALI, lw=1.5, dash="5 3"))
+            fx, fy = xa + (xb - xa) * 0.6, y + 6
+            o.append(W(xa, y, fx, fy, c=ALI, lw=1.5, dash="5 3"))
             o.append(W(fx - 5, fy - 5, fx + 5, fy + 5, c=ALI, lw=1.9) + W(fx - 5, fy + 5, fx + 5, fy - 5, c=ALI, lw=1.9))
         else:
-            o.append(ARR(x1, y1, x2, y2, c=c, lw=1.6, head=6))
-        lx, ly = lab_at if lab_at else ((xa + xb) / 2, min(y1, y2) - 4)
-        o.append(T(lx, ly, lab, "middle", lsz, ALI if lost else c, True))
+            o.append(ARR(xa, y, xb, y + 10, c=SIG, lw=1.6, head=6))
+        o.append(T((xa + xb) / 2, y - 3, lab, "middle", 10, ALI if lost else SIG, True))
+
+    def rep(y1, y2, lab, lost=False, c=GRN, dash=None):   # サーバ → 機器
+        if lost:
+            fx, fy = xb + (xa - xb) * 0.6, y1 + (y2 - y1) * 0.6
+            o.append(W(xb, y1, fx, fy, c=ALI, lw=1.5, dash="5 3"))
+            o.append(W(fx - 5, fy - 5, fx + 5, fy + 5, c=ALI, lw=1.9) + W(fx - 5, fy + 5, fx + 5, fy - 5, c=ALI, lw=1.9))
+        else:
+            o.append(ARR(xb, y1, xa, y2, c=c, lw=1.6, head=6, dash=dash))
+        if lab:
+            o.append(T((xa + xb) / 2, (y1 + y2) / 2 - 6, lab, "middle", 10, ALI if lost else c, True))
 
     def brace(y1, y2, lab):
         x = xa - 12
         o.append(W(x, y1, x - 6, y1, x - 6, y2, x, y2, c=TEA, lw=1.3))
         o.append(T(x - 10, (y1 + y2) / 2 + 4, lab, "end", 9.5, TEA))
 
-    def note(x, y, txt, c, a="start"):
-        o.append(T(x, y, txt, a, 9.5, c, True))
-    # 1: 要求が失われる
-    arr(58, 66, True, "要求 #1", SIG, lost=True)
-    brace(58, 104, "250 ms 待つ")
-    arr(104, 112, True, "要求 #1（送り直し）", SIG)
-    arr(118, 126, False, "応答 #1", GRN)
-    note(xa - 8, 140, "受け取る", GRN, "end")
-    # 2: 応答が失われる
-    arr(160, 168, True, "要求 #2", SIG)
-    arr(174, 182, False, "応答 #2", GRN, lost=True)
-    brace(160, 206, "250 ms 待つ")
-    arr(206, 214, True, "要求 #2（送り直し）", SIG)
-    note(xb + 8, 218, "同じ要求を 2 回処理する", GRN)
-    arr(222, 230, False, "応答 #2", GRN)
-    note(xa - 8, 244, "受け取る", GRN, "end")
-    # 3: 応答が遅れる
-    arr(264, 272, True, "要求 #3", SIG)
-    o.append(ARR(xb, 280, xa, 352, c=GRN, lw=1.6, head=6))
-    o.append(T(xb - 60, 300, "応答 #3（遅れる）", "middle", 10, GRN, True))
-    brace(264, 310, "250 ms 待つ")
-    arr(310, 318, True, "要求 #3（送り直し）", SIG, lab_at=(285, 306))
-    note(xa - 8, 360, "1 回目への応答 #3 を受け取る", GRN, "end")
-    o.append(ARR(xb, 326, xa, 412, c=MUT, lw=1.5, head=6, dash="5 3"))
-    o.append(T(xb + 8, 334, "送り直しへの応答 #3（遅れる）", "start", 9.5, MUT, True))
-    arr(376, 384, True, "要求 #4", SIG, lab_at=(420, 374))
-    arr(390, 400, False, "応答 #4", GRN, lab_at=(440, 395))
-    note(xa - 8, 404, "応答 #4 を受け取る", GRN, "end")
-    note(xa - 8, 420, "#3 は番号が違うので捨てる", ALI, "end")
-    o.append(T(350, 446, "番号を見れば、遅れて届いた古い応答を、いまの要求への応答と取り違えない", "middle", 10, INK))
-    return SVG(700, 462, o, "UDP の要求と応答に番号を付け、時間切れで送り直す（待ち時間は 250 ms から倍々）。要求が失われても、応答が失われても、送り直しで届く。応答が失われた場合は、サーバに同じ要求が 2 回届く。遅れた応答は、次の要求を待っている間に届くことがあるので、番号が違うものは捨てる。")
+    def left(y, txt, c=GRN):
+        o.append(T(xa - 8, y, txt, "end", 9.5, c, True))
+
+    def right(y, txt, c=GRN):
+        o.append(T(xb + 8, y, txt, "start", 9.5, c, True))
+
+    o.append(T(14, 56, "要求が失われる", "start", 10, MUT, True))
+    req(66, "要求 #1", lost=True)
+    brace(66, 112, "250 ms")
+    req(112, "要求 #1（送り直し）")
+    rep(140, 150, "応答 #1")
+    left(164, "#1 を受け取る")
+    o.append(T(14, 192, "応答が失われる", "start", 10, MUT, True))
+    req(202, "要求 #2")
+    rep(226, 236, "応答 #2", lost=True)
+    brace(202, 262, "250 ms")
+    req(262, "要求 #2（送り直し）")
+    right(276, "同じ要求をもう一度処理する")
+    rep(290, 300, "応答 #2")
+    left(314, "#2 を受け取る")
+    o.append(T(14, 342, "応答が遅れる", "start", 10, MUT, True))
+    req(352, "要求 #3")
+    rep(368, 424, None)
+    right(372, "応答 #3（遅れて届く）")
+    brace(352, 398, "250 ms")
+    o.append(ARR(xa, 398, xb, 408, c=SIG, lw=1.6, head=6))
+    o.append(T(xa + 8, 394, "要求 #3（送り直し）", "start", 10, SIG, True))
+    left(428, "#3 を受け取る")
+    rep(416, 466, None, c=MUT, dash="5 3")
+    right(420, "送り直しへの応答 #3（遅れる）", MUT)
+    o.append(ARR(xa, 438, xb, 448, c=SIG, lw=1.6, head=6))
+    o.append(T(xa + 8, 434, "要求 #4", "start", 10, SIG, True))
+    left(470, "#3 は番号が違うので捨てる", ALI)
+    rep(474, 484, None)
+    right(478, "応答 #4")
+    left(492, "#4 を受け取る")
+    return SVG(700, 506, o, "UDP の要求と応答に番号を付け、時間切れで送り直す（待ち時間は 250 ms から倍々）。要求が失われても、応答が失われても、送り直しで届く。応答が失われた場合は、サーバに同じ要求が 2 回届く。遅れた応答は次の要求を待っている間に届くことがあるので、番号が違うものは捨てる。")
 F["e11_udparq"] = _f11_udparq()
 
 
 # ---- 6 節: lwIP ----
 def _f11_lwip():
     o = []
-    o.append(BOX(40, 14, 190, 50, "測定のタスク", "ソケット API を呼ぶ", PUR, PSOFT, PUR, sz=11.5, ssz=9.5))
-    o.append(BOX(250, 14, 190, 50, "設定のタスク", "netconn API を呼ぶ", PUR, PSOFT, PUR, sz=11.5, ssz=9.5))
-    o.append(RECT(16, 92, 668, 150, 10, GSOFT, GRN, 1.6))
-    o.append(T(28, 110, "tcpip スレッド（スタックの処理はすべてこの中で、1 つずつ行う）", "start", 11, GRN, True))
-    # メールボックス
-    o.append(T(96, 136, "メールボックス", "middle", 10, INK, True))
-    o.append(T(96, 150, "（RTOS のキュー）", "middle", 9, MUT))
+    o.append(BOX(20, 12, 170, 46, "測定のタスク", "ソケット API を呼ぶ", PUR, PSOFT, PUR, sz=11.5, ssz=9.5))
+    o.append(BOX(206, 12, 170, 46, "設定のタスク", "netconn API を呼ぶ", PUR, PSOFT, PUR, sz=11.5, ssz=9.5))
+    o.append(BOX(470, 12, 210, 46, "センサのタスク（誤り）", "raw API を直接呼ぶ", ALI, ASOFT, ALI, sz=11.5, ssz=9.5, dash="5 3"))
+    o.append(RECT(14, 84, 672, 178, 10, GSOFT, GRN, 1.6))
+    o.append(T(44, 254, "tcpip スレッド（スタックの処理はすべてこの中で、1 つずつ行う）", "start", 11, GRN, True))
     for k in range(4):
-        o.append(RECT(46 + k * 26, 160, 22, 26, 3, PAN, GLD, 1.2))
-    o.append(T(96, 204, "依頼・受信・タイマを", "middle", 9, MUT))
-    o.append(T(96, 217, "1 つずつ取り出す", "middle", 9, MUT))
-    o.append(ARR(154, 173, 196, 173, c=GRN, lw=1.6))
-    o.append(BOX(200, 124, 280, 104, "スタックの中身", "TCP・UDP・IP・ARP・DHCP・DNS、接続ごとの状態とバッファ。排他の鍵は持たない", GRN, PAN, GRN, sz=11.5, ssz=9.5))
-    o.append(BOX(494, 124, 176, 46, "タイマ", "再送・遅延 ACK など", TEA, TSOFT, TEA, sz=10.5, ssz=9))
-    o.append(BOX(494, 178, 176, 50, "raw API のコールバック", "アプリケーションのコード", PUR, PSOFT, PUR, sz=10.5, ssz=9))
-    o.append(BOX(40, 278, 260, 50, "ドライバ（受信のタスクなど）", "フレームを pbuf に入れて渡す", SIG, SSOFT, SIG, sz=11, ssz=9.5))
-    o.append(BOX(420, 278, 250, 50, "MAC・DMA（ハードウェア）", "割り込みで受信を知らせる", MUT, MSOFT, INK, sz=11, ssz=9.5))
-    o.append(ARR(135, 64, 90, 157, c=PUR, lw=1.5))
-    o.append(T(102, 84, "依頼", "end", 9.5, PUR, True))
-    o.append(ARR(345, 64, 132, 157, c=PUR, lw=1.5))
-    o.append(T(250, 84, "依頼", "start", 9.5, PUR, True))
-    o.append(ARR(110, 278, 100, 189, c=SIG, lw=1.5))
-    o.append(T(114, 262, "受信したフレーム", "start", 9.5, SIG, True))
-    o.append(ARR(340, 228, 420, 290, c=GRN, lw=1.5))
-    o.append(T(392, 252, "送るフレーム", "start", 9.5, GRN, True))
-    o.append(DARR(300, 314, 418, 314, c=MUT, lw=1.3))
+        o.append(RECT(40 + k * 26, 104, 22, 26, 3, PAN, GLD, 1.2))
+    o.append(T(44, 148, "メールボックス（RTOS のキュー）", "start", 9.5, INK, True))
+    o.append(T(44, 162, "仕事を 1 つずつ取り出す", "start", 9, MUT))
+    o.append(ARR(105, 58, 72, 102, c=PUR, lw=1.5))
+    o.append(T(98, 80, "依頼", "start", 9.5, PUR, True))
+    o.append(ARR(291, 58, 124, 102, c=PUR, lw=1.5))
+    o.append(T(214, 80, "依頼", "start", 9.5, PUR, True))
+    o.append(BOX(200, 100, 270, 92, "スタックの中身", "TCP・UDP・IP・ARP・DHCP・DNS、接続ごとの状態とバッファ。排他の鍵は持たない", GRN, PAN, GRN, sz=11.5, ssz=9.5))
+    o.append(ARR(144, 117, 198, 117, c=GRN, lw=1.6))
+    o.append(BOX(486, 100, 186, 42, "タイマ", "再送・遅延 ACK など", TEA, TSOFT, TEA, sz=10.5, ssz=9))
+    o.append(BOX(486, 150, 186, 42, "raw API のコールバック", "アプリケーションのコード", PUR, PSOFT, PUR, sz=10, ssz=9))
+    o.append(ARR(484, 121, 472, 121, c=TEA, lw=1.4, head=5))
+    o.append(ARR(472, 171, 484, 171, c=PUR, lw=1.4, head=5))
     # 誤った呼び方
-    o.append(W(200, 40, 470, 40, 470, 120, c=ALI, lw=1.5, dash="5 4"))
-    o.append(_head(470, 100, 470, 122, ALI, 7))
-    o.append(W(464, 72, 476, 84, c=ALI, lw=2) + W(464, 84, 476, 72, c=ALI, lw=2))
-    o.append(T(484, 62, "ほかのタスクから raw API を", "start", 9.5, ALI, True))
-    o.append(T(484, 76, "直接呼ばない（スタックが壊れる）", "start", 9.5, ALI, True))
-    return SVG(700, 340, o, "RTOS の上の lwIP の構成。スタックの中身を読み書きするのは tcpip スレッドだけで、アプリケーションのタスクからの依頼、ドライバからの受信したフレーム、タイマは、メールボックスを通して 1 つずつ処理される。raw API のコールバックも tcpip スレッドの中で動く。ほかのタスクが raw API を直接呼ぶと、tcpip スレッドと同時にスタックの中身を書き換えて壊すおそれがある。")
+    o.append(W(575, 58, 512, 80, c=ALI, lw=1.6, dash="5 3"))
+    o.append(ARR(512, 80, 452, 98, c=ALI, lw=1.6, dash="5 3"))
+    o.append(W(507, 72, 519, 84, c=ALI, lw=2) + W(507, 84, 519, 72, c=ALI, lw=2))
+    # ドライバと MAC
+    o.append(BOX(20, 288, 250, 48, "ドライバ（受信のタスクなど）", "フレームを pbuf に入れて渡す", SIG, SSOFT, SIG, sz=11, ssz=9.5))
+    o.append(BOX(420, 288, 260, 48, "MAC・DMA（ハードウェア）", "割り込みで受信を知らせる", MUT, MSOFT, INK, sz=11, ssz=9.5))
+    o.append(W(28, 288, 28, 117, c=SIG, lw=1.5))
+    o.append(ARR(28, 117, 38, 117, c=SIG, lw=1.5, head=5))
+    o.append(T(36, 280, "受信したフレーム", "start", 9.5, SIG, True))
+    o.append(ARR(440, 192, 520, 286, c=GRN, lw=1.5))
+    o.append(T(492, 236, "送るフレーム", "start", 9.5, GRN, True))
+    o.append(DARR(272, 312, 418, 312, c=MUT, lw=1.3))
+    return SVG(700, 346, o, "RTOS の上の lwIP の構成（設定 LWIP_TCPIP_CORE_LOCKING が 0 の場合。1 の場合は次の図）。スタックの中身を読み書きするのは tcpip スレッドだけで、アプリケーションのタスクからの依頼と、ドライバからの受信したフレームは、メールボックスを通して 1 つずつ処理される。タイマと raw API のコールバックも tcpip スレッドの中で動く。ほかのタスクが raw API を直接呼ぶと、tcpip スレッドと同時にスタックの中身を書き換えて壊すおそれがある。")
 F["e11_lwip"] = _f11_lwip()
 
 
@@ -457,7 +470,7 @@ def _f11_sockcall():
     o.append(T(xa - 6, 192, "send が戻る", "end", 9.5, PUR, True))
     o.append(T(175, 222, "タスクの切り替えが 2 回要る", "middle", 10, MUT))
     # 右: 鍵を取って自分で呼ぶ
-    xa, xb = 440, 610
+    xa, xb = 410, 640
     for x, n, c in ((xa, "アプリのタスク", PUR), (xb, "tcpip スレッド", GRN)):
         o.append(RECT(x - 56, 28, 112, 22, 6, soft(c), c, 1.2))
         o.append(T(x, 43, n, "middle", 10, c, True))
@@ -469,8 +482,8 @@ def _f11_sockcall():
     o.append(T(xa + 10, 132, "自分のタスクの中で呼ぶ", "start", 9.5, GRN, True))
     o.append(T(xa + 10, 160, "③ 鍵を返す", "start", 9.5, GRN, True))
     o.append(T(xa - 6, 192, "send が戻る", "end", 9.5, PUR, True))
-    o.append(T(xb, 120, "鍵がある間は", "middle", 9, MUT))
-    o.append(T(xb, 134, "スタックに触れない", "middle", 9, MUT))
+    o.append(T(xb - 8, 184, "鍵がある間、tcpip スレッドは", "end", 9, MUT))
+    o.append(T(xb - 8, 198, "スタックに触れない", "end", 9, MUT))
     o.append(T(525, 222, "どちらでも、スタックに触るのは同時に 1 つだけ", "middle", 10, MUT))
     return SVG(700, 244, o, "lwIP のソケット API の send を 1 回呼んだときの動き（設定 LWIP_TCPIP_CORE_LOCKING による）。0 なら、依頼をメールボックスに入れて tcpip スレッドに処理してもらい、終わるまで待つ。1 なら、スタック全体の鍵を取って、自分のタスクの中でスタックの関数を呼ぶ。どちらも、スタックの中身を同時に触るのは 1 つだけになる。")
 F["e11_sockcall"] = _f11_sockcall()
@@ -518,10 +531,10 @@ F["e11_pbuf"] = _f11_pbuf()
 def _f11_zcopy():
     o = []
     o.append(T(14, 20, "送るとき: 先頭にヘッダの分の空き（54 バイト）を取った pbuf に、データ「T=23.5\\n」（7 バイト）を入れる", "start", 10.5, INK, True))
-    unit = 6.4
-    x0 = 150
+    unit = 5.4
+    x0 = 160
     parts = [("Ethernet", 14, SIG), ("IP", 20, GLD), ("TCP", 20, GRN), ("データ", 7, PUR)]
-    steps = [("アプリケーション", 3, "len = 7"), ("TCP が前に 20 バイト", 2, "len = 27"), ("IP が前に 20 バイト", 1, "len = 47"), ("Ethernet が前に 14 バイト", 0, "len = 61")]
+    steps = [("データを入れる", 3, "len = 7"), ("TCP のヘッダを書く", 2, "前へ 20 バイト・len = 27"), ("IP のヘッダを書く", 1, "前へ 20 バイト・len = 47"), ("Ethernet のヘッダを書く", 0, "前へ 14 バイト・len = 61")]
     y = 40
     for title, first, lab in steps:
         o.append(T(x0 - 10, y + 15, title, "end", 10, INK))
@@ -536,7 +549,7 @@ def _f11_zcopy():
             xx += wd
         start = x0 + sum(b for _, b, _ in parts[:first]) * unit
         o.append(ARR(start, y - 6, start, y - 1, c=SIG, lw=1.3, head=5))
-        o.append(T(xx + 10, y + 15, "payload を前へずらして書く・" + lab, "start", 9.5, SIG))
+        o.append(T(xx + 10, y + 15, "payload: " + lab, "start", 9.5, SIG))
         y += 36
     o.append(T(x0, y + 8, "↑ ドライバ（DMA）は、この場所からそのまま送る。データは 1 回も写されない（ゼロコピー）。", "start", 10, GRN, True))
     o.append(T(x0, y + 26, "写す作りでは、層ごとに新しい場所を取ってヘッダとデータを写すので、RAM も時間も多く要る。", "start", 10, MUT))
@@ -546,14 +559,14 @@ F["e11_zcopy"] = _f11_zcopy()
 
 def _f11_ram():
     o = []
-    p = Plot(150, 40, 430, 120, (0, 36), (0, 2))
+    p = Plot(150, 40, 360, 120, (0, 36), (0, 2))
     o.append(T(14, 22, "受信のプールと送信のヒープの RAM（そのほかに PCB・タスクのスタック・ドライバの領域が加わる）", "start", 10.5, INK, True))
     for v in range(0, 37, 6):
         xx = p.X(v)
         o.append(W(xx, 40, xx, 170, c=GRD, lw=1))
         o.append(T(xx, 184, "%d KB" % v, "middle", 9.5, MUT))
-    cfg = [("小さな設定", "MSS 536・TCP_WND 2144・プール 8 個・MEM_SIZE 3 KB", 4864, 3072, "受信 ≤ 21440 B/s", "送信 ≤ 10720 B/s"),
-           ("例の設定（2 接続）", "MSS 1460・TCP_WND 5840・プール 12 個・MEM_SIZE 16 KB", 18384, 16384, "受信 ≤ 58400 B/s（1 接続）", "送信 ≤ 58400 B/s（1 接続）")]
+    cfg = [("小さな設定", "MSS 536・TCP_WND 2144・TCP_SND_BUF 1072・プール 8 個・MEM_SIZE 3 KB", 4864, 3072, "受信 ≤ 21440 B/s", "送信 ≤ 10720 B/s"),
+           ("例の設定（2 接続）", "MSS 1460・TCP_WND 5840・TCP_SND_BUF 5840・プール 12 個・MEM_SIZE 16 KB", 18384, 16384, "受信 ≤ 58400 B/s（1 接続）", "送信 ≤ 58400 B/s（1 接続）")]
     y = 52
     for name, sub, pool, heap, r1, r2 in cfg:
         o.append(T(140, y + 13, name, "end", 10.5, INK, True))
@@ -566,12 +579,13 @@ def _f11_ram():
         if p.X(a + b) - p.X(a) > 70:
             o.append(T((p.X(a) + p.X(a + b)) / 2, y + 16, "ヒープ %.1f KB" % b, "middle", 9.5, PUR, True))
         o.append(T(p.X(a + b) + 6, y + 10, "計 %.1f KB" % (a + b), "start", 9.5, INK, True))
-        o.append(T(p.X(a + b) + 6, y + 23, "", "start", 9, MUT))
+        if p.X(a) - p.X(0) <= 70:
+            o.append(T(p.X(a + b) + 6, y + 23, "プール %.1f・ヒープ %.1f" % (a, b), "start", 9, MUT))
         o.append(T(150, y + 38, sub, "start", 9, MUT))
-        o.append(T(590, y + 10, r1, "start", 9, GRN))
-        o.append(T(590, y + 23, r2, "start", 9, PUR))
+        o.append(T(560, y + 10, r1, "start", 9, GRN))
+        o.append(T(560, y + 23, r2, "start", 9, PUR))
         y += 58
-    o.append(T(590, 40, "RTT 100 ms のとき", "start", 9, MUT, True))
-    o.append(LEGEND(150, 206, [(GRN, "受信のプール（PBUF_POOL_SIZE × (PBUF_POOL_BUFSIZE + 16)）"), (PUR, "ヒープ（MEM_SIZE。送るデータの写しなど）")]))
+    o.append(T(560, 40, "速さの上限（RTT 100 ms）", "start", 9, MUT, True))
+    o.append(LEGEND(150, 206, [(GRN, "受信のプール（PBUF_POOL_SIZE 個の pbuf）"), (PUR, "ヒープ（MEM_SIZE。送るデータの写しなど）")]))
     return SVG(700, 218, o, "lwIP の RAM の見積もりの例（32 ビットのマイコン、IPv4、Ethernet のヘッダ）。受信のプールは、受信ウィンドウの分の pbuf と余裕の分を持つ。速さの上限は、受信がウィンドウ ÷ RTT、送信が送信バッファ ÷ RTT で、RAM を増やすほど速く受け取れる。")
 F["e11_ram"] = _f11_ram()
