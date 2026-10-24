@@ -92,7 +92,7 @@
       var chans=[];if(mode===2)chans=[6];else for(var c=1;c<=nc.get();c++)chans.push(c);
       var t=0,rows=[],found={};
       chans.forEach(function(ch){
-        var t0=t,ev=[],end,heard=false;
+        var t0=t+TS,ev=[],end,heard=false;          /* チャネルを切り替えてから聞き始める */
         var aps=_w09_APS.map(function(a,i){return {a:a,i:i};}).filter(function(q){return q.a.ch===ch;});
         var probeLost=false;
         if(mode>0){probeLost=R.chance(p);ev.push({t:t0+0.3,k:"probe",lost:probeLost});
@@ -107,9 +107,9 @@
           var full=s+TB_<=end,lost=R.chance(p);ev.push({t:s,k:"beacon",lost:lost,ap:q.i,full:full});
           if(full&&!lost)found[q.i]=found[q.i]||"ビーコン";}});
         rows.push({ch:ch,t0:t0,end:end,ev:ev,has:aps.length>0});
-        t=end+TS;
+        t=end;
       });
-      var total=t-TS;
+      var total=t;
       /* 図: チャネルごとの時間の帯 */
       var W=700,x0=90,x1=W-20,sc=(x1-x0)/Math.max(total,1),rh=mode===2?40:20,y0=24,o=[];
       function X(v){return x0+v*sc;}
@@ -135,9 +135,9 @@
       var best=null;_w09_APS.forEach(function(a,i){if(found[i]&&a.s==="home"&&(!best||a.r>best.r))best=a;});
       var f="";
       if(mode===0){var miss=Math.max(0,1-(td.get()-TB_)/TB);
-        f="式: "+chans.length+" × (t_d + 切り替え 2 ms) = "+chans.length+" × ("+td.get().toFixed(1)+" + 2) = "+(chans.length*(td.get()+TS)-TS).toFixed(1)+" ms（最後の切り替えを除く）<br>"+
+        f="式: n (t_d + 切り替え 2 ms) = "+chans.length+" × ("+td.get().toFixed(1)+" + 2) = "+(chans.length*(td.get()+TS)).toFixed(1)+" ms<br>"+
           "ビーコンが失われないとき、1 つの AP を見落とす確率 = max(0, 1 − (t_d − t_b)/T_B) = <b>"+U.fmt.pct(miss)+"</b>（t_b = 2 ms、T_B = "+TB.toFixed(1)+" ms）<br>";}
-      else f="AP のいるチャネルは最大の時間まで、いないチャネルは最小の時間で次へ移る（SSID を出さない AP は、SSID を空にしたプローブ要求には答えない）<br>";
+      else f="AP の答えが聞こえたチャネルは最大の時間まで、聞こえなければ最小の時間で次へ移る（各チャネルの前に切り替え 2 ms。SSID を出さない AP は、SSID を空にしたプローブ要求には答えない）<br>";
       ro.innerHTML="かかった時間 = <b>"+total.toFixed(1)+" ms</b><br>"+f+
         (fl.length?U.tbl(["SSID","BSSID","チャネル","RSSI","聞こえたもの"],fl):"見つかった AP は無い。")+
         (ms.length?'<span class="warn">見落とした AP: '+ms.join("、")+'</span><br>':"")+
@@ -203,7 +203,7 @@
         "　電池寿命 <b>"+_w09_life(lifeA)+"</b> ・ 下りのデータが届くまでの遅れ: 最大 <b>"+F.time(D*TB,4)+"</b>、平均 "+F.time(D*TB/2,4)+"<br>"+
         "送るときだけつなぐ: I_avg = I_d + Q_c/T_r = "+F.cur(Id)+" + "+F.cur(Qc/Tr)+" = <b>"+F.cur(IB)+"</b>"+
         " ・ 電池寿命 <b>"+_w09_life(lifeB)+"</b> ・ 下りの遅れ: 最大 <b>"+F.time(Tr)+"</b>（次に接続するまで）<br>"+
-        "T_r* = Q_c / (I_A − I_d) = <b>"+(Ts>0?F.time(Ts):"—")+"</b> → いまの T_r（"+F.time(Tr)+"）では"+
+        "T_r* = Q_c / (I_A − I_d) = <b>"+(Ts>0?Math.round(Ts)+" 秒（"+F.time(Ts)+"）":"—")+"</b> → いまの T_r（"+F.time(Tr)+"）では"+
         (IB<IA?'<span class="ok">送るときだけつなぐほうが小さい</span>':'<b style="color:var(--signal)">つなぎ続けるほうが小さい</b>')+
         '<div class="wnote">どちらも、測定値を送る電荷そのものは含めていない（同じなので）。電流と時間はすべて代表値で、製品によって大きく違う。</div>';
     }
