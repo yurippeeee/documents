@@ -71,8 +71,8 @@ def _check_overlap(name, w, h):
             if ox > 1.5 and oy > 2.5:
                 print("FIGCHECK %s: 文字の重なり %r と %r" % (name, t, u), file=_sys.stderr)
 
-def T(x, y, s, a="middle", sz=11.5, c=MUT, b=False, mono=False, rot=None):
-    """文字。y はベースライン。a は start/middle/end。"""
+def T(x, y, s, a="middle", sz=11.5, c=MUT, b=False, mono=False, rot=None, halo=False):
+    """文字。y はベースライン。a は start/middle/end。halo=True で、図の地の色の縁取りを付け、下を通る線を隠す。"""
     if c == LIN:            # 罫線色は文字には薄すぎるので、読める色に寄せる
         c = MUT
     s = str(s)
@@ -81,6 +81,8 @@ def T(x, y, s, a="middle", sz=11.5, c=MUT, b=False, mono=False, rot=None):
         x0 = x - (wdt / 2 if a == "middle" else (wdt if a == "end" else 0))
         _BOXES.append((x0, y - sz * 0.82, x0 + wdt, y + sz * 0.22, s))
     tr = ' transform="rotate(%g %g %g)"' % (rot, x, y) if rot is not None else ""
+    if halo:
+        tr += ' stroke="%s" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke"' % SCR
     return ('<text x="%g" y="%g" text-anchor="%s" font-size="%g" fill="%s"'
             ' font-family="%s" font-weight="%s"%s>%s</text>'
             % (round(x, 2), round(y, 2), a, sz, c, MONO if mono else SANS, "700" if b else "400", tr, E(s)))
@@ -392,7 +394,7 @@ def seq(lanes, msgs, x=10, y=10, w=640, head_h=30, dy=34, label_sz=10.5, lane_w=
         if frm == to:      # 自分への矢印（処理）
             body.append(PATH("M%g,%g h26 v12 h-20" % (x1, y1), c=c, lw=1.5))
             body.append(_head(x1 + 26, y1 + 12, x1 + 4, y1 + 12, c, 6))
-            body.append(T(x1 + 32, y1 + 10, label, "start", label_sz, c))
+            body.append(T(x1 + 32, y1 + 10, label, "start", label_sz, c, halo=True))
             rows.append(y1); yy += h + 6
             continue
         if op.get("lost"):
@@ -406,9 +408,14 @@ def seq(lanes, msgs, x=10, y=10, w=640, head_h=30, dy=34, label_sz=10.5, lane_w=
             body.append(ARR(x1, y1, x2, y2, c=c, lw=1.6, head=7, dash="5 3" if op.get("dash") else None))
         mxm = (x1 + x2) / 2
         lab_y = min(y1, y2) - 5
-        body.append(T(mxm, lab_y, label, "middle", label_sz, c, op.get("b", False), op.get("mono", False)))
+        # 文字の下に地の色の帯を敷き、文字の後ろを通るほかのライフラインを隠す（帯は矢印より上なので矢印は隠れない）
+        lw_ = tw(label, label_sz, op.get("mono", False)) + 6
+        body.append(RECT(mxm - lw_ / 2, lab_y - label_sz * 0.85, lw_, label_sz * 1.1, 2, SCR, "none", 0))
+        body.append(T(mxm, lab_y, label, "middle", label_sz, c, op.get("b", False), op.get("mono", False), halo=True))
         if op.get("sub"):
-            body.append(T(mxm, max(y1, y2) + 13, op["sub"], "middle", label_sz - 1, MUT, False, op.get("mono", False)))
+            sw_ = tw(op["sub"], label_sz - 1, op.get("mono", False)) + 6
+            body.append(RECT(mxm - sw_ / 2, max(y1, y2) + 13 - (label_sz - 1) * 0.85, sw_, (label_sz - 1) * 1.1, 2, SCR, "none", 0))
+            body.append(T(mxm, max(y1, y2) + 13, op["sub"], "middle", label_sz - 1, MUT, False, op.get("mono", False), halo=True))
         rows.append(max(y1, y2))
         yy += h + sl + (10 if op.get("sub") else 0)
     yend = yy + tail - 10
