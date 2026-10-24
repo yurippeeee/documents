@@ -113,8 +113,8 @@ def _f21_dechirp():
     o.append(pa.line([(0, k / N), (1 - k / N, 1)], c=SIG, lw=2.2))
     o.append(pa.line([(1 - k / N, 1), (1 - k / N, 0)], c=SIG, lw=1, dash="2 3"))
     o.append(pa.line([(1 - k / N, 0), (1, k / N)], c=SIG, lw=2.2))
-    o.append(T(pa.X(0.62), pa.Y(0.12) + 2, "基準（値 0）", "start", 9.5, MUT, halo=True))
-    o.append(T(pa.X(0.05), pa.Y(-0.5), "時間 →", "start", 9.5, MUT))
+    o.append(T(pa.X(0.05), pa.Y(-0.45), "時間 →", "start", 9.5, MUT))
+    o.append(T(pa.X(0.05), pa.Y(-0.8), "破線 = 基準（値 0）", "start", 9.5, MUT))
     o.append(ARR(256, 114, 300, 114, c=INK, lw=1.6))
     o.append(T(278, 104, "引く", "middle", 10, INK, True))
     # (b) 差
@@ -170,7 +170,7 @@ def _f21_sf():
     for (a, b), (_, d2) in zip(est, ds):
         o.append(D(p.X(a), p.Y(b), SIG, 3.4))
         o.append(D(p.X(a), p.Y(d2), GLD, 2.8))
-    o.append(T(p.X(12) - 2, p.Y(-12.7) + 18, "−12.7 dB", "end", 9.5, SIG, True))
+    o.append(T(p.X(11.7), p.Y(-12.7) + 4, "−12.7 dB", "end", 9.5, SIG, True))
     o.append(LEGEND(430, 262, [(SIG, "ビット時間からの見積もり")], sz=9.5))
     o.append(LEGEND(430, 280, [(GLD, "SN 比の限度の差（代表値）")], sz=9.5))
     return SVG(700, 292, o, "SF ごとのシンボル時間とビットレート（左）と、SF7 と比べて要る受信電力（右）。青は、16 章 3 節の「要る受信電力はビット時間に反比例する」という見積もり、金の破線は、データシートの SN 比の限度（SF7 の −7.5 dB から 2.5 dB ずつ下がる代表値）の差。SF を 1 上げるごとに約 2.5 dB 弱い電波まで受け取れる。")
@@ -179,21 +179,19 @@ F["e21_sf"] = _f21_sf()
 # ---- 3 節: パケットの形と空中時間 ----
 def _f21_packet():
     o = []
-    u = 8.4                                   # 1 シンボルの幅
+    u = 10.0                                  # 1 シンボルの幅
     x0, y0, h = 30, 76, 34
-    rnd = [5, 61, 22, 98, 47, 110, 3, 77, 39, 120, 64, 15, 90, 31, 55, 8, 101, 70, 26, 84, 12, 117, 58, 36,
-           93, 19, 66, 44, 105, 2, 80, 51, 28, 113, 9, 72, 41, 96, 17, 62, 33, 87, 54, 6, 108, 75, 24, 99]
-    segs = [("preamble", 8), ("sync", 2), ("sfd", 2.25), ("hdr", 8), ("blk", 40)]
-    x = x0
+    rnd = [5, 61, 22, 98, 47, 110, 3, 77]
     def ramp(xa, w, s, up=True, c=SIG):
         # 1 シンボルのチャープ（s は始まりの位置 0〜1）
         yy = lambda f: y0 + h - f * h
         if up:
             if s == 0:
-                return W(xa, yy(0), xa + w, yy(1), c=c, lw=1.2)
+                return W(xa, yy(0), xa + w, yy(1), c=c, lw=1.3)
             xt = xa + w * (1 - s)
-            return W(xa, yy(s), xt, yy(1), c=c, lw=1.2) + W(xt, yy(0), xa + w, yy(s), c=c, lw=1.2)
-        return W(xa, yy(1), xa + w, yy(0), c=c, lw=1.2)
+            return W(xa, yy(s), xt, yy(1), c=c, lw=1.3) + W(xt, yy(0), xa + w, yy(s), c=c, lw=1.3)
+        return W(xa, yy(1), xa + w, yy(0), c=c, lw=1.3)
+    x = x0
     for i in range(8):
         o.append(ramp(x + i * u, u, 0, c=MUT))
     o.append(RECT(x, y0, 8 * u, h, 2, "none", MUT, 1.1))
@@ -207,14 +205,13 @@ def _f21_packet():
         o.append(ramp(xs_sfd + i * u, w, 0, up=False, c=GLD))
     o.append(RECT(xs_sfd, y0, 2.25 * u, h, 2, "none", GLD, 1.1))
     xs_h = xs_sfd + 2.25 * u
+    o.append(RECT(xs_h, y0, 8 * u, h, 2, PSOFT, PUR, 1.1))
     for i in range(8):
         o.append(ramp(xs_h + i * u, u, rnd[i] / 128, c=PUR))
-    o.append(RECT(xs_h, y0, 8 * u, h, 2, PSOFT, PUR, 1.1, op=0.5))
     xs_b = xs_h + 8 * u
-    for i in range(40):
-        o.append(ramp(xs_b + i * u, u, rnd[8 + i] / 128, c=SIG))
     for j in range(8):
-        o.append(RECT(xs_b + j * 5 * u, y0, 5 * u, h, 2, "none", SIG, 1.0))
+        o.append(RECT(xs_b + j * 5 * u, y0, 5 * u, h, 2, SSOFT, SIG, 1.1))
+        o.append(T(xs_b + j * 5 * u + 2.5 * u, y0 + h / 2 + 4, "5", "middle", 10, SIG, True))
     xe = xs_b + 40 * u
     # 上の見出し
     o.append(T((x + xs_sync) / 2, y0 - 8, "プリアンブル n = 8", "middle", 9.5, MUT, True))
@@ -223,7 +220,7 @@ def _f21_packet():
     o.append(T(xs_sfd + 1.1 * u, y0 - 38, "下がる 2.25", "middle", 9.5, GLD, True))
     o.append(W(xs_sfd + 1.1 * u, y0 - 34, xs_sfd + 1.1 * u, y0 - 2, c=GLD, lw=1))
     o.append(T((xs_h + xs_b) / 2, y0 - 8, "最初のブロック 8", "middle", 9.5, PUR, True))
-    o.append(T((xs_b + xe) / 2, y0 - 8, "ブロック 8 個 × (4 + CR) = 40", "middle", 9.5, SIG, True))
+    o.append(T((xs_b + xe) / 2, y0 - 8, "ブロック 8 個 × (4 + CR) = 40（1 ブロックは 5 シンボル）", "middle", 9.5, SIG, True))
     # 下の括弧
     yb = y0 + h + 12
     o.append(W(x, yb, x, yb + 6, xs_h, yb + 6, xs_h, yb, c=GLD, lw=1.2))
@@ -233,7 +230,7 @@ def _f21_packet():
     o.append(T(x, yb + 48, "最初のブロック: 符号化率 4/8・1 シンボル SF − 2 ビット。明示ヘッダの 20 ビットとデータの始めを運ぶ。", "start", 9.5, PUR))
     o.append(T(x, yb + 66, "残りのブロック: (4 + CR) シンボル・1 シンボル SF − 2D_E ビット。残りのデータと CRC の 16 ビットを運ぶ。", "start", 9.5, SIG))
     o.append(T(x, yb + 88, "SF7・PL 25 バイトの例: (12.25 + 48) シンボル × 1.024 ms = 61.7 ms", "start", 10.5, INK, True))
-    return SVG(700, yb + 100, o, "LoRa のパケットの形（SF7、PL = 25 バイトの例。線は各シンボルの周波数の動き）。値 0 のチャープを n 回、同期の印を 2 シンボル、周波数が下がるチャープを 2.25 シンボル送った後、最初のブロック（8 シンボル）と、4 + CR シンボルずつのブロックで、ヘッダ・データ・CRC を送る。")
+    return SVG(700, yb + 100, o, "LoRa のパケットの形（SF7、PL = 25 バイトの例。プリアンブルと最初のブロックの線は、各シンボルの周波数の動き）。値 0 のチャープを n 回、同期の印を 2 シンボル、周波数が下がるチャープを 2.25 シンボル送った後、最初のブロック（8 シンボル）と、4 + CR シンボルずつのブロックで、ヘッダ・データ・CRC を送る。")
 F["e21_packet"] = _f21_packet()
 
 def _f21_toa_calc():
@@ -263,7 +260,8 @@ F["e21_toa_calc"] = _f21_toa_calc()
 def _f21_toa_pl():
     o = []
     p = Plot(90, 24, 520, 220, (0, 64), (0.03, 3), ylog=True)
-    o.append(p.axes(xl="PL（LoRa のペイロードのバイト数）", yl="空中時間", xt=[0, 13, 25, 40, 51, 64], yt=[0.03, 0.1, 0.3, 1, 3],
+    o.append(T(p.x - 62, p.y + p.h / 2, "空中時間", "middle", 10, MUT, rot=-90))
+    o.append(p.axes(xl="PL（LoRa のペイロードのバイト数）", yl=None, xt=[0, 13, 25, 40, 51, 64], yt=[0.03, 0.1, 0.3, 1, 3],
                     xfmt=lambda v: "%d" % v, yfmt=lambda v: ("%g ms" % (v * 1000)) if v < 1 else ("%g s" % v)))
     for sf, c in ((7, SIG), (9, GRN), (10, GLD), (12, PUR)):
         pts = [(pl, _f21_toa(sf, pl)) for pl in range(0, 65)]
@@ -274,7 +272,7 @@ def _f21_toa_pl():
     for sf in (7, 12):
         t = _f21_toa(sf, 25)
         o.append(D(p.X(25), p.Y(t), ALI, 4))
-        o.append(T(p.X(25) + 7, p.Y(t) - 7, "%.1f ms" % (t * 1000), "start", 9.5, ALI, True, halo=True))
+        o.append(T(p.X(25) + 7, p.Y(t) + 15, "%.1f ms" % (t * 1000), "start", 9.5, ALI, True, halo=True))
     return SVG(700, 290, o, "LoRa のペイロードの長さと空中時間（BW 125 kHz、CR 4/5、n = 8、明示ヘッダ・CRC あり。縦軸は対数目盛）。ブロックの境目を越えるたびに 4 + CR シンボル分ずつ増えるので、階段の形になる。赤い点は本文の例（PL = 25 バイト）。")
 F["e21_toa_pl"] = _f21_toa_pl()
 
@@ -311,20 +309,20 @@ def _f21_aloha():
     o = []
     # 左: 重なる範囲
     o.append(T(16, 20, "自分の送信と重なる、ほかの送信の始まりの範囲", "start", 11, INK, True))
-    x0, u, y = 40, 70, 64
-    o.append(RECT(x0 + u, y - 30, 2 * u, 92, 3, ASOFT, "none", 0, op=0.6))
-    o.append(T(x0 + 2 * u, y + 76, "始まりがこの 2T_air の間なら重なる", "middle", 9.5, ALI, True))
+    x0, u, y = 40, 70, 84
+    o.append(RECT(x0 + u, y - 46, 2 * u, 112, 3, ASOFT, "none", 0, op=0.6))
     o.append(RECT(x0 + 2 * u, y, u, 20, 3, SSOFT, SIG, 1.4))
     o.append(T(x0 + 2.5 * u, y + 14, "自分", "middle", 10, SIG, True))
-    for (s, row, ok) in ((1.4, 1, False), (2.7, 2, False), (3.4, 1, True)):
-        yy = y + row * 26 - 50
+    for (s_, dy, ok) in ((1.4, -40, False), (2.7, 32, False), (3.4, -40, True)):
         c = ALI if not ok else GRN
-        o.append(RECT(x0 + s * u, yy, u, 18, 3, soft(c), c, 1.2))
-        o.append(T(x0 + (s + 0.5) * u, yy + 13, "重なる" if not ok else "重ならない", "middle", 9.5, c, True))
-    o.append(W(x0, y + 46, x0 + 4.6 * u, y + 46, c=MUT, lw=1))
+        o.append(RECT(x0 + s_ * u, y + dy, u, 18, 3, soft(c), c, 1.2))
+        o.append(T(x0 + (s_ + 0.5) * u, y + dy + 13, "重なる" if not ok else "重ならない", "middle", 9.5, c, True))
+    ya = y + 74
+    o.append(W(x0, ya, x0 + 4.6 * u, ya, c=MUT, lw=1))
     for k, lab in ((1, "t − T_air"), (2, "t"), (3, "t + T_air")):
-        o.append(W(x0 + k * u, y + 42, x0 + k * u, y + 50, c=MUT, lw=1))
-        o.append(T(x0 + k * u, y + 62, lab, "middle", 9.5, MUT))
+        o.append(W(x0 + k * u, ya - 4, x0 + k * u, ya + 4, c=MUT, lw=1))
+        o.append(T(x0 + k * u, ya + 16, lab, "middle", 9.5, MUT))
+    o.append(T(x0 + 2 * u, ya + 36, "始まりがこの 2T_air の間なら重なる", "middle", 9.5, ALI, True))
     # 右: 確率
     p = Plot(420, 36, 250, 170, (0, 2000), (0, 1))
     o.append(T(545, 20, "どれとも重ならない確率（1 時間に 1 回）", "middle", 11, INK, True))
@@ -378,7 +376,7 @@ def _f21_frame():
     o = []
     fields = [("MHDR", 1, PUR, "40"), ("DevAddr", 4, SIG, "3D 1C 0B 26"), ("FCtrl", 1, SIG, "80"), ("FCnt", 2, SIG, "29 00"),
               ("FPort", 1, PUR, "0A"), ("FRMPayload（データ）", 12, GRN, "暗号化した 12 バイト"), ("MIC", 4, ALI, "4 バイト")]
-    unit, x0, y0, h = 25, 16, 40, 40
+    unit, x0, y0, h = 26, 16, 44, 40
     x = x0
     pos = {}
     for name, nb, c, val in fields:
@@ -392,12 +390,12 @@ def _f21_frame():
         o.append(T(x + w / 2, y0 + h + 14, "%d B" % nb, "middle", 9, MUT))
         pos[name] = (x, x + w)
         x += w
-    o.append(T(pos["FPort"][0] - 2, y0 - 12, "FOpts（0〜15 B）", "middle", 9, MUT))
+    o.append(T(pos["FPort"][0] - 2, y0 + h + 28, "↑ FOpts（0〜15 B）", "middle", 9, MUT))
     # 上の括弧
     xa, xb = pos["MHDR"][0], pos["FRMPayload（データ）"][1]
     o.append(W(xa, 30, xa, 24, xb, 24, xb, 30, c=ALI, lw=1.2))
     o.append(T((xa + xb) / 2, 18, "MIC を計算する範囲（フレームカウンタの 32 ビットも含める）", "middle", 9.5, ALI, True))
-    yb = y0 + h + 30
+    yb = y0 + h + 50
     o.append(T(x0, yb, "MHDR 0x40 = 確認なしの上り。DevAddr 0x260B1C3D と FCnt 41（0x0029）はリトルエンディアン。FCtrl 0x80 = ADR のビット。", "start", 9.5, MUT))
     o.append(T(x0, yb + 17, "足されるのは 1 + 4 + 1 + 2 + 1 + 4 = 13 バイト（FOpts が空のとき）。この全体が LoRa のパケットのペイロードになる。", "start", 9.5, MUT))
     return SVG(700, yb + 28, o, "LoRaWAN の上りのフレームの例（データ 12 バイト）。FOpts が空なら、データに 13 バイトが足される。FRMPayload はセッション鍵とフレームカウンタから作ったバイトの列で暗号化され、最後の MIC は別のセッション鍵で計算される。")
@@ -500,8 +498,8 @@ def _f21_fcnt():
     o.append(T(xa, yl + 24, "L", "middle", 10.5, INK, True))
     o.append(W(xb, yl - 10, xb, yl + 10, c=GRN, lw=1.4))
     o.append(T(xb, yl + 24, "L + 65536", "middle", 10.5, GRN, True))
-    o.append(T((xa + xb) / 2, yl - 16, "この範囲に、下位 16 ビットが r の値はちょうど 1 つ", "middle", 9.5, GRN, True))
-    o.append(T(16, yl + 46, "65536 個以上のフレームが続けて失われない限り、送り手の値はこの範囲にあり、正しく復元できる。", "start", 9.5, MUT))
+    o.append(T((xa + xb) / 2, yl - 16, "この範囲に、下位 16 ビットが r の値はちょうど 1 つ（r = L の下位 16 ビットなら重複）", "middle", 9.5, GRN, True))
+    o.append(T(16, yl + 46, "間のフレームが 65535 個以上続けて失われない限り、送り手の値はこの範囲にあり、正しく復元できる。", "start", 9.5, MUT))
     return SVG(700, yl + 58, o, "フレームカウンタの復元。フレームには下位 16 ビットだけを入れ、受け手は最後に受け入れた値 L の上位 16 ビットをつないで c を作る。c が L より小さければ一周したとして 65536 を足し、等しければ重複として捨てる。")
 F["e21_fcnt"] = _f21_fcnt()
 
