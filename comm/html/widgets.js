@@ -84,9 +84,11 @@
   /* SVG の表示枠。set(svg文字列) で中身を差し替える。opts.scroll=true なら横に広い図をスクロールで見せる */
   function svgbox(el,opts){opts=opts||{};var d=mk("div","wsvg"+(opts.scroll?" scroll":""));if(opts.minH)d.style.minHeight=opts.minH+"px";el.appendChild(d);
     return {el:d,set:function(s){d.innerHTML=s;}};}
+  /* 表: align[i] は "left"・"right"・"center"、または "wrap"（左寄せで、長い文を折り返す列） */
   function tbl(headers,rows,align){
-    var h='<div class="wtable"><table><thead><tr>'+headers.map(function(t,i){return '<th style="text-align:'+((align&&align[i])||"left")+'">'+t+'</th>';}).join("")+'</tr></thead><tbody>';
-    rows.forEach(function(r){h+='<tr>'+r.map(function(v,i){return '<td style="text-align:'+((align&&align[i])||"left")+'">'+v+'</td>';}).join("")+'</tr>';});
+    function at(i){var a=(align&&align[i])||"left";return a==="wrap"?' class="wrap" style="text-align:left"':' style="text-align:'+a+'"';}
+    var h='<div class="wtable"><table><thead><tr>'+headers.map(function(t,i){return '<th'+at(i)+'>'+t+'</th>';}).join("")+'</tr></thead><tbody>';
+    rows.forEach(function(r){h+='<tr>'+r.map(function(v,i){return '<td'+at(i)+'>'+v+'</td>';}).join("")+'</tr>';});
     return h+'</tbody></table></div>';
   }
 

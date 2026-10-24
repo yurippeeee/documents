@@ -152,7 +152,7 @@ blockquote .dia svg{background:var(--panel)}
 .chk{font-family:var(--mono);font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;cursor:pointer}
 .chk input{accent-color:var(--signal);width:15px;height:15px;margin:0}
 .readout{font-family:var(--mono);font-size:.8rem;color:var(--muted);margin-top:.7rem;padding-top:.7rem;border-top:1px dashed var(--line);font-variant-numeric:tabular-nums;line-height:1.75;overflow-wrap:anywhere}
-.readout b{color:var(--ink)} .readout .warn{color:var(--alias);font-weight:700} .readout .ok{color:var(--green);font-weight:700}
+.readout b{color:var(--ink)} .readout .warn,.widget .warn{color:var(--alias);font-weight:700} .readout .ok,.widget .ok{color:var(--green);font-weight:700}
 .legend{display:flex;flex-wrap:wrap;gap:.35rem 1rem;font-family:var(--mono);font-size:.71rem;color:var(--muted);margin-top:.5rem}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:.3rem;vertical-align:-1px}
 /* hex dump / byte table in widgets */
@@ -161,6 +161,7 @@ blockquote .dia svg{background:var(--panel)}
 .wtable{overflow-x:auto;margin-top:.6rem}
 .wtable table{font-size:.8rem;font-family:var(--mono)}
 .wtable th,.wtable td{padding:.3rem .55rem;white-space:nowrap}
+.wtable td.wrap,.wtable th.wrap{white-space:normal;min-width:12em}
 .wnote{font-size:.78rem;color:var(--muted);margin-top:.45rem;line-height:1.6}
 
 @media (max-width:520px){body{font-size:15.5px}.ctrl{flex-basis:100%}}
