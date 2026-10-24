@@ -167,7 +167,7 @@
     var S=U.S,F=U.fmt;
     var GV=[5,10,20,50,100,200,500,1000,1500,2000];               /* ms */
     var XV=[0,0.05,0.1,0.2,0.5,1,2,5,10,15,19,20,21,25,30,50,100,200,300,500,800,999.7,1000,1001,1500,2000,3000];
-    function ms(v){return v===0?"0（続けて送る）":v>=1000?U.sig(v/1000,4)+" s":U.sig(v,3)+" ms";}
+    function ms(v){return v===0?"0（続けて送る）":v>=1000?String(+(v/1000).toFixed(4))+" s":String(+v.toFixed(2))+" ms";}
     U.head(el,"GUARD TIME","+++ がコマンドモードに戻る合図になる条件");
     var row=U.ctrls(el);
     var g=U.slider(row,"ガードタイム G",{min:0,max:GV.length-1,step:1,value:2,fmt:function(i){return ms(GV[i]);},onInput:draw});
@@ -194,7 +194,7 @@
       var o=[],x=14,y=46,bw=30,sum=wraw(A)+2*wraw(B)+wraw(C),sc=Math.min(1,(700-14-58-90-58-14)/sum);
       function gap(v,good,lab){var w=Math.max(16,wraw(v)*sc);o.push(S.L(x+2,y+40,x+w-2,y+40,good?"green":"alias",1.6));
         o.push(S.L(x+2,y+34,x+2,y+46,good?"green":"alias",1.2));o.push(S.L(x+w-2,y+34,x+w-2,y+46,good?"green":"alias",1.2));
-        o.push(S.T(x+w/2,y+60,(v>=1000?U.sig(v/1000,4)+" s":U.sig(v,3)+" ms"),"middle",10,good?"green":"alias",true));
+        o.push(S.T(x+w/2,y+60,(v>=1000?String(+(v/1000).toFixed(4))+" s":String(+v.toFixed(2))+" ms"),"middle",10,good?"green":"alias",true));
         o.push(S.T(x+w/2,y+74,lab+(good?" ✓":" ✗"),"middle",9.5,good?"green":"alias"));x+=w;}
       o.push(S.RECT(x,y,58,28,4,U.soft("purple"),"purple",1.2));o.push(S.T(x+29,y+19,"前のデータ","middle",9.5,"purple",true));x+=58;
       gap(A,okA,"> G");
