@@ -244,7 +244,7 @@
       var bits=[];d.forEach(function(v,i){if(f[i]!==v)bits.push("位置 "+i+": "+("0000000"+v.toString(2)).slice(-8)+" → "+("0000000"+f[i].toString(2)).slice(-8));});
       hv.innerHTML='<div class="wnote">送ったデータ（'+d.length+' バイト）</div>'+U.hexView(d,null)+'<div class="wnote">届いたデータ（変わったバイトは赤）</div>'+U.hexView(f,ch)+
         '<div class="wnote" style="font-family:var(--mono)">'+bits.slice(0,6).join("<br>")+(bits.length>6?"<br>…":"")+'</div>';
-      last={rows:_w03_M.map(function(M){var a=M.f(d),b=M.f(f);return [M.n,_w03_hx(a,M.w),_w03_hx(b,M.w),a===b?'<span class="warn">見逃した</span>':'<span class="ok">気づいた</span>'];})};
+      last={rows:_w03_M.map(function(M){var a=M.f(d),b=M.f(f);return [M.n,_w03_hx(a,M.w),_w03_hx(b,M.w),a===b?'<b style="color:var(--alias)">見逃した</b>':'<b style="color:var(--green)">気づいた</b>'];})};
       show();
     }
     var mcRes=null;
