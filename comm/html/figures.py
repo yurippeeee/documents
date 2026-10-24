@@ -354,6 +354,7 @@ def seq(lanes, msgs, x=10, y=10, w=640, head_h=30, dy=34, label_sz=10.5, lane_w=
             lines = text.split("\n")
             bw = max(tw(l, 10) for l in lines) + 14
             bh = len(lines) * 13.5 + 8
+            body.append(RECT(xs[lane] - bw / 2, yy - 6, bw, bh, 5, SCR, "none", 0))   # 下地: ライフラインを透かさない
             body.append(RECT(xs[lane] - bw / 2, yy - 6, bw, bh, 5, soft(c), c, 1.0))
             for k, l in enumerate(lines):
                 body.append(T(xs[lane], yy + 6 + k * 13.5, l, "middle", 10, c))
