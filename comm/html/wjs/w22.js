@@ -149,7 +149,7 @@
         if(a==="dlcut"){log.push("スロット "+"AB"[o]+" を消して版 "+nv+" を書いている途中で電源が切れた。");act("boot");return;}
         st.slot[o].img="完全";
         log.push("スロット "+"AB"[o]+" を消して版 "+nv+" を書き、ハッシュと署名を確かめた。");
-        if(setf(o,0))log.push("スロット "+"AB"[o]+" に PENDING を書いた。再起動すれば試しに起動する。");
+        if(setf(o,0)){st.msg="スロット "+"AB"[o]+" に版 "+nv+" を書いて PENDING を書いた。再起動すると試しに起動する。";log.push(st.msg);}
         else {act("boot");return;}
       }else if(a==="boot"||a==="hang"){
         if(a==="hang")log.push(st.trial?"試しの起動中に固まった → ウォッチドッグがリセットした。":"固まった → ウォッチドッグがリセットした。");
