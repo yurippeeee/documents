@@ -462,60 +462,47 @@ F["e03_lenframe"] = _f03_lenframe()
 def _f03_len_bad():
     o = []
     st = []
-    owner = []
     for k, p in enumerate(_F03_PAY):
-        f = _f03_lenfr(p)
-        st += f; owner += [k] * len(f)
-    cw, x0 = 21, 124
+        st += _f03_lenfr(p)
+    cw, x0 = 25, 13
     X = lambda i: x0 + i * cw
-    role = []
-    for k in range(3):
-        role += ["s", "s", "l", "p", "p", "p", "p", "c", "c"]
+    role = ["s", "s", "l", "p", "p", "p", "p", "c", "c"] * 3
     rc = {"s": GLD, "l": PUR, "p": SIG, "c": GRN}
 
     def stream(y, bad=None):
-        s = []
-        for i, b in enumerate(st):
+        s_ = []
+        for i, b_ in enumerate(st):
             if i == bad:
-                s.append(_f03_cell(X(i) + 0.5, y, "0C", ALI, w=cw - 1, h=22, sz=9.5, b=True))
+                s_.append(_f03_cell(X(i) + 0.5, y, "0C", ALI, w=cw - 1, h=24, sz=10.5, b=True))
             else:
-                s.append(_f03_cell(X(i) + 0.5, y, _f03_hx(b), rc[role[i]], w=cw - 1, h=22, sz=9.5))
-        return "".join(s)
+                s_.append(_f03_cell(X(i) + 0.5, y, _f03_hx(b_), rc[role[i]], w=cw - 1, h=24, sz=10.5))
+        return "".join(s_)
 
-    y = 30
-    o.append(T(X(0) - 8, y + 15, "送った列", "end", 10.5, INK, True))
+    y = 42
+    o.append(T(x0, 14, "送った列", "start", 11, INK, True))
     for k in range(3):
         o.append(_f03_br(X(9 * k) + 2, X(9 * k + 9) - 2, y - 5, SIG, down=True, lw=1.1))
-        o.append(T((X(9 * k) + X(9 * k + 9)) / 2, y - 10, "フレーム %d" % (k + 1), "middle", 9.5, SIG, True))
+        o.append(T((X(9 * k) + X(9 * k + 9)) / 2, y - 10, "フレーム %d" % (k + 1), "middle", 10, SIG, True))
     o.append(stream(y))
-    # 悪い例
-    y = 104
-    o.append(T(20, y - 14, "悪い例: 読み終えた位置から探し直す", "start", 11, ALI, True))
-    o.append(T(X(0) - 8, y + 15, "長さ 04 → 0C", "end", 10, ALI, True))
-    o.append(stream(y, bad=2))
     e1 = 2 + 1 + 12 + 2
-    o.append(_f03_br(X(0) + 2, X(e1) - 2, y + 28, ALI, down=False))
-    o.append(T((X(0) + X(e1)) / 2, y + 44, "12 + 2 バイトを読む → CRC が合わず捨てる", "middle", 9.5, ALI, True))
-    o.append(ARR(X(e1) + cw / 2, y + 62, X(e1) + cw / 2, y + 26, c=ALI, lw=1.3, head=5))
-    o.append(T(X(e1) + cw / 2 + 6, y + 60, "ここから探し直す", "start", 9.5, ALI))
-    o.append(_f03_br(X(18) + 2, X(27) - 2, y - 4, GRN, down=True, lw=1.1))
-    o.append(T((X(18) + X(27)) / 2, y - 9, "✓ フレーム 3", "middle", 9.5, GRN, True))
-    o.append(T(680, y + 80, "→ フレーム 1 と 2 を失う", "end", 11, ALI, True))
-    # 良い例
-    y = 214
-    o.append(T(20, y - 14, "良い例: 捨てたら、同期パターンの次のバイトから探し直す", "start", 11, GRN, True))
-    o.append(T(X(0) - 8, y + 15, "長さ 04 → 0C", "end", 10, ALI, True))
-    o.append(stream(y, bad=2))
-    o.append(_f03_br(X(0) + 2, X(e1) - 2, y + 28, ALI, down=False))
-    o.append(T((X(0) + X(e1)) / 2, y + 44, "CRC が合わず捨てる", "middle", 9.5, ALI, True))
-    o.append(ARR(X(1) + cw / 2, y + 62, X(1) + cw / 2, y + 26, c=GRN, lw=1.3, head=5))
-    o.append(T(X(1) + cw / 2 + 6, y + 60, "ここから探し直す", "start", 9.5, GRN))
-    for k in (1, 2):
-        o.append(_f03_br(X(9 * k) + 2, X(9 * k + 9) - 2, y - 4, GRN, down=True, lw=1.1))
-        o.append(T((X(9 * k) + X(9 * k + 9)) / 2, y - 9, "✓ フレーム %d" % (k + 1), "middle", 9.5, GRN, True))
-    o.append(T(680, y + 80, "→ 失うのはフレーム 1 だけ", "end", 11, GRN, True))
-    yb = y + 106
-    o.append(T(20, yb, "長さが上限（たとえば 16）を超える値に化けたときは、長さを読んだ時点で捨てられる。ヘッダの CRC があれば、0C もその時点で見つかる。", "start", 10, MUT))
+    for (y, good) in ((126, False), (250, True)):
+        if good:
+            o.append(T(x0, y - 30, "良い例: 捨てたら、同期パターンの次のバイトから探し直す（長さ 04 → 0C）", "start", 11, GRN, True))
+        else:
+            o.append(T(x0, y - 30, "悪い例: 読み終えた位置から探し直す（長さ 04 → 0C）", "start", 11, ALI, True))
+        o.append(stream(y, bad=2))
+        o.append(_f03_br(X(0) + 2, X(e1) - 2, y + 30, ALI, down=False))
+        o.append(T((X(0) + X(e1)) / 2, y + 46, "12 + 2 バイトを読む → CRC が合わず捨てる", "middle", 10, ALI, True))
+        ks = (1, 2) if good else (2,)
+        for k in ks:
+            o.append(_f03_br(X(9 * k) + 2, X(9 * k + 9) - 2, y - 4, GRN, down=True, lw=1.1))
+            o.append(T((X(9 * k) + X(9 * k + 9)) / 2, y - 9, "✓ フレーム %d" % (k + 1), "middle", 10, GRN, True))
+        xr = X(1) + cw / 2 if good else X(e1) + cw / 2
+        o.append(ARR(xr, y + 66, xr, y + 28, c=GRN if good else ALI, lw=1.3, head=5))
+        o.append(T(xr + 6, y + 64, "ここから探し直す", "start", 10, GRN if good else ALI))
+        o.append(T(687, y + 84, "→ 失うのはフレーム 1 だけ" if good else "→ フレーム 1 と 2 を失う", "end", 11, GRN if good else ALI, True))
+    yb = 250 + 108
+    o.append(T(x0, yb, "長さが上限（たとえば 16）を超える値に化けたときは、長さを読んだ時点で捨てられる。ヘッダの CRC があれば、0C もその時点で見つかる。", "start", 10, MUT))
     return SVG(700, yb + 12, o, "1 つ目のフレームの長さが 04 から 0C に化けた例。受け手は 2 つ目のフレームの途中までを 1 つ目のフレームとして読み、CRC が合わないので捨てる。読み終えた位置から探し直すと、2 つ目のフレームの同期パターンを通り過ぎているので、壊れていない 2 つ目のフレームまで失う。")
 F["e03_len_bad"] = _f03_len_bad()
 
@@ -659,7 +646,8 @@ def _f03_detect():
     yl = y0 + len(rows) * rh + 22
     o.append(LEGEND(x0, yl, [(GRN, "一度も見逃さなかった"), (GLD, "1 % 未満を見逃した"), (ALI, "1 % 以上を見逃した")]))
     o.append(T(20, yl + 22, "16 バイトの乱数のデータに値を付け、データの部分に誤りを入れて 1000 万回ずつ試した。CRC の設定は上の表のとおり。", "start", 9.5, MUT))
-    return SVG(700, yl + 34, o, "誤りの形ごとに、4 つの方法が見逃した割合。8 ビットの和は 2 ビットの反転を約 7 % 見逃し、入れ替えには気づけない。CRC は長さ r 以下のバーストを必ず見つけ、それより長い誤りの見逃しも約 2⁻ʳ（CRC-8 で 0.39 %、CRC-16 で 0.0015 %）にとどまる。CRC-32 の見逃しは約 2×10⁻¹⁰ なので、1000 万回では現れない。")
+    o.append(T(20, yl + 37, "ビットの位置は、各バイトを MSB から並べた順番で数えた（バーストはその順番で続いたビットの範囲）。", "start", 9.5, MUT))
+    return SVG(700, yl + 49, o, "誤りの形ごとに、4 つの方法が見逃した割合。8 ビットの和は 2 ビットの反転を約 7 % 見逃し、入れ替えには気づけない。CRC は長さ r 以下のバーストを必ず見つけ、それより長い誤りの見逃しも約 2⁻ʳ（CRC-8 で 0.39 %、CRC-16 で 0.0015 %）にとどまる。CRC-32 の見逃しは約 2×10⁻¹⁰ なので、1000 万回では現れない。")
 F["e03_detect"] = _f03_detect()
 
 # ---- 6 節: エンディアンと構造体 ----

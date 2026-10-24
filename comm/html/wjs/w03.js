@@ -220,7 +220,8 @@
     U.button(br,"誤りを入れる（別の乱数で）",function(){seed++;shot();});
     U.button(br,"1 万回試す",function(){mc();});
     var hv=U.mk("div");el.appendChild(hv);
-    var box=U.svgbox(el); var ro=U.readout(el);
+    var tb=U.mk("div");el.appendChild(tb);
+    var box=U.svgbox(el);box.el.style.marginTop=".7rem"; var ro=U.readout(el);
     var last=null;
     function upd(){var b=kd.get()===3;bl.el.style.opacity=b?1:0.4;bl.input.disabled=!b;}
     function bytesOf(s){var a=[];try{a=Array.prototype.slice.call(new TextEncoder().encode(s));}catch(e){for(var i=0;i<s.length;i++)a.push(s.charCodeAt(i)&255);}return a.slice(0,64);}
@@ -254,8 +255,7 @@
       mcRes={miss:miss,tried:tried,n:n,k:k,b:b};show();
     }
     function show(){
-      var h="";
-      if(last)h+=U.tbl(["方法","送り手が付けた値","受け手が計算した値","判定"],last.rows,["left","left","left","left"]);
+      tb.innerHTML=last?U.tbl(["方法","送り手が付けた値","受け手が計算した値","判定"],last.rows,["left","left","left","left"]):"";
       var o=[],W=700;
       if(mcRes){var p=U.plot(150,30,400,120,[1e-5,1],[0,4],{xlog:true});
         o.push(S.T(20,18,"見逃した割合（"+mcRes.tried+" 回。データ "+mcRes.n+" バイト、誤りの形: "+KIND[mcRes.k]+(mcRes.k===3?"、b = "+mcRes.b:"")+"）","start",10.5,"ink",true));
@@ -264,10 +264,10 @@
           o.push(S.T(142,y+15,M.n,"end",10.5,"ink",true));
           if(v>0){var x=p.X(Math.max(v,1e-5));o.push(S.RECT(150,y+2,x-150,18,3,U.soft(c),c,1.1));o.push(S.T(x+6,y+15,mcRes.miss[m]+" 回（"+U.sig(v*100,2)+" %）","start",10,c,true));}
           else o.push(S.T(156,y+15,"0 回（一度も見逃さなかった）","start",10,"green",true));});
-        o.push(S.T(20,190,"目安: 8 ビットの値なら 1/256 ≈ 0.39 %、16 ビットなら 1/65536 ≈ 0.0015 %（1 万回では 0 回のことが多い）","start",9.5,"muted"));
+        o.push(S.T(20,190,"誤りの形がでたらめなときの目安: 8 ビットの値なら 1/256 ≈ 0.39 %、16 ビットなら 1/65536 ≈ 0.0015 %（1 万回では 0 回が多い）","start",9.5,"muted"));
         box.el.style.display="";box.set(S.svg(W,200,o));
       }else{box.el.style.display="none";}
-      ro.innerHTML=h+(mcRes?"":'<div class="wnote">「1 万回試す」を押すと、見逃した割合のグラフが表示される。</div>');
+      ro.innerHTML=mcRes?"同じ形の誤りを 1 万回入れたとき、4 つの方法が見逃した回数（上のグラフ）。「1 万回試す」をもう一度押すと、別の乱数で試す。":"「1 万回試す」を押すと、データを毎回乱数で作って同じ形の誤りを 1 万回入れ、見逃した割合のグラフが表示される。";
     }
     upd();shot();
   };
@@ -292,7 +292,7 @@
       if(iB.get()){var b=bV.get();a.push({t:3,v:[b&255,b>>8],n:"電池"});}
       return a;}
     function meaning(t,v){
-      if(t===1&&v.length===2){var u=v[0]|(v[1]<<8),s=u>=0x8000?u-0x10000:u;return "温度 "+(s/100).toFixed(2)+" °C";}
+      if(t===1&&v.length===2){var u=v[0]|(v[1]<<8),s=u>=0x8000?u-0x10000:u;return "温度 "+(s/100).toFixed(2).replace("-","−")+" °C";}
       if(t===2&&v.length===1)return "湿度 "+v[0]+" %";
       if(t===3&&v.length===2)return "電池 "+(v[0]|(v[1]<<8))+" mV";
       if(t>=1&&t<=3)return '<span class="warn">型 '+U.fmt.hex(t)+" なのに長さ "+v.length+"（型の決まりと違う → -1）</span>";
