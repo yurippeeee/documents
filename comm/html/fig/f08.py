@@ -450,7 +450,7 @@ def _f08_dns_path():
     o.append(T(314, 140, "DNS サーバ", "middle", 11.5, GLD, True))
     o.append(T(314, 156, "ルータ・プロバイダ", "middle", 9.5, MUT))
     o.append(T(314, 171, "答えをキャッシュする", "middle", 9.5, MUT))
-    srv = [("ルートのサーバ", "「com はあちら」", 22), ("com のサーバ", "「example.com はあちら」", 124), ("example.com のサーバ", "「203.0.113.10、TTL 300 秒」", 226)]
+    srv = [("ルートのサーバ", "「com はあちら」", 22), ("com のサーバ", "「example.com はあちら」", 124), ("example.com のサーバ", "「203.0.113.10。300 秒覚えてよい」", 226)]
     for nm, ans, y in srv:
         o.append(RECT(500, y, 186, 52, 8, GSOFT, GRN, 1.3))
         o.append(T(593, y + 21, nm, "middle", 11, GRN, True))
@@ -467,11 +467,11 @@ def _f08_dns_path():
         o.append(ARR(sx, sy - 4, 498, cy - 6, c=GLD, lw=1.4))
         o.append(ARR(498, cy + 6, sx, sy + 4, c=GRN, lw=1.4, dash="5 3"))
         o.append(T(450, (sy + cy) / 2 - (12 if k == 0 else (-14 if k == 2 else 9)), "%s %s" % ("②④⑥"[k], "③⑤⑦"[k]), "middle", 10, MUT, True))
-    o.append(T(16, 214, "① 機器: 「mqtt.example.com の A レコードは？」", "start", 10, SIG))
-    o.append(T(16, 230, "⑧ DNS サーバ: 「203.0.113.10、TTL 300 秒」", "start", 10, GLD))
+    o.append(T(16, 214, "① 機器: 「mqtt.example.com の IPv4 アドレスは？」", "start", 10, SIG))
+    o.append(T(16, 230, "⑧ DNS サーバ: 「203.0.113.10。300 秒覚えてよい」", "start", 10, GLD))
     o.append(T(16, 266, "機器が送るのは ① の質問 1 つだけ。②〜⑦ は DNS サーバが行い、", "start", 10, INK))
     o.append(T(16, 282, "答えをキャッシュする。2 回目からは ① と ⑧ だけで終わる。", "start", 10, INK))
-    return SVG(700, 294, o, "名前解決の経路。機器のリゾルバは DNS サーバに 1 つ質問するだけで、DNS サーバが上位の区分から順にたどって答えを得る（②④⑥ が質問、③⑤⑦ が答え）。答えにはレコードを覚えておいてよい時間（TTL）が付いている。")
+    return SVG(700, 294, o, "名前解決の経路。機器のリゾルバは DNS サーバに 1 つ質問するだけで、DNS サーバが上位の区分から順にたどって答えを得る（②④⑥ が質問、③⑤⑦ が答え）。答えには、それを覚えておいてよい時間（下で定義する TTL）が付いている。")
 F["e08_dns_path"] = _f08_dns_path()
 
 def _f08_dns_bytes():
@@ -799,20 +799,21 @@ def _f08_join_time():
     o.append(T(x0 - 10, y + 14, "(a) を拡大", "end", 10, MUT, True))
     x1, w1, t1 = x0, 470, 0.16
     X1 = lambda t: x1 + t / t1 * w1
-    for k, (nm, a, b, c) in enumerate(rows[0][1]):
+    # 拡大した内訳の文字: 細い DHCP と ARP は引き出し線で 2 段に分け、DNS は右へずらす
+    pos = {"DHCP": (X1(0), 2, "start"), "ARP": (X1(0.0125) - 2, 1, "start"), "DNS": (X1(0.015) + 54, 1, "start"), "接続": (X1(0.095), 1, "middle")}
+    for nm, a, b, c in rows[0][1]:
         o.append(RECT(X1(a), y, X1(b) - X1(a), bh, 2, soft(c), c, 1.1))
-        if k < 2:     # 細い 2 つは引き出し線で下に
-            yy = y + bh + 13 + 13 * k
+        xx, ln, an = pos[nm]
+        yy = y + bh + 13 * ln
+        if nm in ("DHCP", "ARP"):
             o.append(W((X1(a) + X1(b)) / 2, y + bh, (X1(a) + X1(b)) / 2, yy - 9, c=c, lw=1))
-            o.append(T((X1(a) + X1(b)) / 2 - 2, yy, "%s %d ms" % (nm, round((b - a) * 1000)), "start", 9, c, True))
-        else:
-            o.append(T((X1(a) + X1(b)) / 2, y + bh + 13, "%s %d ms" % (nm, round((b - a) * 1000)), "middle", 9, c, True))
+        o.append(T(xx, yy, "%s %d ms" % (nm, round((b - a) * 1000)), an, 9, c, True))
     yb = y + bh + 44
     for t in range(0, 9):
         o.append(W(X(t), 24, X(t), y - gap + 6, c=GRD, lw=1))
     for t in range(0, 9):
         o.append(T(X(t), 20, "%d s" % t, "middle", 9, MUT))
     o.append(T(20, yb + 6, "仮定（代表値）: LAN の中の往復 5 ms、DNS サーバの答えまで 30 ms、サーバまでの往復 100 ms。", "start", 9.5, MUT))
-    o.append(T(20, yb + 21, "リンクアップまでの時間（09 章）は含まない。", "start", 9.5, MUT))
+    o.append(T(20, yb + 21, "DHCP の再送の間隔は乱数を省いて 4 秒とした。リンクアップまでの時間（09 章）は含まない。", "start", 9.5, MUT))
     return SVG(700, yb + 31, o, "起動から接続までの時間の内訳。1 つも失われなければ 0.2 秒もかからないが、DHCP のメッセージが 1 つ失われると 4 秒、DNS の答えが 1 つ失われると 2 秒の待ちが足される。受け取ったアドレスの重複の確認を RFC 5227 の手順どおりに行うと、それだけで 4〜7 秒かかる。")
 F["e08_join_time"] = _f08_join_time()
