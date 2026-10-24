@@ -278,18 +278,18 @@ def _f17_split():
     o.append(T(xl - 4, y1 + 48, "31 バイトの上限", "end", 10, ALI, True))
     o.append(T((xl + xe) / 2, y1 + 48, "入りきらない 8 バイト", "middle", 10, ALI, True))
     y2 = 128
-    o.append(T(x0, y2 - 10, "振り分けた例", "start", 10.5, GRN, True))
-    s, xe2 = bar(y2, [("フラグ", 3, SIG), ("短縮名 TH-01", 7, PUR), ("UUID", 4, GRN), ("送信電力", 3, TEA), ("メーカー固有", 7, GLD)])
+    o.append(T(x0, y2 - 10, "振り分けた例（AdvData はすべてのスキャナに、スキャン応答はアクティブスキャンのスキャナだけに届く）", "start", 10, GRN, True))
+    s, xe2 = bar(y2, [("フラグ", 3, SIG), ("短縮名 Thermo-Hygro", 14, PUR), ("UUID", 4, GRN), ("送信電力", 3, TEA), ("メーカー固有", 7, GLD)])
     o.append(s)
     o.append(T(x0 - 8, y2 + 17, "AdvData", "end", 10, INK, True))
-    o.append(T(xe2 + 8, y2 + 17, "24 バイト（すべてのスキャナに届く）", "start", 10, INK))
+    o.append(T(xe2 + 8, y2 + 17, "31 バイト", "start", 10, INK))
     y3 = y2 + 40
     s, xe3 = bar(y3, [("名前（完全）Thermo-Hygrometer-01", 22, PUR)])
     o.append(s)
     o.append(T(x0 - 8, y3 + 17, "スキャン応答", "end", 10, INK, True))
-    o.append(T(xe3 + 8, y3 + 17, "22 バイト（アクティブスキャンだけ）", "start", 10, INK))
-    o.append(T(16, y3 + 50, "1 マス = 1 バイト。名前の AD 構造は 1 + 1 + 20 文字 = 22 バイト、短縮名（AD タイプ 0x08）は 5 文字で 7 バイト。", "start", 9.5, MUT))
-    return SVG(700, y3 + 62, o, "31 バイトに収める。名前が長いと AdvData に入りきらない（上）。短縮した名前を AdvData に、完全な名前をスキャン応答に置けば、AdvData は 24 バイト、スキャン応答は 22 バイトになる（下）。")
+    o.append(T(xe3 + 8, y3 + 17, "22 バイト", "start", 10, INK))
+    o.append(T(16, y3 + 50, "1 マス = 1 バイト。名前の AD 構造は 1 + 1 + 20 文字 = 22 バイト。短縮名（0x08）は先頭の 12 文字で 14 バイト。", "start", 9.5, MUT))
+    return SVG(700, y3 + 62, o, "31 バイトに収める。名前が長いと AdvData に入りきらない（上）。完全な名前の先頭の 12 文字を短縮した名前として AdvData の残りに入れ、完全な名前をスキャン応答に置けば、AdvData はちょうど 31 バイト、スキャン応答は 22 バイトになる（下）。")
 F["e17_split"] = _f17_split()
 
 # ---- 4 節: スキャン ----
@@ -386,8 +386,8 @@ def _f17_sweep():
                     xfmt=lambda v: "%d" % v, yfmt=lambda v: "%d" % v))
     pts = [(20 + i, v) for i, v in enumerate(_F17_SWEEP)]
     o.append(p.line([(20, 10.4), (400, 10.4)], c=ALI, lw=1.4, dash="6 4"))
-    o.append(T(p.X(400) - 4, p.Y(10.4) - 7, "近似 1/p = 10.4 回", "end", 10, ALI, True, halo=True))
     o.append(p.line(pts, c=SIG, lw=1.6))
+    o.append(T(p.X(400) - 4, p.Y(10.4) - 7, "近似 1/p = 10.4 回", "end", 10, ALI, True, halo=True))   # 線の後に描き、縁取りで線を隠す
     for a, lab, dy in ((95, "95 ms（r = 0）", -8), (195, "195 ms（r = 0）", -8), (145, "145 ms（r = 50 ms）", -8)):
         v = _F17_SWEEP[a - 20]
         o.append(D(p.X(a), p.Y(v), ALI if "r = 0" in lab else GLD, 3.6))

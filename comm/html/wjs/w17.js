@@ -19,7 +19,7 @@
     function draw(){
       var N=nA.get(),A=ai.get(),useD=dl.get(),ppm=pp.get(),K=ne.get(),R=U.rng(seed*7919+N*31);
       var err=[],t=[],ev=[],i,k;
-      for(i=0;i<N;i++){err.push(i===0?0:(R.next()-0.5)*ppm*1e-6);t.push([]);}
+      for(i=0;i<N;i++){err.push(i===0?0:(R.next()*2-1)*ppm*1e-6);t.push([]);}
       for(i=0;i<N;i++){var tt=0;for(k=0;k<K;k++){t[i].push(tt);ev.push([tt,i,k]);tt+=A*(1+err[i])+(useD?R.range(0,10):0);}}
       ev.sort(function(a,b){return a[0]-b[0];});
       var hit=[];for(i=0;i<N;i++){hit.push([]);for(k=0;k<K;k++)hit[i].push(false);}
@@ -33,10 +33,12 @@
       o.push(S.T(p.x-50,p.y+p.h/2,"最も近い A のイベントとのずれ [ms]","middle",9.5,"muted",false,false,-90));
       o.push(S.T(p.x+p.w-4,p.Y(sl(L))-4,"|ずれ| < 0.376 ms で重なる","end",9.5,"alias",true,false,null,true));
       for(i=1;i<N;i++){
-        var pts=[],c=COLS[i];
-        for(k=0;k<K;k++){var d=t[i][k]-near(t[0],t[i][k]);pts.push([k,sl(d)]);}
-        o.push(p.line(pts,c,1.4));
-        o.push(S.T(p.X(K)+4,p.Y(pts[K-1][1])+4,NAMES[i],"start",10,c,true));
+        var seg=[],c=COLS[i],prev=null,dl_;
+        for(k=0;k<K;k++){var d=t[i][k]-near(t[0],t[i][k]);
+          if(prev!==null&&Math.abs(d-prev)>half){if(seg.length>1)o.push(p.line(seg,c,1.4));seg=[];}   /* いちばん近い A のイベントが入れ替わった所で線を切る */
+          seg.push([k,sl(d)]);prev=d;dl_=d;}
+        if(seg.length>1)o.push(p.line(seg,c,1.4));else if(seg.length)o.push(S.D(p.X(seg[0][0]),p.Y(seg[0][1]),c,2));
+        o.push(S.T(p.X(K)+4,p.Y(sl(dl_))+4,NAMES[i],"start",10,c,true));
       }
       // 重なったイベントの印
       var y0=262;
@@ -51,13 +53,14 @@
       }
       box.set(S.svg(W,y0+N*16+8,o));
       var lines=[];
-      for(i=0;i<N;i++)lines.push(["機器 "+NAMES[i],U.fmt.int(Math.round(rates[i]*K))+" / "+K,F.pct(rates[i],3),runs[i]+" 回"]);
+      for(i=0;i<N;i++)lines.push(["機器 "+NAMES[i],i?(err[i]>=0?"+":"−")+Math.abs(err[i]*1e6).toFixed(1)+" ppm":"（基準）",U.fmt.int(Math.round(rates[i]*K))+" / "+K,F.pct(rates[i],3),runs[i]+" 回"]);
+      var eb=Math.abs(err[1]),stepUs=eb*A*1000,nmove=stepUs>0?Math.ceil(L*1000/stepUs):Infinity;
       var all=tot/(N*K),msg;
       if(!useD&&ppm===0)msg='<span class="warn">advDelay が無く時計もそろっているので、ずれは 0 のまま変わらず、すべてのイベントが重なる。</span>';
-      else if(!useD)msg='<b>advDelay が無いので、ずれは時計の差だけでゆっくり動く。</b> 差が 40 ppm・advInterval 100 ms なら 1 回に 4 µs で、0.376 ms を超えるまでに約 94 回かかる。';
+      else if(!useD)msg='<b>advDelay が無いので、ずれは時計の差だけでゆっくり動く。</b> 1 回にずれるのは advInterval × 時計の差で、B（'+(err[1]*1e6).toFixed(1).replace("-","−")+' ppm）は 1 回に '+U.sig(stepUs,3)+' µs、0.376 ms を超えるまでに約 '+(isFinite(nmove)?U.fmt.int(nmove):"∞")+' 回かかる。';
       else msg='<span class="ok">advDelay があるので、ずれは毎回、2 台の乱数の差だけ動く。</span> 同時に始めた 2 台が次のイベントでも重なる確率は 1 − (1 − 0.376/10)² ≈ 7.4 %。';
       ro.innerHTML=msg+"<br>重なったイベントの割合（全台の平均）= <b>"+F.pct(all,3)+"</b>（パケットは AdvData 31 バイトの 0.376 ms とした。縦軸は 0 付近を拡大した目盛）"+
-        U.tbl(["機器","重なったイベント","割合","最長の連続"],lines,["left","right","right","right"]);
+        U.tbl(["機器","A との時計の差","重なったイベント","割合","最長の連続"],lines,["left","right","right","right","right"]);
     }
     draw();
   };
@@ -229,7 +232,7 @@
       var y2=240,kx=Math.max(10,Math.min(80,rec.length)),pp=U.plot(70,y2,600,120,[0,kx],[0,Ts]);
       o.push(S.RECT(pp.x,pp.Y(Math.max(0,W-L)),pp.w,pp.Y(0)-pp.Y(Math.max(0,W-L)),0,U.soft("green"),"none",0));
       o.push(pp.axes({xl:"イベントの番号（最初の "+NREC+" 回のうち、かかった回数が真ん中の 1 回）",yl:"位相",xfmt:function(v){return String(Math.round(v));},yfmt:function(v){return F.time(v/1000,2);},ny:4}));
-      rec.forEach(function(t,k){o.push(S.D(pp.X(k),pp.Y(t%Ts),k===rec.length-1&&ex.found?"green":"signal",2.6));});
+      rec.forEach(function(t,k){o.push(S.D(pp.X(k),pp.Y(t%Ts),ex.found&&k===ex.n-1?"green":"signal",2.6));});
       o.push(S.T(pp.x+6,pp.Y(Math.max(0,W-L))-4,"ウィンドウ（ch 37 の位置）","start",9,"green",false,false,null,true));
       box.set(S.svg(Wd,y2+156,o));
       var adv;
