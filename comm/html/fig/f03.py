@@ -146,79 +146,54 @@ F["e03_methods"] = _f03_methods()
 # ---- 2 節: SLIP ----
 def _f03_delim():
     o = []
-    cw = 34
-    x0 = 230
-    data = [0x05, 0xC0, 0x07]
-    o.append(T(x0 - 14, 36, "送りたいデータ", "end", 11, INK, True))
-    for i, b in enumerate(data):
-        o.append(_f03_cell(x0 + i * cw, 20, _f03_hx(b), GLD if b == 0xC0 else SIG, w=cw - 2))
-    o.append(T(x0 + 3 * cw + 10, 36, "（中に 0xC0 を含む）", "start", 10, MUT))
-    # 悪い例
-    y = 84
-    o.append(T(20, y - 10, "悪い例: そのまま送り、最後に区切り文字 0xC0 を付ける", "start", 11, ALI, True))
-    bad = [0x05, 0xC0, 0x07, 0xC0]
-    o.append(T(x0 - 14, y + 16, "線の上の列", "end", 10.5, MUT))
-    for i, b in enumerate(bad):
-        o.append(_f03_cell(x0 + i * cw, y, _f03_hx(b), GLD if b == 0xC0 else SIG, w=cw - 2))
-    o.append(T(x0 - 14, y + 56, "受け手が受け取る", "end", 10.5, MUT))
-    o.append(_f03_cell(x0, y + 40, "05", ALI, w=cw - 2))
-    o.append(_f03_cell(x0 + 2 * cw, y + 40, "07", ALI, w=cw - 2))
-    o.append(T(x0 + 4 * cw + 10, y + 56, "データの 0xC0 で切れ、2 つのフレームに分かれる", "start", 10.5, ALI, True))
-    # 良い例
-    y = 214
-    o.append(T(20, y - 10, "良い例: SLIP。データの 0xC0 を DB DC に置き換え、前後に 0xC0 を付ける", "start", 11, GRN, True))
-    good = _f03_slip(data)
-    o.append(T(x0 - 14, y + 16, "線の上の列", "end", 10.5, MUT))
-    for i, b in enumerate(good):
-        c = GLD if (b == 0xC0 and i in (0, len(good) - 1)) else (PUR if b in (0xDB, 0xDC) else SIG)
-        o.append(_f03_cell(x0 + i * cw, y, _f03_hx(b), c, w=cw - 2))
-    o.append(_f03_br(x0 + cw + 2, x0 + 3 * cw - 4, y + 30, PUR, down=False))
-    o.append(T(x0 + 2 * cw - 1, y + 46, "0xC0 の置き換え", "middle", 9.5, PUR))
-    o.append(T(x0 - 14, y + 76, "受け手が受け取る", "end", 10.5, MUT))
-    for i, b in enumerate(data):
-        o.append(_f03_cell(x0 + cw + i * cw, y + 60, _f03_hx(b), GRN, w=cw - 2))
-    o.append(T(x0 + 4 * cw + 10 + cw * 2, y + 76, "元の 3 バイトに戻る", "start", 10.5, GRN, True))
-    return SVG(700, y + 96, o, "区切り文字を 0xC0 としたとき、データの中の 0xC0 をそのまま送ると、受け手はそこでフレームを区切ってしまう。SLIP は、データの 0xC0 を別の 2 バイトに置き換えて送る。")
-F["e03_delim"] = _f03_delim()
-
-def _f03_slip_fig():
-    o = []
     data = [0x01, 0xC0, 0x02, 0xDB, 0x03]
+    cw, x0 = 40, 196
+    X = lambda i: x0 + i * cw
+    y = 22
+    o.append(T(x0 - 14, y + 17, "送りたいデータ", "end", 11, INK, True))
+    for i, b in enumerate(data):
+        o.append(_f03_cell(X(i + 2) + 2, y, _f03_hx(b), PUR if b in (0xC0, 0xDB) else SIG, w=cw - 4, h=26, sz=12))
+    o.append(T(X(7) + 8, y + 17, "（0xC0 と 0xDB を含む）", "start", 10, MUT))
+    # 悪い例
+    y = 92
+    o.append(T(20, y - 12, "悪い例: そのまま送り、最後に区切り文字 0xC0 を付ける", "start", 11, ALI, True))
+    bad = data + [0xC0]
+    o.append(T(x0 - 14, y + 17, "線の上の列", "end", 10.5, MUT))
+    for i, b in enumerate(bad):
+        c = GLD if b == 0xC0 else SIG
+        o.append(_f03_cell(X(i + 2) + 2, y, _f03_hx(b), c, w=cw - 4, h=26, sz=12))
+    o.append(T(x0 - 14, y + 60, "受け手が渡すフレーム", "end", 10.5, MUT))
+    for (a0, vals) in ((2, [0x01]), (4, [0x02, 0xDB, 0x03])):
+        for j, v in enumerate(vals):
+            o.append(_f03_cell(X(a0 + j) + 2, y + 44, _f03_hx(v), ALI, w=cw - 4, h=26, sz=12))
+    o.append(T(X(8) + 8, y + 54, "データの 0xC0 で切れ、", "start", 10.5, ALI, True))
+    o.append(T(X(8) + 8, y + 69, "2 つに分かれる ×", "start", 10.5, ALI, True))
+    # 良い例
+    y = 222
+    o.append(T(20, y - 12, "良い例: SLIP（0xC0 → DB DC、0xDB → DB DD と置き換え、前後に END）", "start", 11, GRN, True))
     enc = _f03_slip(data)
-    cw = 46
-    xin = 350 - len(data) * cw / 2
-    xout = 350 - len(enc) * cw / 2
-    yi, yo = 30, 130
-    o.append(T(xin - 12, yi + 17, "データ", "end", 11, INK, True))
-    o.append(T(xout - 12, yo + 17, "SLIP のフレーム", "end", 11, INK, True))
-    for i, b in enumerate(data):
-        c = PUR if b in (0xC0, 0xDB) else SIG
-        o.append(_f03_cell(xin + i * cw + 3, yi, _f03_hx(b), c, w=cw - 6, h=26, sz=12))
-    j = 1
-    for i, b in enumerate(data):
-        xa = xin + i * cw + cw / 2
-        if b in (0xC0, 0xDB):
-            for k in range(2):
-                o.append(ARR(xa, yi + 28, xout + (j + k) * cw + cw / 2, yo - 3, c=PUR, lw=1.3, head=6))
-            j += 2
-        else:
-            o.append(ARR(xa, yi + 28, xout + j * cw + cw / 2, yo - 3, c=MUT, lw=1.2, head=6))
-            j += 1
+    o.append(T(x0 - 14, y + 17, "線の上の列", "end", 10.5, MUT))
     for i, b in enumerate(enc):
         if i in (0, len(enc) - 1):
             c = GLD
-        elif enc[i - 1] == 0xDB and b in (0xDC, 0xDD) or b == 0xDB:
+        elif b == 0xDB or (b in (0xDC, 0xDD) and enc[i - 1] == 0xDB):
             c = PUR
         else:
             c = SIG
-        o.append(_f03_cell(xout + i * cw + 3, yo, _f03_hx(b), c, w=cw - 6, h=26, sz=12))
-    o.append(T(xout + cw / 2, yo + 44, "先頭の END", "middle", 9.5, GLD))
-    o.append(T(xout + (len(enc) - 0.5) * cw, yo + 44, "END", "middle", 9.5, GLD))
-    o.append(T(xout + 2.5 * cw, yo + 44, "0xC0 → DB DC", "middle", 9.5, PUR, True))
-    o.append(T(xout + 5.5 * cw, yo + 44, "0xDB → DB DD", "middle", 9.5, PUR, True))
-    o.append(T(350, yo + 70, "データ 5 バイト → フレーム 9 バイト（置き換え 2 か所で +2、END 2 つで +2）", "middle", 10.5, INK))
-    return SVG(700, yo + 82, o, "SLIP の符号化の例。データの 0xC0 と 0xDB だけを 2 バイトの並びに置き換え、ほかのバイトはそのまま送る。先頭と最後に END（0xC0）を置く。")
-F["e03_slip"] = _f03_slip_fig()
+        o.append(_f03_cell(X(i) + 2, y, _f03_hx(b), c, w=cw - 4, h=26, sz=12, b=(c == PUR)))
+    o.append(_f03_br(X(2) + 3, X(4) - 3, y + 30, PUR, down=False))
+    o.append(_f03_br(X(5) + 3, X(7) - 3, y + 30, PUR, down=False))
+    o.append(T(X(3), y + 44, "データの 0xC0", "middle", 9.5, PUR))
+    o.append(T(X(6), y + 44, "データの 0xDB", "middle", 9.5, PUR))
+    o.append(T(X(0) + cw / 2, y + 44, "END", "middle", 9.5, GLD))
+    o.append(T(X(8) + cw / 2, y + 44, "END", "middle", 9.5, GLD))
+    o.append(T(x0 - 14, y + 78, "受け手が渡すフレーム", "end", 10.5, MUT))
+    for i, b in enumerate(data):
+        o.append(_f03_cell(X(i + 2) + 2, y + 62, _f03_hx(b), GRN, w=cw - 4, h=26, sz=12))
+    o.append(T(X(7) + 8, y + 79, "元の 5 バイトに戻る ✓", "start", 10.5, GRN, True))
+    o.append(T(20, y + 116, "データ 5 バイトが、置き換え 2 か所（+2）と END 2 つ（+2）で 9 バイトになる。", "start", 10, MUT))
+    return SVG(700, y + 128, o, "区切り文字を 0xC0 としたとき、データをそのまま送ると、受け手はデータの中の 0xC0 でフレームを区切ってしまう（悪い例）。SLIP はデータの 0xC0 と 0xDB を 2 バイトの並びに置き換えて送るので、受け手は END だけを区切りとして、元のデータに戻せる（良い例）。")
+F["e03_delim"] = _f03_delim()
 
 def _f03_slip_resync():
     o = []
@@ -254,9 +229,8 @@ def _f03_slip_resync():
 
     rows = [("A", "途中から聞き始めた", 2, None, None),
             ("B", "DB が C0 に化けた", 0, 6, 0xC0),
-            ("C", "最初の END が C4 に化けた", 0, 3, 0xC4)]
+            ("C", "フレーム 1 の最後の END が C4 に化けた", 0, 3, 0xC4)]
     y0 = 40
-    o.append(T(x0 - 10, 20, "送った列", "end", 10.5, MUT))
     for k in range(3):
         idx = [i for i in range(len(st)) if owner[i] == k]
         o.append(T((X(idx[0]) + X(idx[-1] + 1)) / 2, 20, "フレーム %d（%s）" % (k + 1, " ".join(_f03_hx(v) for v in p[k])), "middle", 9.5, fc[k], True))
@@ -278,7 +252,8 @@ def _f03_slip_resync():
             c = GLD if b == 0xC0 else fc[owner[i]]
             o.append(_f03_cell(X(i) + 1, yy, _f03_hx(b), c, w=cw - 2))
         if start:
-            o.append(ARR(X(start) - 26, y + 32, X(start) - 2, y + 32, c=ALI, lw=1.4, head=6))
+            o.append(ARR(X(start) + cw / 2, y + 2, X(start) + cw / 2, y + 18, c=ALI, lw=1.4, head=6))
+            o.append(T(X(start) + cw / 2 + 8, y + 10, "ここから聞く", "start", 9.5, ALI, True))
         outs = rx(s2, start)
         for (end, body) in outs:
             ok = body in p
@@ -301,7 +276,7 @@ def _f03_cobs_fig():
     o = []
     data = [0x11, 0x22, 0x00, 0x33, 0x00, 0x00, 0x44]
     enc = _f03_cobs(data)
-    cw, x0 = 44, 300
+    cw, x0 = 44, 276
     X = lambda k: x0 + k * cw
     ch = 26
     zc = TEA
@@ -326,8 +301,9 @@ def _f03_cobs_fig():
     zpos = [0] + [i + 1 for i, b in enumerate(data) if b == 0] + [8]
     for a, b in zip(zpos[:-1], zpos[1:]):
         xa, xb = X(a) + cw / 2, X(b) + cw / 2
-        o.append(CARR(xa, y - 3, xb - 3, y - 3, bend=0.32 if b - a > 1 else 0.6, c=PUR, lw=1.4, head=6))
-        o.append(T((xa + xb) / 2, y - 7 - (b - a) * cw * 0.32 if b - a > 1 else y - 22, str(b - a), "middle", 10.5, PUR, True))
+        bend = 0.32 if b - a > 1 else 0.6
+        o.append(CARR(xa, y - 3, xb - 3, y - 3, bend=bend, c=PUR, lw=1.4, head=6))
+        o.append(T((xa + xb) / 2, y - 3 - bend * (xb - 3 - xa) / 2 - 5, str(b - a), "middle", 10.5, PUR, True))
     for k in range(8):
         v = enc[k]
         isc = k in zpos[:-1]
@@ -350,10 +326,13 @@ def _f03_cobs_fig():
     for a, b in zip(zpos[:-1], zpos[1:]):
         xa, xb = X(a) + cw / 2, X(b) + cw / 2
         o.append(CARR(xa, yb, xb - 3, yb, bend=-0.30 if b - a > 1 else -0.6, c=PUR, lw=1.4, head=6))
+    for k in zpos[1:-1]:
+        o.append(W(X(k) + cw / 2, yb + 6, X(k) + cw / 2, y - 2, c=zc, lw=1.1, dash="3 3"))
     for i, b in enumerate(data):
         o.append(_f03_cell(X(i + 1) + 3, y, _f03_hx(b), zc if b == 0 else GRN, w=cw - 6, h=ch, sz=12))
-    o.append(T(X(8) + cw / 2, y + 17, "（仮の 00 は", "middle", 9.5, MUT))
-    o.append(T(X(8) + cw / 2, y + 31, "出さない）", "middle", 9.5, MUT))
+    o.append(T(X(8) + cw / 2 + 8, y + 10, "（最後の飛び先", "middle", 9, MUT))
+    o.append(T(X(8) + cw / 2 + 8, y + 23, "は区切りなので", "middle", 9, MUT))
+    o.append(T(X(8) + cw / 2 + 8, y + 36, "00 を出さない）", "middle", 9, MUT))
     return SVG(700, y + 44, o, "COBS の符号化（①〜③）と復号（最下段）。紫の枠がコードバイトで、値は次の 00 が何バイト先にあるかを表す。符号化した列の中には 00 が現れないので、最後の 00 を区切り文字に使える。データ 7 バイトが、区切りを除いて 8 バイトになる。")
 F["e03_cobs"] = _f03_cobs_fig()
 
@@ -369,7 +348,7 @@ def _f03_cobs_blocks():
     o.append(T(x0 + 417, y + 17, "10 バイト", "middle", 10.5, SIG, True))
     y2 = 128
     o.append(T(20, y2 + 17, "符号化した列", "start", 11, INK, True))
-    blocks = [("FF", "254 バイト", 254, 230), ("2F", "46 バイト", 46, 76), ("0B", "10 バイト", 10, 70)]
+    blocks = [("FF", "254 バイト", 254, 200), ("2F", "46 バイト", 46, 76), ("0B", "10 バイト", 10, 70)]
     x = x0
     xs = []
     for code, lab, nb, w in blocks:
@@ -387,19 +366,20 @@ def _f03_cobs_blocks():
     o.append(T(x0 + 360, y + 52, "00 は次のコードバイトになる", "start", 9.5, TEA))
     o.append(W(x0 + 462, y + 28, xs[2][1], y2 - 2, c=FNT, lw=1, dash="3 3"))
     # 3 通りの終わり方
-    labs = [("(ii) 254 個たまって終わる", "コード 0xFF。後に 00 は無い"),
-            ("(i) 00 の手前で終わる", "コード = 46 + 1 = 0x2F"),
-            ("(iii) データの終わりで", "終わる（最後のブロック）")]
+    labs = [("254 個たまって終わる", "コード 0xFF。後に 00 は無い"),
+            ("00 の手前で終わる", "コード = 46 + 1 = 0x2F"),
+            ("データの終わりで終わる", "（最後のブロック）")]
     for k, (a, b) in enumerate(labs):
         xa, xb = xs[k]
         xm = (xa + xb) / 2
+        dy = 34 if k == 1 else 0
         o.append(_f03_br(xa + 2, xb - 2, y2 + 32, PUR, down=False))
         if k == 1:
-            xm = xm + 18
-        o.append(T(xm, y2 + 50 + (16 if k == 1 else 0), a, "middle", 10, PUR, True))
-        o.append(T(xm, y2 + 64 + (16 if k == 1 else 0), b, "middle", 9.5, MUT))
-    o.append(T(20, y2 + 112, "311 バイト → 313 バイト（+2 = ⌈311/254⌉）。これに区切りの 00 を加えて送る。", "start", 10.5, INK))
-    return SVG(700, y2 + 124, o, "コードバイトとそれに続く 00 でないバイトの組（ブロック）の 3 通りの終わり方。0x00 を含まずに 254 バイト続くと、コードバイト 0xFF のブロックで区切る。0xFF は 00 の置き換えではないので、その分だけ列が 1 バイト長くなる。")
+            o.append(W(xm, y2 + 33, xm, y2 + 38 + dy, c=PUR, lw=1))
+        o.append(T(xm, y2 + 52 + dy, a, "middle", 10, PUR, True))
+        o.append(T(xm, y2 + 66 + dy, b, "middle", 9.5, MUT))
+    o.append(T(20, y2 + 132, "311 バイト → 313 バイト（+2 = ⌈311/254⌉）。これに区切りの 00 を加えて送る。", "start", 10.5, INK))
+    return SVG(700, y2 + 144, o, "コードバイトとそれに続く 00 でないバイトの組（ブロック）の 3 通りの終わり方。0x00 を含まずに 254 バイト続くと、コードバイト 0xFF のブロックで区切る。0xFF は 00 の置き換えではないので、その分だけ列が 1 バイト長くなる。")
 F["e03_cobs_blocks"] = _f03_cobs_blocks()
 
 def _f03_size():
@@ -437,7 +417,8 @@ def _f03_size():
     for v in (0, 50, 100):
         xx = x0 + bw * v / vmax
         o.append(W(xx, y0 - 6, xx, y0 + 6 * rowh + 14, c=GRD, lw=1))
-    yb = y0 + 6 * rowh + 30
+        o.append(T(xx, y0 + 6 * rowh + 27, "+%d" % v if v else "0", "middle", 9, MUT))
+    yb = y0 + 6 * rowh + 48
     o.append(T(20, yb, "n バイトのデータで、SLIP は +2〜+(n + 2)、COBS は +2〜+(⌈n/254⌉ + 1)。n ≤ 254 なら COBS はいつも +2。", "start", 10, MUT))
     return SVG(700, yb + 12, o, "SLIP と COBS で増えるバイト数の比較（区切りの 0xC0・0x00 を含む）。SLIP はデータの中の 0xC0 と 0xDB の数で大きく変わる。COBS は 100 バイトのデータならいつも 2 バイト増え、1000 バイトでも最大で 5 バイトしか増えない。")
 F["e03_size"] = _f03_size()
@@ -519,7 +500,7 @@ def _f03_len_bad():
     o.append(T(X(e1) + cw / 2 + 6, y + 60, "ここから探し直す", "start", 9.5, ALI))
     o.append(_f03_br(X(18) + 2, X(27) - 2, y - 4, GRN, down=True, lw=1.1))
     o.append(T((X(18) + X(27)) / 2, y - 9, "✓ フレーム 3", "middle", 9.5, GRN, True))
-    o.append(T(X(27) + 6, y + 15, "1 と 2 を失う", "start", 10, ALI, True))
+    o.append(T(680, y + 80, "→ フレーム 1 と 2 を失う", "end", 11, ALI, True))
     # 良い例
     y = 214
     o.append(T(20, y - 14, "良い例: 捨てたら、同期パターンの次のバイトから探し直す", "start", 11, GRN, True))
@@ -532,9 +513,9 @@ def _f03_len_bad():
     for k in (1, 2):
         o.append(_f03_br(X(9 * k) + 2, X(9 * k + 9) - 2, y - 4, GRN, down=True, lw=1.1))
         o.append(T((X(9 * k) + X(9 * k + 9)) / 2, y - 9, "✓ フレーム %d" % (k + 1), "middle", 9.5, GRN, True))
-    o.append(T(X(27) + 6, y + 15, "1 だけ失う", "start", 10, GRN, True))
-    yb = y + 86
-    o.append(T(20, yb, "長さが上限（たとえば 16）を超える値に化けたときは、②で長さを読んだ時点で捨てられる。ヘッダの CRC があれば 0C も②で見つかる。", "start", 10, MUT))
+    o.append(T(680, y + 80, "→ 失うのはフレーム 1 だけ", "end", 11, GRN, True))
+    yb = y + 106
+    o.append(T(20, yb, "長さが上限（たとえば 16）を超える値に化けたときは、長さを読んだ時点で捨てられる。ヘッダの CRC があれば、0C もその時点で見つかる。", "start", 10, MUT))
     return SVG(700, yb + 12, o, "1 つ目のフレームの長さが 04 から 0C に化けた例。受け手は 2 つ目のフレームの途中までを 1 つ目のフレームとして読み、CRC が合わないので捨てる。読み終えた位置から探し直すと、2 つ目のフレームの同期パターンを通り過ぎているので、壊れていない 2 つ目のフレームまで失う。")
 F["e03_len_bad"] = _f03_len_bad()
 
@@ -595,7 +576,7 @@ def _f03_crcdiv():
     g = "1011"
     cases = [("送り手", "1101 の後に 000 を並べて割る", "1101000", None),
              ("受け手（誤りなし）", "届いた列 1101001 を割る", "1101001", None),
-             ("受け手（3 ビット目が反転）", "届いた列 1111001 を割る", "1111001", 2)]
+             ("受け手（左から 3 ビット目が反転）", "届いた列 1111001 を割る", "1111001", 2)]
     cwid = 13.5
     for k, (title, sub, dv, flip) in enumerate(cases):
         xb = 20 + k * 228
@@ -634,10 +615,11 @@ def _f03_crcdiv():
                     o.append(T(xd + (col + j + 0.5) * cwid, y, ch, "middle", 12, cc, True, True))
                 o.append(T(xd + (col + 3) * cwid + 6, y, "← 余り", "start", 10, cc, True))
                 y += 16
-        res = ["余り 001 を 000 の代わりに付けて、1101001 を送る", "余り 000 → 誤りなし", "余り 110 → 誤りに気づく"][k]
-        o.append(T(xb, 272, res, "start", 10, [SIG, GRN, ALI][k], True))
-    o.append(T(20, 296, "割る数（生成多項式）1011 = x³ + x + 1。各段で、左端の 1 に割る数をそろえて XOR し、次のビットを下ろす。", "start", 10, MUT))
-    return SVG(700, 308, o, "CRC の筆算の例（生成多項式 x³ + x + 1、r = 3）。送り手はデータの後ろに 0 を 3 個並べて割り、余りを付けて送る。受け手が届いた列を割ると、誤りが無ければ余りは 0 になり、1 ビットでも反転していれば 0 にならない。")
+        res = [["余り 001 を 000 の代わりに付け、", "1101001 を送る"], ["余り 000 → 誤りなし"], ["余り 110（0 でない）", "→ 誤りに気づく"]][k]
+        for q, line in enumerate(res):
+            o.append(T(xb, 266 + q * 15, line, "start", 10, [SIG, GRN, ALI][k], True))
+    o.append(T(20, 306, "割る数（生成多項式）1011 = x³ + x + 1。各段で、左端の 1 に割る数をそろえて XOR し、次のビットを下ろす。", "start", 10, MUT))
+    return SVG(700, 318, o, "CRC の筆算の例（生成多項式 x³ + x + 1、r = 3）。送り手はデータの後ろに 0 を 3 個並べて割り、余りを付けて送る。受け手が届いた列を割ると、誤りが無ければ余りは 0 になり、1 ビットでも反転していれば 0 にならない。")
 F["e03_crcdiv"] = _f03_crcdiv()
 
 def _f03_detect():
@@ -676,8 +658,8 @@ def _f03_detect():
             o.append(T(x + cw / 2, y + 18, "0" if v == 0 else pct(v), "middle", 10.5, c, True))
     yl = y0 + len(rows) * rh + 22
     o.append(LEGEND(x0, yl, [(GRN, "一度も見逃さなかった"), (GLD, "1 % 未満を見逃した"), (ALI, "1 % 以上を見逃した")]))
-    o.append(T(20, yl + 22, "16 バイトの乱数のデータに値を付け、データの部分に誤りを入れて 1000 万回ずつ試した。CRC の設定は下の表のとおり。", "start", 9.5, MUT))
-    return SVG(700, yl + 34, o, "誤りの形ごとに、4 つの方法が見逃した割合。8 ビットの和は 2 ビットの反転を約 7 % 見逃し、入れ替えには気づけない。CRC は長さ r 以下のバーストを必ず見つけ、それより長い誤りの見逃しも約 2^−r（CRC-8 で 0.39 %、CRC-16 で 0.0015 %）にとどまる。CRC-32 の見逃しは約 2×10^−10 なので、1000 万回では現れない。")
+    o.append(T(20, yl + 22, "16 バイトの乱数のデータに値を付け、データの部分に誤りを入れて 1000 万回ずつ試した。CRC の設定は上の表のとおり。", "start", 9.5, MUT))
+    return SVG(700, yl + 34, o, "誤りの形ごとに、4 つの方法が見逃した割合。8 ビットの和は 2 ビットの反転を約 7 % 見逃し、入れ替えには気づけない。CRC は長さ r 以下のバーストを必ず見つけ、それより長い誤りの見逃しも約 2⁻ʳ（CRC-8 で 0.39 %、CRC-16 で 0.0015 %）にとどまる。CRC-32 の見逃しは約 2×10⁻¹⁰ なので、1000 万回では現れない。")
 F["e03_detect"] = _f03_detect()
 
 # ---- 6 節: エンディアンと構造体 ----
@@ -701,22 +683,22 @@ def _f03_endian():
             b, c = bs[idx]
             o.append(_f03_cell(xm + k * cw + 2, yy, _f03_hx(b), c, w=cw - 4, h=28, sz=13, b=True))
             o.append(T(xm + k * cw + cw / 2, yy + 44, "+%d" % k, "middle", 9.5, MUT, False, True))
-        o.append(T(xm + 4 * cw + 12, yy + 18, "（番地の小さい方・先に送る方から）", "start", 9.5, MUT))
     for i, (b, c) in enumerate(bs):
         k = 3 - i
         o.append(W(xv + i * cw + cw / 2, y + 30, xm + k * cw + cw / 2, 118, c=c, lw=1.1, dash="3 3"))
-    o.append(T(20, 280, "多くのマイコンと PC はリトルエンディアンでメモリに置く。インターネットのプロトコルは、ビッグエンディアン（ネットワークバイトオーダ）で送る。", "start", 10, MUT))
-    return SVG(700, 292, o, "32 ビットの値 0x12345678 の 4 つのバイトの並べ方。+0〜+3 は先頭からの位置（メモリの番地、または送る順番）。")
+    return SVG(700, 270, o, "32 ビットの値 0x12345678 の 4 つのバイトの並べ方。+0〜+3 は先頭からの位置（メモリの番地、または送る順番）。")
 F["e03_endian"] = _f03_endian()
 
 def _f03_struct():
     o = []
     code = ["struct reading {", "    uint8_t  type;", "    uint32_t time_s;", "    int16_t  temp_c100;", "};"]
     for i, l in enumerate(code):
-        o.append(T(20, 38 + i * 17, l, "start", 10.5, INK, False, True))
+        o.append(T(20, 38 + i * 17, l.replace(" ", "\u00a0"), "start", 10.5, INK, False, True))
     o.append(T(20, 140, "type = 0x01", "start", 10, MUT, False, True))
-    o.append(T(20, 156, "time_s = 86400 (0x00015180)", "start", 10, MUT, False, True))
-    o.append(T(20, 172, "temp_c100 = 2345 (0x0929)", "start", 10, MUT, False, True))
+    o.append(T(20, 156, "time_s = 86400", "start", 10, MUT, False, True))
+    o.append(T(20, 172, "      (0x00015180)".replace(" ", "\u00a0"), "start", 10, MUT, False, True))
+    o.append(T(20, 188, "temp_c100 = 2345", "start", 10, MUT, False, True))
+    o.append(T(20, 204, "      (0x0929)".replace(" ", "\u00a0"), "start", 10, MUT, False, True))
     cw = 34
     x0 = 248
     y = 36
@@ -733,17 +715,18 @@ def _f03_struct():
     o.append(T(x0 + 11 * cw, y + 56, "詰め物 2", "middle", 9.5, MUT))
     o.append(T(x0 + 6 * cw, y + 56, "time_s", "middle", 9.5, SIG, True))
     o.append(T(x0 + 9 * cw, y + 56, "temp", "middle", 9.5, GRN, True))
-    y2 = 154
-    o.append(T(x0, y2 - 12, "送る形（7 バイト、リトルエンディアン）", "start", 10.5, INK, True))
+    y2 = 156
     wire = [(0x01, "t"), (0x80, "s"), (0x51, "s"), (0x01, "s"), (0x00, "s"), (0x29, "c"), (0x09, "c")]
     for i, (v, r) in enumerate(wire):
         o.append(_f03_cell(x0 + i * cw + 1, y2, _f03_hx(v), rc[r], w=cw - 2, h=26))
     o.append(W(x0 + cw / 2, y + 27, x0 + cw / 2, y2 - 1, c=PUR, lw=1.1, dash="3 3"))
     o.append(W(x0 + 6 * cw, y + 27 + 34, x0 + 3 * cw, y2 - 1, c=SIG, lw=1.1, dash="3 3"))
     o.append(W(x0 + 9 * cw, y + 27 + 34, x0 + 6 * cw, y2 - 1, c=GRN, lw=1.1, dash="3 3"))
-    o.append(T(x0 + 7 * cw + 12, y2 + 17, "put_le32・put_le16 で組み立てる", "start", 10, MUT))
-    o.append(T(20, 214, "? の詰め物の値は決まっていない。8 ビットのマイコン向けのコンパイラには、詰め物を入れず 7 バイトにするものもある。", "start", 10, MUT))
-    return SVG(700, 226, o, "構造体のメモリの上の形と、送る形。コンパイラは time_s を 4 の倍数の番地に置くために詰め物を入れ、全体の大きさも 4 の倍数にそろえる。送る形はプロトコルで決め、1 バイトずつ組み立てる。")
+    o.append(T(x0 + 7 * cw + 10, y2 + 11, "← 送る形（7 バイト、", "start", 10.5, INK, True))
+    o.append(T(x0 + 7 * cw + 24, y2 + 26, "リトルエンディアン）", "start", 10.5, INK, True))
+    o.append(T(x0, y2 + 50, "put_le32・put_le16 で組み立てる（? の詰め物の値は決まっていない）", "start", 10, MUT))
+    o.append(T(20, 236, "8 ビットのマイコン向けのコンパイラには、詰め物を入れず、メモリの上でも 7 バイトにするものもある。", "start", 10, MUT))
+    return SVG(700, 248, o, "構造体のメモリの上の形と、送る形。コンパイラは time_s を 4 の倍数の番地に置くために詰め物を入れ、全体の大きさも 4 の倍数にそろえる。送る形はプロトコルで決め、1 バイトずつ組み立てる。")
 F["e03_struct"] = _f03_struct()
 
 def _f03_fixed():
@@ -771,12 +754,12 @@ def _f03_fixed():
     o.append(ARR(126, y + 14, 182, y + 14, c=MUT, lw=1.3, head=6))
     o.append(T(154, y + 8, "× 100", "middle", 9.5, MUT))
     o.append(T(188, y + 19, "1604.9999…", "start", 11.5, INK, False, True))
-    o.append(T(282, y + 8, "（float で計算した値）", "start", 9.5, MUT))
-    o.append(ARR(290, y + 22, 340, y + 36, c=ALI, lw=1.3, head=6))
-    o.append(T(346, y + 42, "切り捨て → 1604（16.04 °C になる）×", "start", 10.5, ALI, True))
-    o.append(ARR(290, y + 8, 340, y - 6, c=GRN, lw=1.3, head=6))
-    o.append(T(346, y - 2, "四捨五入 → 1605 ✓", "start", 10.5, GRN, True))
-    return SVG(700, y + 56, o, "固定小数点の例。(a) 温度に 100 を掛けた整数を int16_t で送る。負の値は 2 の補数になる。(b) 16.05 は 2 進の小数で正確に表せないので、100 を掛けた結果がわずかに小さくなる。切り捨てると 1 小さい値になる。")
+    o.append(T(188, y + 44, "（float で計算した値）", "start", 9.5, MUT))
+    o.append(ARR(270, y + 20, 334, y + 36, c=ALI, lw=1.3, head=6))
+    o.append(T(340, y + 42, "切り捨て → 1604（16.04 °C になる）×", "start", 10.5, ALI, True))
+    o.append(ARR(270, y + 8, 334, y - 6, c=GRN, lw=1.3, head=6))
+    o.append(T(340, y - 2, "四捨五入 → 1605 ✓", "start", 10.5, GRN, True))
+    return SVG(700, y + 58, o, "固定小数点の例。(a) 温度に 100 を掛けた整数を int16_t で送る。負の値は 2 の補数になる。(b) 16.05 は 2 進の小数で正確に表せないので、100 を掛けた結果がわずかに小さくなる。切り捨てると 1 小さい値になる。")
 F["e03_fixed"] = _f03_fixed()
 
 # ---- 7 節: TLV ----
@@ -840,7 +823,7 @@ def _f03_tlv_bad():
     for i in range(11, 18):
         o.append(RECT(X(i) + 1, y, cw - 2, 24, 3, "none", FNT, 1.0, dash="2 3"))
     o.append(T((X(11) + X(18)) / 2, y + 16, "配列の外", "middle", 10, FNT))
-    o.append(W(X(11), y - 8, X(11), y + 182, c=ALI, lw=1.2, dash="5 4"))
+    o.append(W(X(11), y - 8, X(11), y + 30, c=ALI, lw=1.2, dash="5 4"))
     o.append(T(X(11) + 4, y - 12, "列の終わり", "start", 9.5, ALI))
     o.append(T(X(5) + cw / 2, y - 6, "湿度の長さ 01 が 41（65）に化けた", "middle", 9.5, ALI, True))
     # 良い例
@@ -854,7 +837,8 @@ def _f03_tlv_bad():
     o.append(T(20, y - 10, "悪い例: 長さを信じて読む", "start", 11, ALI, True))
     o.append(_f03_br(X(0) + 2, X(4) - 2, y + 4, MUT, down=True, lw=1.2))
     o.append(T((X(0) + X(4)) / 2, y + 20, "温度", "middle", 10, MUT))
+    o.append(W(X(11), y - 2, X(11), y + 16, c=ALI, lw=1.2, dash="5 4"))
     o.append(ARR(X(6), y + 8, X(18) + 10, y + 8, c=ALI, lw=1.8, head=7))
-    o.append(T(X(6), y + 24, "6 番目から 65 バイトを読み、配列の外へはみ出す", "start", 10, ALI, True))
+    o.append(T(X(6), y + 26, "値の先頭（2D）から 65 バイトを読み、配列の外へはみ出す", "start", 10, ALI, True))
     return SVG(700, y + 36, o, "長さが化けた TLV の列を読む例。長さを確かめる解析は、値が列の終わりを越えると分かった時点で止まる。長さを信じて読む解析は、受け取ったバイトの列の外（ほかの変数などの場所）を読んでしまう。")
 F["e03_tlv_bad"] = _f03_tlv_bad()
