@@ -96,7 +96,7 @@ def _f06_configs():
         if k == "(d)":
             o.append(T(x + cw / 2, yb + 18, "BLE のホストの層は", "middle", 9.5, MUT))
             o.append(T(x + cw / 2, yb + 31, "L2CAP・ATT・GATT など（16 章）", "middle", 9.5, MUT))
-    return SVG(700, ybot + 42, o, "無線をマイコンに組み込む 4 つの構成。角の丸い大きな四角がチップ、その中の箱がそのチップで動く処理である。(b)〜(d) では処理が 2 つのチップに分かれ、上のホストが下のチップに命令を送る。境目の位置と、境目を流れるものの形（製品ごとの文字の命令・製品ごとの 2 進のパケット・標準の HCI）が構成ごとに違う。")
+    return SVG(700, ybot + 40, o, "無線をマイコンに組み込む 4 つの構成。角の丸い大きな四角がチップ、その中の箱がそのチップで動く処理である。(b)〜(d) では処理が 2 つのチップに分かれ、上のホストが下のチップに命令を送る。境目の位置と、境目を流れるものの形（製品ごとの文字の命令・製品ごとの 2 進のパケット・標準の HCI）が構成ごとに違う。")
 F["e06_configs"] = _f06_configs()
 
 
@@ -182,31 +182,26 @@ def _f06_urc():
     ly = y0 + 2 * 50 + 6
     o.append(LEGEND(25, ly, [(_F06_K["echo"], "エコー"), (_F06_K["urc"], "URC（+IPD の頭）"), (_F06_K["data"], "データ"),
                              (_F06_K["interim"], "中間応答"), (_F06_K["ok"], "最終応答")]))
-    # 下: 2 つの解析器
     yt = ly + 34
-    rows_bad = [("AT+CSQ", "エコー", _F06_K["echo"], False),
-                ("+IPD,12:T=23.5", "URC（データは T=23.5 だけと読む）", _F06_K["urc"], True),
-                ("OK", "最終応答: AT+CSQ が終わったと誤る", ALI, True),
-                ("+CSQ: 20,99", "待っていない行（値が失われる）", ALI, True),
-                ("OK", "待っていない最終応答", ALI, True)]
-    rows_good = [("AT+CSQ", "エコー", _F06_K["echo"], False),
-                 ("+IPD,12:", "URC: 12 バイトのデータが続く", _F06_K["urc"], False),
-                 (r"T=23.5\r\nOK\r\n", "データ（12 バイト）", _F06_K["data"], False),
-                 ("+CSQ: 20,99", "中間応答（−73 dBm）", _F06_K["interim"], False),
-                 ("OK", "最終応答: AT+CSQ の終わり", _F06_K["ok"], False)]
-    for side, (title, tc, rows, mark) in enumerate((("行の中身だけで読む解析器（悪い例）", ALI, rows_bad, "×"),
-                                                    ("長さの分はデータとして読む解析器（良い例）", GRN, rows_good, "○"))):
+    rows_bad = [("AT+CSQ", "エコー", _F06_K["echo"]),
+                ("+IPD,12:T=23.5", "URC（データは T=23.5 だけと読む）", _F06_K["urc"]),
+                ("OK", "× 最終応答と読み、命令を終える", ALI),
+                ("+CSQ: 20,99", "× 待っていない行（値が失われる）", ALI),
+                ("OK", "× 待っていない最終応答", ALI)]
+    rows_good = [("AT+CSQ", "エコー", _F06_K["echo"]),
+                 ("+IPD,12:", "URC: 後に 12 バイトのデータ", _F06_K["urc"]),
+                 (r"T=23.5\r\nOK\r\n", "データ（12 バイト）", _F06_K["data"]),
+                 ("+CSQ: 20,99", "中間応答（−73 dBm）", _F06_K["interim"]),
+                 ("OK", "最終応答: AT+CSQ の終わり", _F06_K["ok"])]
+    for side, (title, tc, rows) in enumerate((("行の中身だけで読む解析器（悪い例）", ALI, rows_bad),
+                                              ("長さの分はデータとして読む解析器（良い例）", GRN, rows_good))):
         x = 10 + side * 345
         o.append(RECT(x, yt, 335, 30 + len(rows) * 24 + 8, 8, PAN, tc, 1.4))
         o.append(T(x + 12, yt + 20, title, "start", 11, tc, True))
-        for j, (line, kind, c, bad) in enumerate(rows):
+        for j, (line, kind, c) in enumerate(rows):
             yy = yt + 46 + j * 24
             o.append(T(x + 12, yy, line, "start", 10, INK, False, True))
-            o.append(T(x + 138, yy, "→ " + kind, "start", 10, c, bad or c != _F06_K["echo"]))
-            if bad and side == 0 and j >= 2:
-                o.append(T(x + 325, yy, "×", "end", 12, ALI, True))
-        if side == 1:
-            o.append(T(x + 325, yt + 46 + 4 * 24, "○", "end", 12, GRN, True))
+            o.append(T(x + 122, yy, "→ " + kind, "start", 10, c, c != _F06_K["echo"]))
     h = yt + 30 + 5 * 24 + 8 + 10
     return SVG(700, h, o, "命令の応答の途中に、URC（+IPD）が割り込んで届いた例。データの中に CR LF と OK が入っている。左のように行の中身だけで振り分けると、データの中の OK を最終応答と誤り、その後の応答がすべてずれる。右のように +IPD の長さの分を行として見ずに読めば、正しく振り分けられる。")
 F["e06_urc"] = _f06_urc()
@@ -215,26 +210,33 @@ F["e06_urc"] = _f06_urc()
 def _f06_parser():
     o = []
     # 上: 処理の流れ
-    o.append(BOX(10, 30, 118, 56, "受信の割り込み", "UART（04 章 2 節）", GLD, GOSOFT, INK, sz=10.5, ssz=9))
-    o.append(BOX(146, 30, 100, 56, "リングバッファ", "04 章 3 節", GLD, GOSOFT, INK, sz=10.5, ssz=9))
-    o.append(ARR(130, 58, 144, 58, c=MUT, lw=1.5))
-    o.append(RECT(262, 10, 428, 118, 10, "none", SIG, 1.3, dash="5 4"))
-    o.append(T(272, 24, "通信タスク（05 章 2 節）", "start", 10, SIG, True))
-    o.append(ARR(248, 58, 274, 58, c=MUT, lw=1.5))
-    o.append(BOX(276, 34, 116, 50, "at_feed", "バイト → 行・プロンプト・データ", SIG, SSOFT, SIG, sz=11, ssz=9, mono=False))
-    o.append(BOX(424, 34, 112, 50, "at_classify", "行 → エコー・中間応答・最終応答・URC", SIG, SSOFT, SIG, sz=11, ssz=9))
-    o.append(ARR(394, 52, 422, 52, c=MUT, lw=1.5))
-    o.append(T(408, 46, "行", "middle", 9, MUT))
-    o.append(BOX(560, 18, 122, 28, "命令の状態機械", None, SIG, PAN, INK, sz=10))
-    o.append(BOX(560, 54, 122, 28, "URC の処理", None, GLD, PAN, INK, sz=10))
-    o.append(BOX(560, 90, 122, 28, "アプリケーション", None, PUR, PAN, INK, sz=10))
-    o.append(ARR(538, 50, 558, 34, c=MUT, lw=1.4))
-    o.append(ARR(538, 64, 558, 68, c=MUT, lw=1.4))
-    o.append(W(334, 86, 334, 104, 556, 104, c=PUR, lw=1.4))
-    o.append(ARR(540, 104, 558, 104, c=PUR, lw=1.4))
-    o.append(T(345, 100, "データ（写さずに渡す）・プロンプト", "start", 9, PUR))
+    o.append(BOX(8, 34, 98, 52, "受信の割り込み", "04 章 2 節", GLD, GOSOFT, INK, sz=10, ssz=9))
+    o.append(BOX(118, 34, 92, 52, "リングバッファ", "04 章 3 節", GLD, GOSOFT, INK, sz=10, ssz=9))
+    o.append(ARR(107, 60, 116, 60, c=MUT, lw=1.5))
+    o.append(RECT(222, 8, 470, 126, 10, "none", SIG, 1.3, dash="5 4"))
+    o.append(T(232, 126, "通信タスク（05 章 2 節）", "start", 9.5, SIG, True))
+    o.append(ARR(211, 60, 238, 60, c=MUT, lw=1.5))
+    o.append(BOX(240, 36, 112, 48, "at_feed", "バイトを区切る", SIG, SSOFT, SIG, sz=11, ssz=9.5))
+    o.append(BOX(410, 36, 112, 48, "at_classify", "行を振り分ける", SIG, SSOFT, SIG, sz=11, ssz=9.5))
+    o.append(ARR(354, 60, 408, 60, c=MUT, lw=1.5))
+    o.append(T(381, 54, "行", "middle", 9.5, MUT, True))
+    o.append(BOX(564, 16, 120, 28, "命令の状態機械", None, SIG, PAN, INK, sz=10))
+    o.append(BOX(564, 58, 120, 28, "URC の処理", None, GLD, PAN, INK, sz=10))
+    o.append(BOX(564, 100, 120, 28, "アプリケーション", None, PUR, PAN, INK, sz=10))
+    o.append(ARR(524, 50, 562, 32, c=SIG, lw=1.4))
+    o.append(T(536, 36, "応答", "end", 9, SIG))
+    o.append(ARR(524, 70, 562, 72, c=GLD, lw=1.4))
+    o.append(T(543, 84, "URC", "middle", 9, GLD))
+    # プロンプト: at_feed から命令の状態機械へ（上を回る）
+    o.append(W(296, 35, 296, 22, 556, 22, c=TEA, lw=1.4))
+    o.append(ARR(550, 22, 562, 24, c=TEA, lw=1.4))
+    o.append(T(420, 18, "プロンプト", "middle", 9, TEA, True))
+    # データ: at_feed からアプリケーションへ（下を回る）
+    o.append(W(296, 85, 296, 114, 556, 114, c=PUR, lw=1.4))
+    o.append(ARR(550, 114, 562, 114, c=PUR, lw=1.4))
+    o.append(T(420, 109, "データ（写さずに渡す）", "middle", 9, PUR, True))
     # 下: at_feed の 2 つの状態
-    y = 160
+    y = 168
     o.append(T(20, y - 12, "at_feed の状態（構造体に覚えておくので、どこで分かれて届いてもよい）", "start", 10.5, INK, True))
     o.append(D(22, y + 22, INK, 5))
     o.append(ARR(28, y + 22, 44, y + 22, c=INK, lw=1.4, head=6))
@@ -297,34 +299,38 @@ F["e06_classify"] = _f06_classify()
 
 def _f06_cmdsm():
     o = []
-    o.append(STATE(92, 120, 108, 44, "待機", SIG, start=True))
-    o.append(STATE(330, 120, 150, 44, "最終応答を待つ", SIG))
-    o.append(STATE(590, 48, 168, 44, "プロンプトを待つ", TEA))
-    o.append(STATE(590, 192, 168, 44, "送った結果を待つ", TEA))
+    yA, yB = 92, 226
+    o.append(STATE(100, yA, 112, 44, "待機", SIG, start=True))
+    o.append(STATE(360, yA, 150, 44, "最終応答を待つ", SIG))
+    o.append(STATE(598, yA, 164, 44, "プロンプトを待つ", TEA))
+    o.append(STATE(598, yB, 164, 44, "送った結果を待つ", TEA))
     # 待機 ⇄ 最終応答を待つ
-    o.append(ARR(147, 110, 254, 110, c=SIG, lw=1.6))
-    o.append(T(200, 90, "命令を送る", "middle", 10, SIG, True))
-    o.append(T(200, 103, "（タイマを始める）", "middle", 9, MUT))
-    o.append(ARR(254, 130, 147, 130, c=SIG, lw=1.6))
-    o.append(T(200, 147, "OK・ERROR", "middle", 10, SIG, True))
-    o.append(T(200, 160, "（結果を渡す）", "middle", 9, MUT))
+    o.append(ARR(157, yA - 8, 284, yA - 8, c=SIG, lw=1.6))
+    o.append(T(220, yA - 28, "命令を送る", "middle", 10, SIG, True))
+    o.append(T(220, yA - 15, "（タイマを始める）", "middle", 9, MUT))
+    o.append(ARR(284, yA + 8, 157, yA + 8, c=SIG, lw=1.6))
+    o.append(T(220, yA + 25, "OK・ERROR", "middle", 10, SIG, True))
+    o.append(T(220, yA + 38, "（結果を渡す）", "middle", 9, MUT))
     # 自分への遷移
-    o.append(SELF(330, 98, None, c=GRN))
-    o.append(T(330, 58, "エコーは捨て、中間応答は値を覚える", "middle", 9.5, GRN))
-    # タイムアウト
-    o.append(CARR(300, 143, 100, 143, bend=-0.3, c=ALI, lw=1.5, dash="5 3"))
-    o.append(T(200, 222, "タイムアウト: 送り直すか、モジュールをリセットする", "middle", 9.5, ALI))
+    o.append(SELF(360, yA - 22, None, c=GRN))
+    o.append(T(360, yA - 62, "エコーは捨て、中間応答は値を覚える", "middle", 9.5, GRN))
     # CIPSEND の 2 段
-    o.append(ARR(406, 108, 504, 58, c=TEA, lw=1.6))
-    o.append(T(436, 76, "OK", "middle", 10, TEA, True))
-    o.append(T(436, 64, "AT+CIPSEND=n のとき", "middle", 9, MUT))
-    o.append(ARR(590, 71, 590, 169, c=TEA, lw=1.6))
-    o.append(T(600, 116, "> を受けた:", "start", 10, TEA, True))
-    o.append(T(600, 130, "n バイトを送る", "start", 9.5, MUT))
-    o.append(CARR(506, 204, 120, 143, bend=-0.22, c=TEA, lw=1.5))
-    o.append(T(330, 262, "SEND OK・SEND FAIL（結果を渡す）", "middle", 9.5, TEA, True))
-    o.append(T(20, 292, "URC はどの状態でも URC の処理に渡し、状態は変えない。最終応答を待つ間の ERROR も、送った結果を待つ間の ERROR も、失敗として待機に戻る。", "start", 9.5, MUT))
-    return SVG(700, 304, o, "命令の状態機械。たいていの命令は「最終応答を待つ」から OK か ERROR で待機に戻る。AT+CIPSEND=n は、OK の後にプロンプトを待ち、n バイトを送り、SEND OK か SEND FAIL を受け取って終わる。どの状態にもタイムアウトを置く（図では最終応答を待つ状態のものだけを示した）。")
+    o.append(ARR(436, yA, 514, yA, c=TEA, lw=1.6))
+    o.append(T(475, yA - 20, "OK", "middle", 10, TEA, True))
+    o.append(T(475, yA - 8, "（CIPSEND）", "middle", 8.5, MUT))
+    o.append(ARR(598, yA + 23, 598, yB - 23, c=TEA, lw=1.6))
+    o.append(T(608, yA + 62, "> を受けた:", "start", 10, TEA, True))
+    o.append(T(608, yA + 76, "n バイトを送る", "start", 9.5, MUT))
+    # 送った結果 → 待機（下を回る）
+    o.append(W(515, yB, 80, yB, 80, yA + 26, c=TEA, lw=1.5))
+    o.append(ARR(80, yA + 34, 80, yA + 23, c=TEA, lw=1.5))
+    o.append(T(300, yB - 7, "SEND OK・SEND FAIL（結果を渡す）", "middle", 9.5, TEA, True))
+    # タイムアウト（最終応答を待つ → 待機）
+    o.append(W(360, yA + 23, 360, yA + 66, 122, yA + 66, c=ALI, lw=1.5, dash="5 3"))
+    o.append(ARR(122, yA + 60, 122, yA + 24, c=ALI, lw=1.5))
+    o.append(T(250, yA + 80, "タイムアウト: 送り直すか、リセットする", "middle", 9.5, ALI))
+    o.append(T(20, yB + 40, "URC はどの状態でも URC の処理に渡し、状態は変えない。どの状態にもタイムアウトを置く（図では 1 つだけ示した）。", "start", 9.5, MUT))
+    return SVG(700, yB + 52, o, "命令の状態機械。たいていの命令は「最終応答を待つ」から OK か ERROR で待機に戻る。AT+CIPSEND=n は、OK の後にプロンプトを待ち、n バイトを送り、SEND OK か SEND FAIL を受け取って待機に戻る。")
 F["e06_cmdsm"] = _f06_cmdsm()
 
 
@@ -332,13 +338,15 @@ F["e06_cmdsm"] = _f06_cmdsm()
 def _f06_modes():
     o = []
     xL = 118
+    o.append(ARR(560, 16, 690, 16, c=MUT, lw=1.2))
+    o.append(T(552, 20, "時間", "end", 9.5, MUT))
     rows = [(46, "ホスト → モジュール"), (96, "モジュール → ホスト")]
     for y, nm in rows:
         o.append(T(xL - 8, y + 4, nm, "end", 10, INK, True))
         o.append(W(xL, y + 14, 690, y + 14, c=GRD, lw=1))
 
     def box(x, w, y, txt, c, mono=True, sz=9.5):
-        return RECT(x, y - 10, w, 22, 4, soft(c), c, 1.2) + T(x + w / 2, y + 5, txt, "middle", sz, c if c not in (MUT,) else INK, True, mono)
+        return RECT(x, y - 10, w, 22, 4, soft(c), c, 1.2) + T(x + w / 2, y + 5, txt, "middle", sz, c, True, mono)
     # コマンドモード
     o.append(box(122, 82, 46, "AT+CIPMODE=1", SIG))
     o.append(box(176, 30, 96, "OK", SIG))
@@ -356,7 +364,8 @@ def _f06_modes():
     o.append(DIM(560, 74, 628, 74, None, c=TEA))
     o.append(T(594, 69, "空き > G", "middle", 9, TEA, True))
     o.append(box(632, 58, 46, "AT…", SIG))
-    o.append(T(612, 128, "（ESP-AT は 1 秒以上待ってから）", "middle", 9, MUT))
+    o.append(T(661, 96, "ESP-AT は", "middle", 8.5, MUT))
+    o.append(T(661, 108, "1 秒待つ", "middle", 8.5, MUT))
     # 状態の帯
     yb = 140
     o.append(T(xL - 8, yb + 15, "モジュールの状態", "end", 10, INK, True))
@@ -372,41 +381,30 @@ F["e06_modes"] = _f06_modes()
 
 def _f06_escape():
     o = []
-    cw = 30
+    cw, gw = 27, 54
     rows = [
-        ("連続して送るデータの", "途中の +++", [("a", 0), ("b", 0), ("+", 0), ("+", 0), ("+", 0), ("c", 0), ("d", 0)], None, None,
+        ("連続して送るデータの", "途中の +++", [("a", 0, PUR), ("b", 0, PUR), ("+", 0, PUR), ("+", 0, PUR), ("+", 0, PUR), ("c", 0, PUR), ("d", 0, PUR)],
          "データとして送る", "前の空きが 0 なので合図ではない", GRN),
-        ("前後を空けて送った", "+++（戻る合図）", [("…", 0), ("+", 1), ("+", 0), ("+", 0), ("A", 1)], "1 s", "1 s",
+        ("前後を空けて送った", "+++（戻る合図）", [("…", 0, MUT), ("+", 1, TEA), ("+", 0, TEA), ("+", 0, TEA), ("A", 1, SIG)],
          "コマンドモードに戻る", "意図どおり", GRN),
-        ("1 秒ごとに送る 3 バイトの", "通し番号が 2B 2B 2B", [("2B", 0), ("2B", 0), ("2A", 0), ("2B", 1), ("2B", 0), ("2B", 0), ("2B", 1), ("2B", 0), ("2C", 0)], "1 s", "1 s",
+        ("1 秒ごとに送る 3 バイトの", "通し番号が 2B 2B 2B", [("2B", 0, PUR), ("2B", 0, PUR), ("2A", 0, PUR), ("2B", 1, ALI), ("2B", 0, ALI), ("2B", 0, ALI), ("…", 1, MUT)],
          "誤ってコマンドモードに戻る", "データのつもりが合図になる", ALI),
     ]
     y = 22
-    for (l1, l2, cells, g1, g2, verdict, why, vc) in rows:
+    for (l1, l2, cells, verdict, why, vc) in rows:
         o.append(T(14, y + 10, l1, "start", 10, INK, True))
         o.append(T(14, y + 24, l2, "start", 10, INK, True))
-        x = 170
-        plus_run = 0
-        for k, (ch, gap_before) in enumerate(cells):
+        x = 176
+        for k, (ch, gap_before, c) in enumerate(cells):
             if gap_before:
-                gw = 62
                 o.append(DIM(x + 2, y + 34, x + gw - 2, y + 34, None, c=TEA))
-                o.append(T(x + gw / 2, y + 48, g1 if k < 4 else g2, "middle", 9, TEA, True))
+                o.append(T(x + gw / 2, y + 48, "1 s", "middle", 9, TEA, True))
                 x += gw
-            is_plus = ch in ("+", "2B")
-            if verdict.startswith("誤") and k in (3, 4, 5):
-                c = ALI
-            elif verdict.startswith("コ") and ch == "+":
-                c = TEA
-            elif ch == "+":
-                c = PUR
-            else:
-                c = PUR if ch not in ("…",) else MUT
             o.append(RECT(x + 1, y + 2, cw - 2, 26, 3, soft(c), c, 1.2))
-            o.append(T(x + cw / 2, y + 20, ch, "middle", 10.5 if len(ch) > 1 else 12, INK, True, True))
+            o.append(T(x + cw / 2, y + 20, ch, "middle", 10 if len(ch) > 1 else 12, INK, True, True))
             x += cw
-        o.append(T(470, y + 12, verdict, "start", 10.5, vc, True))
-        o.append(T(470, y + 27, why, "start", 9.5, MUT))
+        o.append(T(490, y + 12, verdict, "start", 10.5, vc, True))
+        o.append(T(490, y + 27, why, "start", 9.5, MUT))
         y += 70
     o.append(T(14, y - 6, "0x2B は + の文字コード。115200 bps・8N1 で続けて送るバイトの間は 0（1 バイトは 86.8 µs）、ガードタイムは 20 ms（ESP-AT）〜1 s 程度。", "start", 9.5, MUT))
     return SVG(700, y + 6, o, "+++ を戻る合図と読むかどうかは、前後の時間の空きだけで決まる。データの途中の +++ は前の空きが無いので合図にならない（上）。前後を空けた +++ は合図になる（中）。ところが、1 秒ごとに 3 バイトだけを送る機器で、値がたまたま 2B 2B 2B になると、データのつもりでも合図になってしまう（下。悪い例）。")
@@ -447,26 +445,26 @@ def _f06_hcisplit():
     # 右: (a) 1 つの SoC
     xr, wr = 430, 220
     o.append(T(xr + wr / 2, 18, "(a) 1 つの SoC", "middle", 11.5, INK, True))
-    o.append(RECT(xr - 10, 30, wr + 20, ye - 30, 10, PAN, SIG, 1.6))
+    o.append(RECT(xr - 10, 30, wr + 20, 52 + 5 * 28 + 30 - 6 + 8 - 30, 10, PAN, SIG, 1.6))
     o.append(T(xr, 44, "SoC", "start", 10, SIG, True))
     allL = host + ctl
     for i, (nm, c) in enumerate(allL):
-        yy = 52 + i * 28 + (22 if i >= 3 else 0)
+        yy = 52 + i * 28 + (30 if i >= 3 else 0)
         o.append(RECT(xr, yy, wr, 22, 5, soft(c), c, 1.2))
         o.append(T(xr + wr / 2, yy + 15, nm, "middle", 10, c, True))
-    yl = 52 + 3 * 28 + 8
+    yl = 52 + 3 * 28 + 1
     o.append(W(xr - 4, yl, xr + wr + 4, yl, c=INK, lw=1.4, dash="5 4"))
-    o.append(T(xr + wr / 2, yl - 0 + 12, "HCI（チップの中のソフトウェアの境目）", "middle", 9.5, INK))
+    o.append(T(xr + wr / 2, yl + 20, "HCI（チップの中のソフトウェアの境目）", "middle", 9.5, INK))
     return SVG(700, ye + 12, o, "BLE のスタックをホスト（L2CAP より上）とコントローラ（リンク層と物理層）に分ける。(d) では両者が別のチップで、HCI のパケットを UART や USB で運ぶ。(a) の SoC でも同じ境目があり、HCI はチップの中のソフトウェアの境目になる。")
 F["e06_hcisplit"] = _f06_hcisplit()
 
 
 def _f06_h4():
     o = []
-    u = 40
+    u = 44
     x0 = 150
     rows = [("HCI コマンド", "ホスト → コントローラ", [("種類", 1, SIG, "01"), ("命令の番号", 2, GLD, "OGF・OCF"), ("長さ", 1, TEA, "n"), ("パラメータ", 6, PUR, "n バイト")]),
-            ("HCI イベント", "コントローラ → ホスト", [("種類", 1, SIG, "04"), ("番号", 1, GLD, "0x0E など"), ("長さ", 1, TEA, "n"), ("パラメータ", 7, PUR, "n バイト")]),
+            ("HCI イベント", "コントローラ → ホスト", [("種類", 1, SIG, "04"), ("番号", 1, GLD, "例 0E"), ("長さ", 1, TEA, "n"), ("パラメータ", 7, PUR, "n バイト")]),
             ("ACL データ", "両方向", [("種類", 1, SIG, "02"), ("ハンドル・フラグ", 2, GLD, "12 + 4 ビット"), ("長さ", 2, TEA, "n（2 バイト）"), ("データ（L2CAP）", 5, PUR, "n バイト")])]
     y = 14
     for nm, sub, fields in rows:
@@ -499,7 +497,7 @@ F["e06_h4"] = _f06_h4()
 
 def _f06_reset():
     o = []
-    cw = 46
+    cw = 56
 
     def strip(x, y, bs, cols):
         q = []
@@ -508,31 +506,35 @@ def _f06_reset():
             q.append(RECT(xx + 1, y, cw - 2, 30, 4, soft(c), c, 1.3))
             q.append(T(xx + cw / 2, y + 20, "%02X" % b, "middle", 13, INK, True, True))
         return "".join(q)
-    x0 = 30
-    o.append(T(x0, 22, "ホスト → コントローラ: HCI_Reset", "start", 11, SIG, True))
-    o.append(strip(x0, 32, [0x01, 0x03, 0x0C, 0x00], [SIG, GLD, GLD, TEA]))
-    yb = 32 + 30 + 6
-    o.append(_f06_bracket(x0, x0 + cw, yb, "種類", SIG, sz=9.5, lines=["01 = コマンド"]))
-    o.append(_f06_bracket(x0 + cw, x0 + 3 * cw, yb, "命令の番号", GLD, sz=9.5, lines=["0x0C03 = HCI_Reset"]))
-    o.append(_f06_bracket(x0 + 3 * cw, x0 + 4 * cw, yb, "長さ", TEA, sz=9.5, lines=["0（無し）"]))
-    x1 = 270
-    o.append(T(x1, 22, "コントローラ → ホスト: Command Complete", "start", 11, GRN, True))
+    x0 = 150
+    # 上: コマンド
+    o.append(T(x0 - 14, 38, "ホスト →", "end", 10.5, SIG, True))
+    o.append(T(x0 - 14, 52, "コントローラ", "end", 10.5, SIG, True))
+    o.append(T(x0, 18, "HCI_Reset（コマンド）", "start", 11, SIG, True))
+    o.append(strip(x0, 28, [0x01, 0x03, 0x0C, 0x00], [SIG, GLD, GLD, TEA]))
+    yb = 28 + 30 + 6
+    o.append(_f06_bracket(x0, x0 + cw, yb, "種類", SIG, sz=9.5, lines=["コマンド"]))
+    o.append(_f06_bracket(x0 + cw, x0 + 3 * cw, yb, "命令の番号 0x0C03", GLD, sz=9.5, lines=["（下位のバイトが先）"]))
+    o.append(_f06_bracket(x0 + 3 * cw, x0 + 4 * cw, yb, "長さ", TEA, sz=9.5, lines=["0"]))
+    # 下: イベント
+    y2 = 160
+    o.append(T(x0 - 14, y2 + 10, "コントローラ", "end", 10.5, GRN, True))
+    o.append(T(x0 - 14, y2 + 24, "→ ホスト", "end", 10.5, GRN, True))
+    o.append(T(x0, y2 - 30, "Command Complete（イベント）", "start", 11, GRN, True))
     bs = [0x04, 0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00]
     cols = [SIG, GLD, TEA, PUR, PUR, PUR, PUR]
-    o.append(strip(x1, 32, bs, cols))
-    o.append(_f06_bracket(x1, x1 + cw, yb, "種類", SIG, sz=9.5, lines=["04 = イベント"]))
-    o.append(_f06_bracket(x1 + cw, x1 + 2 * cw, yb, "番号", GLD, sz=9.5, lines=["0x0E"]))
-    o.append(_f06_bracket(x1 + 2 * cw, x1 + 3 * cw, yb, "長さ", TEA, sz=9.5, lines=["4 バイト"]))
-    o.append(_f06_bracket(x1 + 3 * cw, x1 + 7 * cw, yb, "パラメータ（4 バイト）", PUR, sz=9.5))
-    # パラメータの中身
-    yp = yb + 44
-    sub = [(x1 + 3 * cw, x1 + 4 * cw, "送ってよい", "命令の数 1"), (x1 + 4 * cw, x1 + 6 * cw, "終わった命令", "0x0C03"), (x1 + 6 * cw, x1 + 7 * cw, "状態", "00 = 成功")]
-    for a, b_, l1, l2 in sub:
-        o.append(W((a + b_) / 2, yb + 24, (a + b_) / 2, yp, c=PUR, lw=1, dash="2 2"))
-        o.append(T((a + b_) / 2, yp + 13, l1, "middle", 9.5, PUR, True))
-        o.append(T((a + b_) / 2, yp + 26, l2, "middle", 9.5, MUT))
-    o.append(T(x0, yp + 56, "0x0E は Command Complete（命令の処理が終わった）。時間のかかる命令には、まず 0x0F（Command Status: 受け付けた）が返る。", "start", 10, INK))
-    return SVG(700, yp + 68, o, "リセットの命令 HCI_Reset（左）と、コントローラが返す Command Complete のイベント（右）。イベントのパラメータには、いま送ってよい命令の数、終わった命令の番号、命令ごとの戻り値（ここでは成功を表す状態 0x00）が入る。")
+    o.append(strip(x0, y2, bs, cols))
+    yb2 = y2 + 30 + 6
+    o.append(_f06_bracket(x0, x0 + cw, yb2, "種類", SIG, sz=9.5, lines=["イベント"]))
+    o.append(_f06_bracket(x0 + cw, x0 + 2 * cw, yb2, "番号 0x0E", GLD, sz=9.5))
+    o.append(_f06_bracket(x0 + 2 * cw, x0 + 3 * cw, yb2, "長さ", TEA, sz=9.5, lines=["4 バイト"]))
+    o.append(_f06_bracket(x0 + 3 * cw, x0 + 4 * cw, yb2, "送ってよい", PUR, sz=9.5, lines=["命令の数 1"]))
+    o.append(_f06_bracket(x0 + 4 * cw, x0 + 6 * cw, yb2, "終わった命令 0x0C03", PUR, sz=9.5))
+    o.append(_f06_bracket(x0 + 6 * cw, x0 + 7 * cw, yb2, "状態", PUR, sz=9.5, lines=["00 = 成功"]))
+    o.append(W(x0 + 3 * cw + 1, y2 - 3, x0 + 3 * cw + 1, y2 - 8, x0 + 7 * cw - 1, y2 - 8, x0 + 7 * cw - 1, y2 - 3, c=PUR, lw=1.3))
+    o.append(T(x0 + 5 * cw, y2 - 13, "パラメータ（4 バイト）", "middle", 9.5, PUR, True))
+    o.append(T(20, yb2 + 62, "0x0E は Command Complete（命令の処理が終わった）。時間のかかる命令には、まず 0x0F（Command Status: 受け付けた）が返る。", "start", 10, INK))
+    return SVG(700, yb2 + 74, o, "リセットの命令 HCI_Reset（上）と、コントローラが返す Command Complete のイベント（下）。イベントのパラメータには、いま送ってよい命令の数、終わった命令の番号、命令ごとの戻り値（ここでは成功を表す状態 0x00）が入る。")
 F["e06_reset"] = _f06_reset()
 
 
@@ -610,7 +612,7 @@ def _f06_h4loss():
     yb = y2 + 28
     xs = lambda i: x0 + (i + (1 if i >= 7 else 0)) * cw
     o.append(_f06_bracket(xs(0), xs(7) - cw, yb, "正しく読む", SIG, sz=9))
-    o.append(_f06_bracket(xs(7), xs(10), yb, "種類で", MUT, sz=9, b=False, lines=["ない: 捨てる"]))
+    o.append(_f06_bracket(xs(7), xs(10), yb, "読み捨て", MUT, sz=9, b=False, lines=["種類の値でない"]))
     o.append(_f06_bracket(xs(10), xs(15), yb, "02 を ACL と読む", ALI, sz=9, lines=["長さ 00FB = 251"]))
     o.append(_f06_bracket(xs(15), xs(len(lost)), yb, "後のイベントを ACL のデータとして飲み込む", ALI, sz=9,
                           lines=["さらに 235 バイトを待ち続ける"]))
