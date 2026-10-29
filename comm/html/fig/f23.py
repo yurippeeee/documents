@@ -42,12 +42,12 @@ F["e23_layers"] = _f23_layers()
 
 def _f23_fakeclock():
     o = []
-    x0, x1 = 150, 670
+    x0, x1 = 186, 680
     t0, t1 = -17, 6           # 一周（0）に対する相対の時刻
     X = lambda t: x0 + (t - t0) / (t1 - t0) * (x1 - x0)
     lab = {-16: "0xFFFFFFF0", -8: "0xFFFFFFF8", 0: "0x00000000", 4: "0x00000004"}
     ya = 36
-    o.append(T(x0 - 8, ya + 4, "偽物の時計", "end", 10, MUT))
+    o.append(T(12, ya + 4, "偽物の時計", "start", 10, MUT))
     o.append(W(x0, ya, x1, ya, c=MUT, lw=1.2))
     for t in range(t0 + 1, t1):
         o.append(W(X(t), ya - 3, X(t), ya + 3, c=FNT, lw=1))
@@ -61,8 +61,8 @@ def _f23_fakeclock():
             ("最初の版のテスト", "期限の前後 2 か所だけで呼ぶ", "two", None)]
     for i, (nm, sub, mode, ok) in enumerate(rows):
         y = 84 + i * 62
-        o.append(T(x0 - 8, y - 2, nm, "end", 10.5, INK, True))
-        o.append(T(x0 - 8, y + 13, sub, "end", 8.5, MUT, False, True))
+        o.append(T(12, y - 2, nm, "start", 10.5, INK, True))
+        o.append(T(12, y + 13, sub, "start", 8.5, MUT, False, True))
         o.append(W(x0, y + 4, x1, y + 4, c=GRD, lw=1))
         if mode == "all":
             for t in range(-16, 5):
@@ -137,14 +137,14 @@ _F23_RES = [  # 故障, [(A), (B), (C)] の各値: (正しく, 壊れたまま, 
     ("喪失 10 %",        [(899, 0, 0, 0, 101, 1000), (1000, 0, 0, 0, 0, 1236), (1000, 0, 0, 0, 0, 1236)]),
     ("重複 10 %",        [(1000, 0, 101, 0, 0, 1000), (1000, 0, 0, 0, 0, 1000), (1000, 0, 0, 0, 0, 1000)]),
     ("破損 10 %",        [(901, 99, 0, 0, 99, 1000), (1000, 0, 0, 0, 0, 1233), (1000, 0, 0, 0, 0, 1233)]),
-    ("入れ替え 10 %",    [(1000, 0, 0, 99, 0, 1000), (945, 0, 56, 13, 55, 1179), (1000, 0, 0, 0, 0, 1225)]),
-    ("5 種類を 5 % ずつ", [(905, 49, 43, 43, 95, 1000), (964, 0, 36, 3, 36, 1299), (1000, 0, 0, 0, 0, 1328)]),
+    ("入れ替え 10 %",    [(901, 0, 0, 99, 0, 1000), (932, 0, 56, 13, 55, 1179), (1000, 0, 0, 0, 0, 1225)]),
+    ("4 つを 5 % ずつ", [(863, 49, 43, 43, 95, 1000), (961, 0, 36, 3, 36, 1299), (1000, 0, 0, 0, 0, 1328)]),
 ]
 
 def _f23_results():
     o = []
     cols = ["(A) 素朴な方式", "(B) ストップアンドウェイト + CRC（1 ビットの番号）", "(C) (B) の番号を 16 ビットに"]
-    x0, cw, rh = 112, 196, 54
+    x0, cw, rh = 112, 196, 62
     for j, c in enumerate(cols):
         xx = x0 + j * cw
         lines = ["(A) 素朴な方式", "番号・CRC・ACK なし"] if j == 0 else (["(B) 05 章の方式 + CRC", "番号は 1 ビット"] if j == 1 else ["(C) (B) の番号を", "16 ビットにしたもの"])
@@ -166,19 +166,23 @@ def _f23_results():
             if lost and lost != bad: probs.append("渡せず %d" % lost)
             elif lost: probs.append("渡せず %d" % lost)
             if probs:
-                o.append(T(xx + 10, y + 38, "・".join(probs), "start", 9.5, ALI, True))
+                for q in range(0, len(probs), 2):
+                    o.append(T(xx + 10, y + 38 + (q // 2) * 14, "・".join(probs[q:q + 2]), "start", 9.5, ALI, True))
             else:
                 o.append(T(xx + 10, y + 38, "送った回数 %d" % tx, "start", 9.5, MUT))
     yb = 42 + 5 * rh + 16
-    o.append(T(x0, yb, "1000 個のメッセージを送る試験を、種を変えて 200 回行った平均（四捨五入）。遅延 2〜4、ACK を待つ時間 20、入れ替えは +50（単位はティック）。", "start", 9.5, MUT))
-    o.append(T(x0, yb + 15, "「渡せず」は一度も正しく渡せなかった数（壊れたまま渡したものを含む）。「送った回数」は再送を含むデータの送信の数。", "start", 9.5, MUT))
-    return SVG(700, yb + 24, o, "故障のある通信路の上で、3 つの方式で 1000 個のメッセージを送った結果。緑の枠はすべてを 1 回ずつ正しく渡したもの。(B) は喪失・重複・破損には強いが、入れ替えがあると重複と取りこぼしを起こす。番号を 16 ビットにした (C) は、どの故障でもすべてを正しく渡した。")
+    for q, l in enumerate(["1000 個のメッセージを送る試験を、種を変えて 200 回行った平均（四捨五入）。",
+                           "遅延はいつも 2〜4、ACK を待つ時間は 20、入れ替えではさらに +50（単位はティック）。",
+                           "「4 つ」は喪失・重複・破損・入れ替え。「正しく渡した」は順番どおりに 1 回だけ渡した数。「渡せず」は一度も正しく渡せなかった数。",
+                           "「送った回数」は再送を含むデータの送信の数。"]):
+        o.append(T(20, yb + q * 14, l, "start", 9.5, MUT))
+    return SVG(700, yb + 4 * 14, o, "故障のある通信路の上で、3 つの方式で 1000 個のメッセージを送った結果。緑の枠はすべてを 1 回ずつ正しく渡したもの。(B) は喪失・重複・破損には強いが、入れ替えがあると重複と取りこぼしを起こす。番号を 16 ビットにした (C) は、どの故障でもすべてを正しく渡した。")
 F["e23_results"] = _f23_results()
 
 
 def _f23_reorder():
     o = []
-    xs, xr = 200, 520
+    xs, xr = 180, 470
     y0 = 52
     o.append(RECT(xs - 46, 10, 92, 28, 7, SSOFT, SIG, 1.3)); o.append(T(xs, 29, "送り手", "middle", 11.5, SIG, True))
     o.append(RECT(xr - 46, 10, 92, 28, 7, GSOFT, GRN, 1.3)); o.append(T(xr, 29, "受け手", "middle", 11.5, GRN, True))
@@ -211,11 +215,12 @@ def _f23_reorder():
     msg(y0 + 212, y0 + 228, "17 番（1）")
     rnote(y0 + 228, "17 番を渡す。次は 0")
     ack(y0 + 236, y0 + 252, "ACK 1")
-    rnote(330, "遅れていた 14 番の写し（番号 0）が届く", PUR, True)
+    rnote(330, "遅れていた 14 番（番号 0）が届く", PUR, True)
     rnote(346, "待っている番号と同じなので", ALI)
     rnote(362, "18 番として渡す ×", ALI, True)
     msg(y0 + 290, y0 + 352, "18 番（0）")
-    rnote(y0 + 360, "番号 0 は済んだので、重複として捨てる ×", ALI, True)
+    rnote(y0 + 354, "番号 0 は済んだので", ALI)
+    rnote(y0 + 368, "重複として捨てる ×", ALI, True)
     ack(y0 + 368, y0 + 384, "ACK 0")
     o.append(T(xs - 10, y0 + 392, "18 番は届いたと思う", "end", 9.5, SIG))
     o.append(D(xr, 382, ALI, 4.5))
@@ -229,8 +234,8 @@ def _f23_funnel():
     stages = ["入力の数", "① 印 0xA5 が合う", "② 残りの長さが合う", "③ TLV の長さの検査を通る", "④ 誤りのある所に届く"]
     rnd = [2000000, 7702, 32, 2, 0]
     mut = [200000, 167337, 62069, 42099, 628]
-    p = Plot(250, 44, 400, 5 * 40, (1e-7, 1), (0, 5), xlog=True)
-    o.append(T(250 + 200, 18, "その段まで届いた入力の割合（対数目盛）", "middle", 10.5, INK, True))
+    p = Plot(250, 44, 290, 5 * 40, (1e-7, 1), (0, 5), xlog=True)
+    o.append(T(250 + 145, 18, "その段まで届いた入力の割合（対数目盛）", "middle", 10.5, INK, True))
     for v, s in ((1e-6, "0.0001 %"), (1e-4, "0.01 %"), (1e-2, "1 %"), (1, "100 %")):
         o.append(W(p.X(v), 36, p.X(v), 44 + 5 * 40, c=GRD, lw=1))
         o.append(T(p.X(v), 44 + 5 * 40 + 14, s, "middle", 9, MUT))
@@ -295,22 +300,29 @@ F["e23_asan"] = _f23_asan()
 
 def _f23_fuzzloop():
     o = []
-    o.append(BOX(20, 60, 140, 70, "コーパス", "正しい入力と、新しい分岐を通った入力", GLD, GOSOFT, INK, sz=11.5, ssz=9))
-    o.append(BOX(200, 60, 130, 70, "変異", "1 つ選び、ビット反転・書き換え・足す・消す", PUR, PSOFT, INK, sz=11.5, ssz=9))
-    o.append(BOX(370, 52, 150, 86, "試す", "LLVMFuzzerTestOneInput（サニタイザ付き・性質の検査）", SIG, SSOFT, INK, sz=11.5, ssz=9))
-    o.append(ARR(160, 95, 198, 95, c=MUT, lw=1.6))
-    o.append(ARR(330, 95, 368, 95, c=MUT, lw=1.6))
-    o.append(BOX(560, 26, 124, 56, "新しい分岐を通った", None, GLD, GOSOFT, GLD, sz=10.5))
-    o.append(BOX(560, 108, 124, 56, "止まった・abort", None, ALI, ASOFT, ALI, sz=10.5))
-    o.append(ARR(520, 80, 558, 58, c=GLD, lw=1.5))
-    o.append(ARR(520, 112, 558, 134, c=ALI, lw=1.5))
-    o.append(CARR(620, 26, 90, 58, bend=0.18, c=GLD, lw=1.5))
-    o.append(T(330, 16, "コーパスに加える（次からはこの入力も変異のもとになる）", "middle", 9.5, GLD))
-    o.append(T(622, 184, "入力を crash-… に保存して終わる", "middle", 9.5, ALI, True))
-    o.append(T(622, 198, "→ 単体テストの入力として残す", "middle", 9.5, MUT))
-    o.append(CARR(445, 138, 265, 132, bend=-0.35, c=MUT, lw=1.3))
-    o.append(T(355, 186, "どちらでもなければ、次の入力へ（1 秒に数十万回）", "middle", 9.5, MUT))
-    return SVG(700, 208, o, "libFuzzer の繰り返し。コーパスから入力を選んで変異させ、入口の関数に渡して試す。試した入力が新しい分岐を通ればコーパスに加えるので、奥の分岐まで届く入力が少しずつ増える。サニタイザか性質の検査（abort）で止まったら、その入力をファイルに残して終わる。")
+    y = 54
+    o.append(BOX(20, y, 140, 70, "コーパス", "正しい入力と、新しい分岐を通った入力", GLD, GOSOFT, INK, sz=11.5, ssz=9))
+    o.append(BOX(200, y, 130, 70, "変異", "1 つ選び、ビット反転・書き換え・足す・消す", PUR, PSOFT, INK, sz=11.5, ssz=9))
+    o.append(RECT(370, y - 6, 150, 82, 8, SSOFT, SIG, 1.4))
+    o.append(T(445, y + 16, "試す", "middle", 11.5, INK, True))
+    o.append(T(445, y + 34, "LLVMFuzzerTestOneInput", "middle", 9, INK, False, True))
+    o.append(T(445, y + 50, "サニタイザ付き", "middle", 9, MUT))
+    o.append(T(445, y + 64, "性質の検査", "middle", 9, MUT))
+    o.append(ARR(160, y + 35, 198, y + 35, c=MUT, lw=1.6))
+    o.append(ARR(330, y + 35, 368, y + 35, c=MUT, lw=1.6))
+    o.append(BOX(560, 24, 124, 50, "新しい分岐を通った", None, GLD, GOSOFT, GLD, sz=10.5))
+    o.append(BOX(560, 110, 124, 50, "止まった・abort", None, ALI, ASOFT, ALI, sz=10.5))
+    o.append(ARR(520, y + 22, 558, 52, c=GLD, lw=1.5))
+    o.append(ARR(520, y + 50, 558, 132, c=ALI, lw=1.5))
+    o.append(W(622, 24, 622, 12, 90, 12, c=GLD, lw=1.5))          # コーパスへ戻る（箱の上を通す）
+    o.append(ARR(90, 12, 90, y - 1, c=GLD, lw=1.5))
+    o.append(T(356, 26, "コーパスに加える（次からはこの入力も変異のもとになる）", "middle", 9.5, GLD, False, halo=True))
+    o.append(W(445, y + 76, 445, 166, 265, 166, c=MUT, lw=1.3))   # 次の入力へ（箱の下を通す）
+    o.append(ARR(265, 166, 265, y + 71, c=MUT, lw=1.3))
+    o.append(T(355, 182, "どちらでもなければ、次の入力へ（1 秒に数十万回）", "middle", 9.5, MUT))
+    o.append(T(622, 180, "入力を crash-… に保存して終わる", "middle", 9.5, ALI, True))
+    o.append(T(622, 194, "→ 単体テストの入力として残す", "middle", 9.5, MUT))
+    return SVG(700, 204, o, "libFuzzer の繰り返し。コーパスから入力を選んで変異させ、入口の関数に渡して試す。試した入力が新しい分岐を通ればコーパスに加えるので、奥の分岐まで届く入力が少しずつ増える。サニタイザか性質の検査（abort）で止まったら、その入力をファイルに残して終わる。")
 F["e23_fuzzloop"] = _f23_fuzzloop()
 
 
@@ -446,7 +458,7 @@ F["e23_btsnoop"] = _f23_btsnoop()
 
 
 # ---- 5 節: ログと計測 ----
-_F23_TEXTLINE = "[171.234] #1052 c3 MQTT CONNECTING->UP rc=0 ok\n"
+_F23_TEXTLINE = "[171.234] #1052 c3 MQTT: CONNECTING->UP rc=0 ok\n"
 
 def _f23_logrec():
     o = []
@@ -486,16 +498,25 @@ def _f23_logflow():
     o.append(T(cx, cy + 12, "リング", "middle", 9.5, TEA, True))
     o.append(T(cx, cy + r + 18, "満杯なら古いものを上書き", "middle", 9, MUT))
     o.append(ARR(cx + r + 6, 98, 478, 98, c=MUT, lw=1.5))
-    o.append(BOX(480, 70, 100, 56, "送る係", "log_copy で写してまとめる", GLD, GOSOFT, INK, sz=10.5, ssz=9))
+    o.append(RECT(480, 70, 100, 56, 8, GOSOFT, GLD, 1.4))
+    o.append(T(530, 90, "送る係", "middle", 10.5, INK, True))
+    o.append(T(530, 105, "log_copy で写し", "middle", 9, MUT))
+    o.append(T(530, 118, "まとめて送る", "middle", 9, MUT))
     o.append(ARR(580, 98, 600, 98, c=MUT, lw=1.5))
-    o.append(BOX(602, 64, 86, 68, "サーバ", "抜けを数え、番号を文字に", GRN, GSOFT, INK, sz=10.5, ssz=9))
-    o.append(T(590, 150, "MQTT（QoS 1）。PUBACK が来てから進む", "middle", 9, MUT))
+    o.append(RECT(602, 64, 90, 68, 8, GSOFT, GRN, 1.4))
+    o.append(T(647, 86, "サーバ", "middle", 10.5, INK, True))
+    o.append(T(647, 102, "抜けを数える", "middle", 9, MUT))
+    o.append(T(647, 116, "番号を文字に", "middle", 9, MUT))
+    o.append(T(530, 146, "MQTT（QoS 1）。PUBACK が来てから進む", "middle", 9, MUT))
     # カウンタ
     o.append(BOX(190, 182, 300, 44, "カウンタ（起動から増え続ける数）", "再送・つなぎ直し・捨てたバイト・RSSI の最小", SIG, SSOFT, INK, sz=10.5, ssz=9))
-    o.append(ARR(490, 204, 640, 134, c=MUT, lw=1.3))
-    o.append(T(560, 186, "1 時間ごとに報告", "middle", 9, MUT))
-    o.append(T(560, 238, "サーバは 2 つの報告の差 ÷ 時間で割合を求める", "middle", 9, MUT))
-    o.append(BOX(20, 196, 130, 46, "0 にしない RAM", "リセットの理由（05 章 6 節）", ALI, ASOFT, INK, sz=10, ssz=9))
+    o.append(W(490, 204, 662, 204, c=MUT, lw=1.3))
+    o.append(ARR(662, 204, 662, 134, c=MUT, lw=1.3))
+    o.append(T(575, 198, "1 時間ごとに報告", "middle", 9, MUT))
+    o.append(T(440, 244, "サーバは 2 つの報告の差 ÷ 時間で割合を求める", "middle", 9, MUT))
+    o.append(RECT(20, 196, 150, 46, 8, ASOFT, ALI, 1.4))
+    o.append(T(95, 215, "0 にしない RAM", "middle", 10, INK, True))
+    o.append(T(95, 231, "リセットの理由など", "middle", 9, MUT))
     return SVG(700, 252, o, "ログと計測の流れ。出来事の元は log_event で記録を写すだけにし、送る係のタスクが通し番号の順にまとめてサーバへ送る。カウンタは定期的に報告し、サーバが報告の差から割合を求める。リセットの理由のように消えては困る記録は、別の場所に残す。")
 F["e23_logflow"] = _f23_logflow()
 
@@ -524,7 +545,8 @@ def _f23_builds():
         o.append(T(x0 + 155, y + 50, "通信のコード", "middle", 10.5, INK, True))
         o.append(T(x0 + 155, y + 64, "解析器・状態機械・バッファ（両方で同じ）", "middle", 9, MUT))
     yb = 32 + 5 * 26 + 6 + 32 + 40 + 22
-    o.append(T(20, yb, "デバッグ版: ホストでのテストと実機の上の故障注入に使う。", "start", 9.5, MUT))
-    o.append(T(370, yb, "出荷版: 最後の試験は、機器の外から起こす故障（netem・電波を弱める）で行う。", "start", 9.5, MUT))
-    return SVG(700, yb + 10, o, "デバッグ版と出荷版の違い。2 つの違いは、試験のための機能があるかどうかだけにとどめる。試験のための機能は、出荷版に残ると誰でも通信を妨げたり読んだりできる入口になるので、入っていないことをビルドしたファイルで確かめる。")
+    o.append(T(20, yb, "デバッグ版: ホストでのテストと、実機の上の故障注入に使う。", "start", 9.5, MUT))
+    o.append(T(370, yb, "出荷版: 最後の試験は、機器の外から起こす故障", "start", 9.5, MUT))
+    o.append(T(370, yb + 14, "（netem・電波を弱める）で行う。", "start", 9.5, MUT))
+    return SVG(700, yb + 24, o, "デバッグ版と出荷版の違い。2 つの違いは、試験のための機能があるかどうかだけにとどめる。試験のための機能は、出荷版に残ると誰でも通信を妨げたり読んだりできる入口になるので、入っていないことをビルドしたファイルで確かめる。")
 F["e23_builds"] = _f23_builds()

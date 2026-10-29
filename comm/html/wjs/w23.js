@@ -92,7 +92,7 @@
     U.button(br,"例: 喪失だけ 10 %",function(){preset(10,0,0,0);});
     U.button(br,"例: 破損だけ 10 %",function(){preset(0,0,10,0);});
     U.button(br,"例: 4 つを 5 % ずつ",function(){preset(5,5,5,5);});
-    var box=U.svgbox(el); var ro=U.readout(el);
+    var box=U.svgbox(el,{scroll:true}); var ro=U.readout(el);
     var NAMES=["(A) 素朴","(B) 1 ビット","(C) 16 ビット"];
     var CLS={ok:"渡す",bad:"壊れたまま渡す ×",dup:"2 回目に渡す ×",order:"順番違いで渡す ×",dupdrop:"重複として捨てる",crcdrop:"CRC が合わず捨てる"};
     function cfg(){return {loss:sl.loss.get()/100,dup:sl.dup.get()/100,corrupt:sl.corrupt.get()/100,reorder:sl.reorder.get()/100,delay:2,jitter:2,hold:50};}
@@ -113,7 +113,7 @@
         (fr.maxdel>=0&&fr.cls!=="bad"?"（すでに #"+fr.maxdel+" まで受け取っていた）":"")+"。同じ種なら、何度でも同じ時刻に同じことが起きる。";
       ro.innerHTML=msg+"<br><b>この種（番号 "+seedk+"）で 1000 個を送った結果</b>"+U.tbl(H,res.map(function(q,i){return rowOf(NAMES[i],q,false);}),AL)+
         "<b>種 1〜20 の平均</b>"+U.tbl(H,avg.map(function(q,i){return rowOf(NAMES[i],q,true);}),AL)+
-        '<div class="wnote">遅延は 2〜4 ティック、ACK を待つ時間は 20 ティック、入れ替えるメッセージはさらに 50 ティック遅らせる。(B)・(C) は 8 回送っても ACK が来なければ諦める。「正しく渡せず」は一度も正しく渡せなかった数（壊れたまま渡したものを含む）。</div>';
+        '<div class="wnote">遅延は 2〜4 ティック、ACK を待つ時間は 20 ティック、入れ替えるメッセージはさらに 50 ティック遅らせる。(B)・(C) は 8 回送っても ACK が来なければ諦める。「正しく渡した」は順番どおりに 1 回だけ渡した数、「正しく渡せず」は一度も正しく渡せなかった数（壊れたまま渡したものを含む）。</div>';
     }
     function render(r,mode){
       var W=700,y0=40,H=440,o=[],xs=170,xr=470;
@@ -130,6 +130,7 @@
       items.sort(function(a,b){return (a.t1==null?a.t0:a.t1)-(b.t1==null?b.t0:b.t1);});
       (r.ev||[]).forEach(function(v){if(v.t>=st&&v.t<=en){o.push(S.L(xs-22,Y(v.t),xs,Y(v.t),"teal",1.6));llab(Y(v.t),"時間切れ → 再送","teal",false);}});
       items.forEach(function(e){
+        if(!e.held&&(e.t0<st||(e.t1!=null&&e.t1>en)))return;   /* 窓の外にはみ出す矢印は、遅れる写しだけを描く */
         var up=e.dir==="up",x1=up?xs:xr,x2=up?xr:xs,ya=Y(e.t0);
         var lab=up?("#"+e.meta.idx+(mode>0?"（"+e.meta.seq+"）":"")+(e.meta.re?" 再送":"")):("ACK "+e.meta.ack);
         var c=up?(e.held?"purple":(e.cor?"alias":"ink")):"green";
