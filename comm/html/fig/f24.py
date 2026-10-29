@@ -23,6 +23,13 @@ def _f24_box(o, x, y, w, h, title, lines, c, fill, dash=None, tsz=11, lsz=9, lh=
     for i, l in enumerate(lines):
         o.append(T(x + w / 2, yy + tsz * 0.35 + lsz * 1.05 + i * lh, l, "middle", lsz, MUT))
 
+def _f24_lab(o, x, y, text, a, sz, c, b=False):
+    """下に地の色の帯を敷いた文字（後ろを通る破線を隠す）。"""
+    w = tw(text, sz)
+    x0 = x - (w / 2 if a == "middle" else (w if a == "end" else 0))
+    o.append(RECT(x0 - 2, y - sz * 0.9, w + 4, sz * 1.15, 2, SCR, "none", 0))
+    o.append(T(x, y, text, a, sz, c, b))
+
 # ---- 1 節: 要求を時間の軸に ----
 def _f24_req():
     o = []
@@ -103,7 +110,7 @@ def _f24_methods():
         y = y0 + i * rh
         o.append(T(x0 - 8, y + 15, name, "end", 10, INK, name.startswith(("A:", "B:"))))
         o.append(RECT(x0, y + 4, X(v) - x0, rh - 10, 3, soft(c), c, 1.3))
-        o.append(T(X(v) + 5, y + 16, "%g µA" % v, "start", 9.5, c, True, halo=True))
+        _f24_lab(o, X(v) + 5, y + 16, "%g µA" % v, "start", 9.5, c, True)
         for xx, mk in ((585, r7), (648, r8)):
             cc = GRN if mk == "○" else (GLD if mk == "△" else ALI)
             o.append(T(xx, y + 16, mk, "middle", 12, cc, True))
@@ -182,12 +189,12 @@ def _f24_budget():
     o.append(T(x0 + 55 * sB, yB + 92, "µA", "start", 9, MUT))
     bars = [("各章の値のまま", [5.0, 0.0667, 41.67, 4.0, 0.0556, 0], "50.8 µA → 4.5 年"),
             ("接続を工夫し、まとめて送る", [5.0, 0.0667, 31.44, 0.667, 0.0556, 0], "37.2 µA → 6.1 年")]
+    o.append(W(x0 + 45.66 * sB, yB - 4, x0 + 45.66 * sB, yB + 76, c=ALI, lw=1.4, dash="5 3"))
     for i, (lab, vals, res) in enumerate(bars):
         y = yB + 6 + i * 36
         o.append(T(x0 - 8, y + 16, lab, "end", 10, INK))
         xe = _f24_stack(o, x0, y, 24, sB, vals)
-        o.append(T(xe + 6, y + 16, res, "start", 9.5, INK, True, halo=True))
-    o.append(W(x0 + 45.66 * sB, yB - 4, x0 + 45.66 * sB, yB + 76, c=ALI, lw=1.4, dash="5 3"))
+        _f24_lab(o, xe + 6, y + 16, res, "start", 9.5, INK, True)
     o.append(T(x0 + 45.66 * sB - 4, yB + 108, "5 年の上限 45.7 µA", "end", 9.5, ALI))
     # A
     yA = 168
@@ -199,9 +206,9 @@ def _f24_budget():
         o.append(T(x0 + v * sA, yA + 52, "%d" % v, "middle", 9, MUT))
     o.append(T(x0 + 6 * sA + 6, yA + 52, "µA", "start", 9, MUT))
     o.append(T(x0 - 8, yA + 22, "送るときだけ接続", "end", 10, INK))
-    xe = _f24_stack(o, x0, yA + 6, 24, sA, [2.0, 0.0667, 0.0487, 0, 0, 0.047])
-    o.append(T(xe + 6, yA + 22, "2.16 µA → 11.6 年", "start", 9.5, INK, True))
     o.append(W(x0 + 5.02 * sA, yA - 4, x0 + 5.02 * sA, yA + 36, c=ALI, lw=1.4, dash="5 3"))
+    xe = _f24_stack(o, x0, yA + 6, 24, sA, [2.0, 0.0667, 0.0487, 0, 0, 0.047])
+    _f24_lab(o, xe + 6, yA + 22, "2.16 µA → 11.6 年", "start", 9.5, INK, True)
     o.append(T(x0 + 5.02 * sA - 4, yA + 68, "5 年の上限 5.02 µA", "end", 9.5, ALI))
     # 凡例と注
     o.append(LEGEND(16, yA + 92, [(c, nm) for nm, c in _F24_SEGC]))
@@ -293,7 +300,7 @@ def _f24_fail():
     x0, x1, lo, hi = 200, 600, 0.5, 500.0
     X = lambda v: x0 + (math.log10(v) - math.log10(lo)) / (math.log10(hi) - math.log10(lo)) * (x1 - x0)
     y = 20
-    rows_y = []
+    ob, o = o, []
     for gname, q in groups:
         o.append(T(16, y + 10, gname, "start", 10.5, INK, True))
         y += 18
@@ -301,18 +308,20 @@ def _f24_fail():
             I = q * n / _F24_DAY * 1e6
             o.append(T(x0 - 8, y + 12, wname, "end", 9.5, MUT))
             o.append(RECT(x0, y + 2, X(I) - x0, 13, 2, soft(c), c, 1.2))
-            o.append(T(X(I) + 5, y + 13, "%.3g µA" % I, "start", 9.5, c, True, halo=True))
+            _f24_lab(o, X(I) + 5, y + 13, "%.3g µA" % I, "start", 9.5, c, True)
             y += 18
         y += 10
     yb = y
+    ob, o = o, ob
     for v in (1, 10, 100):
         o.append(W(X(v), 22, X(v), yb, c=GRD, lw=1))
         o.append(T(X(v), yb + 14, "%g µA" % v, "middle", 9, MUT))
-    o.append(W(X(37.2), 22, X(37.2), yb, c=SIG, lw=1.4, dash="5 3"))
-    o.append(T(X(37.2) + 4, yb + 28, "3 節の予算の全体 37.2 µA", "start", 9.5, SIG, True))
+    o.append(W(X(32.1), 22, X(32.1), yb, c=SIG, lw=1.4, dash="5 3"))
+    o.extend(ob)
+    o.append(T(X(32.1) - 4, yb + 28, "正常なときの接続とメッセージの分 32.1 µA", "end", 9.5, SIG, True))
     o.append(W(x0, yb, x1, yb, c=MUT, lw=1.1))
-    o.append(T(16, yb + 46, "止まっている間の平均電流の上乗せ（対数目盛）。上限 8 時間なら 1 日 3 回、上限 24 時間なら 1 日 1 回試す。", "start", 9.5, MUT))
-    return SVG(700, yb + 56, o, "一時的な失敗が続く間、試すたびに失う電荷と、次に試すまでの待ち方による平均電流の上乗せ。失敗に気づくまでの時間（期限）が長い段ほど 1 回の電荷が大きい。毎時そのまま試すと、DNS やサーバの失敗では予算全体の 6〜8 倍になる。待ちを延ばせば上乗せは小さくなるが、直ってから次に試すまでの遅れが延びる。")
+    o.append(T(16, yb + 46, "止まっている間に、試みに使う平均電流（対数目盛）。上限 8 時間なら 1 日 3 回、上限 24 時間なら 1 日 1 回試す。", "start", 9.5, MUT))
+    return SVG(700, yb + 56, o, "一時的な失敗が続く間、試みに使う平均電流を、待ち方ごとに比べたもの。失敗に気づくまでの時間（期限）が長い段ほど 1 回の電荷が大きく、毎時そのまま試すと、DNS やサーバの失敗では正常なときの 7〜9 倍になる。AP が見つからない失敗は、正常なときより安い。待ちを延ばせば電流は小さくなるが、直ってから次に試すまでの遅れが延びる。")
 F["e24_fail"] = _f24_fail()
 
 # ---- 6 節: 製品の一生 ----

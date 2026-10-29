@@ -18,7 +18,7 @@
     if(s[3]==="tls")return _w24_tls(f.tls,f.eng);
     return s[3]&&f[s[3]]?s[2]:s[1];});}
   function _w24_sum(a){return a.reduce(function(x,y){return x+y;},0);}
-  function _w24_hm(s){var h=s/3600;return h>=48?_w24_sig(h/24)+" 日":(h>=1?_w24_sig(h)+" 時間":Math.round(s/60)+" 分");}
+  function _w24_hm(s){var h=s/3600;return h>=48?_w24_sig(h/24)+" 日":(h>=1?_w24_sig(h)+" 時間":(s>=120?Math.round(s/60)+" 分":Math.round(s)+" 秒"));}
   function _w24_sig(v){return (+v.toPrecision(3)).toString();}
 
   REG.w24_budget=function(el,U){
@@ -186,9 +186,10 @@
       o.push(S.L(x0+150,271,x0+170,271,"signal",1.6));o.push(S.T(x0+174,275,"送信待ちの列の件数","start",9.5,"muted"));
       box.set(S.svg(W,284,o));
       var nfail=r.att.filter(function(a){return !a[1];}).length, extra=r.Q-base.Q, Iavg=r.Q/(H*3600), Ib=base.Q/(H*3600);
+      if(Math.abs(extra)<1e-6)extra=0;
       var rec=r.firstOk!==null?_w24_hm(r.firstOk-(s0+dur)*3600):"—";
-      ro.innerHTML=fk[3]+"（1 回の失敗 "+(fk[2]==="time"?"の上乗せ ":"")+F.num(fk[1]*0.1*1e3,3)+" mC）<br>"+
-        "試み "+r.att.length+" 回（失敗 "+nfail+" 回）・ 余分にかかった電荷 <b>"+F.num(extra,3)+" C</b> ・ この "+H+" 時間の平均電流 <b>"+F.num(Iavg*1e6,3)+" µA</b>（失敗が無ければ "+F.num(Ib*1e6,3)+" µA）<br>"+
+      ro.innerHTML=fk[3]+"（"+(fk[2]==="time"?"その起床での上乗せ ":"1 回の失敗 ")+F.num(fk[1]*0.1*1e3,3)+" mC。正常に送るときは 1 回 116 mC）<br>"+
+        "試み "+r.att.length+" 回（失敗 "+nfail+" 回）・ 失敗が無いときとの電荷の差 <b>"+(extra>0?"+":"")+F.num(extra,3)+" C</b> ・ この "+H+" 時間の平均電流 <b>"+F.num(Iavg*1e6,3)+" µA</b>（失敗が無ければ "+F.num(Ib*1e6,3)+" µA）<br>"+
         "上りの最大の遅れ <b>"+_w24_hm(r.maxDelay)+"</b> ・ 直ってから最初に送れるまで <b>"+rec+"</b> ・ 失った件 "+(r.lost?'<span class="warn">'+r.lost+" 件</span>":'<span class="ok">0 件</span>')+
         '<div class="wnote">起床は 10 分ごと、送るのは 1 時間ごと。1 回の失敗の電荷は、気づくまでの時間 × 100 mA（5 節）。送れたときは接続 113 mC と、6 件ごとに 1 つのメッセージ 2.4 mC。列は 1008 件（7 日分）で、満杯なら古いものを捨てる（15 章 3 節）。設定の誤りは、待ち方が「毎時そのまま」でなければ 1 日おきに試す。</div>';
     }
