@@ -1,0 +1,1057 @@
+#!/usr/bin/env python3
+"""dsp/ ドキュメント群の図をすべて生成するスクリプト。
+
+使い方:
+    pip install numpy scipy matplotlib
+    python3 generate_figures.py
+
+日本語ラベルには IPA ゴシック等の日本語フォントが必要
+(Debian/Ubuntu: apt install fonts-ipafont-gothic)。
+"""
+import os
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.patches import Circle, FancyArrowPatch
+from scipy import signal as sig
+
+OUT = os.path.dirname(os.path.abspath(__file__))
+
+plt.rcParams.update({
+    "font.family": ["IPAPGothic", "IPAGothic", "sans-serif"],
+    "axes.unicode_minus": False,
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+    "figure.constrained_layout.use": True,
+    "font.size": 10,
+})
+
+
+def save(fig, name):
+    path = os.path.join(OUT, name)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote", name)
+
+
+def unit_circle(ax, **kw):
+    th = np.linspace(0, 2 * np.pi, 400)
+    ax.plot(np.cos(th), np.sin(th), "k--", lw=1, **kw)
+
+
+# ---------------------------------------------------------------- 01 章
+def fig01_sampling():
+    fs, dur = 4000.0, 0.004
+    t = np.linspace(0, dur, 2000)
+    f = lambda t: np.sin(2 * np.pi * 500 * t) + 0.5 * np.sin(2 * np.pi * 1300 * t + 1.0)
+    n = np.arange(0, int(dur * fs) + 1)
+    fig, ax = plt.subplots(figsize=(8, 3))
+    ax.plot(t * 1e3, f(t), "C0", lw=1.5, label="連続信号 $x_a(t)$")
+    ml, sl, bl = ax.stem(n / fs * 1e3, f(n / fs), linefmt="C3-", markerfmt="C3o", basefmt="k-",
+                         label="サンプル列 $x[n]=x_a(nT)$")
+    plt.setp(ml, markersize=6)
+    ax.set_xlabel("時間 [ms]")
+    ax.set_ylabel("振幅")
+    ax.set_title("サンプリング: 連続波形を周期 T ごとの「スナップ写真」にする")
+    ax.annotate("", xy=(8 / fs * 1e3, -1.45), xytext=(9 / fs * 1e3, -1.45),
+                arrowprops=dict(arrowstyle="<->", color="k"))
+    ax.text(8.5 / fs * 1e3, -1.35, "T", ha="center", fontsize=11)
+    ax.set_ylim(-1.7, 1.7)
+    ax.legend(loc="upper right")
+    save(fig, "01_sampling.png")
+
+
+def _triangle(ax, center, B, height=1.0, **kw):
+    ax.fill([center - B, center, center + B], [0, height, 0], **kw)
+
+
+def fig01_replication():
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3), sharey=True)
+    fs = 1.0
+    for ax, B, title in [
+        (axes[0], 0.3, "fs > 2B: コピー同士に隙間 → 復元可能"),
+        (axes[1], 0.7, "fs < 2B: コピーが重なる → エイリアシング"),
+    ]:
+        for k in range(-2, 3):
+            color = "C0" if k == 0 else "C1"
+            alpha = 0.55 if k == 0 else 0.35
+            _triangle(ax, k * fs, B, color=color, alpha=alpha,
+                      edgecolor=color, lw=1.5)
+        if B > fs / 2:
+            x = np.linspace(fs - B, B, 100)
+            tri = lambda x, c: np.clip(1 - np.abs(x - c) / B, 0, None)
+            ax.fill_between(x, np.minimum(tri(x, 0), tri(x, fs)), color="red", alpha=0.6)
+            ax.annotate("混入して\n区別不能", xy=(fs / 2, 0.25), xytext=(fs * 0.95, 0.8),
+                        arrowprops=dict(arrowstyle="->", color="red"), color="red", ha="center")
+        ax.axvline(fs / 2, color="k", lw=1, ls=":")
+        ax.text(fs / 2, 1.06, "fs/2", ha="center")
+        ax.set_xticks([-2, -1, 0, 1, 2])
+        ax.set_xticklabels(["-2fs", "-fs", "0", "fs", "2fs"])
+        ax.set_xlim(-1.7, 1.7)
+        ax.set_ylim(0, 1.25)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("周波数")
+    axes[0].set_ylabel("$|X_s|$")
+    fig.suptitle("サンプリングによるスペクトルの複製 $X_s = \\frac{1}{T}\\sum_k X_a(j(\\Omega - k\\Omega_s))$")
+    save(fig, "01_spectrum_replication.png")
+
+
+def fig01_aliasing_time():
+    fs = 48e3
+    f0, f1 = 30e3, 18e3
+    t = np.linspace(0, 2.5e-4, 4000)
+    n = np.arange(0, 13)
+    fig, ax = plt.subplots(figsize=(8, 3))
+    ax.plot(t * 1e6, np.cos(2 * np.pi * f0 * t), "C1", lw=1, alpha=0.9,
+            label="30 kHz (元の信号)")
+    ax.plot(t * 1e6, np.cos(2 * np.pi * f1 * t), "C0", lw=1.8, alpha=0.8,
+            label="18 kHz (= 48−30 kHz)")
+    ax.plot(n / fs * 1e6, np.cos(2 * np.pi * f0 * n / fs), "ko", ms=7, zorder=5,
+            label="fs = 48 kHz のサンプル点")
+    ax.set_xlabel("時間 [μs]")
+    ax.set_ylabel("振幅")
+    ax.set_title("エイリアシング: 30 kHz と 18 kHz はサンプル点上で完全に一致する")
+    ax.legend(loc="upper right", fontsize=9)
+    save(fig, "01_aliasing_time.png")
+
+
+def fig01_impulse_step():
+    n = np.arange(-4, 8)
+    d = (n == 0).astype(float)
+    u = (n >= 0).astype(float)
+    um1 = (n >= 1).astype(float)   # u[n-1]
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.4))
+    # 左: 累積和でステップになる
+    ax = axes[0]
+    ml, _, _ = ax.stem(n, u, linefmt="C0-", markerfmt="C0o", basefmt="k-",
+                       label=r"$u[n]=\sum_{k\leq n}\delta[k]$")
+    plt.setp(ml, markersize=6)
+    ml, _, _ = ax.stem(n + 0.12, d, linefmt="C3-", markerfmt="C3o", basefmt="k-",
+                       label=r"$\delta[n]$")
+    plt.setp(ml, markersize=6)
+    ax.annotate("0 番目までの δ を\n足し上げると 1、以降ずっと 1",
+                xy=(2, 1.0), xytext=(2.4, 0.55), fontsize=8,
+                arrowprops=dict(arrowstyle="->"))
+    ax.set_ylim(-0.3, 1.5)
+    ax.set_xlabel("n")
+    ax.set_title("累積和でステップになる")
+    ax.legend(loc="upper left", fontsize=9)
+    # 右: 差分でインパルスに戻る
+    ax = axes[1]
+    ax.stem(n, u, linefmt="C0-", markerfmt="C0o", basefmt="k-", label=r"$u[n]$")
+    ml, _, _ = ax.stem(n + 0.1, um1, linefmt="C1--", markerfmt="C1s", basefmt="k-",
+                       label=r"$u[n-1]$")
+    plt.setp(ml, markersize=5)
+    ml, _, _ = ax.stem(n - 0.1, u - um1, linefmt="C3-", markerfmt="C3D", basefmt="k-",
+                       label=r"$\delta[n]=u[n]-u[n-1]$")
+    plt.setp(ml, markersize=6)
+    ax.annotate("重なる部分は差し引き 0、\n段差の 1 点だけが残る",
+                xy=(0, 1.0), xytext=(1.2, 1.28), fontsize=8,
+                arrowprops=dict(arrowstyle="->"))
+    ax.set_ylim(-0.3, 1.6)
+    ax.set_xlabel("n")
+    ax.set_title("差分でインパルスに戻る")
+    ax.legend(loc="lower left", fontsize=8)
+    fig.suptitle(r"インパルス $\delta[n]$ とステップ $u[n]$ は「累積和」と「差分」で表裏一体")
+    save(fig, "01_impulse_step.png")
+
+
+def fig01_decomposition():
+    xk = {1: 0.6, 2: 1.0, 3: 0.4, 4: -0.5, 5: -0.3, 6: 0.2}
+    ks = sorted(xk)
+    nmax = 7
+    n = np.arange(0, nmax + 1)
+    x = np.array([xk.get(i, 0.0) for i in n])
+    cmap = plt.get_cmap("tab10")
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4), gridspec_kw={"width_ratios": [1, 1.25]})
+    # 左: もとの信号
+    ax = axes[0]
+    ml, sl, bl = ax.stem(n, x, linefmt="0.6", markerfmt="ko", basefmt="k-")
+    plt.setp(ml, markersize=6)
+    for i, k in enumerate(ks):
+        ax.plot([k], [xk[k]], "o", color=cmap(i), ms=7)
+    ax.axhline(0, color="k", lw=0.8)
+    ax.set_ylim(-1.0, 1.3)
+    ax.set_xlabel("n")
+    ax.set_title("任意の信号 $x[n]$")
+    # 右: 分解 (積み木)
+    ax = axes[1]
+    step = 1.5
+    for i, k in enumerate(ks):
+        off = -i * step
+        ax.axhline(off, color="0.85", lw=0.8, zorder=0)
+        ax.plot([k, k], [off, off + xk[k]], color=cmap(i), lw=2.5)
+        ax.plot([k], [off + xk[k]], "o", color=cmap(i), ms=7)
+        ax.text(-0.4, off + 0.1, f"$x[{k}]\\,\\delta[n-{k}]$", color=cmap(i),
+                fontsize=9, va="bottom")
+    ax.set_xlim(-0.6, nmax + 0.3)
+    ax.set_yticks([])
+    ax.set_xlabel("n")
+    ax.set_title("= 各時刻に置いた「1 個のインパルス」の重ね合わせ\n"
+                 r"$x[n]=\sum_k x[k]\,\delta[n-k]$")
+    save(fig, "01_decomposition.png")
+
+
+def fig01_normalized_freq():
+    fig, axd = plt.subplot_mosaic([["a", "d"], ["b", "d"], ["c", "d"]], figsize=(10, 4.4))
+    nmax = 16
+    n = np.arange(nmax + 1)
+    tt = np.linspace(0, nmax, 800)
+    for key, w, lab in [
+        ("a", 0.0, r"$\omega=0$: 全く回らない (直流)"),
+        ("b", np.pi / 2, r"$\omega=\pi/2$: 1 サンプルで 90°回転"),
+        ("c", np.pi, r"$\omega=\pi$: 1 サンプルで 180° = 表せる最速"),
+    ]:
+        ax = axd[key]
+        ax.plot(tt, np.cos(w * tt), "C0", lw=1, alpha=0.45)
+        ml, _, _ = ax.stem(n, np.cos(w * n), linefmt="C3-", markerfmt="C3o", basefmt="k-")
+        plt.setp(ml, markersize=4)
+        ax.set_ylim(-1.7, 2.0)
+        ax.set_yticks([-1, 0, 1])
+        ax.text(0.2, 1.25, lab, fontsize=9)
+        if key != "c":
+            ax.set_xticklabels([])
+    axd["c"].set_xlabel("n")
+    ax = axd["d"]
+    w1 = 0.25 * np.pi
+    ax.plot(tt, np.cos(w1 * tt), "C0", lw=1.8, label=r"$\omega=0.25\pi$")
+    ax.plot(tt, np.cos((w1 + 2 * np.pi) * tt), "C1", lw=1, ls="--",
+            label=r"$\omega=0.25\pi+2\pi$")
+    ml, _, _ = ax.stem(n, np.cos(w1 * n), linefmt="k-", markerfmt="ko", basefmt="k-")
+    plt.setp(ml, markersize=5)
+    ax.set_ylim(-1.5, 1.9)
+    ax.set_xlabel("n")
+    ax.legend(loc="upper right", fontsize=9)
+    ax.set_title(r"$\omega$ と $\omega+2\pi$ は同一のサンプル列 (黒)"
+                 "\n→ 周波数は $2\\pi$ 周期・意味があるのは $0$〜$\\pi$")
+    fig.suptitle(r"正規化角周波数 $\omega=\Omega T$ = 「1 サンプル進むごとに位相が何 rad 回るか」")
+    save(fig, "01_normalized_freq.png")
+
+
+def fig01_sampling_model():
+    T = 0.1
+    t = np.linspace(0, 1.0, 1000)
+    xa = lambda tv: 0.62 + 0.32 * np.sin(2 * np.pi * 1.2 * tv + 0.5)
+    n = np.arange(0, 11)
+    tn = n * T
+    fig, axes = plt.subplots(3, 1, figsize=(8, 6.2), sharex=True)
+    ax = axes[0]
+    ax.plot(t, xa(t), "C0", lw=2)
+    ax.set_ylim(0, 1.15); ax.set_ylabel(r"$x_a(t)$")
+    ax.set_title(r"① 連続信号 $x_a(t)$")
+    ax = axes[1]
+    ml, _, _ = ax.stem(tn, np.ones_like(tn), linefmt="C2-", markerfmt="C2^", basefmt="k-")
+    plt.setp(ml, markersize=7)
+    ax.annotate("", xy=(0, 1.28), xytext=(T, 1.28),
+                arrowprops=dict(arrowstyle="<->", color="k"))
+    ax.text(T / 2, 1.33, "T", ha="center", fontsize=11)
+    ax.set_ylim(0, 1.5); ax.set_ylabel(r"$s(t)$")
+    ax.set_title(r"② インパルス列 $s(t)=\sum_n \delta(t-nT)$ (周期 T の「櫛」)")
+    ax = axes[2]
+    ax.plot(t, xa(t), "C0", lw=1, alpha=0.3)
+    ml, _, _ = ax.stem(tn, xa(tn), linefmt="C3-", markerfmt="C3^", basefmt="k-")
+    plt.setp(ml, markersize=7)
+    ax.set_ylim(0, 1.15); ax.set_ylabel(r"$x_s(t)$")
+    ax.set_title(r"③ 積 $x_s(t)=x_a(t)\,s(t)=\sum_n x_a(nT)\,\delta(t-nT)$"
+                 "  (各インパルスの高さ = 標本値)")
+    ax.set_xlabel("時間 t")
+    save(fig, "01_sampling_model.png")
+
+
+# ---------------------------------------------------------------- 02 章
+def fig02_euler():
+    th = np.deg2rad(50)
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4.2))
+    ax = axes[0]
+    unit_circle(ax)
+    ax.plot([0, np.cos(th)], [0, np.sin(th)], "C0", lw=2)
+    ax.plot([np.cos(th)], [np.sin(th)], "C0o", ms=8)
+    ax.plot([np.cos(th), np.cos(th)], [0, np.sin(th)], "C1--", lw=1.5)
+    ax.plot([0, np.cos(th)], [np.sin(th), np.sin(th)], "C2--", lw=1.5)
+    ax.plot([np.cos(th)], [0], "C1s", ms=6)
+    ax.plot([0], [np.sin(th)], "C2s", ms=6)
+    arc = np.linspace(0, th, 50)
+    ax.plot(0.25 * np.cos(arc), 0.25 * np.sin(arc), "k", lw=1)
+    ax.text(0.32 * np.cos(th / 2), 0.32 * np.sin(th / 2), r"$\theta$")
+    ax.text(np.cos(th) + 0.05, np.sin(th) + 0.05, r"$e^{j\theta}$", color="C0", fontsize=12)
+    ax.text(np.cos(th) - 0.1, -0.15, r"$\cos\theta$", color="C1")
+    ax.text(-0.45, np.sin(th), r"$\sin\theta$", color="C2")
+    ax.axhline(0, color="k", lw=0.8)
+    ax.axvline(0, color="k", lw=0.8)
+    ax.set_xlim(-1.3, 1.3); ax.set_ylim(-1.3, 1.3); ax.set_aspect("equal")
+    ax.set_title("単位円上の点 $e^{j\\theta}$ と実軸/虚軸への射影")
+    ax.set_xlabel("Re"); ax.set_ylabel("Im")
+
+    ax = axes[1]
+    unit_circle(ax)
+    for sgn, color, label in [(+1, "C0", r"$\frac{1}{2}e^{j\theta}$ (反時計回り)"),
+                              (-1, "C3", r"$\frac{1}{2}e^{-j\theta}$ (時計回り)")]:
+        ax.add_patch(FancyArrowPatch((0, 0), (0.5 * np.cos(th), 0.5 * sgn * np.sin(th)),
+                                     arrowstyle="-|>", mutation_scale=15, color=color, lw=2))
+        ax.text(0.52 * np.cos(th), 0.58 * sgn * np.sin(th), label, color=color, fontsize=10)
+    ax.add_patch(FancyArrowPatch((0, 0), (np.cos(th), 0), arrowstyle="-|>",
+                                 mutation_scale=15, color="C1", lw=2.5))
+    ax.text(np.cos(th) * 0.75, -0.14, r"和 = $\cos\theta$", color="C1", fontsize=11)
+    ax.plot([0.5 * np.cos(th), np.cos(th), 0.5 * np.cos(th)],
+            [0.5 * np.sin(th), 0, -0.5 * np.sin(th)], "k:", lw=1)
+    ax.axhline(0, color="k", lw=0.8); ax.axvline(0, color="k", lw=0.8)
+    ax.set_xlim(-1.3, 1.3); ax.set_ylim(-1.3, 1.3); ax.set_aspect("equal")
+    ax.set_title("cos は逆回転する 2 本のベクトルの和\n(虚部が打ち消し合う → 負の周波数の正体)")
+    ax.set_xlabel("Re"); ax.set_ylabel("Im")
+    save(fig, "02_euler_circle.png")
+
+
+# ---------------------------------------------------------------- 03 章
+def fig03_convolution():
+    N = 18
+    n = np.arange(N)
+    h = 0.75 ** n
+    imps = [(2, 1.0, "C0"), (5, 0.7, "C1"), (9, -0.6, "C2")]
+    y = np.zeros(N)
+    for k, amp, _ in imps:
+        e = np.zeros(N); e[k:] = amp * h[: N - k]
+        y += e
+    fig, axes = plt.subplots(3, 1, figsize=(8, 6.5), sharex=True)
+    ax = axes[0]
+    for k, amp, c in imps:
+        ml, _, _ = ax.stem([k], [amp], linefmt=c + "-", markerfmt=c + "o", basefmt="k-")
+    ax.set_ylabel("入力 $x[n]$")
+    ax.set_title("畳み込み = 各入力インパルスが起こす「余韻 h」の重ね合わせ")
+    ax.set_xlim(-0.5, N - 0.5)
+    ax = axes[1]
+    for k, amp, c in imps:
+        e = np.zeros(N); e[k:] = amp * h[: N - k]
+        ax.plot(n, e, c + "o-", ms=4, lw=1, alpha=0.8,
+                label=f"$x[{k}]\\,h[n-{k}]$")
+    ax.set_ylabel("各インパルスの余韻")
+    ax.legend(fontsize=9, ncol=3)
+    ax = axes[2]
+    ml, _, _ = ax.stem(n, y, linefmt="k-", markerfmt="ko", basefmt="k-")
+    for k, amp, c in imps:
+        e = np.zeros(N); e[k:] = amp * h[: N - k]
+        ax.plot(n, e, c, lw=1, alpha=0.45)
+    ax.set_ylabel("出力 $y[n]$ = 余韻の合計")
+    ax.set_xlabel("n")
+    save(fig, "03_convolution.png")
+
+
+# ---------------------------------------------------------------- 04 章
+def fig04_dtft():
+    w = np.linspace(-2 * np.pi, 2 * np.pi, 2000)
+    mag = lambda a, w: 1.0 / np.sqrt(1 - 2 * a * np.cos(w) + a * a)
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.3))
+    ax = axes[0]
+    ax.plot(w, mag(0.8, w), "C0")
+    ax.axvspan(-np.pi, np.pi, color="C0", alpha=0.12)
+    for x, lab in [(-2*np.pi, r"$-2\pi$"), (-np.pi, r"$-\pi$"), (0, "0"),
+                   (np.pi, r"$\pi$"), (2*np.pi, r"$2\pi$")]:
+        pass
+    ax.set_xticks([-2*np.pi, -np.pi, 0, np.pi, 2*np.pi],
+                  [r"$-2\pi$", r"$-\pi$", "0", r"$\pi$", r"$2\pi$"])
+    ax.set_title("DTFT は周期 $2\\pi$・実信号なら左右対称\n→ 見るべきは $[0,\\pi]$ だけ (青帯が 1 周期)")
+    ax.set_xlabel(r"$\omega$"); ax.set_ylabel(r"$|X(e^{j\omega})|$")
+    ax = axes[1]
+    w2 = np.linspace(0, np.pi, 1000)
+    for a in [0.5, 0.8, 0.95]:
+        ax.plot(w2, mag(a, w2) / mag(a, 0), label=f"a = {a}")
+    ax.set_xticks([0, np.pi/2, np.pi], ["0", r"$\pi/2$", r"$\pi$"])
+    ax.set_title("$x[n]=a^n u[n]$ の振幅特性 (最大値で正規化)\na が 1 に近いほど鋭いローパス")
+    ax.set_xlabel(r"$\omega$"); ax.set_ylabel("正規化振幅")
+    ax.legend()
+    save(fig, "04_dtft_lowpass.png")
+
+
+# ---------------------------------------------------------------- 05 章
+def fig05_roc():
+    a = 0.7
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4.2))
+    for ax, outside, title in [
+        (axes[0], True, "右側信号 $a^n u[n]$ → ROC は極の外側\n(単位円を含む → DTFT が存在・安定)"),
+        (axes[1], False, "左側信号 $-a^n u[-n-1]$ → ROC は極の内側\n(式は同じでも別の信号)"),
+    ]:
+        lim = 1.6
+        if outside:
+            ax.add_patch(Circle((0, 0), 2.4, color="C0", alpha=0.25))
+            ax.add_patch(Circle((0, 0), a, color="white", zorder=2))
+        else:
+            ax.add_patch(Circle((0, 0), a, color="C0", alpha=0.25, zorder=2))
+        unit_circle(ax)
+        th = np.linspace(0, 2 * np.pi, 200)
+        ax.plot(a * np.cos(th), a * np.sin(th), "C3:", lw=1, zorder=3)
+        ax.plot([a], [0], "C3x", ms=11, mew=3, zorder=4)
+        ax.text(a + 0.06, 0.08, "極 $z=a$", color="C3", zorder=4)
+        ax.text(0.1, 1.06, "単位円", fontsize=9)
+        ax.text(-1.5, 1.35 if outside else -1.45, "ROC (青)", color="C0")
+        ax.axhline(0, color="k", lw=0.8); ax.axvline(0, color="k", lw=0.8)
+        ax.set_xlim(-lim, lim); ax.set_ylim(-lim, lim); ax.set_aspect("equal")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Re(z)"); ax.set_ylabel("Im(z)")
+    save(fig, "05_roc.png")
+
+
+def fig05_damped():
+    r, th = 0.92, np.pi / 8
+    n = np.arange(60)
+    x = r ** n * np.cos(th * n)
+    fig, ax = plt.subplots(figsize=(8, 3))
+    ml, sl, bl = ax.stem(n, x, linefmt="C0-", markerfmt="C0o", basefmt="k-")
+    plt.setp(ml, markersize=4)
+    ax.plot(n, r ** n, "C3--", lw=1.5, label=r"包絡線 $\pm r^n$ (減衰率 = 極の半径 $r$)")
+    ax.plot(n, -r ** n, "C3--", lw=1.5)
+    ax.set_xlabel("n")
+    ax.set_title(r"共役極対 $p = re^{\pm j\theta}$ が生む減衰振動 $r^n\cos(\theta n)$"
+                 "  (r = 0.92, θ = π/8) — 鐘の余韻の正体")
+    ax.legend()
+    save(fig, "05_damped_oscillation.png")
+
+
+# ---------------------------------------------------------------- 06 章
+def fig06_surface():
+    p = 0.85 * np.exp(1j * np.pi / 3)
+    H = lambda z: (z - 1) * (z + 1) / ((z - p) * (z - np.conj(p)))
+    dB = lambda z: 20 * np.log10(np.clip(np.abs(H(z)), 10 ** (-35 / 20), 10 ** (25 / 20)))
+    lim = 1.5
+    X, Y = np.meshgrid(np.linspace(-lim, lim, 300), np.linspace(-lim, lim, 300))
+    fig = plt.figure(figsize=(10, 4))
+    ax = fig.add_subplot(1, 2, 1, projection="3d")
+    ax.plot_surface(X, Y, dB(X + 1j * Y), cmap="viridis", rstride=4, cstride=4,
+                    linewidth=0, antialiased=True, alpha=0.9)
+    w = np.linspace(0, 2 * np.pi, 400)
+    ax.plot(np.cos(w), np.sin(w), dB(np.exp(1j * w)), "r", lw=2.5)
+    ax.set_xlabel("Re(z)"); ax.set_ylabel("Im(z)"); ax.set_zlabel("|H| [dB]")
+    ax.set_title("ゴム膜 $|H(z)|$: 極=支柱, 零点=ペグ\n赤線 = 単位円に沿った断面", fontsize=10)
+    ax.view_init(elev=40, azim=-60)
+    ax2 = fig.add_subplot(1, 2, 2)
+    w = np.linspace(0, np.pi, 500)
+    ax2.plot(w, dB(np.exp(1j * w)), "r", lw=2)
+    ax2.set_ylim(-38, 28)
+    ax2.axvline(np.pi / 3, color="k", ls=":", lw=1)
+    ax2.text(np.pi / 3 + 0.08, 15, "極の角度 θ=π/3\n(共振ピーク)", fontsize=9)
+    ax2.text(0.1, -33, "零点 z=1 (ω=0) と z=−1 (ω=π) で谷", fontsize=9)
+    ax2.set_xticks([0, np.pi/2, np.pi], ["0", r"$\pi/2$", r"$\pi$"])
+    ax2.set_xlabel(r"$\omega$"); ax2.set_ylabel("|H| [dB]")
+    ax2.set_title("その断面を平面に開いたもの = 周波数特性", fontsize=10)
+    save(fig, "06_pole_zero_surface.png")
+
+
+def fig06_resonator():
+    th = np.pi / 3
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 4))
+    ax = axes[0]
+    unit_circle(ax)
+    for r, c in [(0.8, "C0"), (0.9, "C1"), (0.95, "C3")]:
+        ax.plot([r * np.cos(th), r * np.cos(th)], [r * np.sin(th), -r * np.sin(th)],
+                c + "x", ms=10, mew=2.5, label=f"r = {r}")
+    ax.plot(np.cos(th), np.sin(th), "ko", ms=6, mfc="none")
+    ax.annotate("単位円上の点 $e^{j\\theta}$\n(この周波数で距離最小)", xy=(np.cos(th), np.sin(th)),
+                xytext=(-1.4, 1.1), fontsize=8, arrowprops=dict(arrowstyle="->"))
+    ax.axhline(0, color="k", lw=0.8); ax.axvline(0, color="k", lw=0.8)
+    ax.set_xlim(-1.5, 1.5); ax.set_ylim(-1.5, 1.5); ax.set_aspect("equal")
+    ax.legend(loc="lower left", fontsize=9)
+    ax.set_title("2 次共振器の極 $re^{\\pm j\\theta}$ (θ=π/3)")
+    ax.set_xlabel("Re(z)"); ax.set_ylabel("Im(z)")
+    ax = axes[1]
+    w = np.linspace(0.01, np.pi, 1000)
+    for r, c in [(0.8, "C0"), (0.9, "C1"), (0.95, "C3")]:
+        b = [1.0]; a = [1.0, -2 * r * np.cos(th), r * r]
+        _, h = sig.freqz(b, a, worN=w)
+        ax.plot(w, 20 * np.log10(np.abs(h)), c, label=f"r = {r}")
+    ax.axvline(th, color="k", ls=":", lw=1)
+    ax.set_xticks([0, th, np.pi/2, np.pi], ["0", r"$\theta$", r"$\pi/2$", r"$\pi$"])
+    ax.set_xlabel(r"$\omega$"); ax.set_ylabel("|H| [dB]")
+    ax.set_title("極が単位円に近いほどピークが鋭くなる\n(ピーク高さ ≈ 1/(1−r))")
+    ax.legend()
+    save(fig, "06_resonator_peak.png")
+
+
+# ---------------------------------------------------------------- 07 章
+def fig07_ema():
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.3))
+    ax = axes[0]
+    a = 0.9
+    n = np.arange(40)
+    ml, sl, bl = ax.stem(n, (1 - a) * a ** n, linefmt="C0-", markerfmt="C0o", basefmt="k-")
+    plt.setp(ml, markersize=4)
+    ax.set_yscale("log")
+    ax.set_title("EMA のインパルス応答 $h[n]=(1-a)a^n$ (a=0.9)\n対数軸で直線 = 指数減衰。厳密には永遠に 0 にならない")
+    ax.set_xlabel("n"); ax.set_ylabel("h[n] (対数)")
+    ax = axes[1]
+    w = np.linspace(1e-3, np.pi, 2000)
+    for a in [0.5, 0.8, 0.9]:
+        _, h = sig.freqz([1 - a], [1, -a], worN=w)
+        ax.plot(w, 20 * np.log10(np.abs(h)), label=f"a = {a}")
+        wc = np.arccos((4 * a - a * a - 1) / (2 * a))
+        ax.plot([wc], [-3.01], "kv", ms=6)
+    ax.axhline(-3.01, color="k", ls=":", lw=1)
+    ax.text(0.0012, -2.6, "−3 dB", fontsize=9)
+    ax.set_xscale("log")
+    ax.set_xlabel(r"$\omega$ (対数)"); ax.set_ylabel("|H| [dB]")
+    ax.set_title("EMA の振幅特性: a を 1 に近づけるほど\nカットオフ (▼) が下がる")
+    ax.legend(loc="lower left")
+    save(fig, "07_ema.png")
+
+
+def fig07_triangle():
+    fig, ax = plt.subplots(figsize=(6.5, 4.6))
+    tri_x = [-2, 2, 0, -2]
+    tri_y = [1, 1, -1, 1]
+    ax.fill(tri_x, tri_y, color="C0", alpha=0.2)
+    ax.plot(tri_x, tri_y, "C0", lw=2)
+    a1 = np.linspace(-2, 2, 400)
+    ax.plot(a1, a1 ** 2 / 4, "C3--", lw=1.5)
+    ax.fill_between(a1, a1 ** 2 / 4, 1, where=(np.abs(a1) <= 2), color="C1", alpha=0.15)
+    ax.text(0, 0.62, "複素共役極\n(減衰振動)", ha="center", color="C1", fontsize=10)
+    ax.text(0, -0.55, "実数極 2 個\n(振動しない減衰)", ha="center", color="C0", fontsize=10)
+    ax.text(-2.65, 0.32, "$a_2 = a_1^2/4$\n(重根の境界)", color="C3", fontsize=9)
+    for x, y, lab, va in [(-2, 1, "(-2, 1)", "bottom"), (2, 1, "(2, 1)", "bottom"), (0, -1, "(0, -1)", "top")]:
+        ax.plot([x], [y], "ko", ms=5)
+        ax.annotate(lab, (x, y), textcoords="offset points",
+                    xytext=(0, 6 if va == "bottom" else -14), ha="center", fontsize=9)
+    ax.plot([2.35], [0.55], "C3*", ms=14)
+    ax.annotate("三角形の外 = 極が単位円外\n(発振)", (2.35, 0.55), textcoords="offset points",
+                xytext=(-20, -30), color="C3", fontsize=9, ha="center")
+    ax.set_xlim(-2.7, 2.9); ax.set_ylim(-1.5, 1.6)
+    ax.set_xlabel("$a_1$"); ax.set_ylabel("$a_2$")
+    ax.set_title("biquad の安定三角形: $|a_2|<1$, $1\\pm a_1 + a_2 > 0$")
+    ax.axhline(0, color="k", lw=0.6); ax.axvline(0, color="k", lw=0.6)
+    save(fig, "07_stability_triangle.png")
+
+
+def fig07_fir_vs_iir():
+    fig, ax = plt.subplots(figsize=(8, 3.3))
+    w = np.linspace(1e-3, np.pi, 2000)
+    b, a = sig.butter(4, 0.2)
+    _, h = sig.freqz(b, a, worN=w)
+    ax.plot(w / np.pi, 20 * np.log10(np.abs(h) + 1e-12), "C3", lw=2,
+            label="IIR バタワース 4 次 (係数 9 個)")
+    for taps, c in [(15, "C0"), (101, "C1")]:
+        bf = sig.firwin(taps, 0.2)
+        _, h = sig.freqz(bf, [1], worN=w)
+        ax.plot(w / np.pi, 20 * np.log10(np.abs(h) + 1e-12), c, lw=1.2,
+                label=f"FIR {taps} タップ (係数 {taps} 個)")
+    ax.set_ylim(-100, 5)
+    ax.set_xlabel(r"正規化周波数 $\omega/\pi$"); ax.set_ylabel("|H| [dB]")
+    ax.set_title("同じカットオフでの比較: 極が使える IIR は少ない係数で急峻に切れる")
+    ax.legend(fontsize=9)
+    save(fig, "07_fir_vs_iir.png")
+
+
+# ---------------------------------------------------------------- 08 章
+def fig08_butterworth():
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.4))
+    Om = np.linspace(0, 3, 1000)
+    ax = axes[0]
+    for N in [1, 2, 4, 8]:
+        ax.plot(Om, 1 / np.sqrt(1 + Om ** (2 * N)), label=f"N = {N}")
+    ax.plot([1], [1 / np.sqrt(2)], "ko", ms=6)
+    ax.annotate("次数によらず\n$\\Omega_c$ で −3dB", xy=(1, 1/np.sqrt(2)), xytext=(1.5, 0.82),
+                arrowprops=dict(arrowstyle="->"), fontsize=9)
+    ax.set_xlabel(r"$\Omega/\Omega_c$"); ax.set_ylabel(r"$|H_a|$")
+    ax.set_title("バタワース振幅特性 (線形): N が大きいほど\n「理想の角」に近づく。通過域は常に平坦")
+    ax.legend()
+    ax = axes[1]
+    Om = np.logspace(-1, 1.3, 1000)
+    for N in [1, 2, 4, 8]:
+        ax.plot(Om, -10 * np.log10(1 + Om ** (2 * N)), label=f"N = {N}")
+    ax.axhline(-3.01, color="k", ls=":", lw=1)
+    ax.set_xscale("log")
+    ax.set_ylim(-100, 5)
+    ax.annotate("傾き −20N dB/dec", xy=(4, -75), fontsize=9)
+    ax.set_xlabel(r"$\Omega/\Omega_c$ (対数)"); ax.set_ylabel("[dB]")
+    ax.set_title("dB 表示: 阻止域は次数 1 つあたり\n20 dB/decade (6 dB/oct) ずつ急になる")
+    ax.legend(loc="lower left")
+    save(fig, "08_butterworth_family.png")
+
+
+def fig08_spec_compare():
+    Ap, As = 1.0, 40.0
+    eps = np.sqrt(10 ** (Ap / 10) - 1)
+    Om = np.logspace(-0.7, 1.0, 1200)
+    fig, ax = plt.subplots(figsize=(8, 3.6))
+    # 仕様マスク
+    ax.fill_between([Om[0], 1], -Ap, -80, color="gray", alpha=0.25, lw=0)
+    ax.fill_between([2, Om[-1]], -As, 5, color="gray", alpha=0.25, lw=0)
+    ax.text(0.3, -25, "通過域仕様:\nΩ≤1 で −1dB 以内\n(灰色に入ると違反)", fontsize=8)
+    ax.text(3.6, -20, "阻止域仕様:\nΩ≥2 で −40dB 以下", fontsize=8)
+    Oc_b = 1 / (10 ** (Ap / 10) - 1) ** (1 / 16)  # N=8, 通過域端で等号
+    for (b, a), lab, c in [
+        (sig.butter(8, Oc_b, analog=True), "バタワース N=8", "C0"),
+        (sig.cheby1(5, Ap, 1, analog=True), "チェビシェフ I N=5", "C1"),
+        (sig.ellip(4, Ap, As, 1, analog=True), "楕円 N=4", "C2"),
+    ]:
+        _, h = sig.freqs(b, a, worN=Om)
+        ax.plot(Om, 20 * np.log10(np.abs(h)), c, label=lab)
+    ax.set_xscale("log")
+    ax.set_ylim(-80, 4)
+    ax.set_xlabel(r"$\Omega/\Omega_p$ (対数)"); ax.set_ylabel("ゲイン [dB]")
+    ax.set_title("同一仕様 (1 dB / 40 dB / 遷移比 2) を満たす最小次数の比較")
+    ax.legend(loc="lower left", fontsize=9)
+    save(fig, "08_spec_comparison.png")
+
+
+def fig08_cheby_poly():
+    eps = np.sqrt(10 ** 0.1 - 1)
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.4))
+    ax = axes[0]
+    x = np.linspace(0, 1.25, 1000)
+    for N, c in [(2, "C2"), (4, "C0"), (7, "C1")]:
+        Tn = np.polynomial.chebyshev.Chebyshev([0] * N + [1])(x)
+        ax.plot(x, Tn, c, label=f"$T_{{{N}}}$")
+    ax.fill_between([0, 1], -1, 1, color="C0", alpha=0.1)
+    ax.axhline(1, color="k", lw=0.8, ls=":"); ax.axhline(-1, color="k", lw=0.8, ls=":")
+    ax.axvline(1, color="k", lw=0.8)
+    ax.set_ylim(-1.6, 4)
+    ax.text(0.03, 1.15, "|x|≤1: cos → ±1 の間で振動", fontsize=9)
+    ax.text(1.02, 2.9, "x>1: cosh →\n指数的に急増", fontsize=9)
+    ax.set_xlabel("x"); ax.set_ylabel(r"$T_N(x)$")
+    ax.set_title("チェビシェフ多項式: x=1 を境に\n三角関数から双曲線関数へ「変身」")
+    ax.legend(loc="upper left")
+    ax = axes[1]
+    Om = np.linspace(0, 1.8, 2000)
+    T4 = np.polynomial.chebyshev.Chebyshev([0, 0, 0, 0, 1])(Om)
+    H2 = 1 / (1 + eps ** 2 * T4 ** 2)
+    ax.plot(Om, H2, "C0")
+    ax.axhline(1, color="k", ls=":", lw=1)
+    ax.axhline(1 / (1 + eps ** 2), color="k", ls=":", lw=1)
+    ax.axvline(1, color="k", lw=0.8)
+    ax.annotate(r"$\frac{1}{1+\varepsilon^2}$ (=−1dB)", xy=(0.1, 1 / (1 + eps ** 2) - 0.02),
+                va="top", fontsize=10)
+    ax.set_xlabel(r"$\Omega/\Omega_c$"); ax.set_ylabel(r"$|H_a|^2$")
+    ax.set_title("N=4, リプル 1dB の振幅特性:\n通過域は 2 本の線の間を等振幅で往復 (等リプル)")
+    save(fig, "08_chebyshev_equiripple.png")
+
+
+def fig08_pole_layout():
+    N = 4
+    eps = np.sqrt(10 ** 0.1 - 1)
+    b0 = np.arcsinh(1 / eps) / N
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4.4), sharex=True, sharey=True)
+    t = np.linspace(np.pi / 2, 3 * np.pi / 2, 200)
+    ax = axes[0]
+    ax.plot(np.cos(t), np.sin(t), "k--", lw=1)
+    ang = np.pi * (N + 1 + 2 * np.arange(N)) / (2 * N)
+    ax.plot(np.cos(ang), np.sin(ang), "C0x", ms=11, mew=3)
+    for a_ in ang:
+        ax.plot([0, np.cos(a_)], [0, np.sin(a_)], "C0:", lw=0.8)
+    ax.set_title("バタワース N=4:\n半径 $\\Omega_c$ の円周上に等間隔 (π/N)")
+    ax = axes[1]
+    ax.plot(np.cos(t), np.sin(t), "k--", lw=1, label="バタワースの円")
+    ax.plot(np.sinh(b0) * np.cos(t), np.cosh(b0) * np.sin(t), "C3--", lw=1.2, label="チェビシェフの楕円")
+    alph = (2 * np.arange(N) + 1) * np.pi / (2 * N)
+    s = -np.sinh(b0) * np.sin(alph) + 1j * np.cosh(b0) * np.cos(alph)
+    ax.plot(s.real, s.imag, "C3x", ms=11, mew=3)
+    ax.annotate("実軸方向に潰れて\n虚軸 (=周波数軸) に接近\n→ 鋭い共振がリプルの山を作る",
+                xy=(s[0].real, s[0].imag), xytext=(-1.55, 0.15), fontsize=8,
+                arrowprops=dict(arrowstyle="->"))
+    ax.legend(loc="lower left", fontsize=8)
+    ax.set_title("チェビシェフ N=4 (リプル1dB):\n楕円上 (角度は同じ $\\alpha_k$)")
+    for ax in axes:
+        ax.axhline(0, color="k", lw=0.8); ax.axvline(0, color="k", lw=0.8)
+        ax.set_aspect("equal")
+        ax.set_xlim(-1.7, 0.6); ax.set_ylim(-1.4, 1.4)
+        ax.set_xlabel(r"$\sigma/\Omega_c$")
+    axes[0].set_ylabel(r"$\Omega/\Omega_c$")
+    save(fig, "08_pole_layouts.png")
+
+
+def fig08_bilinear():
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 4))
+    # 左: s平面の格子が z平面へどう写るか (T=2 で z=(1+s)/(1-s))
+    ax = axes[0]
+    unit_circle(ax)
+    Om = np.linspace(-40, 40, 4000)
+    for sg, c, lw in [(-2.0, "C0", 1), (-1.0, "C0", 1), (-0.5, "C0", 1), (-0.2, "C0", 1),
+                      (0.0, "k", 2), (0.5, "C3", 1)]:
+        s = sg + 1j * Om
+        z = (1 + s) / (1 - s)
+        ax.plot(z.real, z.imag, color=c, lw=lw)
+    ax.set_aspect("equal"); ax.set_xlim(-2, 2.6); ax.set_ylim(-2.1, 2.1)
+    ax.text(-0.62, 0.1, "σ<0 の縦線\n→ 全部円内", color="C0", fontsize=9)
+    ax.text(0.75, 1.7, "虚軸 σ=0\n→ 単位円", fontsize=9)
+    ax.text(1.75, 0.42, "σ>0\n→ 円外", color="C3", fontsize=9)
+    ax.set_xlabel("Re(z)"); ax.set_ylabel("Im(z)")
+    ax.set_title("双一次変換による s 平面の像:\n左半平面全体が単位円の内側へ (安定性保存)")
+    # 右: ワーピング曲線
+    ax = axes[1]
+    T = 1.0
+    Omg = np.linspace(0, 25, 2000)
+    ax.plot(Omg, 2 * np.arctan(Omg * T / 2), "C0", lw=2, label=r"$\omega = 2\arctan(\Omega T/2)$")
+    ax.plot(Omg, Omg * T, "C2--", lw=1.2, label=r"線形対応 $\omega = \Omega T$ (低域の近似)")
+    ax.axhline(np.pi, color="k", ls=":", lw=1)
+    ax.text(17, np.pi + 0.08, r"$\omega = \pi$ (ナイキスト)", fontsize=9)
+    ax.set_ylim(0, 3.7); ax.set_xlim(0, 25)
+    ax.set_xlabel(r"アナログ周波数 $\Omega$"); ax.set_ylabel(r"デジタル周波数 $\omega$")
+    ax.set_title("周波数ワーピング: 無限の $\\Omega$ 軸が\n有限の $[0,\\pi)$ に tan で圧縮される")
+    ax.legend(loc="lower right", fontsize=9)
+    save(fig, "08_bilinear_mapping.png")
+
+
+def fig08_design_example():
+    lam = np.tan(2 * np.pi * 1000 / 48000 / 2)
+    D = 1 + np.sqrt(2) * lam + lam * lam
+    b = np.array([lam * lam, 2 * lam * lam, lam * lam]) / D
+    a = np.array([1.0, 2 * (lam * lam - 1) / D, (1 - np.sqrt(2) * lam + lam * lam) / D])
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.6))
+    ax = axes[0]
+    f = np.logspace(np.log10(20), np.log10(24000), 2000)
+    _, h = sig.freqz(b, a, worN=f, fs=48000)
+    ax.plot(f, 20 * np.log10(np.abs(h)), "C0", lw=2)
+    ax.plot([1000], [-3.01], "ko", ms=6)
+    ax.annotate("1 kHz で −3.01 dB\n(プリワーピングのおかげで正確)", xy=(1000, -3.01),
+                xytext=(60, -30), fontsize=9, arrowprops=dict(arrowstyle="->"))
+    ax.set_xscale("log")
+    ax.set_ylim(-80, 5)
+    ax.set_xlabel("周波数 [Hz]"); ax.set_ylabel("|H| [dB]")
+    ax.set_title("設計例の周波数特性 (fs=48kHz, fc=1kHz, N=2)")
+    ax = axes[1]
+    unit_circle(ax)
+    poles = np.roots(a)
+    ax.plot(poles.real, poles.imag, "C3x", ms=11, mew=3, label="極 (z=1 のすぐ近く)")
+    ax.plot([-1], [0], "C0o", ms=10, mfc="none", mew=2, label="二重零点 z=−1 (ナイキスト)")
+    ax.axhline(0, color="k", lw=0.8); ax.axvline(0, color="k", lw=0.8)
+    ax.set_aspect("equal"); ax.set_xlim(-1.4, 1.4); ax.set_ylim(-1.4, 1.4)
+    ax.legend(loc="lower left", fontsize=9)
+    ax.set_xlabel("Re(z)"); ax.set_ylabel("Im(z)")
+    ax.set_title("極零点配置: 低いカットオフゆえ\n極は z=1 の至近距離にいる")
+    save(fig, "08_design_example.png")
+
+
+def fig08_impulse_invariance():
+    w = np.linspace(-np.pi, np.pi, 2000)
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.4), sharey=True)
+    Hlp = lambda Om: 1 / np.sqrt(1 + (Om / 1.2) ** 4)   # 2次バタワース LP (Ωc=1.2)
+    Hhp = lambda Om: 1 / np.sqrt(1 + (1.2 / np.maximum(np.abs(Om), 1e-9)) ** 4)
+    for ax, H, title in [
+        (axes[0], Hlp, "ローパス: 裾のみ重なる (誤差小 → 実用可)"),
+        (axes[1], Hhp, "ハイパス: 本体同士が全面的に重なり崩壊"),
+    ]:
+        total = np.zeros_like(w)
+        for k in [-1, 0, 1]:
+            comp = H(w - 2 * np.pi * k)
+            total += comp
+            ax.plot(w, comp, "C1" if k else "C0", lw=1.2 if k else 1.8,
+                    ls="--" if k else "-", alpha=0.8)
+        ax.plot(w, total, "k", lw=2)
+        ax.set_xticks([-np.pi, 0, np.pi], [r"$-\pi$", "0", r"$\pi$"])
+        ax.set_xlabel(r"$\omega$")
+        ax.set_title(title, fontsize=10)
+    axes[0].set_ylabel("振幅")
+    axes[0].plot([], [], "C0", label="k=0 (欲しい特性)")
+    axes[0].plot([], [], "C1--", label="k=±1 の複製")
+    axes[0].plot([], [], "k", lw=2, label="実際に得られる和")
+    axes[0].legend(fontsize=8, loc="center")
+    fig.suptitle("インパルス不変法: $H(e^{j\\omega}) = \\sum_k H_a(j(\\omega-2\\pi k)/T)$ — 複製の和になる")
+    save(fig, "08_impulse_invariance.png")
+
+
+# ---------------------------------------------------------------- 09 章
+def _quantize(c, nbits):
+    c = np.asarray(c, float)
+    scale = 2.0 ** (nbits - 1 - np.ceil(np.log2(np.max(np.abs(c)) + 1e-30)))
+    return np.round(c * scale) / scale
+
+
+def fig09_quantization():
+    nbits = 12
+    b, a = sig.butter(8, 0.08)
+    sos = sig.butter(8, 0.08, output="sos")
+    aq = _quantize(a, nbits)
+    p_ideal = np.roots(a)
+    p_df = np.roots(aq)
+    p_sos = np.concatenate([np.roots(_quantize(s[3:], nbits)) for s in sos])
+    fig, ax = plt.subplots(figsize=(7.2, 5.4))
+    th = np.linspace(-np.pi, np.pi, 600)
+    ax.plot(np.cos(th), np.sin(th), "k--", lw=1, label="単位円")
+    ax.fill(np.cos(th), np.sin(th), color="C0", alpha=0.06)
+    ax.plot(p_ideal.real, p_ideal.imag, "C0o", ms=9, mfc="none", mew=2, label="設計値の極")
+    ax.plot(p_df.real, p_df.imag, "C3x", ms=9, mew=2.5,
+            label=f"直接形: 係数を {nbits}bit に丸めた極")
+    ax.plot(p_sos.real, p_sos.imag, "C2+", ms=11, mew=2.5,
+            label=f"SOS(biquad): 同じく {nbits}bit")
+    for pp in p_df[np.abs(p_df) > 1]:
+        ax.annotate("円外 = 発振", (pp.real, pp.imag), textcoords="offset points",
+                    xytext=(6, 6), color="C3", fontsize=8)
+    ax.set_aspect("equal")
+    ax.set_xlim(0.2, 1.75); ax.set_ylim(-0.75, 0.75)
+    ax.set_xlabel("Re(z)"); ax.set_ylabel("Im(z)")
+    unstable = np.sum(np.abs(p_df) > 1)
+    ax.set_title(f"8 次バタワース (低カットオフ) の係数量子化\n"
+                 f"直接形は極が大きく飛散{'・単位円外に脱出 (発振!)' if unstable else ''}、SOS はほぼ動かない")
+    ax.legend(fontsize=9, loc="upper left")
+    print(f"  quantization: direct-form poles outside unit circle: {unstable}, "
+          f"max|p|={np.max(np.abs(p_df)):.4f}")
+    save(fig, "09_coefficient_quantization.png")
+
+
+def fig09_limit_cycle():
+    N = 60
+    n = np.arange(N)
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.2), sharex=True)
+    for ax, a, title in [
+        (axes[0], 0.95, "a = 0.95: 10 × 0.95 = 9.5 → 丸めて 10 に戻る\n→ 減衰がそこで止まる (デッドバンド)"),
+        (axes[1], -0.95, "a = −0.95: 丸めが減衰を打ち消し\n±10 LSB で永久に振動 (リミットサイクル)"),
+    ]:
+        y_f, y_q = np.zeros(N), np.zeros(N)
+        y_f[0] = y_q[0] = 16   # 初期値 16 LSB
+        for k in range(1, N):
+            y_f[k] = a * y_f[k - 1]
+            y_q[k] = np.round(a * y_q[k - 1])   # 固定小数点: 毎回 LSB に丸め
+        ax.plot(n, y_f, "C0o-", ms=3, lw=1, label="理想 (無限精度)")
+        ax.plot(n, y_q, "C3s-", ms=3, lw=1, label="固定小数点 (丸めあり)")
+        ax.set_title(title, fontsize=9.5)
+        ax.set_xlabel("n")
+        ax.legend(fontsize=8)
+    axes[0].set_ylabel("出力 [LSB]")
+    fig.suptitle("1 次 IIR $y[n] = a\\,y[n-1]$ の零入力応答: 丸め誤差がループを回り続ける")
+    save(fig, "09_limit_cycle.png")
+
+
+if __name__ == "__main__":
+    fig01_sampling()
+    fig01_impulse_step()
+    fig01_decomposition()
+    fig01_normalized_freq()
+    fig01_sampling_model()
+    fig01_replication()
+    fig01_aliasing_time()
+    fig02_euler()
+    fig03_convolution()
+    fig04_dtft()
+    fig05_roc()
+    fig05_damped()
+    fig06_surface()
+    fig06_resonator()
+    fig07_ema()
+    fig07_triangle()
+    fig07_fir_vs_iir()
+    fig08_butterworth()
+    fig08_spec_compare()
+    fig08_cheby_poly()
+    fig08_pole_layout()
+    fig08_bilinear()
+    fig08_design_example()
+    fig08_impulse_invariance()
+    fig09_quantization()
+    fig09_limit_cycle()
+    print("done")
+
+
+# ---------------------------------------------------------------- ブロック図/概念図
+def _box(ax, x, y, w, h, text, fc=None, ec=None, fs=10, bold=False):
+    from matplotlib.patches import FancyBboxPatch
+    ec = ec or "C0"
+    ax.add_patch(FancyBboxPatch((x - w / 2, y - h / 2), w, h,
+                                boxstyle="round,pad=0.02,rounding_size=0.06",
+                                linewidth=1.6, edgecolor=ec,
+                                facecolor=fc if fc else "none", zorder=2))
+    ax.text(x, y, text, ha="center", va="center", fontsize=fs, zorder=3,
+            fontweight="bold" if bold else "normal")
+
+
+def _arrow(ax, x1, y1, x2, y2, text=None, color="k", rad=0.0, fs=9, dy=0.09):
+    ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                arrowprops=dict(arrowstyle="-|>", lw=1.5, color=color,
+                                connectionstyle=f"arc3,rad={rad}"), zorder=1)
+    if text:
+        ax.text((x1 + x2) / 2, (y1 + y2) / 2 + dy, text, ha="center", va="bottom",
+                fontsize=fs, color=color)
+
+
+def _blank(figsize):
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.set_axis_off()
+    ax.grid(False)
+    return fig, ax
+
+
+def fig04_domains():
+    fig, ax = _blank((8.4, 2.9))
+    _box(ax, 0.7, 1.55, 1.0, 0.5, "$x[n]$", ec="C0")
+    _box(ax, 3.0, 1.55, 1.7, 0.5, "畳み込み $*\\,h[n]$", ec="C0", fc="#e8f4f3")
+    _box(ax, 5.4, 1.55, 1.0, 0.5, "$y[n]$", ec="C0")
+    _box(ax, 0.7, 0.35, 1.2, 0.5, "$X(e^{j\\omega})$", ec="C3")
+    _box(ax, 3.0, 0.35, 1.7, 0.5, "掛け算 $\\times H(e^{j\\omega})$", ec="C3", fc="#fdeee8")
+    _box(ax, 5.4, 0.35, 1.2, 0.5, "$Y(e^{j\\omega})$", ec="C3")
+    _arrow(ax, 1.22, 1.55, 2.13, 1.55)
+    _arrow(ax, 3.88, 1.55, 4.88, 1.55)
+    _arrow(ax, 1.32, 0.35, 2.13, 0.35, color="C3")
+    _arrow(ax, 3.88, 0.35, 4.78, 0.35, color="C3")
+    for x in (0.7, 5.4):
+        ax.annotate("", xy=(x, 0.62), xytext=(x, 1.29),
+                    arrowprops=dict(arrowstyle="<|-|>", lw=1.3, color="C7"))
+        ax.text(x + 0.08, 0.95, "DTFT", fontsize=8.5, color="C7", va="center")
+    ax.text(6.1, 1.55, "計算はしんどい", fontsize=9.5, va="center", color="C0")
+    ax.text(6.1, 0.35, "ただの掛け算", fontsize=9.5, va="center", color="C3", fontweight="bold")
+    ax.set_xlim(0, 8.4); ax.set_ylim(-0.05, 2.1)
+    ax.set_title("畳み込み定理: 時間領域の畳み込み = 周波数領域の掛け算", fontsize=11)
+    save(fig, "04_domains.png")
+
+
+def fig05_zplane():
+    fig, ax = plt.subplots(figsize=(5.4, 5.0))
+    th = np.linspace(0, 2 * np.pi, 400)
+    ax.plot(np.cos(th), np.sin(th), "C0", lw=2.2)
+    ax.fill(np.cos(th), np.sin(th), color="C0", alpha=0.06)
+    ax.axhline(0, color="k", lw=0.8); ax.axvline(0, color="k", lw=0.8)
+    for w, lab_, ha, va in [(0, "$\\omega=0$\n$z=1$", "left", "center"),
+                            (np.pi / 2, "$\\omega=\\pi/2$\n$z=j$", "center", "bottom"),
+                            (np.pi, "$\\omega=\\pi$\n$z=-1$", "right", "center"),
+                            (-np.pi / 2, "$\\omega=-\\pi/2$", "center", "top")]:
+        x, y = np.cos(w), np.sin(w)
+        ax.plot([x], [y], "C3o", ms=9, zorder=4)
+        ax.annotate(lab_, xy=(x, y), xytext=(x * 1.22, y * 1.22),
+                    ha=ha, va=va, fontsize=9.5, color="C3")
+    wm = np.deg2rad(38)
+    ax.annotate("", xy=(np.cos(wm), np.sin(wm)), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="-|>", lw=2, color="C2"))
+    arc = np.linspace(0, wm, 60)
+    ax.plot(0.34 * np.cos(arc), 0.34 * np.sin(arc), "C2", lw=1.6)
+    ax.text(0.42 * np.cos(wm / 2), 0.42 * np.sin(wm / 2), "$\\omega$", color="C2", fontsize=12)
+    ax.annotate("この円周を一周 = $\\omega:0\\to2\\pi$\n円周上の値が周波数特性",
+                xy=(np.cos(np.deg2rad(120)), np.sin(np.deg2rad(120))),
+                xytext=(-1.75, 1.42), fontsize=9,
+                arrowprops=dict(arrowstyle="->", color="C0"))
+    ax.text(0, -0.15, "単位円 $|z|=1$", ha="center", fontsize=9.5, color="C0")
+    ax.set_xlim(-1.95, 1.95); ax.set_ylim(-1.75, 1.85); ax.set_aspect("equal")
+    ax.set_xlabel("Re(z)"); ax.set_ylabel("Im(z)")
+    ax.set_title("z 平面と単位円 — Z 変換を単位円上で評価すると DTFT", fontsize=11)
+    save(fig, "05_zplane.png")
+
+
+def fig08_design_flow():
+    fig, ax = _blank((7.6, 5.2))
+    steps = [
+        (4.7, "仕様\n(カットオフ・通過域リプル・阻止域減衰量)", "C7", "#eeeeee"),
+        (3.75, "STEP 0 — 次数 $N$ の決定  (§1.4, §2.4)", "C0", None),
+        (2.8, "STEP 1 — アナログプロトタイプ設計 → $H_a(s)$\n(バタワース / チェビシェフ / 楕円)", "C0", "#e8f4f3"),
+        (1.85, "(必要なら) 周波数変換 LP→HP/BP  (§6)", "C7", None),
+        (0.9, "STEP 2 — $s\\to z$ 変換 → $H(z)$\n(双一次変換 / インパルス不変法)", "C3", "#fdeee8"),
+        (0.0, "デジタル IIR フィルタ (係数 $a_k, b_k$)", "C2", "#eaf5ea"),
+    ]
+    for y, txt, ec, fc in steps:
+        _box(ax, 3.6, y, 6.3, 0.62, txt, ec=ec, fc=fc, fs=10)
+    for i in range(len(steps) - 1):
+        _arrow(ax, 3.6, steps[i][0] - 0.33, 3.6, steps[i + 1][0] + 0.33)
+    ax.set_xlim(0.1, 7.5); ax.set_ylim(-0.45, 5.15)
+    ax.set_title("IIR 設計の全体フロー", fontsize=11.5)
+    save(fig, "08_design_flow.png")
+
+
+def _delay(ax, x, y, s=0.34):
+    _box(ax, x, y, s * 1.7, s, "$z^{-1}$", ec="C7", fc="#f2f2f2", fs=9)
+
+
+def _sum(ax, x, y, r=0.17):
+    ax.add_patch(plt.Circle((x, y), r, fill=True, facecolor="white",
+                            edgecolor="C0", lw=1.6, zorder=3))
+    ax.text(x, y, "+", ha="center", va="center", fontsize=12, zorder=4)
+
+
+def _gain(ax, x, y, txt, color="C3", left=False):
+    d = -1 if left else 1
+    ax.plot([x - 0.2 * d, x - 0.2 * d, x + 0.24 * d, x - 0.2 * d],
+            [y - 0.21, y + 0.21, y, y - 0.21], color=color, lw=1.6, zorder=3)
+    ax.fill([x - 0.2 * d, x - 0.2 * d, x + 0.24 * d],
+            [y - 0.21, y + 0.21, y], color="white", zorder=2)
+    ax.text(x - 0.04 * d, y, txt, ha="center", va="center", fontsize=8.5, zorder=4)
+
+
+def _vdelay(ax, x, ytop, ybot, s=0.34):
+    """ytop→ybot の縦線の途中に z^-1 を挟む。"""
+    ym = (ytop + ybot) / 2
+    ax.plot([x, x], [ytop, ym + s / 2], "k", lw=1.4)
+    ax.plot([x, x], [ym - s / 2, ybot], "k", lw=1.4)
+    _box(ax, x, ym, s * 1.75, s, "$z^{-1}$", ec="C7", fc="#f2f2f2", fs=9)
+
+
+def _tap(ax, x0, y, gx, gain, xto, color, left=False):
+    """(x0,y) から水平に伸ばし、三角ゲインを通して xto まで。"""
+    _gain(ax, gx, y, gain, color=color, left=left)
+    if left:
+        ax.plot([x0, gx + 0.2], [y, y], "k", lw=1.4)
+        ax.plot([gx - 0.2, xto], [y, y], "k", lw=1.4)
+    else:
+        ax.plot([x0, gx - 0.2], [y, y], "k", lw=1.4)
+        ax.plot([gx + 0.24, xto], [y, y], "k", lw=1.4)
+
+
+def fig09_df1():
+    fig, ax = _blank((9.0, 3.6))
+    yt, y1, y2 = 2.75, 1.75, 0.75
+    xin, xb, xgb, xsA, xsB, xga, xout = 0.35, 1.35, 2.35, 3.5, 5.35, 6.4, 7.6
+    ax.text(xin - 0.02, yt + 0.16, "$x[n]$", fontsize=10)
+    ax.plot([xin, xb], [yt, yt], "k", lw=1.4)
+    _vdelay(ax, xb, yt, y1); _vdelay(ax, xb, y1, y2)
+    for y, g in [(yt, "$b_0$"), (y1, "$b_1$"), (y2, "$b_2$")]:
+        _tap(ax, xb, y, xgb, g, xsA, "C3")
+    ax.plot([xsA, xsA], [y2, yt - 0.17], "k", lw=1.4)
+    _sum(ax, xsA, yt)
+    ax.plot([xsA + 0.17, xsB - 0.17], [yt, yt], "k", lw=1.4)
+    _sum(ax, xsB, yt)
+    ax.plot([xsB + 0.17, xout], [yt, yt], "k", lw=1.4)
+    ax.annotate("", xy=(xout + 0.85, yt), xytext=(xout, yt),
+                arrowprops=dict(arrowstyle="-|>", lw=1.4, color="k"))
+    ax.text(xout + 0.5, yt + 0.16, "$y[n]$", fontsize=10)
+    _vdelay(ax, xout, yt, y1); _vdelay(ax, xout, y1, y2)
+    for y, g in [(y1, "$-a_1$"), (y2, "$-a_2$")]:
+        _tap(ax, xout, y, xga, g, xsB, "C0", left=True)
+    ax.plot([xsB, xsB], [y2, yt - 0.17], "k", lw=1.4)
+    ax.text(xgb, yt + 0.5, "FIR 部（零点をつくる）", fontsize=9.5, ha="center", color="C3")
+    ax.text(xga + 0.4, y2 - 0.5, "フィードバック部（極をつくる）", fontsize=9.5, ha="center", color="C0")
+    ax.set_xlim(0, 8.9); ax.set_ylim(0.1, 3.5)
+    ax.set_title("直接形 I: 入力履歴と出力履歴を別々に持つ（遅延 $M+N$ 個）", fontsize=11.5)
+    save(fig, "09_df1.png")
+
+
+def fig09_df2():
+    fig, ax = _blank((9.0, 3.6))
+    yt, y1, y2 = 2.75, 1.75, 0.75
+    xin, xsA, xga, xw, xgb, xsB, xout = 0.35, 1.5, 2.6, 4.3, 5.6, 6.9, 7.9
+    ax.annotate("", xy=(xsA - 0.17, yt), xytext=(xin, yt),
+                arrowprops=dict(arrowstyle="-|>", lw=1.4, color="k"))
+    ax.text(xin - 0.02, yt + 0.16, "$x[n]$", fontsize=10)
+    _sum(ax, xsA, yt)
+    ax.plot([xsA + 0.17, xw], [yt, yt], "k", lw=1.4)
+    ax.plot([xw], [yt], "ko", ms=5)
+    ax.text(xw + 0.06, yt + 0.18, "$w[n]$", fontsize=10, color="C2")
+    _vdelay(ax, xw, yt, y1); _vdelay(ax, xw, y1, y2)
+    for y, g in [(yt, "$b_0$"), (y1, "$b_1$"), (y2, "$b_2$")]:
+        _tap(ax, xw, y, xgb, g, xsB, "C3")
+    ax.plot([xsB, xsB], [y2, yt - 0.17], "k", lw=1.4)
+    for y, g in [(y1, "$-a_1$"), (y2, "$-a_2$")]:
+        _tap(ax, xw, y, xga, g, xsA, "C0", left=True)
+    ax.plot([xsA, xsA], [y2, yt - 0.17], "k", lw=1.4)
+    _sum(ax, xsB, yt)
+    ax.annotate("", xy=(xout + 0.6, yt), xytext=(xsB + 0.17, yt),
+                arrowprops=dict(arrowstyle="-|>", lw=1.4, color="k"))
+    ax.text(xout + 0.25, yt + 0.16, "$y[n]$", fontsize=10)
+    ax.text(xw, y2 - 0.45, "遅延線は $w$ 用の 1 本だけ（$\\max(M,N)$ 個）",
+            fontsize=9.5, ha="center", color="C2")
+    ax.text(xga, y2 - 0.9, "先にフィードバック部", fontsize=9, ha="center", color="C0")
+    ax.text(xgb, y2 - 0.9, "後から FIR 部", fontsize=9, ha="center", color="C3")
+    ax.set_xlim(0, 8.9); ax.set_ylim(-0.35, 3.5)
+    ax.set_title("直接形 II: フィードバック部を先に通し遅延線を共有（正準形）", fontsize=11.5)
+    save(fig, "09_df2.png")
+
+
+def fig01_fourier_comb():
+    T = 1.0
+    Oms = 2 * np.pi / T
+    t = np.linspace(-1.6, 1.6, 4000)
+    fig, axes = plt.subplots(1, 3, figsize=(9.8, 3.0), sharex=True)
+    for ax, K in zip(axes, [1, 4, 15]):
+        f = (1 + 2 * sum(np.cos(k * Oms * t) for k in range(1, K + 1))) / T
+        ax.plot(t, f, "C0", lw=1.3)
+        for n in (-1, 0, 1):
+            ax.axvline(n * T, color="C3", ls=":", lw=1)
+        ax.axhline(0, color="k", lw=0.7)
+        ax.set_title(f"K = {K}（{2 * K + 1} 本の和）", fontsize=10)
+        ax.set_xlabel("t / T")
+        ax.annotate(f"高さ (2K+1)/T = {2 * K + 1}", xy=(0, 2 * K + 1),
+                    xytext=(0.25, (2 * K + 1) * 0.92), fontsize=8, color="C3",
+                    arrowprops=dict(arrowstyle="->", color="C3", lw=0.8))
+    axes[0].set_ylabel(r"$\frac{1}{T}\sum_{k=-K}^{K} e^{jk\Omega_s t}$")
+    fig.suptitle("等強度の高調波を足していくと、位相が揃う t = nT だけが尖っていく", fontsize=11)
+    save(fig, "01_fourier_comb.png")
