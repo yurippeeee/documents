@@ -3,13 +3,16 @@
   function _w04_r(t,Rin,C,Re){if(t<0)return 0;if(!(C>0))return Rin;var Rp=Rin*Re/(Rin+Re),tau=C*(Rin+Re);return Rin-(Rin-Rp)*Math.exp(-t/tau);}
   /* pulses = [[始まり s, 長さ s, 電流 A], ...] のときの端子電圧（重ね合わせ） */
   function _w04_v(t,E,Rin,C,Re,ps){var d=0;ps.forEach(function(p){d+=p[2]*(_w04_r(t-p[0],Rin,C,Re)-_w04_r(t-p[0]-p[1],Rin,C,Re));});return E-d;}
-  /* 3 節の例の模型（コイン形に似せた例。実際の電池の値ではない）: 使った割合 s、温度 T [°C] */
-  function _w04_ocv(s){var x=Math.max(0,(s-0.75)/0.25);return 3.05-0.15*s-0.75*Math.pow(x,2.5);}
-  function _w04_rin(s,T){var d=Math.max(0,s-0.85);return (15*(1+1.2*s*s)+400*d*d)*Math.exp(0.035*(25-T));}
+  /* 3 節の例の模型（03 章 4 節の CR2032 の模型と同じ代表的な形と例の値。実際の電池の値ではない）: 公称容量に対して使った割合 s、温度 T [°C] */
+  var _w04_CRE=[[0,3.20],[0.02,3.05],[0.1,3.00],[0.3,2.96],[0.5,2.92],[0.7,2.87],[0.8,2.82],[0.88,2.74],[0.93,2.60],[0.97,2.40],[1.0,2.00]];
+  var _w04_CRR=[[0,15],[0.5,17],[0.7,20],[0.8,25],[0.9,40],[0.95,60],[1.0,120]];
+  function _w04_ip(pts,x){if(x<=pts[0][0])return pts[0][1];for(var i=0;i+1<pts.length;i++){if(x<=pts[i+1][0])return pts[i][1]+(pts[i+1][1]-pts[i][1])*(x-pts[i][0])/(pts[i+1][0]-pts[i][0]);}return pts[pts.length-1][1];}
+  function _w04_ocv(s){return _w04_ip(_w04_CRE,s);}
+  function _w04_rin(s,T){return _w04_ip(_w04_CRR,s)*Math.pow(1.4,(25-T)/10);}
   function _w04_vop(s,T){var R=_w04_rin(s,T);return _w04_ocv(s)-15e-3*_w04_r(3e-3,R,100e-6,0.5);}
   var _w04_LIFE_D=0.220*3600/3e-6/86400;            /* 平均 3 µA で 220 mAh を使い切る日数 */
-  /* 例のリチウムイオン電池の起電力の表（残量 % → V） */
-  var _w04_LI=[[0,3.30],[5,3.45],[10,3.55],[20,3.62],[30,3.67],[40,3.71],[50,3.76],[60,3.82],[70,3.89],[80,3.96],[90,4.05],[100,4.18]];
+  /* 03 章の例のリチウムイオン電池の起電力の表（残量 % → V） */
+  var _w04_LI=[[0,3.00],[3,3.20],[7,3.38],[12,3.50],[20,3.60],[35,3.70],[50,3.76],[70,3.87],[85,3.98],[95,4.08],[100,4.18]];
   function _w04_tab(tab,p){for(var i=0;i+1<tab.length;i++){var a=tab[i],b=tab[i+1];if(p>=a[0]&&p<=b[0])return a[1]+(b[1]-a[1])*(p-a[0])/(b[0]-a[0]);}return p>tab[tab.length-1][0]?tab[tab.length-1][1]:tab[0][1];}
   function _w04_inv(tab,v){for(var i=0;i+1<tab.length;i++){var a=tab[i],b=tab[i+1];if(v>=a[1]&&v<=b[1])return a[0]+(b[0]-a[0])*(v-a[1])/(b[1]-a[1]);}return v>tab[tab.length-1][1]?tab[tab.length-1][0]:tab[0][0];}
   /* コイン形の模型の、休んでいるときの電圧の表（残量 % は 220 mAh に対して） */
@@ -140,7 +143,7 @@
       var rest=cMs.get()===1,single=cTh.get()===1,N=cN.get(),Tm=cTm.get(),dT=cDT.get(),sg=cSg.get()*1e-3,po=cPo.get()/100;
       var R=U.rng(seed),lifeH=_w04_LIFE_D*24,H=Math.floor(lifeH*1.02),exitV=single?2.45:2.60;
       var st=0,nc=0,nl=0,no=0,changes=0,tLow=-1,tCrit=-1,firstBad=-1,resets=0,sCrit=-1;
-      var D0=2500,days={},seg=[],cur=0,seg0=0;
+      var D0=2400,days={},seg=[],cur=0,seg0=0;
       for(var h=0;h<H;h++){
         var s=h/lifeH,T=Tm+dT/2*Math.sin(2*Math.PI*((h%24)-9)/24),vt=_w04_vop(s,T),v=(rest?_w04_ocv(s):vt)+sg*R.normal(),out=false;
         if(po>0&&R.chance(po)){v-=0.25;out=true;}
@@ -179,8 +182,10 @@
       [[2.60,"green","2.60"],[2.45,"gold","2.45"],[2.35,"alias","2.35"],[2.2,"alias","2.2（最低）"]].forEach(function(q){if(single&&q[0]===2.60)return;
         o.push(S.L(x0,Y(q[0]),x0+wd,Y(q[0]),q[1],1.1,q[0]===2.2?"6 3":"4 3"));o.push(S.T(x0+wd-2,Y(q[0])-3,q[2]+" V","end",8.5,q[1],true,false,null,true));});
       var yb=y0+hh+10;
-      ks.forEach(function(d){var c=SC[days[d][3]];o.push(S.RECT(X(d),yb,Math.max(0.8,X(d+1)-X(d)),10,0,U.soft(c),"none",0));if(days[d][4]>0)o.push(S.L(X(d+0.5),yb+12,X(d+0.5),yb+20,"alias",1.4));});
-      [0,100,200,300,400,500,600].forEach(function(k){var d=D0+k;if(d>d1)return;o.push(S.L(X(d),y0+hh,X(d),y0+hh+4,"muted",1));o.push(S.T(X(d),yb+33,String(d),"middle",9,"muted"));});
+      var g0=ks.length?ks[0]:0,gs=ks.length?days[ks[0]][3]:0;
+      ks.concat([null]).forEach(function(d){if(d===null||days[d][3]!==gs){var c=SC[gs],de=d===null?ks[ks.length-1]+1:d;o.push(S.RECT(X(g0),yb,Math.max(0.8,X(de)-X(g0)),11,1,U.soft(c),c,0.8));if(d!==null){g0=d;gs=days[d][3];}}});
+      ks.forEach(function(d){if(days[d][4]>0)o.push(S.L(X(d+0.5),yb+13,X(d+0.5),yb+21,"alias",1.4));});
+      [0,100,200,300,400,500,600,700].forEach(function(k){var d=D0+k;if(d>d1)return;o.push(S.L(X(d),y0+hh,X(d),y0+hh+4,"muted",1));o.push(S.T(X(d),yb+33,String(d),"middle",9,"muted"));});
       o.push(S.T(x0+wd,yb+46,"電池を入れてからの日数","end",9,"muted"));
       var lx=x0,ly=yb+60;
       [["green","OK"],["gold","LOW"],["alias","CRIT"],["signal","測った電圧（1 日の最小〜最大）"],["teal","本当の電圧（1 日の最小。点線）"]].forEach(function(q,i){var w=U.tw(q[1],9)+26;if(lx+w>x0+wd){lx=x0;ly+=15;}o.push(S.RECT(lx,ly-9,10,10,2,U.soft(q[0]),q[0],1));o.push(S.T(lx+14,ly,q[1],"start",9,q[0],true));lx+=w;});
@@ -195,7 +200,7 @@
       else if(tCrit>=0&&firstBad>=0)txt+='<span class="ok">CRIT に入ってから、本当に 2.2 V を割るまで '+Math.round(firstBad-tCrit)+' 日の余裕がある</span>';
       else txt+="（この範囲では CRIT に入らなかった）";
       if(tCrit>=0&&firstBad>=0&&sCrit<sEnd-0.1)txt+='<br><span class="warn">CRIT に入るのが早すぎる: 使える電荷の '+Math.round((1-sCrit/sEnd)*100)+' % を残して止まった</span>';
-      ro.innerHTML=txt+'<div class="wnote">3 節の例の模型（実際の電池の値ではない）で、1 時間ごとに測って判定した。CRIT からは戻らない。外れた値は、測定の一部が 0.25 V 低くなるとした。休んでいるときに測る場合も、送信は毎回するので、そのときの電圧でリセットするかどうかを数えた。</div>';
+      ro.innerHTML=txt+'<div class="wnote">03 章 4 節の例の模型（実際の電池の値ではない）に 1 節の 100 µF を付けた機器で、1 時間ごとに測って判定した。CRIT からは戻らない。外れた値は、測定の一部が 0.25 V 低くなるとした。休んでいるときに測る場合も、送信は毎回するので、そのときの電圧でリセットするかどうかを数えた。</div>';
     }
     draw();
   };
@@ -205,7 +210,7 @@
     var S=U.S,seed=1;
     U.head(el,"STATE OF CHARGE","残量の推定 — 電圧から・電荷を数えて・組み合わせて");
     var r1=U.ctrls(el);
-    var cB=U.select(r1,"電池",["リチウムイオン電池（放電曲線が傾いている。例の表）","コイン形（放電曲線が平ら。3 節の例の模型）"],0,draw);
+    var cB=U.select(r1,"電池",["リチウムイオン電池（放電曲線が傾いている。03 章の例の模型）","コイン形（放電曲線が平ら。03 章の例の模型）"],0,draw);
     var cMs=U.select(r1,"電圧を測るとき",["休ませて（電流 0）","電流を流しながら（リチウムイオン 1 A・コイン形 送信の直後）"],0,draw);
     var r2=U.ctrls(el);
     var cT=U.slider(r2,"温度",{min:-10,max:40,step:1,value:25,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
@@ -224,8 +229,8 @@
       var coin=cB.get()===1,load=cMs.get()===1,T=cT.get(),sg=cSg.get()*1e-3,k=cK.get()/100,qr=cQ.get()/100,fix=cFx.get();
       var R=U.rng(seed),pts=[],NP=200;
       /* p: 本当の残量 [%]（実際に使える電荷に対して）。u: 使った電荷 / 見積もった容量 */
-      var rinLi=0.10*Math.exp(0.03*(25-T)),sEnd=1;
-      if(coin){var lo=0.5,hi=1.1;for(var it=0;it<50;it++){var mm=(lo+hi)/2;if(_w04_vop(mm,T)>2.2)lo=mm;else hi=mm;}sEnd=lo;}
+      var rinLi=0.12*Math.pow(1.4,(25-T)/10),sEnd=1;
+      if(coin){var lo=0.3,hi=1.0;for(var it=0;it<50;it++){var mm=(lo+hi)/2;if(_w04_vop(mm,T)>2.35)lo=mm;else hi=mm;}sEnd=lo;}   /* 機器が止まる（3 節の CRIT）まで */
       var anchor=null,cAdj=0,lowSeen=false;
       for(var i=0;i<=NP;i++){
         var p=100-100*i/NP,used=(1-p/100)*qr;            /* 見積もった容量に対する、使った割合 */
@@ -277,8 +282,99 @@
       var s="本当の残量が 50 % のとき: 電圧から "+at(50,1).toFixed(0)+" %・電荷を数えて "+at(50,2).toFixed(0)+" %"+(fix?"・組み合わせ "+at(50,3).toFixed(0)+" %":"")+"<br>";
       var e0=at(0,2),f0=at(0,3);
       s+="本当の残量が 0 % のとき（使い切ったとき）: 電荷を数えて <b>"+e0.toFixed(0)+" %</b>"+(e0>2?'（<span class="warn">残っていると示したまま止まる</span>）':"")+(fix?"・組み合わせ <b>"+f0.toFixed(0)+" %</b>"+(f0>2?'（<span class="warn">まだ残っていると示す</span>）':'（<span class="ok">0 % に近い</span>）'):"");
-      s+="<br>電圧からの推定は、"+(coin?"平らな所では誤差が大きい（傾き 1.5 mV/% なので、電圧の誤差 "+Math.round(sg*1000)+" mV は約 "+Math.round(sg*1000/1.5)+" %）":"傾きのある所では誤差が小さい（残量 50 % の近くで 5.5 mV/%）")+(load?'。<span class="warn">電流を流しながら測ると、内部抵抗の分だけ少なく読める</span>':"");
-      ro.innerHTML=s+'<div class="wnote">本当の残量は、実際に使える電荷に対する割合。「数えた電荷の誤差」は、動作 1 回の電荷や電流の測定の誤差をまとめたもの（負なら本当より少なく数える）。組み合わせは、リチウムイオン電池では残量 50 % の時点で 1 回休み、電圧の表に合わせ直したとし、使い終わりの近く（電圧の表で 10 % 以下）でも合わせ直す。コイン形では、送信の直後の電圧が 2.45 V（3 節の LOW）を下回ったら 10 % 以下に下げ、2.35 V で 0 % とした。値はすべて例の値。</div>';
+      s+="<br>電圧からの推定は、"+(coin?"平らな所では誤差が大きい（傾き約 2 mV/% なので、電圧の誤差 "+Math.round(sg*1000)+" mV は約 "+Math.round(sg*1000/2)+" %）":"傾きのある所では誤差が小さい（残量 50 % の近くで約 4.8 mV/%）")+(load?'。<span class="warn">電流を流しながら測ると、内部抵抗の分だけ少なく読める</span>':"");
+      ro.innerHTML=s+'<div class="wnote">本当の残量は、実際に使える電荷（コイン形では、機器が止まる 3 節の CRIT まで）に対する割合。「数えた電荷の誤差」は、動作 1 回の電荷や電流の測定の誤差をまとめたもの（負なら本当より少なく数える）。組み合わせは、リチウムイオン電池では残量 50 % の時点で 1 回休み、電圧の表に合わせ直したとし、使い終わりの近く（電圧の表で 10 % 以下）でも合わせ直す。コイン形では、送信の直後の電圧が 2.45 V（3 節の LOW）を下回ったら 10 % 以下に下げ、2.35 V で 0 % とした。値はすべて例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 充電器 IC の CC/CV 充電と、パワーパス・温度・マイコンの見張り（簡単な模型） ---- */
+  REG.w04_charge=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"CHARGER","充電器 IC の CC/CV 充電とパワーパス（マイコンは見張るだけ）");
+    var r1=U.ctrls(el);
+    var cQ=U.slider(r1,"電池の容量",{values:[200,500,1000,2000,3000],value:1000,fmt:function(v){return v+" mAh";},onInput:draw});
+    var cI=U.slider(r1,"充電の電流（CC）",{values:[0.2,0.3,0.5,0.7,1.0],value:0.5,fmt:function(v){return v+"C";},onInput:draw});
+    var cTe=U.slider(r1,"終了電流",{values:[0.05,0.1,0.2],value:0.1,fmt:function(v){return v+"C";},onInput:draw});
+    var r2=U.ctrls(el);
+    var cSys=U.slider(r2,"機器の電流",{min:0,max:300,step:10,value:150,fmt:function(v){return v+" mA";},onInput:draw});
+    var cBud=U.slider(r2,"USB の電流の予算",{values:[100,500,900,1500,3000],value:900,fmt:function(v){return v+" mA";},onInput:draw});
+    var cPP=U.checkbox(r2,"パワーパスあり",false,draw);
+    var r3=U.ctrls(el);
+    var cT=U.slider(r3,"電池の温度",{min:-10,max:60,step:1,value:25,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var cP0=U.slider(r3,"充電を始めたときの残量",{values:[-2,0,10,30,50,80],value:10,fmt:function(v){return v<0?"−2 %（2.8 V。予備充電から）":v+" %";},onInput:draw});
+    var cTm=U.checkbox(r3,"マイコンが時間を見張る（予定の 1.5 倍で止める）",true,draw);
+    var br=U.btnrow(el);
+    function preset(pp,sys){cQ.set(1000);cI.set(0.5);cTe.set(0.1);cSys.set(sys);cBud.set(900);cPP.set(pp);cT.set(25);cP0.set(10);cTm.set(true);draw();}
+    U.button(br,"5 節の図 (a) パワーパスなし・機器 150 mA",function(){preset(false,150);});
+    U.button(br,"(b) パワーパスあり",function(){preset(true,150);});
+    U.button(br,"機器の電流 0",function(){preset(false,0);});
+    U.button(br,"寒い（−5 °C）",function(){cT.set(-5);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function ocv(p){return p<0?3.00+(p/2)*0.2:_w04_tab(_w04_LI,Math.min(100,p));}   /* −2 % で 2.8 V（予備充電の範囲を表す例） */
+    function draw(){
+      var Q=cQ.get(),Icc=cI.get()*Q,Ite=cTe.get()*Q,Isys=cSys.get(),bud=cBud.get(),pp=cPP.get(),T=cT.get(),p0=cP0.get(),tm=cTm.get();
+      var R=0.3*1000/Q,Ipre=0.1*Q,Vch=4.2;               /* 充電の間の内部抵抗 [Ω]（1000 mAh で 0.3 Ω とし、容量に反比例させた例） */
+      var tempOk=T>=0&&T<=45,exp=(100-Math.max(0,p0))/100*Q/Icc+0.75,tLim=tm?1.5*exp:12,dt=10/3600;
+      var p=p0,t=0,log=[],endT=null,endWhy="",hold=0,starve=false;
+      while(t<Math.min(tLim,12)+1e-9){
+        var E=ocv(p),ib,meas,mode;
+        if(!tempOk){mode="temp";ib=pp?0:-Isys;meas=0;}
+        else{
+          var Iset=E<3.0?Ipre:Icc;mode=E<3.0?"pre":"cc";
+          if(pp){var cap=Math.max(0,Math.min(Iset,bud-Isys)),cv=(Vch-E)/R*1000;ib=Math.min(cap,cv);if(mode==="cc"&&cv<cap)mode="cv";meas=ib;}
+          else{var lim=Math.min(Iset,bud),cv2=(Vch-E)/R*1000;ib=Math.min(lim-Isys,cv2);if(mode==="cc"&&cv2<lim-Isys)mode="cv";meas=ib+Isys;}
+          if(mode==="cv"&&meas<=Ite){endT=t;endWhy="full";break;}
+        }
+        if(mode==="cv"&&p>=99.5)hold+=dt;
+        if(mode==="pre"&&ib<0)starve=true;
+        log.push([t,ib,meas,E+ib/1000*R,E,p,mode]);
+        p=Math.min(100,p+ib*dt/Q*100);t+=dt;
+      }
+      if(endT===null){endT=t;endWhy=tempOk?(tm&&t>=tLim-1e-6?"timer":"long"):"temp";}
+      /* ---- 図 ---- */
+      var wide=_w04_wide(box),W=wide?700:380,x0=wide?66:52,wd=W-x0-(wide?50:40),o=[],span=Math.max(0.5,endT*1.08);
+      var X=function(h){return x0+h/span*wd;};
+      var MC={pre:"teal",cc:"gold",cv:"signal",temp:"alias"},MN={pre:"予備充電",cc:"定電流（CC）",cv:"定電圧（CV）",temp:"温度で停止"};
+      /* 段の帯 */
+      var yb=10,seg0=0,sm=log.length?log[0][6]:"temp";
+      o.push(S.T(10,yb+11,"段","start",10,"ink",true));
+      log.concat([[endT,0,0,0,0,0,null]]).forEach(function(r){if(r[6]!==sm){var c=MC[sm];o.push(S.RECT(X(seg0),yb,Math.max(1,X(r[0])-X(seg0)),14,2,U.soft(c),c,0.8));var w=X(r[0])-X(seg0);if(w>U.tw(MN[sm],9)+6)o.push(S.T((X(seg0)+X(r[0]))/2,yb+11,MN[sm],"middle",9,c,true));seg0=r[0];sm=r[6];}});
+      var endC=endWhy==="full"?"green":"alias",endL=endWhy==="full"?"満充電で終了":(endWhy==="timer"?"マイコンのタイマで停止（異常）":(endWhy==="temp"?"温度の範囲の外: 充電しない":"終わらない"));
+      /* 電流 */
+      var y1=40,h1=wide?100:90,imax=Math.max(Icc,Isys,Ite)*1.15,imin=Math.min(0,-Isys)*1.15;
+      var Y1=function(i){return y1+h1-(i-imin)/(imax-imin)*h1;};
+      o.push(S.T(10,y1-4,"電流 [mA]","start",10,"ink",true));
+      o.push(S.W([x0,y1,x0,y1+h1,x0+wd,y1+h1],"muted",1.1));
+      U.nice(imin,imax,4).forEach(function(v){if(v>=imin-1e-9&&v<=imax+1e-9){o.push(S.L(x0,Y1(v),x0+wd,Y1(v),"grid",1));o.push(S.T(x0-6,Y1(v)+3.5,U.sig(v,3),"end",9,"muted"));}});
+      o.push(S.L(x0,Y1(Ite),x0+wd,Y1(Ite),"alias",1,"3 3"));o.push(S.T(x0+wd,Y1(Ite)-4,"終了電流 "+U.sig(Ite,3)+" mA","end",9,"alias",false,false,null,true));
+      if(log.length){o.push(S.PL(log.map(function(r){return [X(r[0]),Y1(r[1])];}),"gold",2));
+        if(!pp)o.push(S.PL(log.map(function(r){return [X(r[0]),Y1(r[2])];}),"purple",1.6,null,"5 3"));}
+      /* 電圧と残量 */
+      var y2=y1+h1+34,h2=wide?100:90,Y2=function(v){return y2+h2-(v-2.8)/(4.3-2.8)*h2;},Yp=function(q){return y2+h2-q/100*h2;};
+      o.push(S.T(10,y2-4,"電池の電圧 [V]・残量","start",10,"ink",true));
+      o.push(S.W([x0,y2,x0,y2+h2,x0+wd,y2+h2],"muted",1.1));
+      [2.8,3.2,3.6,4.0,4.2].forEach(function(v){o.push(S.L(x0,Y2(v),x0+wd,Y2(v),"grid",1));o.push(S.T(x0-6,Y2(v)+3.5,v.toFixed(1),"end",9,"muted"));});
+      [0,50,100].forEach(function(q){o.push(S.T(x0+wd+6,Yp(q)+3.5,q+" %","start",9,"teal"));});
+      o.push(S.L(x0,Y2(Vch),x0+wd,Y2(Vch),"alias",1,"3 3"));
+      if(log.length){o.push(S.PL(log.map(function(r){return [X(r[0]),Y2(Math.max(2.8,Math.min(4.3,r[3])))];}),"signal",2));
+        o.push(S.PL(log.map(function(r){return [X(r[0]),Yp(Math.max(0,r[5]))];}),"teal",1.6,null,"5 3"));}
+      var ya=y2+h2;U.nice(0,span,wide?8:5).forEach(function(v){if(v<=span+1e-9){o.push(S.L(X(v),ya,X(v),ya+4,"muted",1));o.push(S.T(X(v),ya+15,U.sig(v,3),"middle",9,"muted"));}});
+      o.push(S.T(x0+wd,ya+28,"時間 [時間]","end",9,"muted"));
+      o.push(S.L(X(endT),yb-2,X(endT),ya,endC,1.2,"4 3"));
+      var ly=ya+44,lx=x0,L=[["gold","電池へ入る電流"],["signal","電池の端子電圧"],["teal","残量（破線・右の目盛）"]];if(!pp)L.splice(1,0,["purple","充電器 IC が見る電流（電池 + 機器）"]);
+      L.forEach(function(q){var w=U.tw(q[1],9)+26;if(lx+w>x0+wd){lx=x0;ly+=15;}o.push(S.RECT(lx,ly-9,10,10,2,U.soft(q[0]),q[0],1));o.push(S.T(lx+14,ly,q[1],"start",9,q[0],true));lx+=w;});
+      o.push(S.T(Math.min(X(endT)+4,x0+wd-2),y1+12,endL,X(endT)>x0+wd*0.6?"end":"start",9.5,endC,true,false,null,true));
+      box.set(S.svg(W,ly+10,o));
+      /* ---- 読み出し ---- */
+      var last=log.length?log[log.length-1]:[0,0,0,ocv(p0),ocv(p0),p0,"temp"];
+      var s="";
+      if(endWhy==="full")s+='<span class="ok">'+U.sig(endT,3)+' 時間で満充電を見分けて終了</span>（残量 '+Math.round(last[5])+' %）';
+      else if(endWhy==="temp")s+='<span class="warn">電池の温度 '+String(T).replace("-","−")+' °C は充電してよい範囲（この例では 0〜45 °C）の外なので、充電器 IC は充電しない</span>'+(pp?"":"。機器の電流は電池から流れ、電池は減っていく");
+      else if(starve)s+='<span class="warn">予備充電の電流 '+U.sig(Ipre,3)+' mA より機器の電流 '+Isys+' mA が大きく、電池は充電されずに減っていく（空の電池では機器が起動できない）</span>'+(endWhy==="timer"?"。マイコンのタイマが "+U.sig(endT,3)+" 時間で止めた":"");
+      else s+='<span class="warn">充電器 IC は満充電を見分けられない</span>（充電器が見る電流が終了電流の '+U.sig(Ite,3)+' mA まで下がらない）。'+(endWhy==="timer"?"マイコンのタイマが "+U.sig(endT,3)+" 時間で止め、異常として知らせた":"12 時間たっても終わらない")+"。電池が 4.2 V のまま保たれた時間 "+U.sig(hold,2)+" 時間";
+      s+="<br>定電流の間に電池へ入る電流 "+U.sig(Math.max(0,Math.min(Icc,pp?bud-Isys:Math.min(Icc,bud)-Isys)),3)+" mA（設定 "+U.sig(Icc,3)+" mA"+(pp?"、予算 "+bud+" mA から機器の "+Isys+" mA を引いた残りが上限":"。機器の "+Isys+" mA が差し引かれる")+"）・ マイコンの予定の時間 "+U.sig(exp,3)+" 時間（1.5 倍で "+U.sig(1.5*exp,3)+" 時間）";
+      ro.innerHTML=s+'<div class="wnote">充電そのものは充電器 IC が行う（この図はその動きの簡単な模型）。マイコンは状態を読み、温度と時間を見張って止めるだけで、充電の電流や電圧を直接作らない。値はすべて例の値で、実際の電池の充電の条件は電池の仕様書で確かめる。</div>';
     }
     draw();
   };

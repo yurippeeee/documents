@@ -239,15 +239,23 @@ def _f04_order():
     return SVG(700, yb + 40, o, "LED（5 mA・20 ms）と送信（15 mA・3 ms）の並べ方と端子電圧（例の値: 起電力 2.8 V・内部抵抗 100 Ω の電池と 100 µF・ESR 0.5 Ω のコンデンサ、τ = 10 ms）。流れる電荷はどれも同じだが、(a) 重ねると 2 つの低下が足され、(b) 続けるとコンデンサが回復しきらないうちに次の低下が加わる。(c) 間を 25 ms 空けると、送信の間の最低は 2.38 V で、2.3 V を守れる。")
 F["e04_order"] = _f04_order()
 
-# ---- 3 節: 例の模型（コイン形リチウム電池に似せた例。実際の電池の値ではない） ----
+# ---- 3 節: 例の模型（03 章 4 節の CR2032 の模型と同じ代表的な形と例の値。実際の電池の値ではない） ----
 import random as _f04_random
+_F04_CR_E = [(0, 3.20), (0.02, 3.05), (0.1, 3.00), (0.3, 2.96), (0.5, 2.92), (0.7, 2.87), (0.8, 2.82), (0.88, 2.74), (0.93, 2.60), (0.97, 2.40), (1.0, 2.00)]
+_F04_CR_R = [(0, 15.0), (0.5, 17.0), (0.7, 20.0), (0.8, 25.0), (0.9, 40.0), (0.95, 60.0), (1.0, 120.0)]
+def _f04_ip(pts, x):
+    if x <= pts[0][0]:
+        return pts[0][1]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        if x <= x1:
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+    return pts[-1][1]
 def _f04_ocv(s):
-    """使った割合 s での、電流を流していないときの電圧 [V]。"""
-    x = max(0.0, (s - 0.75) / 0.25)
-    return 3.05 - 0.15 * s - 0.75 * x ** 2.5
+    """公称容量に対して使った割合 s での、休んでいるときの電圧 [V]。"""
+    return _f04_ip(_F04_CR_E, s)
 def _f04_rin(s, T):
-    """内部抵抗 [Ω]。使い終わりに近いほど、温度 T [°C] が低いほど大きい。"""
-    return (15.0 * (1 + 1.2 * s * s) + 400.0 * max(0.0, s - 0.85) ** 2) * math.exp(0.035 * (25.0 - T))
+    """内部抵抗（流し続けたときの値 R0 + R1）[Ω]。温度が 10 °C 下がるごとに 1.4 倍。"""
+    return _f04_ip(_F04_CR_R, s) * 1.4 ** ((25.0 - T) / 10.0)
 def _f04_vop(s, T):
     """送信（15 mA・3 ms）の直後の端子電圧（100 µF・ESR 0.5 Ω のコンデンサあり）。"""
     return _f04_ocv(s) - _f04_drop(15e-3, 3e-3, _f04_rin(s, T), _F04_C, _F04_RE)
@@ -282,22 +290,22 @@ def _f04_trap():
     o.append(T(p.X(6.05), p.Y(_f04_vop(6.05 / Y, 25)) - 8, "送信の直後（25 °C）", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(6.05), p.Y(_f04_vop(6.05 / Y, 0)) + 16, "送信の直後（0 °C）", "start", 9.5, TEA, True, halo=True))
     o.append(T(p.X(6.05), p.Y(2.2) + 14, "最低の電圧 2.2 V", "start", 9.5, ALI, halo=True))
-    o.append(T(p.X(6.05), p.Y(2.45) + 14, "休んでいるときの電圧で止めるしきい値 2.45 V（悪い例）", "start", 9.5, MUT, halo=True))
+    o.append(T(p.X(6.05), p.Y(2.45) + 30, "点線: 休んでいるときの電圧で止めるしきい値 2.45 V（悪い例）", "start", 9.5, MUT, halo=True))
     x1, x2 = p.X(s1 * Y), p.X(s2 * Y)
     o.append(D(x1, p.Y(2.2), TEA, 4) + D(x1, p.Y(_f04_ocv(s1)), GLD, 4))
     o.append(W(x1, p.Y(2.2), x1, p.Y(_f04_ocv(s1)), c=FNT, lw=1, dash="3 3"))
-    o.append(T(x1 - 6, p.Y(_f04_ocv(s1)) - 10, "まだ %.2f V" % _f04_ocv(s1), "end", 9.5, GLD, True, halo=True))
+    o.append(T(x1 + 8, p.Y(_f04_ocv(s1)) - 8, "まだ %.2f V" % _f04_ocv(s1), "start", 9.5, GLD, True, halo=True))
     o.append(D(x2, p.Y(2.45), MUT, 4))
     o.append(T((x1 + x2) / 2, p.y + 14, "リセットを", "middle", 9.5, ALI, True, halo=True))
     o.append(T((x1 + x2) / 2, p.y + 27, "繰り返す", "middle", 9.5, ALI, True, halo=True))
     o.append(T((x1 + x2) / 2, p.y + 40, "約 %.0f 日" % ((s2 - s1) * _F04_LIFE_D), "middle", 9.5, ALI, True, halo=True))
-    return SVG(700, 300, o, "例の模型で計算した、使い終わりの近くの端子電圧（6 年より前はほとんど平ら）。休んでいるときの電圧はなかなか下がらないが、送信の直後の電圧は内部抵抗の分だけ低く、寒いほど低い。0 °C の送信の直後の電圧が 2.2 V を割ってから、休んでいるときの電圧が 2.45 V を割るまでの間、寒い時間に送信するたびにリセットする。")
+    return SVG(700, 300, o, "03 章 4 節の例の模型に 1 節の 100 µF を付けた機器の、使い終わりの近くの端子電圧（6 年より前はゆるやかに下がる）。休んでいるときの電圧はなかなか下がらないが、送信の直後の電圧は内部抵抗の分だけ低く、寒いほど低い。0 °C の送信の直後の電圧が 2.2 V を割ってから、休んでいるときの電圧が 2.45 V を割るまでの間、寒い時間に送信するたびにリセットする。")
 F["e04_trap"] = _f04_trap()
 
 def _f04_hyst():
     o = []
     rnd = _f04_random.Random(7)
-    d0, d1 = 2560, 2720
+    d0, d1 = 2420, 2600
     hours = []
     for h in range(d0 * 24, d1 * 24):
         s = h / 24.0 / _F04_LIFE_D
@@ -346,7 +354,7 @@ def _f04_hyst():
     yl = p.y + p.h + 52 + 2 * 38 + 6
     o.append(T(p.X(d1), p.y + p.h + 30, "電池を入れてからの日数", "end", 9.5, MUT))
     o.append(LEGEND(p.x, yl, [(GRN, "OK"), (GLD, "LOW（電池が少ない）")]))
-    return SVG(700, yl + 10, o, "使い終わりが近づいた 160 日間の、送信の直後の電圧と判定（例の模型）。電圧は 1 日に約 1.3 mV ずつ下がるが、気温で 1 日に約 0.04 V 上下する。(a) しきい値 1 つでは、寒い夜に LOW、暖かい昼に OK と、何十日も入れ替わる。(b) 2.45 V で LOW に入り、2.60 V を超えるまで戻らないようにし、3 回続いたときだけ変えると、変化は 1 回になる。")
+    return SVG(700, yl + 10, o, "使い終わりが近づいた 180 日間の、送信の直後の電圧と判定（03 章 4 節の例の模型に、1 節の 100 µF を付けた機器）。電圧は 1 日に約 0.5 mV ずつ下がるが、気温で 1 日に約 0.04 V 上下する。(a) しきい値 1 つでは、寒い夜に LOW、暖かい昼に OK と、何十日も入れ替わる。(b) 2.45 V で LOW に入り、2.60 V を超えるまで戻らないようにし、3 回続いたときだけ変えると、変化は 1 回になる。")
 F["e04_hyst"] = _f04_hyst()
 
 def _f04_stop():
@@ -396,7 +404,8 @@ def _f04_stop():
 F["e04_stop"] = _f04_stop()
 
 # ---- 4 節: 残量の推定 ----
-_F04_LI = [(0, 3.30), (5, 3.45), (10, 3.55), (20, 3.62), (30, 3.67), (40, 3.71), (50, 3.76), (60, 3.82), (70, 3.89), (80, 3.96), (90, 4.05), (100, 4.18)]
+# 03 章の例のリチウムイオン電池の起電力（使った割合 → V）を、残量 % → V の表に直したもの
+_F04_LI = [(round(100 - 100 * x, 6), v) for x, v in reversed([(0, 4.18), (0.05, 4.08), (0.15, 3.98), (0.3, 3.87), (0.5, 3.76), (0.65, 3.70), (0.8, 3.60), (0.88, 3.50), (0.93, 3.38), (0.97, 3.20), (1.0, 3.00)])]
 def _f04_li_ocv(p):
     """例のリチウムイオン電池の、残量 p [%] での起電力 [V]（例の表）。"""
     for (a, va), (b, vb) in zip(_F04_LI, _F04_LI[1:]):
@@ -420,9 +429,9 @@ def _f04_coin_soc(v):
 def _f04_ocvfig():
     o = []
     # (a) リチウムイオン電池
-    o.append(T(14, 18, "(a) リチウムイオン電池（例の表）", "start", 11, INK, True))
-    p = Plot(70, 34, 250, 190, (0, 100), (3.2, 4.3))
-    o.append(p.axes(xt=[0, 20, 40, 60, 80, 100], yt=[3.2, 3.4, 3.6, 3.8, 4.0, 4.2], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%.1f" % v))
+    o.append(T(14, 18, "(a) リチウムイオン電池（03 章の例の模型）", "start", 11, INK, True))
+    p = Plot(70, 34, 250, 190, (0, 100), (3.0, 4.3))
+    o.append(p.axes(xt=[0, 20, 40, 60, 80, 100], yt=[3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%.1f" % v))
     o.append(T(p.x - 40, p.y + p.h / 2, "起電力 [V]", "middle", 9.5, MUT, rot=-90))
     o.append(T(p.x + p.w, p.y + p.h + 28, "残量 [%]", "end", 9.5, MUT))
     o.append(p.line([(q, _f04_li_ocv(q)) for q in range(0, 101)], c=GLD, lw=2.2))
@@ -430,18 +439,18 @@ def _f04_ocvfig():
     pa, pb = _f04_li_soc(v50 - 0.015), _f04_li_soc(v50 + 0.015)
     o.append(RECT(p.X(pa), p.y, p.X(pb) - p.X(pa), p.h, 0, SSOFT, "none", 0))
     o.append(RECT(p.x, p.Y(v50 + 0.015), p.w, p.Y(v50 - 0.015) - p.Y(v50 + 0.015), 0, SSOFT, "none", 0))
-    o.append(T(p.X(52), p.Y(3.25) + 0, "±15 mV → ±%.1f %%" % ((pb - pa) / 2), "start", 9.5, SIG, True, halo=True))
-    vl = v50 - 1.0 * 0.10
+    o.append(T(p.X(52), p.Y(3.08), "±15 mV → ±%.1f %%" % ((pb - pa) / 2), "start", 9.5, SIG, True, halo=True))
+    vl = v50 - 1.0 * 0.12
     pl = _f04_li_soc(vl)
     o.append(D(p.X(50), p.Y(vl), ALI, 3.6))
     o.append(ARR(p.X(50) - 4, p.Y(vl), p.X(pl) + 4, p.Y(vl), c=ALI, lw=1.3, head=6))
-    o.append(W(p.X(pl), p.Y(vl), p.X(pl), p.Y(3.2), c=ALI, lw=1, dash="3 3"))
+    o.append(W(p.X(pl), p.Y(vl), p.X(pl), p.Y(3.0), c=ALI, lw=1, dash="3 3"))
     o.append(T(p.X(pl) + 4, p.Y(vl) - 26, "1 A を流しながら測ると", "start", 9.5, ALI, True, halo=True))
     o.append(T(p.X(pl) + 4, p.Y(vl) - 13, "%.2f V → %.0f %% と読む" % (vl, pl), "start", 9.5, ALI, True, halo=True))
     # (b) コイン形
-    o.append(T(372, 18, "(b) コイン形（3 節の例の模型）", "start", 11, INK, True))
-    q = Plot(430, 34, 250, 190, (0, 100), (2.2, 3.1))
-    o.append(q.axes(xt=[0, 20, 40, 60, 80, 100], yt=[2.2, 2.4, 2.6, 2.8, 3.0], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%.1f" % v))
+    o.append(T(372, 18, "(b) コイン形（03 章の例の模型）", "start", 11, INK, True))
+    q = Plot(430, 34, 250, 190, (0, 100), (2.2, 3.3))
+    o.append(q.axes(xt=[0, 20, 40, 60, 80, 100], yt=[2.2, 2.4, 2.6, 2.8, 3.0, 3.2], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%.1f" % v))
     o.append(T(q.x - 40, q.y + q.h / 2, "電圧 [V]", "middle", 9.5, MUT, rot=-90))
     o.append(T(q.x + q.w, q.y + q.h + 28, "残量 [%]（220 mAh に対して）", "end", 9.5, MUT))
     o.append(q.line([(r, max(2.2, _f04_ocv(1 - r / 100.0))) for r in range(0, 101)], c=GLD, lw=2.2))
@@ -451,7 +460,7 @@ def _f04_ocvfig():
     o.append(RECT(q.X(min(ra, rb)), q.y, abs(q.X(rb) - q.X(ra)), q.h, 0, SSOFT, "none", 0))
     o.append(RECT(q.x, q.Y(vb + 0.015), q.w, q.Y(vb - 0.015) - q.Y(vb + 0.015), 0, SSOFT, "none", 0))
     o.append(T(q.X(36), q.Y(2.26), "±15 mV → ±%.0f %%" % (abs(rb - ra) / 2), "start", 9.5, SIG, True, halo=True))
-    o.append(T(q.X(72), q.Y(3.065), "休んでいるとき", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(q.X(72), q.Y(3.05), "休んでいるとき", "middle", 9.5, GLD, True, halo=True))
     vt = _f04_vop(0.3, 0)
     rt = _f04_coin_soc(vt)
     o.append(D(q.X(70), q.Y(vt), ALI, 3.6))
@@ -459,7 +468,7 @@ def _f04_ocvfig():
     o.append(T(q.X(98), q.Y(vt) + 16, "送信の直後（0 °C）", "end", 9.5, TEA, True, halo=True))
     o.append(T(q.X(rt) + 2, q.Y(vt) - 22, "本当は 70 % でも", "start", 9.5, ALI, True, halo=True))
     o.append(T(q.X(rt) + 2, q.Y(vt) - 9, "%.0f %% と読む" % rt, "start", 9.5, ALI, True, halo=True))
-    return SVG(700, 266, o, "電圧から残量を推定するときの誤差（例の値）。青の帯は、電圧の誤差 ±15 mV が残量の誤差になる幅で、放電曲線が平らな (b) では (a) の約 4 倍になる。電流を流しながら測ると、電圧は内部抵抗の分だけ低いので、休んでいるときの表で引くと少なく読める。")
+    return SVG(700, 266, o, "電圧から残量を推定するときの誤差（例の値）。青の帯は、電圧の誤差 ±15 mV が残量の誤差になる幅で、放電曲線が平らな (b) では (a) の 2 倍あまりになる。電流を流しながら測ると、電圧は内部抵抗の分だけ低いので、休んでいるときの表で引くと少なく読める。")
 F["e04_ocv"] = _f04_ocvfig()
 
 def _f04_cc():
@@ -497,7 +506,7 @@ def _f04_cc():
     o.append(q.line([(100, 100), (0, 0)], c=INK, lw=1.4))
     c2 = lambda r: 100 - 0.85 * (100 - r)
     o.append(q.line([(100, 100), (0, c2(0))], c=GLD, lw=1.8, dash="5 3"))
-    rl = 4.0
+    rl = 8.0
     comb = [(r, c2(r)) for r in range(100, int(rl), -1)] + [(rl, c2(rl)), (rl, 10.0), (0.4, 10.0), (0.4, 0.0), (0, 0)]
     o.append(q.line(comb, c=SIG, lw=2.2))
     o.append(T(q.X(0), q.Y(66), "破線: 数えただけ。", "end", 9.5, GLD, True, halo=True))
