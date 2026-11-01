@@ -68,11 +68,11 @@
       var ly=by+16+2*46+8;
       o.push(S.RECT(bx,ly-9,10,10,2,U.soft("gold"),"gold",1));o.push(S.T(bx+15,ly,"静止電流","start",9.5,"muted"));
       o.push(S.RECT(bx+80,ly-9,10,10,2,U.soft("signal"),"signal",1));o.push(S.T(bx+95,ly,"負荷の分","start",9.5,"muted"));
-      box.set(S.svg(W,nar?ly+14:250,o));
+      box.set(S.svg(W,nar?ly+14:262,o));
       var lifeL=C*1e-3/IL(T),lifeS=C*1e-3/IS(T),better=!ldoOk?"sw":(IS(T)<IL(T)?"sw":"ldo");
       var cs;
       if(!ldoOk)cs="LDO は、入力が出力 + V_do（0.2 V とした）より低いので使えない。";
-      else if(Tst)cs="I* = (I_q,S − I_q,L) ÷ (1 − k) = "+F.cur(Ist)+"、T* = (I_a − I_s) t_a ÷ (I* − I_s) = <b>"+F.time(Tst)+"</b>。T* より短い周期では"+(shortBetter==="sw"?"スイッチング電源":"LDO")+"、長い周期では"+(shortBetter==="sw"?"LDO":"スイッチング電源")+"が得。";
+      else if(Tst)cs="I* = (I_q,S − I_q,L) ÷ (1 − k) = "+F.cur(Ist)+"、T* = (I_a − I_s) t_a ÷ (I* − I_s) = <b>"+F.time(Tst)+"</b>。T* より短い周期では"+(shortBetter==="sw"?"スイッチング電源":" LDO ")+"、長い周期では"+(shortBetter==="sw"?" LDO ":"スイッチング電源")+"が得。";
       else if(k>=1&&d0>=0)cs="k ≥ 1 で静止電流も LDO のほうが小さいので、どの周期でも LDO が得。";
       else if(k<1&&d0<=0)cs="k < 1 で静止電流もスイッチング電源のほうが小さいので、どの周期でもスイッチング電源が得。";
       else if(Ist!==null&&Ist<=Is)cs="I* = "+F.cur(Ist)+" が眠りの電流 I_s 以下なので、周期をいくら延ばしてもスイッチング電源が得。";
@@ -221,7 +221,8 @@
       o.push(p.axes({xl:"時間 ["+un+"]",yl:"電源電圧 [V]",xt:U.nice(0,o_.tend*sc,5),yt:U.nice(lo,hi,5),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
       var hl=[[o_.Vb,"alias","V_BOR"],[o_.Vb+o_.Vh,"gold","V_BOR + V_hys"],[o_.E-o_.R*o_.Irst,"faint","E − R_in I_rst"],[o_.E-o_.R*o_.Irun,"faint","E − R_in I_run"]];
       hl.forEach(function(h,i){if(h[0]<lo||h[0]>hi)return;o.push(p.line([[0,h[0]],[o_.tend*sc,h[0]]],h[1],1.1,"5 3"));
-        o.push(S.T(p.x+p.w-4,p.Y(h[0])+(i%2?-4:12),h[2]+" "+_w05_v(h[0]),"end",9,h[1]==="faint"?"muted":h[1],false,false,null,true));});
+        var left=i>=2,dy=(i===0||i===3)?12:-4;
+        o.push(S.T(left?p.x+4:p.x+p.w-4,p.Y(h[0])+dy,h[2]+" "+_w05_v(h[0]),left?"start":"end",9,h[1]==="faint"?"muted":h[1],false,false,null,true));});
       o.push(p.line(r.tr.map(function(q){return [q[0]*sc,q[1]];}),"signal",1.6));
       /* 状態の帯 */
       var yb=p.y+p.h+38,prev=null,t0=0;

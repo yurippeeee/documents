@@ -129,7 +129,7 @@ def _f05_dropout():
     o = []
     p = Plot(78, 26, 330, 210, (2.8, 4.4), (2.4, 3.6))
     o.append(RECT(p.X(3.0), p.y, p.X(4.2) - p.X(3.0), p.h, 0, GOSOFT, "none", 0, op=0.55))
-    o.append(T(p.X(3.6), p.y + 14, "リチウムイオン電池の範囲（4.2〜3.0 V）", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(3.6), p.Y(2.45), "リチウムイオン電池の範囲（4.2〜3.0 V）", "middle", 9.5, GLD, True, halo=True))
     o.append(p.axes(xl="入力の電圧（電池の電圧）[V]", yl="出力の電圧 [V]", xt=[2.8, 3.2, 3.6, 4.0, 4.4], yt=[2.4, 2.7, 3.0, 3.3, 3.6],
                     xfmt=lambda v: "%.1f" % v, yfmt=lambda v: "%.1f" % v))
     xs = [2.8 + 0.01 * k for k in range(161)]
@@ -140,7 +140,7 @@ def _f05_dropout():
     o.append(T(p.X(4.38), p.Y(3.3) - 7, "昇降圧（3.3 V）", "end", 9.5, GRN, True, halo=True))
     o.append(T(p.X(4.38), p.Y(3.3) + 15, "LDO 3.3 V", "end", 9.5, SIG, True, halo=True))
     o.append(T(p.X(4.38), p.Y(3.0) + 15, "LDO 3.0 V", "end", 9.5, TEA, True, halo=True))
-    o.append(T(p.X(2.84), p.Y(2.66) - 4, "出力 = 入力 − 0.2 V", "start", 9, MUT, halo=True))
+    o.append(T(p.X(3.66), p.Y(3.47), "出力 = 入力 − 0.2 V", "start", 9, MUT, halo=True))
     for vx, vy, c in ((3.5, 3.3, SIG), (3.2, 3.0, TEA)):
         o.append(D(p.X(vx), p.Y(vy), c, 4))
         o.append(W(p.X(vx), p.Y(vy), p.X(vx), p.Y(2.4), c=c, lw=1, dash="3 3"))
@@ -212,7 +212,7 @@ def _f05_avg():
     o.append(T(p.X(0.2) + 4, p.Y(il(0.2)) - 8, "LDO", "start", 10, SIG, True, halo=True))
     o.append(T(p.X(0.13), p.Y(isw(0.13)) + 16, "スイッチング電源", "start", 10, GRN, True, halo=True))
     o.append(T(p.X(990), p.Y(3.0) + 13, "LDO の下限 3 µA（眠り 2 + 静止 1）", "end", 9, SIG, halo=True))
-    o.append(T(p.X(990), p.Y(k * 2 + 10) - 6, "スイッチング電源の下限 11.1 µA", "end", 9, GRN, halo=True))
+    o.append(T(p.X(990), p.Y(k * 2 + 10) + 13, "スイッチング電源の下限 11.1 µA", "end", 9, GRN, halo=True))
     ts = qa / ((_F05_IQS - _F05_IQL) / (1 - k) - _F05_IS)
     o.append(W(p.X(ts), p.Y(1), p.X(ts), p.Y(il(ts)), c=ALI, lw=1.1, dash="3 3"))
     o.append(D(p.X(ts), p.Y(il(ts)), ALI, 4.2))
@@ -249,7 +249,6 @@ def _f05_loadsw():
     yr, yg = 62, 196
     # 電池と内部抵抗
     o.append(_f05_batv(40, yr, yg, GLD))
-    o.append(T(18, 134, "CR2032", "end", 9.5, GLD, True) if False else "")
     o.append(T(58, 120, "電池", "start", 10, GLD, True))
     o.append(_f05_m(58, 136, [("E", None, True), (" 3.0 V", None, False)], "start", 10, GLD))
     o.append(W(40, yr, 64, yr, c=INK, lw=1.5) + _f05_resh(64, 112, yr, c=INK) + W(112, yr, 150, yr, c=INK, lw=1.5))
@@ -258,14 +257,14 @@ def _f05_loadsw():
     o.append(W(150, yr, 360, yr, c=SIG, lw=2))
     o.append(D(162, yr, INK, 2.6) + _f05_capv(162, yr, yg, c=SIG))
     o.append(_f05_m(174, 138, [("C", "A", True), (" 10 µF", None, False)], "start", 10, SIG))
-    o.append(W(262, yr, 262, 96, c=SIG, lw=1.6))
-    o.append(BOX(214, 96, 96, 50, "マイコン", "3 mA で動く", SIG, SSOFT, SIG, sz=11, ssz=9.5))
+    o.append(W(282, yr, 282, 96, c=SIG, lw=1.6))
+    o.append(BOX(240, 96, 84, 50, "マイコン", "3 mA で動く", SIG, SSOFT, SIG, sz=11, ssz=9.5))
     o.append(_f05_m(214, yr - 12, [("V", "A", True), ("（マイコンの側）", None, False)], "start", 10, SIG, True))
     # 負荷スイッチ
     o.append(RECT(360, yr - 20, 92, 40, 7, PAN, PUR, 1.5))
     o.append(T(406, yr + 5, "負荷スイッチ", "middle", 10.5, PUR, True))
-    o.append(W(310, 128, 406, 128, 406, yr + 20, c=SIG, lw=1.3, dash="5 3"))
-    o.append(T(358, 122, "GPIO", "middle", 9.5, SIG))
+    o.append(W(324, 128, 406, 128, 406, yr + 20, c=SIG, lw=1.3, dash="5 3"))
+    o.append(T(364, 122, "GPIO", "middle", 9.5, SIG))
     o.append(T(412, 108, "EN", "start", 9.5, PUR, True))
     # 周辺の側
     o.append(W(452, yr, 660, yr, c=PUR, lw=2))
@@ -278,8 +277,7 @@ def _f05_loadsw():
     o.append(W(40, yg, 660, yg, c=MUT, lw=1.4) + _f05_gnd(350, yg))
     # 突入電流の矢印
     o.append(ARR(460, yr + 14, 478, yr + 14, c=ALI, lw=1.6, head=6) + W(478, yr + 14, 478, yr + 40, c=ALI, lw=1.6))
-    o.append(ARR(478, yr + 40, 478, 100, c=ALI, lw=1.6, head=6))
-    o.append(T(470, 236 - 14, "入れた瞬間: 空の C_L を充電する突入電流が、電池と C_A から流れる", "start", 9.5, ALI, True) if False else "")
+    o.append(ARR(478, yr + 40, 478, 120, c=ALI, lw=1.6, head=6))
     o.append(T(14, 226, "切っている間: 周辺の電流は 0（周辺の眠りの電流も切れる）。", "start", 10, MUT))
     o.append(T(14, 243, "入れた瞬間: 空の C_L を充電する電流（突入電流）が、電池と C_A から流れ込む。", "start", 10, ALI, True))
     return SVG(700, 254, o, "負荷スイッチで周辺の電源を入れ切りする回路（値は 3 節の例）。マイコンは GPIO で負荷スイッチの EN を操作する。周辺の入口のコンデンサ C_L は、切っている間に空になり、入れた瞬間に大きな電流で充電される。")
@@ -332,7 +330,8 @@ def _f05_inrush():
             o.append(T(pv.X(tmin) + 8, pv.Y(vmin) + 4, "最低 %.2f V（%.1f ms 下回る）→ リセット" % (vmin, below), "start", 9.5, ALI, True, halo=True))
             o.append(T(pi.X(0) + 8, pi.y + 12, "↑ スイッチの電流のピークは約 30 A（軸の外）", "start", 9, PUR, True, halo=True))
         else:
-            o.append(T(pv.X(tmin) + 2, pv.Y(vmin) + 16, "最低 %.2f V（リセットしない）" % vmin, "middle", 9.5, GRN, True, halo=True))
+            o.append(T(pv.X(0.95), pv.Y(1.55), "マイコンの側の最低 %.2f V" % vmin, "start", 9.5, GRN, True, halo=True))
+            o.append(T(pv.X(0.95), pv.Y(1.55) + 13, "（V_min を割らない）", "start", 9.5, GRN, True, halo=True))
             o.append(T(pi.X(0.5), pi.Y(30) - 6, "突入電流 30 mA", "middle", 9, PUR, True, halo=True))
     yl = 338
     o.append(LEGEND(14, yl, [(SIG, "マイコンの側の電圧 V_A"), (PUR, "周辺の側の電圧 V_B・スイッチの電流"), (GLD, "電池の電流")], gap=12))
@@ -362,7 +361,7 @@ def _f05_bfpanel(o, x0, bad):
     o.append(W(x0 + 249, 60, x0 + 249, yv, c=PUR, lw=1.6) + W(x0 + 196, yv, x0 + 300, yv, c=PUR, lw=1.6))
     o.append(T(x0 + 300, yv - 6, "電源の線", "end", 9, PUR))
     o.append(W(x0 + 160, pin_y, x0 + 210, pin_y, c=ALI if bad else MUT, lw=1.6))
-    o.append(W(x0 + 210, pin_y, x0 + 210, 136, c=ALI if bad else MUT, lw=1.4) + _f05_diode_up(x0 + 210, 113, ALI if bad else MUT) + W(x0 + 210, 113, x0 + 210, yv, c=ALI if bad else MUT, lw=1.4))
+    o.append(W(x0 + 210, pin_y, x0 + 210, 124, c=ALI if bad else MUT, lw=1.4) + _f05_diode_up(x0 + 210, 113, ALI if bad else MUT) + W(x0 + 210, 113, x0 + 210, yv, c=ALI if bad else MUT, lw=1.4))
     o.append(T(x0 + 216, 151, "保護ダイオード", "start", 9, MUT))
     o.append(BOX(x0 + 252, 110, 56, 32, "回路", None, PUR, PSOFT, PUR, sz=10))
     o.append(W(x0 + 280, yv, x0 + 280, 110, c=PUR, lw=1.4))
@@ -468,10 +467,9 @@ def _f05_porbor():
     ta1 = -tau * math.log(1 - 1.5 / 3.0); ta2 = -tau * math.log(1 - 2.1 / 3.0); tr = ta2 + 2.0
     pts = [(t / 50.0 * 10, 3.0 * (1 - math.exp(-(t / 50.0 * 10) / tau))) for t in range(51)]
     o.append(pa.line([(t, max(v, 1.2)) for t, v in pts if v >= 1.2], c=SIG, lw=2.2))
-    o.append(T(pa.X(ta1) + 4, pa.Y(1.25), "0 V から", "start", 9, SIG, halo=True))
     o.append(D(pa.X(ta2), pa.Y(2.1), GLD, 3.6))
-    o.append(DIM(pa.X(ta2), pa.Y(2.62), pa.X(tr), pa.Y(2.62), None, c=GLD))
-    o.append(_f05_m(pa.X(ta2) + 2, pa.Y(2.62) - 6, [("t", "POR", True)], "start", 9.5, GLD, True))
+    o.append(DIM(pa.X(ta2), pa.Y(1.33), pa.X(tr), pa.Y(1.33), None, c=GLD))
+    o.append(_f05_m(pa.X(ta2) + 4, pa.Y(1.33) - 5, [("t", "POR", True)], "start", 9.5, GLD, True))
     o.append(W(pa.X(tr), pa.Y(1.2), pa.X(tr), pa.Y(3.2), c=GRN, lw=1, dash="2 3"))
     o.append(T(pa.X(tr) + 3, pa.Y(1.7), "実行を", "start", 9, GRN, True, halo=True))
     o.append(T(pa.X(tr) + 3, pa.Y(1.7) + 12, "始める", "start", 9, GRN, True, halo=True))
@@ -494,17 +492,18 @@ def _f05_porbor():
     o.append(T(pc.X(tc_min) - 3, pc.Y(2.85), "BOR が無いと、ここで", "end", 9, ALI, True, halo=True))
     o.append(T(pc.X(tc_min) - 3, pc.Y(2.85) + 12, "CPU が動き続ける", "end", 9, ALI, True, halo=True))
     # しきい値の名前（(c) の左下）
+    names = {1.5: [("V", "POR", True), (" 1.5 V", None, False)], 1.8: [("V", "min", True), (" 1.8 V", None, False)],
+             2.0: [("V", "BOR", True), (" 2.0 V", None, False)], 2.1: [("V", "BOR", True), (" + ", None, False), ("V", "hys", True), (" 2.1 V", None, False)]}
     for v, lab, c in _F05_LV:
         dy = -4 if v == 2.1 else 11
-        o.append(_f05_m(pc.X(0.8), pc.Y(v) + dy, [(lab.split(" ")[0][0], lab.split(" ")[0][2:] if "_" in lab.split(" ")[0] else None, True),
-                                                  (lab[len(lab.split(" ")[0]):], None, False)], "start", 9, c, True))
+        o.append(_f05_m(pc.X(0.8), pc.Y(v) + dy, names[v], "start", 9, c, True))
     # リセットの帯
     yb = 268
     _f05_rbar(o, pa, [(0, tr, "rst"), (tr, 10, "run")], yb, 10)
     _f05_rbar(o, pb, [(0, tb1, "run"), (tb1, tb2 + 2.0, "rst"), (tb2 + 2.0, 20, "run")], yb, 20)
     _f05_rbar(o, pc, [(0, tc_bor, "run"), (tc_bor, 60, "rst")], yb, 60)
     o.append(T(14, yb + 12, "BOR あり", "start", 9.5, INK, True))
-    return SVG(700, yb + 26, o, "POR と BOR の働き（しきい値と時間は例の値。待ち時間の働き方の細部は製品による）。(a) 電源を入れると、しきい値を超えてから t_POR 待って実行を始める。(b) V_BOR を割らない落ち込みでは何も起きず、割るとリセットされ、V_BOR + V_hys を超えてから再び動く。(c) 電源が途切れると BOR でリセットされる。BOR が無いと、V_min を割ってから V_POR に届くまで CPU が動き続ける（赤い帯）。")
+    return SVG(700, yb + 26, o, "POR と BOR の働き（しきい値と時間は例の値。待ち時間の働き方の細部は製品による。縦軸は 1.2 V から）。(a) 電源を入れると、しきい値を超えてから t_POR 待って実行を始める。(b) V_BOR を割らない落ち込みでは何も起きず、割るとリセットされ、V_BOR + V_hys を超えてから再び動く。(c) 電源が途切れると BOR でリセットされる。BOR が無いと、V_min を割ってから V_POR に届くまで CPU が動き続ける（赤い帯）。")
 F["e05_porbor"] = _f05_porbor()
 
 def _f05_borsim(E, Rin, C, Irun, Irst, Vbor, Vhys, tpor, tend, dt=1e-5, backoff=False, tboot=1e-3, Islp=2e-6, b0=0.05, every=10):
@@ -572,7 +571,6 @@ def _f05_loop():
         o.append(T(p.x + p.w + 10, p.y + 48, "平均 %.2f mA" % (iav * 1e3) if iav > 1e-3 else "平均 %.2f mA" % (iav * 1e3), "start", 10, INK, True))
         o.append(T(p.x + p.w + 10, p.y + 66, "（%g 秒の平均）" % tend if tend >= 1 else "（0.1 秒の平均）", "start", 9, MUT))
         y0 = yb + 34
-    o.append(T(p.X(0) + 2, 52, "V_BOR + V_hys", "start", 9, GLD, halo=True) if False else "")
     yl = y0 - 4
     o.append(LEGEND(14, yl, [(ALI, "リセット（V_BOR 2.2 V を割ってから、2.3 V を超えて 2 ms まで）"), (SIG, "動く（3 mA）"), (GRN, "眠る（2 µA）")], gap=12))
     o.append(T(14, yl + 18, "使い終わりに近い CR2032 を寒い所で（起電力 2.45 V・内部抵抗 100 Ω）、電源の線に 100 µF、リセット中 0.1 mA（例の値）。", "start", 9.5, MUT))
@@ -601,7 +599,7 @@ def _f05_borsel():
         o.append(W(p.X(x), p.Y(v), p.X(x), p.Y(1.6), c=c, lw=1, dash="3 3"))
         o.append(D(p.X(x), p.Y(v), c, 3.6))
         o.append(T(p.X(x) - 4, p.Y(v) - 5, "%.0f %%" % x, "end", 9.5, c, True, halo=True))
-        o.append(T(p.X(1), p.Y(v) + (11 if v != 1.8 else -4), "%.1f V" % v, "start", 9, c, True, halo=True))
+        o.append(T(p.X(1), p.Y(v) + (11 if v in (2.2, 2.0) else -4), "%.1f V" % v, "start", 9, c, True, halo=True))
     o.append(T(p.X(40), p.Y(1.75) + 13, "V_min 1.8 V の前後 ±0.05 V", "middle", 9, ALI, halo=True))
     # 右: 判定
     bx = 470
@@ -627,6 +625,8 @@ def _f05_levels():
     X = lambda v: x0 + (v - v0) / (v1 - v0) * (x1 - x0)
     rows = [("センサを使う", "2.4 V で動く + 余裕", 2.5, PUR), ("無線で送る", "送信の間の低下を見込む", 2.4, GLD), ("フラッシュメモリに書く", "警告より上で始める", 2.35, SIG)]
     y0, rh = 40, 46
+    for v, c in ((2.3, GLD), (2.0, ALI), (1.8, PUR)):
+        o.append(W(X(v), y0 - 4, X(v), y0 + 5 * rh + 26, c=c, lw=1.3, dash="5 3"))
     for i, (nm, sub, st, c) in enumerate(rows):
         y = y0 + i * rh
         o.append(T(14, y + 12, nm, "start", 10.5, c, True))
@@ -634,7 +634,7 @@ def _f05_levels():
         o.append(RECT(X(st + 0.1), y + 2, X(3.25) - X(st + 0.1), 22, 3, GSOFT, GRN, 1))
         o.append(RECT(X(st), y + 2, X(st + 0.1) - X(st), 22, 3, "none", GRN, 1.1, dash="3 2"))
         o.append(T(X(st + 0.1) + 6, y + 17, "始めてよい", "start", 9.5, GRN, True))
-        o.append(T(X(st) - 4, y + 17, "%.2f V で止める" % st if st == 2.35 else "%.1f V で止める" % st, "end", 9.5, c, True))
+        o.append(T(X(st) - 4, y + 17, "%.2f V で止める" % st if st == 2.35 else "%.1f V で止める" % st, "end", 9.5, c, True, halo=True))
         o.append(T(X(3.25) - 4, y + 17, "%.2f V で戻す" % (st + 0.1) if st == 2.35 else "%.1f V で戻す" % (st + 0.1), "end", 9, GRN))
     yw = y0 + 3 * rh
     o.append(T(14, yw + 12, "電圧検出器の警告", "start", 10.5, GLD, True))
@@ -645,12 +645,10 @@ def _f05_levels():
     o.append(T(14, yb + 27, "ここでリセット", "start", 9, MUT))
     o.append(T(X(2.0) - 4, yb + 17, "2.0 V", "end", 9.5, ALI, True))
     o.append(RECT(X(2.0), yb + 6, X(2.1) - X(2.0), 14, 2, "none", ALI, 1, dash="3 2"))
-    o.append(T(X(2.1) + 4, yb + 17, "2.1 V を超えると解ける", "start", 9, ALI))
+    o.append(T(X(2.1) + 4, yb + 17, "2.1 V を超えると解ける", "start", 9, ALI, halo=True))
     ym = yb + rh
     o.append(T(14, ym + 12, "マイコンが正しく動く最低", "start", 10.5, PUR, True))
     o.append(T(X(1.8) - 4, ym + 17, "1.8 V", "end", 9.5, PUR, True))
-    for v, c in ((2.3, GLD), (2.0, ALI), (1.8, PUR)):
-        o.append(W(X(v), y0 - 4, X(v), ym + 26, c=c, lw=1.3, dash="5 3"))
     ya = ym + 40
     o.append(W(x0, ya, x1, ya, c=MUT, lw=1))
     for k in range(8):
@@ -679,7 +677,7 @@ def _f05_gap():
     o.append(p.line(vb, c=GRN, lw=2.2))
     o.append(D(p.X(ta), p.Y(2.0), ALI, 4) + D(p.X(tw), p.Y(2.3), GRN, 4))
     o.append(T(p.X(ta) - 4, p.Y(2.0) + 16, "(a) 26.7 ms で BOR", "end", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(tw) - 6, p.Y(2.3) - 8, "(b) 16.7 ms で警告", "end", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(tw) - 6, p.Y(2.3) + 16, "(b) 16.7 ms で警告", "end", 9.5, GRN, True, halo=True))
     o.append(T(p.X(31), p.Y(2.26) + 4, "(b) 2.26 V で戻る", "start", 9.5, GRN, True, halo=True))
     # 右: 説明
     bx = 572
