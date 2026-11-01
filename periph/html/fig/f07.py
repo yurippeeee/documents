@@ -64,6 +64,15 @@ def _f07_q(v, d=3):
     s = ("%.*f" % (d, v)).rstrip("0").rstrip(".")
     return s
 
+def _f07_legm(x, y, items, sz=10, gap=16):
+    """凡例（文字に添字を使える）。items = [(色, parts), ...]、parts は _f07_m と同じ形。"""
+    o, xx = [], x
+    for c, parts in items:
+        o.append(RECT(xx, y - sz + 1, sz, sz, 2, soft(c), c, 1.2))
+        o.append(_f07_m(xx + sz + 5, y, parts, "start", sz, MUT))
+        xx += sz + 5 + sum(tw(a, sz) + (tw(b, sz * 0.72) if b else 0) for a, b, _ in parts) + gap
+    return "".join(o)
+
 # ---- 例の値（本文と同じ） ----
 _F07_IRUN = 3e-3
 # (名前, 眠りの電流 [A], 起床時間 [s], 色)
@@ -332,7 +341,8 @@ def _f07_pullr():
     o.append(T(p.X(4e4) + 8, p.Y(7.5e-5) - 6, "内蔵 40 kΩ: 75 µA", "start", 9.5, GLD, True, halo=True))
     o.append(D(p.X(6e5), p.Y(5e-6), ALI, 4.5))
     o.append(T(p.X(6e5) - 8, p.Y(5e-6) - 8, "上限 600 kΩ: 5 µA", "end", 9.5, ALI, True, halo=True))
-    o.append(T(14, 292, "V_DD = 3.0 V、漏れ電流 1 µA、V_IH = 2.1 V、余裕 0.3 V の例。", "start", 9, MUT))
+    o.append(_f07_m(14, 292, [("V", "DD", True), (" = 3.0 V、", None, False), ("I", "lk", True), (" = 1 µA、", None, False),
+                              ("V", "IH", True), (" = 2.1 V、", None, False), ("V", "mg", True), (" = 0.3 V の例", None, False)], "start", 9, MUT))
     # (b) 読み方による平均の電流
     o.append(T(392, 18, "(b) 閉じている間の電流（平均）", "start", 11, INK, True))
     rows = [("内蔵 40 kΩ のまま", "75 µA", 75e-6, ALI), ("外付けの 560 kΩ", "5.4 µA", 3.0 / 560e3, GLD),
@@ -575,11 +585,11 @@ def _f07_breakeven():
     for i, (nm, I, tw_, c) in enumerate(_F07_ST):
         q = lambda t: (I * t + _f07_qw(i)) * 1e6
         o.append(p.line([(t, q(t)) for t in ts if 1e-3 <= q(t) <= 1e5], c=c, lw=2.2))
-    for t, lab in ((t12, "t_be ≈ 115 µs"), (t23, "t_be ≈ 3.7 s")):
+    for t, lab in ((t12, " ≈ 115 µs"), (t23, " ≈ 3.7 s")):
         q = (_F07_ST[1][1] * t + _f07_qw(1)) * 1e6
         o.append(W(p.X(t), p.Y(1e-3), p.X(t), p.Y(q), c=ALI, lw=1.2, dash="3 3"))
         o.append(D(p.X(t), p.Y(q), ALI, 4.5))
-        o.append(T(p.X(t) + 6, p.Y(q) - 8, lab, "start", 9.5, ALI, True, halo=True))
+        o.append(_f07_m(p.X(t) + 6, p.Y(q) - 8, [("t", "be", True), (lab, None, False)], "start", 9.5, ALI, True))
     o.append(T(p.X(1.5e-6), p.Y(2.2e-3) - 4, "軽い眠りが得", "start", 9, SIG, True, halo=True))
     o.append(T(p.X(3e-3), p.Y(2.2e-3) - 4, "深い眠りが得", "start", 9, TEA, True, halo=True))
     o.append(T(p.X(12), p.Y(2.2e-3) - 4, "最も深い", "start", 9, PUR, True, halo=True))
@@ -592,11 +602,11 @@ F["e07_breakeven"] = _f07_breakeven()
 # ---- 5 節: ドアの開閉センサの平均電流 ----
 def _f07_door():
     o = []
-    cases = [("60 s ごと（Q_task = 42.0 µC）", 60.0, 42.0e-6), ("1 s ごと（Q_task = 0.1 µC）", 1.0, 0.1e-6)]
+    cases = [("60 s ごと", " = 42.0 µC）", 60.0, 42.0e-6), ("1 s ごと", " = 0.1 µC）", 1.0, 0.1e-6)]
     xb, sc = 200, 62.0                       # px/µA
     y = 26
-    for title, T_, qt in cases:
-        o.append(T(14, y, title, "start", 11, INK, True))
+    for title, qv, T_, qt in cases:
+        o.append(_f07_m(14, y, [(title + "（", None, False), ("Q", "task", True), (qv, None, False)], "start", 11, INK, True))
         y += 10
         vals = []
         for i in (1, 2):
@@ -619,7 +629,9 @@ def _f07_door():
         o.append(W(xb + v * sc, y - 8, xb + v * sc, y - 4, c=MUT, lw=1))
         o.append(T(xb + v * sc, y + 8, "%d" % v, "middle", 9, MUT))
     o.append(T(xb + 7 * sc + 8, y + 8, "µA", "start", 9, MUT))
-    o.append(LEGEND(14, y + 30, [(GRN, "眠りの電流 I_s,m"), (SIG, "仕事の上乗せ Q_task ÷ T"), (ALI, "起床の電荷 Q_w,m ÷ T")], gap=14))
+    o.append(_f07_legm(14, y + 30, [(GRN, [("眠りの電流 ", None, False), ("I", "s,m", True)]),
+                                    (SIG, [("仕事の上乗せ ", None, False), ("Q", "task", True), (" ÷ ", None, False), ("T", None, True)]),
+                                    (ALI, [("起床の電荷 ", None, False), ("Q", "w,m", True), (" ÷ ", None, False), ("T", None, True)])], gap=14))
     o.append(T(14, y + 50, "60 s ごとの場合の電池寿命（CR2032、自己放電 0.25 µA を足す）: 深い眠り 8.5 年、最も深い眠り 17.3 年。", "start", 9.5, MUT))
     return SVG(700, y + 60, o, "ドアの開閉センサの平均電流の内訳（例の値）。60 s ごとに起きるなら、最も深い眠りの起床の電荷 6.0 µC を払っても、眠りの電流が小さいほうが効く。1 s ごとに起きるなら、起床の電荷が 1 秒に 6.0 µA 分になり、深い眠りのほうが得になる。")
 F["e07_door"] = _f07_door()
@@ -656,14 +668,17 @@ def _f07_meter():
         V = E - Ipk * (Rin + R)
         yb, hb = 126, 70
         Yv = lambda v: yb + hb - (v - 1.5) / 1.5 * hb
-        o.append(T(x, yb - 6, "送信 10 mA の間の機器の電圧", "start", 9, MUT))
-        o.append(W(x + 10, yb, x + 10, yb + hb, x + 200, yb + hb, c=MUT, lw=1))
+        o.append(T(x, yb - 8, "送信 10 mA の間の機器の電圧 [V]", "start", 9, MUT))
+        o.append(W(x + 30, yb, x + 30, yb + hb, x + 205, yb + hb, c=MUT, lw=1))
+        for v in (1.5, 2.0, 2.5, 3.0):
+            o.append(W(x + 26, Yv(v), x + 30, Yv(v), c=MUT, lw=1))
+            o.append(T(x + 24, Yv(v) + 3, "%.1f" % v, "end", 8.5, MUT))
         ok = V >= Vbor
         c = GRN if ok else ALI
-        o.append(RECT(x + 40, Yv(V), 60, yb + hb - Yv(V), 2, soft(c), c, 1.1))
-        o.append(T(x + 106, Yv(V) + 4, "%s V" % _f07_q(V, 2), "start", 10, c, True))
-        o.append(W(x + 10, Yv(Vbor), x + 200, Yv(Vbor), c=ALI, lw=1.2, dash="4 3"))
-        o.append(T(x + 198, Yv(Vbor) - 4, "BOR 2.2 V", "end", 8.5, ALI, True, halo=True))
+        o.append(RECT(x + 50, Yv(V), 56, yb + hb - Yv(V), 2, soft(c), c, 1.1))
+        o.append(T(x + 112, Yv(V) + 4, "%s V" % _f07_q(V, 2), "start", 10, c, True, halo=True))
+        o.append(W(x + 30, Yv(Vbor), x + 205, Yv(Vbor), c=ALI, lw=1.2, dash="4 3"))
+        o.append(T(x + 204, Yv(Vbor) - 4, "BOR 2.2 V", "end", 8.5, ALI, True, halo=True))
         lines = {0: ["1 V 下がり、リセットする"], 1: ["送信はできるが、眠りの 2 µA は", "3.6 µV にしかならず、0 と表示"],
                  2: ["1 本では、眠りと送信の両方は", "測れない（次の図）"]}[k]
         for j, l in enumerate(lines):
@@ -717,7 +732,7 @@ def _f07_window():
     o.append(T(x0 - 6, yb - 3, "2 µA", "end", 9, GRN))
     for t in range(30, 331, 60):
         o.append(W(x0 + t * sx, yb - 6, x0 + t * sx, yb - 58, c=SIG, lw=2))
-    o.append(T(x0 + 30 * sx + 6, yb - 50, "起床（7 ms で 42 µC の上乗せ）", "start", 9, SIG, True, halo=True))
+    o.append(T(x0 + 210 * sx + 6, yb - 46, "起床（7 ms で 42 µC の上乗せ）", "start", 9, SIG, True, halo=True))
     for (ta, lab, c) in ((95.0, "入らない → 2.0 µA", ALI), (145.0, "入る → 6.2 µA", ALI)):
         o.append(RECT(x0 + ta * sx, yb - 34, 10 * sx, 28, 2, ASOFT, ALI, 1.0, op=0.8))
         o.append(T(x0 + ta * sx + 9, yb - 38, lab, "middle", 9, c, True, halo=True))
@@ -739,5 +754,5 @@ def _f07_window():
     o.append(W(p.X(311), p.y, p.X(311), p.y + p.h, c=SIG, lw=1.2, dash="3 3"))
     o.append(T(p.X(311) + 4, p.y + 14, "311 s: 誤差 5 % 以下", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(60) + 4, p.Y(6.2), "60 s の整数倍では幅が 0", "start", 9, MUT, False, halo=True))
-    return SVG(700, 380, o, "平均をとる時間による、平均の読みの違い（深い眠りのドアの開閉センサ。眠り 2 µA、60 s ごとに 42 µC）。(a) 10 s の平均は、起床が入るかどうかで 2.0 µA か 6.2 µA になる。(b) 誤差は Q_e/W より小さく、周期のちょうど整数倍の時間なら 0 になる。")
+    return SVG(700, 380, o, "平均をとる時間による、平均の読みの違い（深い眠りのドアの開閉センサ。眠り 2 µA、60 s ごとに 42 µC）。(a) 10 s の平均は、起床が入るかどうかで 2.0 µA か 6.2 µA になる。(b) 誤差は、1 回の上乗せの電荷 ÷ 平均をとる時間より小さく、周期のちょうど整数倍の時間なら 0 になる。")
 F["e07_window"] = _f07_window()
