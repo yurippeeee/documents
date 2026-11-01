@@ -414,7 +414,7 @@ def _f12_lowhigh():
     xl = 190
     o.append(W(xl - 40, 44, xl + 40, 44, c=GLD, lw=2.2) + T(xl + 46, 48, "+12 V", "start", 10, GLD, True))
     o.append(W(xl, 44, xl, 60, c=INK, lw=1.5))
-    o.append(BOX(xl - 52, 58, 104, 46, "負荷", "切っても両端 12 V", PUR, PSOFT, PUR, sz=11, ssz=9, sc=ALI))
+    o.append(BOX(xl - 52, 58, 104, 46, "負荷", "切っても端子は 12 V", PUR, PSOFT, PUR, sz=11, ssz=9, sc=ALI))
     o.append(W(xl, 104, xl, 138, c=INK, lw=1.5))
     o.append(D(xl, 120, INK, 2.6))
     o.append(_f12_fet(xl, 160, "N", SIG))
@@ -563,8 +563,8 @@ def _f12_coil():
     o.append(T(66 + 24, 34, "12 V", "start", 9.5, GLD, True))
     o.append(T(86, 66, "R", "start", 9.5, PUR, True) + T(86, 98, "L", "start", 9.5, PUR, True))
     o.append(T(46, 84, "コイル", "end", 9, PUR, True))
-    o.append(T(104, yd + 66, "配線などの", "middle", 9, MUT) + T(104, yd + 78, "容量 C", "middle", 9, MUT))
-    o.append(T(60, yd - 4, "ドレイン", "end", 9, INK))
+    o.append(T(104, yd + 82, "配線などの", "middle", 9, MUT) + T(104, yd + 94, "容量 C", "middle", 9, MUT))
+    o.append(T(58, yd + 10, "ドレイン", "end", 9, INK))
     # (a) 入れたとき
     p = Plot(212, 36, 200, 150, (0, 6), (0, 35))
     o.append(T(176, 20, "(a) 入れたときの電流", "start", 11, INK, True))
@@ -759,7 +759,7 @@ def _f12_hold():
     # 右: 電力と電流
     xb = 520
     o.append(T(xb - 30, 20, "入れ続けたときと保持", "start", 11, INK, True))
-    bars = [("コイルの電力", 360.0, 90.0, "mW"), ("電源の電流", 30.0, 7.9, "mA")]
+    bars = [("コイルの電力", 360.0, 90.0, "mW"), ("電源の電流", 30.0, 8.0, "mA")]
     for k, (nm, a, b, u) in enumerate(bars):
         y = 50 + k * 80
         o.append(T(xb - 30, y, nm, "start", 10, INK, True))
@@ -768,7 +768,7 @@ def _f12_hold():
             ww = 120 * v / a
             o.append(RECT(xb, yy, ww, 16, 2, soft(c), c, 1.1))
             o.append(T(xb - 4, yy + 12, lab, "end", 9, MUT))
-            o.append(T(xb + ww + 6, yy + 12, "%g %s" % (v, u), "start", 9.5, c, True))
+            o.append(T(xb + ww + 6, yy + 12, ("%.1f %s" % (v, u)) if v < 10 else ("%g %s" % (v, u)), "start", 9.5, c, True))
     # 下: 周波数と揺れ
     for k, (f, lab) in enumerate(((1e3, "1 kHz: 揺れ 7.8 mA"), (20e3, "20 kHz: 揺れ 0.4 mA"))):
         q = Plot(70 + k * 330, 268, 270, 70, (0, 2.0), (5, 25))
