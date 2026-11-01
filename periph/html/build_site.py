@@ -24,7 +24,6 @@ CHAPTERS = sorted((m.group(1), fn) for fn in os.listdir(SRC)
                   for m in [re.match(r"^(\d\d)_.*\.md$", fn)] if m and m.group(1) != "00")
 # まだ書き上がっていない章: 原稿があっても本文を出さず、「準備中」のページにする（他の章からのリンクを切らないため）
 PENDING = {
-    "15": "15. 異常に備える — リセット中のピン・電源の揺れ・ウォッチドッグ・安全な停止",
     "16": "16. 条件別の設計ガイド — 電池・USB・AC・車載・屋外",
 }
 if os.environ.get("PERIPH_SHOW_PENDING"):   # 書きかけの章を隔離ビルドで確かめるとき
