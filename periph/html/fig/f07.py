@@ -297,8 +297,7 @@ def _f07_float():
     o.append(p.line(pts, c=ALI, lw=2.2))
     o.append(T(p.X(0.45), p.Y(88), "L と読む", "middle", 9, MUT, True))
     o.append(T(p.X(2.55), p.Y(88), "H と読む", "middle", 9, MUT, True))
-    o.append(T(p.X(1.5), p.Y(108), "決まらない", "middle", 9, ALI, True))
-    o.append(T(p.X(0.9), p.y + p.h + 44, "", "middle", 9, MUT))
+    o.append(T(p.X(1.5), p.Y(6), "決まらない", "middle", 9, ALI, True, halo=True))
     # (c) 浮いた入力の電圧のふらつき
     o.append(T(480, 20, "(c) 浮いた入力の電圧（例）", "start", 11, INK, True))
     q = Plot(510, 40, 175, 150, (0, 60), (0, 3.0))
@@ -341,7 +340,7 @@ def _f07_pullr():
     o.append(T(p.X(4e4) + 8, p.Y(7.5e-5) - 6, "内蔵 40 kΩ: 75 µA", "start", 9.5, GLD, True, halo=True))
     o.append(D(p.X(6e5), p.Y(5e-6), ALI, 4.5))
     o.append(T(p.X(6e5) - 8, p.Y(5e-6) - 8, "上限 600 kΩ: 5 µA", "end", 9.5, ALI, True, halo=True))
-    o.append(_f07_m(14, 292, [("V", "DD", True), (" = 3.0 V、", None, False), ("I", "lk", True), (" = 1 µA、", None, False),
+    o.append(_f07_m(14, 288, [("V", "DD", True), (" = 3.0 V、", None, False), ("I", "lk", True), (" = 1 µA、", None, False),
                               ("V", "IH", True), (" = 2.1 V、", None, False), ("V", "mg", True), (" = 0.3 V の例", None, False)], "start", 9, MUT))
     # (b) 読み方による平均の電流
     o.append(T(392, 18, "(b) 閉じている間の電流（平均）", "start", 11, INK, True))
@@ -363,7 +362,7 @@ def _f07_pullr():
             o.append(T(xb + 4, y + 29, val, "start", 9.5, c, True))
     o.append(T(392, 262, "対数目盛。緑の破線は深い眠りの電流 2 µA。", "start", 9, MUT))
     o.append(T(392, 278, "周期的に読む間は、閉じたことに気づくのが最大 100 ms 遅れる。", "start", 9, MUT))
-    return SVG(700, 300, o, "閉じたスイッチのプルアップ抵抗に流れる電流。(a) 抵抗を大きくすると電流は減るが、開いたときに漏れ電流でピンの電圧が下がり、600 kΩ（この例）より大きくすると H と読めない。抵抗だけでは 5 µA より下げられない。(b) スイッチの向きと読み方を変えれば、眠りの電流より小さくできる。")
+    return SVG(700, 304, o, "閉じたスイッチのプルアップ抵抗に流れる電流。(a) 抵抗を大きくすると電流は減るが、開いたときに漏れ電流でピンの電圧が下がり、600 kΩ（この例）より大きくすると H と読めない。抵抗だけでは 5 µA より下げられない。(b) スイッチの向きと読み方を変えれば、眠りの電流より小さくできる。")
 F["e07_pullr"] = _f07_pullr()
 
 # ---- 3 節: ピンを通る 4 つの道 ----
@@ -426,7 +425,7 @@ def _f07_paths():
         o.append(T(x + 10, y + ph - 26, b, "start", 9.5, ALI, True))
         o.append(T(x + 10, y + ph - 10, fx, "start", 9.5, GRN, True))
     o.append(T(10, 352, "赤い矢印は眠っている間も流れ続ける電流。どの設定でも、ピンの漏れ電流（数十 nA〜1 µA。代表値）は残る。", "start", 9.5, MUT))
-    return SVG(700, 362, o, "眠っている間にピンを通って流れる電流の 4 つの道と、その直し方（値は例）。どれも、深い眠りの電流（例 2 µA）より何倍も大きくなりうる。")
+    return SVG(700, 362, o, "眠っている間にピンを通って流れ続ける電流の道と、その直し方（値は例）。どれも、深い眠りの電流（例 2 µA）より何倍も大きくなりうる。")
 F["e07_paths"] = _f07_paths()
 
 # ---- 4 節: クロックと電源の木 ----
@@ -696,7 +695,7 @@ def _f07_window():
     o.append(T(x0 - 6, yb - 3, "2 µA", "end", 9, GRN))
     for t in range(30, 331, 60):
         o.append(W(x0 + t * sx, yb - 6, x0 + t * sx, yb - 58, c=SIG, lw=2))
-    o.append(T(x0 + 210 * sx + 6, yb - 46, "起床（7 ms で 42 µC の上乗せ）", "start", 9, SIG, True, halo=True))
+    o.append(T(690, 32, "縦線: 起床（7 ms で 42 µC の上乗せ）", "end", 9, SIG, True))
     for (ta, lab, c) in ((95.0, "入らない → 2.0 µA", ALI), (145.0, "入る → 6.2 µA", ALI)):
         o.append(RECT(x0 + ta * sx, yb - 34, 10 * sx, 28, 2, ASOFT, ALI, 1.0, op=0.8))
         o.append(T(x0 + ta * sx + 9, yb - 38, lab, "middle", 9, c, True, halo=True))
