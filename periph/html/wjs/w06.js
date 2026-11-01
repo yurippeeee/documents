@@ -23,8 +23,6 @@
   function _w06_ripple(Vrms,f,C,P){var r=_w06_sim({Vrms:Vrms,f:f,C:C,P:P,V2:0,tOut:1,dur:0,method:"none",tEnd:0.06+1/(2*f),dt:5e-6,rec:[0.06,1],every:2}),lo=1e9,hi=0;
     r.pts.forEach(function(p){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1]);});return [lo,hi];}
   function _w06_wide(box){var w=box.el.clientWidth;return !(w>0&&w<520);}
-  function _w06_ms(s){return (Math.abs(s)>=10e-3?U_sig(s*1e3,3):U_sig(s*1e3,2))+" ms";}
-  function U_sig(v,d){if(v===0)return "0";var a=Math.abs(v),s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
 
   /* ---- 3 節: 停電の検出と後始末の時間 ---- */
   REG.w06_holdup=function(el,U){
@@ -48,7 +46,7 @@
     var cTw=U.slider(r4,"1 語を書く時間",{min:10,max:200,step:5,value:60,fmt:function(v){return v+" µs";},onInput:draw});
     var cEr=U.checkbox(r4,"書く前にページを消去する（20 ms）",false,draw);
     var r5=U.ctrls(el);
-    var cPh=U.slider(r5,"停電が始まる位相（ゼロクロスから）",{min:0,max:175,step:5,value:60,fmt:function(v){return v+"°";},onInput:draw});
+    var cPh=U.slider(r5,"停電が始まる位相（電圧が 0 の時から）",{min:0,max:175,step:5,value:60,fmt:function(v){return v+"°";},onInput:draw});
     var br=U.btnrow(el);
     function preset(m,V,cut){cC.set(22);cP.set(5);cV.set(V);cF.set(0);cV2.set(70);cM.set(m);cTh.set(3);cVd.set(100);cCut.set(cut);cPc.set(1);cN.set(8);cTw.set(60);cEr.set(false);cPh.set(60);draw();}
     U.button(br,"3 節の例（90 V・AC 側・1 W に減らす）",function(){preset(0,90,true);});
@@ -176,7 +174,7 @@
       function tick(t,lab){var xx=X(t);o.push(S.L(xx,ya,xx,ya+4,"muted",1));o.push(S.T(xx,ya+15,lab,"middle",9,"muted"));}
       if(!brk){U.nice(0,a1*1e3,wide?6:4).forEach(function(v){if(v*1e-3<=a1)tick(v*1e-3,U.sig(v,4)+(v===0?" ms":""));});}
       else{[0,0.05,0.1].forEach(function(t){tick(t,U.sig(t*1e3,3)+(t===0?" ms":""));});tick(L,F.time(L));tick(L+0.2,"+0.2 s");
-        var xg=X(a1)+wd*0.025;o.push(S.T(xg,ya-38,"≈","middle",14,"muted",true));o.push(S.L(xg-6,y0-4,xg-6,ya,"line",1,"2 3"));o.push(S.L(xg+6,y0-4,xg+6,ya,"line",1,"2 3"));}
+        var xg=X(a1)+wd*0.025;o.push(S.L(xg-5,y0-4,xg-5,ya,"faint",1,"2 3"));o.push(S.L(xg+5,y0-4,xg+5,ya,"faint",1,"2 3"));o.push(S.T(xg,ya+15,"…","middle",11,"muted",true));}
       o.push(S.T(x0+wd,ya+30,"停電の始まりからの時間","end",9.5,"muted"));
       box.set(S.svg(W,ya+36,o));
       var catTxt={a:"(a) 気づくより短い（"+F.time(T.det)+" より短い）",b:"(b) 気づいたが、電源が保てているうちに戻った（リセットされない）",c:"(c) 電源が保てなくなる長さ（"+F.time(T.col)+" 以上）で、リセットされた"}[cat];
@@ -228,13 +226,13 @@
         o.push(S.T(x0-6,yd+12,"信号","end",9,"teal",true));
         o.push(S.L(X(0),y0,X(0),yd+40,"green",1.3,"3 3"));
         var eEdge=te0-te;          /* 始まり + 決めた 0.45 ms をゼロクロスとしたときのずれ */
-        o.push(S.D(X(-te+te0),yd+34,"alias",4));o.push(S.T(X(-te+te0)+(eEdge>0?-6:6),yd+38,"始まり + "+U.sig(te0*1e3,2)+" ms",eEdge>0?"end":"start",9,"alias",true,false,null,true));
-        o.push(S.D(X(0),yd+52,"green",4));o.push(S.T(X(0)+6,yd+56,"中央","start",9,"green",true));
-        axesT(o,x0,yd+64-14,wd,0,-span*1e3,span*1e3,"ゼロクロスからの時間 [ms]");
-        box.set(S.svg(W,yd+64+20,o));
+        o.push(S.D(X(-te+te0),yd+30,"alias",4));o.push(S.T(X(-te+te0)+(eEdge>0?-6:6),yd+34,"始まり + "+U.sig(te0*1e3,2)+" ms",eEdge>0?"end":"start",9,"alias",true,false,null,true));
+        o.push(S.D(X(0),yd+46,"green",4));o.push(S.T(X(0)+6,yd+50,"中央 = ゼロクロス","start",9,"green",true,false,null,true));
+        axesT(o,x0,yd+58,wd,0,-span*1e3,span*1e3,"ゼロクロスからの時間 [ms]");
+        box.set(S.svg(W,yd+94,o));
         var Wd=2*te,warn=Wd>3e-3?'<span class="warn">H の幅が 3 節の 3 ms を超え、停電と見分けられない。</span><br>':(Wd>2.1e-3?'<span class="warn">H の幅が 3 節の 3 ms に近く、余裕が少ない。</span><br>':"");
         ro.innerHTML=warn+"H の幅 W = arcsin(V_on/V_p)/(πf) = arcsin("+Von+"/"+Vp.toFixed(1)+")/(π × "+f+") = <b>"+F.time(Wd)+"</b><br>"+
-          "H の始まりはゼロクロスの <b>"+F.time(te)+"</b> 前 ・ 始まりに決めた 0.45 ms（100 V・50 Hz・V_on 20 V のときの値）を足してゼロクロスとすると、ずれは <b>"+F.time(Math.abs(eEdge))+"</b> ・ 中央をとれば <b>0</b>"+
+          "H の始まりはゼロクロスの <b>"+F.time(te)+"</b> 前 ・ 始まりに決めた 0.45 ms（100 V・50 Hz・V_on 20 V のときの値）を足してゼロクロスとすると、ずれは <b>"+(Math.abs(eEdge)*1e6).toFixed(0)+" µs</b> ・ 中央をとれば <b>0</b>"+
           '<div class="wnote">V_on は、LED を光らせる電流と抵抗で決まり、フォトカプラの光が弱くなると上がる。フォトカプラの応答の遅れは入れていない。</div>';
       }else if(v===1){
         var load=cLoad.get(),phi=cPh.get(),tsw=phi/360/f+1/f,T1=1/f+0.025;
@@ -264,7 +262,7 @@
         var pts=[];for(var k=0;k<=300;k++){var t=k/300*T2;pts.push([X(t),Y(141.4*Math.sin(w*t))]);}
         o.push(S.PL(pts,"muted",1,null,"3 3"));
         for(var hc=0;hc<4;hc++){var st=hc/(2*f)+aEff/w,en=(hc+1)/(2*f);if(st>=en)continue;var ar=[[X(st),Y(0)]];for(var j=0;j<=30;j++){var tt=st+(en-st)*j/30;ar.push([X(tt),Y(141.4*Math.sin(w*tt))]);}ar.push([X(en),Y(0)]);
-          o.push(S.PL(ar,"purple",1.6,"purple-soft"));o.push(S.L(X(st),y0+h+2,X(st),y0+h+10,"teal",2));}
+          o.push(S.PL(ar,"purple",1.6,U.soft("purple")));o.push(S.L(X(st),y0+h+2,X(st),y0+h+10,"teal",2));}
         axesT(o,x0,y0,wd,h,0,T2*1e3,"時間 [ms]（縦の短い線: トライアックを入れる時刻）");
         /* 右下に電力の割合の曲線（狭いときは省く） */
         box.set(S.svg(W,y0+h+36,o));
@@ -283,7 +281,7 @@
     var S=U.S,F=U.fmt;
     U.head(el,"STANDBY","待機電力の内訳と 1 年の電力量");
     var r1=U.ctrls(el);
-    var cSup=U.select(r1,"電源",["絶縁電源（待機の機能なし、損失 60 mW）","絶縁電源（待機の機能あり、損失 30 mW）","コンデンサドロップ（いつも約 100 mW）"],0,draw);
+    var cSup=U.select(r1,"電源",["絶縁電源（損失 60 mW）","絶縁電源・待機の機能あり（30 mW）","コンデンサドロップ（約 100 mW）"],0,draw);
     var cR=U.slider(r1,"交流の検出の抵抗",{min:47,max:470,value:94,log:true,fmt:function(v){return Math.round(v)+" kΩ";},onInput:draw});
     var cZc=U.checkbox(r1,"交流の検出を待機中も使う",true,draw);
     var r2=U.ctrls(el),ck={};

@@ -340,7 +340,7 @@ def _f06_detect():
     o.append(T(p.X(tout + 3) + 6, yd - 4, "H が 3 ms 続く → 停電とみなす", "start", 9.5, ALI, True))
     for t in (0, 10, 20, 30, 40, 50):
         o.append(T(p.X(t), yd + 34, "%d" % t, "middle", 9, MUT))
-    o.append(T(p.X(4.5), yd + 50, "ゼロクロスの前後の約 0.9 ms だけ H", "start", 9, TEA))
+    o.append(T(p.X(4.5), yd + 50, "電圧が 0 を通る前後の約 0.9 ms だけ H", "start", 9, TEA))
     o.append(T(p.X(50), yd + 50, "時間 [ms]", "end", 9, MUT))
     return SVG(700, yd + 58, o, "停電の検出。AC 側: 商用電源から抵抗を通してフォトカプラの LED に電流を流す。電圧の大きさが V_on より小さい間だけ、マイコンのピンは H になる。停電すると H のまま変わらないので、H が決めた時間より長く続いたら停電とみなす。DC 側: 平滑コンデンサの電圧を電圧検出器で見る。どちらも、フォトカプラで絶縁の境界をまたぐ。")
 F["e06_detect"] = _f06_detect()
