@@ -109,7 +109,7 @@ def _f14_model_fig():
     o.append(RECT(px, py, pw, ph, 4, MSOFT, MUT, 1.4))
     o.append(T(px + pw / 2, py + 17, "アルミニウムの板（440 g）", "middle", 10.5, INK, True))
     o.append(RECT(px + 20, py + ph, pw - 40, 9, 2, PSOFT, PUR, 1.2))
-    o.append(T(px + pw / 2, py + ph + 24, "ヒータ（100 V・80 W）", "middle", 10, PUR, True))
+    o.append(T(px + 20, py + ph + 24, "ヒータ（100 V・80 W）", "start", 10, PUR, True))
     o.append(RECT(px + pw - 54, py - 10, 22, 10, 2, TSOFT, TEA, 1.2))
     o.append(T(px + pw - 43, py - 16, "NTC サーミスタ", "middle", 9.5, TEA, True))
     # 逃げる熱（上へ）
@@ -119,8 +119,8 @@ def _f14_model_fig():
     o.append(_f14_m(px + 6, py - 64, [("逃げる熱 (", None, False), ("T", None, True), (" − ", None, False), ("T", "a", True), (") ÷ ", None, False), ("R", "th", True)], "start", 10.5, GLD, True))
     o.append(_f14_m(px + 6, py - 82, [("周りの空気（周囲温度 ", None, False), ("T", "a", True), ("）", None, False)], "start", 10.5, MUT))
     # 入る熱
-    o.append(ARR(px + pw / 2, py + ph + 52, px + pw / 2, py + ph + 12, c=GLD, lw=2))
-    o.append(_f14_m(px + pw / 2 + 8, py + ph + 52, [("入る熱 ", None, False), ("P", None, True)], "start", 10.5, GLD, True))
+    o.append(ARR(px + pw - 40, py + ph + 52, px + pw - 40, py + ph + 12, c=GLD, lw=2))
+    o.append(_f14_m(px + pw - 32, py + ph + 44, [("入る熱 ", None, False), ("P", None, True)], "start", 10.5, GLD, True))
     o.append(_f14_m(px + 6, py + ph + 78, [("板にたまる熱 ", None, False), ("C", "th", True), (" d", None, False), ("T", None, True), ("/d", None, False), ("t", None, True), ("（温度が上がる）", None, False)], "start", 10.5, SIG))
     # (b) 電気の回路との対応
     xb = 380
@@ -190,9 +190,9 @@ def _f14_step_fig():
     o.append(q.axes(xl="切ってからの時間 [s]", yl="", xt=[0, 500, 1000, 1500], yt=[20, 30, 40, 50, 60, 70]))
     o.append(_f14_line(q, [(t, 25 + 35 * math.exp(-t / 500.0)) for t in range(0, 1501, 10)], SIG, 2.4))
     o.append(W(q.X(0), q.Y(25), q.X(1500), q.Y(25), c=FNT, lw=1, dash="3 3"))
-    o.append(T(q.X(1500) - 2, q.Y(25) - 5, "周囲温度 25 °C", "end", 9.5, MUT, halo=True))
+    o.append(T(q.X(1500) - 2, q.Y(25) + 13, "周囲温度 25 °C", "end", 9.5, MUT, halo=True))
     o.append(D(q.X(973), q.Y(30), SIG, 3.6))
-    o.append(T(q.X(973), q.Y(30) - 10, "973 s で 30 °C", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(973) + 2, q.Y(30) - 12, "973 s で 30 °C", "start", 9.5, SIG, True, halo=True))
     return SVG(700, 280, o, "温度の時間変化（熱抵抗 1.25 K/W、熱容量 400 J/K、80 W）。(a) 温め始めの傾きは P ÷ C で、その接線は熱時定数 τ で行き着く温度に届く。熱容量を 2 倍にすると同じ温度へ遅く近づき、風で熱抵抗が半分になると、行き着く温度が下がり、速さも変わる。(b) 切ると、周囲温度との差が同じ τ で減る。")
 F["e14_step"] = _f14_step_fig()
 
@@ -214,7 +214,7 @@ def _f14_onoff_fig():
         o.append(_f14_strip(p.x, p.y + p.h + 36, p.w, 0, 300, [(t, u) for t, a, b, u in r], PUR, 12, "ヒータ"))
         return p, r
     pa, ra = panel(62, "(a) むだ時間なし", 0.0, "59.5〜60.5 °C を 22 s ごとに往復")
-    o.append(T(pa.X(298), pa.Y(60.5) - 5, "しきい値 60 ± 0.5", "end", 9.5, GRN, halo=True))
+    o.append(T(pa.X(298), pa.Y(61.4), "しきい値 60 ± 0.5", "end", 9.5, GRN, halo=True))
     pb, rb = panel(420, "(b) むだ時間 20 s", 20.0, "58.15〜63.03 °C を 106.6 s ごとに往復")
     o.append(W(pb.X(0), pb.Y(63.03), pb.X(300), pb.Y(63.03), c=ALI, lw=1, dash="2 3"))
     o.append(W(pb.X(0), pb.Y(58.15), pb.X(300), pb.Y(58.15), c=ALI, lw=1, dash="2 3"))
@@ -281,21 +281,23 @@ def _f14_windup_fig():
     o.append(_f14_line(p, [(t, a) for t, a, b, u in rA], ALI, 2.2))
     o.append(_f14_line(p, [(t, a) for t, a, b, u in rB], GRN, 2.2))
     o.append(T(p.X(472), p.Y(86.0) - 6, "対策なし: 86.0 °C まで", "middle", 10, ALI, True, halo=True))
-    o.append(T(p.X(700), p.Y(60) + 16, "対策あり: 行き過ぎ 0.77 K", "start", 10, GRN, True, halo=True))
-    o.append(T(p.X(1195), p.Y(60) - 6, "目標 60 °C", "end", 9.5, GRN, halo=True))
+    o.append(T(p.X(300), p.Y(60) + 16, "対策あり: 行き過ぎ 0.77 K", "start", 10, GRN, True, halo=True))
+    o.append(T(p.X(8), p.Y(60) - 6, "目標 60 °C", "start", 9.5, GRN, halo=True))
+    o.append(T(p.X(1042), p.Y(44.6) + 16, "その後 44.6 °C まで下がる", "middle", 10, ALI, True, halo=True))
     # (b) 積分の項
     o.append(T(14, 220, "(b) 積分の項（出力の 100 % を 1 として）", "start", 11.5, INK, True))
-    q = Plot(62, 232, 610, 110, (0, 1200), (0, 35))
-    o.append(q.axes(xl="時間 [s]", yl="積分の項", xt=[0, 200, 400, 600, 800, 1000, 1200], yt=[0, 10, 20, 30]))
+    q = Plot(62, 232, 610, 110, (0, 1200), (-25, 35))
+    o.append(q.axes(xl="時間 [s]", yl="積分の項", xt=[0, 200, 400, 600, 800, 1000, 1200], yt=[-20, -10, 0, 10, 20, 30]))
     o.append(W(q.X(0), q.Y(1), q.X(1200), q.Y(1), c=MUT, lw=1, dash="4 3"))
     o.append(_f14_line(q, [(t, i) for t, i in trA], ALI, 2.2))
     o.append(_f14_line(q, [(t, i) for t, i in trB], GRN, 2.2))
     o.append(T(q.X(250), q.Y(31.6) + 2, "温度が目標に届くころ約 31（100 % の約 30 倍）", "start", 10, ALI, True, halo=True))
-    o.append(T(q.X(1195), q.Y(1) - 5, "対策あり: 1（100 %）を超えない", "end", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(150), q.Y(1) - 6, "対策あり: 0〜1 に収まる", "start", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(760), q.Y(-20.5) + 2, "負にも大きくたまる（約 −20）", "start", 10, ALI, True, halo=True))
     o.append(T(14, 376, "出力", "start", 10, INK, True))
     o.append(_f14_strip(q.x, 380, q.w, 0, 1200, [(t, u) for t, a, b, u in rA], ALI, 10, "なし"))
     o.append(_f14_strip(q.x, 396, q.w, 0, 1200, [(t, u) for t, a, b, u in rB], GRN, 10, "あり"))
-    return SVG(700, 414, o, "冷えた板から温めるときの積分の飽和（Kp 0.3 /K・Ti 40 s・Td 10 s、むだ時間 20 s）。出力が 100 % に張り付いている間に積分の項がたまり続け、目標を越えても減り終わるまで出力は 100 % のままで、温度は 26 K 行き過ぎる。張り付いている間は積分を止め、積分の項を出力の範囲に収めると、行き過ぎは 0.77 K になる。")
+    return SVG(700, 414, o, "冷えた板から温めるときの積分の飽和（Kp 0.3 /K・Ti 40 s・Td 10 s、むだ時間 20 s）。出力が 100 % に張り付いている間に積分の項がたまり続け、目標を越えても減り終わるまで出力は 100 % のままで、温度は 26 K 行き過ぎる。その間に積分の項は負に大きくたまり、今度は大きく下がる。張り付いている間は積分を止め、積分の項を出力の範囲に収めると、行き過ぎは 0.77 K になる。")
 F["e14_windup"] = _f14_windup_fig()
 
 # ---- 3 節: ステップ応答から K・L・τ を読む ----
@@ -322,13 +324,13 @@ def _f14_steptest_fig():
     o.append(T(z.X(118), z.Y(27.5) - 18, "板", "end", 9.5, SIG, halo=True))
     o.append(T(z.X(118), z.Y(25.6) + 2, "読み", "end", 9.5, TEA, halo=True))
     # 読んだ値と目安
-    yb = 172
+    yb = 196
     lines = [("読んだ値: K = 50 K ÷ 0.5 = 100 K", INK, False), ("L = 20 s、τ = 500 s", INK, False),
              ("ジーグラとニコルスの目安（PID）:", INK, True), ("Kp = 1.2τ ÷ (KL) = 0.3 /K", INK, False),
              ("Ti = 2L = 40 s、Td = 0.5L = 10 s", INK, False), ("穏やかな値: 0.15 /K・80 s・10 s", GRN, True)]
     for i, (l, c, bb) in enumerate(lines):
         o.append(T(zx - 10, yb + i * 16, l, "start", 9.5, c, bb))
-    return SVG(700, 280, o, "ステップ応答（出力を 0 から 50 % へ変え、制御せずに読みを記録する）。読みが動き始めるまでの時間がむだ時間 L、そこから上がり幅の 63 % に届くまでが熱時定数 τ、出力 1 あたりの上がり幅が K である。この 3 つから、ゲインの目安を求める。")
+    return SVG(700, 292, o, "ステップ応答（出力を 0 から 50 % へ変え、制御せずに読みを記録する）。読みが動き始めるまでの時間がむだ時間 L、そこから上がり幅の 63 % に届くまでが熱時定数 τ、出力 1 あたりの上がり幅が K である。この 3 つから、ゲインの目安を求める。")
 F["e14_steptest"] = _f14_steptest_fig()
 
 # ---- 4 節: SSR ----
@@ -345,20 +347,20 @@ def _f14_ssr_fig():
     # SSR の枠
     sx, sy, sw, sh = 176, 36, 250, 150
     o.append(RECT(sx, sy, sw, sh, 8, PAN, INK, 1.4))
-    o.append(T(sx + sw / 2, sy + 16, "SSR", "middle", 11, INK, True))
+    o.append(T(sx + sw - 8, sy + sh - 8, "SSR", "end", 11, INK, True))
     o.append(W(160, 70, sx + 18, 70, c=SIG, lw=1.6))
     o.append(BOX(sx + 14, 56, 54, 30, "LED", None, SIG, SSOFT, sz=10))
     o.append(W(sx + 82, sy + 4, sx + 82, sy + sh - 4, c=ALI, lw=1.4, dash="5 3"))
     o.append(T(sx + 82, sy + sh + 14, "絶縁（光で結ぶ）", "middle", 9.5, ALI, True))
     for k in range(3):
         o.append(ARR(sx + 70, 64 + k * 8, sx + 96, 64 + k * 8, c=GLD, lw=1.1, head=5))
-    o.append(BOX(sx + 100, 50, 64, 40, "受光", "トライアック", PUR, PSOFT, sz=9.5, ssz=9))
-    o.append(BOX(sx + 100, 104, 64, 40, "ゼロクロス", "検出", PUR, PSOFT, sz=9.5, ssz=9))
-    o.append(BOX(sx + 178, 76, 62, 44, "トライアック", "（主）", PUR, PSOFT, sz=9.5, ssz=9))
-    o.append(W(sx + 164, 70, sx + 178, 90, c=PUR, lw=1.2))
-    o.append(W(sx + 164, 124, sx + 178, 106, c=PUR, lw=1.2))
+    o.append(BOX(sx + 98, 50, 70, 40, "受光の", "トライアック", PUR, PSOFT, sz=9.5, ssz=8.5))
+    o.append(BOX(sx + 98, 104, 70, 40, "ゼロクロス", "検出", PUR, PSOFT, sz=9.5, ssz=8.5))
+    o.append(BOX(sx + 180, 76, 64, 44, "トライアック", "（主）", PUR, PSOFT, sz=9, ssz=8.5))
+    o.append(W(sx + 168, 70, sx + 180, 90, c=PUR, lw=1.2))
+    o.append(W(sx + 168, 124, sx + 180, 106, c=PUR, lw=1.2))
     # 出力側
-    o.append(W(sx + 240, 98, 470, 98, c=GLD, lw=2))
+    o.append(W(sx + 244, 98, 470, 98, c=GLD, lw=2))
     o.append(BOX(470, 80, 70, 36, "ヒータ", None, PUR, PSOFT, sz=10.5))
     o.append(W(540, 98, 560, 98, c=GLD, lw=2))
     o.append(BOX(560, 76, 60, 44, "商用電源", "100 V", GLD, GOSOFT, sz=9.5, ssz=9))
@@ -446,13 +448,13 @@ F["e14_cycle"] = _f14_cycle_fig()
 def _f14_faults_fig():
     o = []
     hdr = ["故障", "読み・スイッチはどうなるか", "ヒータ", "見つける・止める守り"]
-    xs = [14, 168, 400, 470]
+    xs = [14, 160, 386, 470]
     rows = [("センサの断線", "最も冷たいと読める（NTC）", "最大", ALI, "範囲の検査（10 章 6 節）"),
             ("センサの短絡", "最も熱いと読める", "切れる", GRN, "範囲の検査"),
             ("センサがはがれる", "周囲温度へ近づく（範囲の中）", "最大", ALI, "上がらないことの検出"),
             ("SSR の短絡・溶着", "マイコンが切っても入ったまま", "切れない", ALI, "上限の温度 → 2 つ目のスイッチ"),
             ("マイコンの停止", "出力が入ったまま変わらない", "入ったまま", ALI, "ウォッチドッグ → リセットで切れる"),
-            ("ヒータの断線", "温まらない", "（危険なし）", GRN, "上がらないことの検出")]
+            ("ヒータの断線", "温まらない", "危険なし", GRN, "上がらないことの検出")]
     y = 22
     for x, h_ in zip(xs, hdr):
         o.append(T(x, y, h_, "start", 10.5, INK, True))
@@ -528,13 +530,12 @@ def _f14_parts_fig():
             ("SSR 10 A（放熱器で 4.6 K/W）", 12.0, 4.6, GLD)]
     x0, x1 = 230, 460
     X = lambda v: x0 + (v - 40) / (140 - 40) * (x1 - x0)
-    y0 = 34
+    y0 = 40
     for v in (40, 60, 80, 100, 120, 140):
         o.append(W(X(v), y0, X(v), y0 + 4 * 34, c=GRD, lw=1))
         o.append(T(X(v), y0 + 4 * 34 + 14, "%d" % v, "middle", 9.5, MUT))
     o.append(T((x0 + x1) / 2, y0 + 4 * 34 + 30, "接合部温度 [°C]", "middle", 10, MUT))
     o.append(W(X(125), y0 - 4, X(125), y0 + 4 * 34, c=ALI, lw=1.2, dash="4 3"))
-    o.append(T(X(125), y0 - 8 + 4 * 34 + 26 - 26 - 0, "", "middle", 9, ALI))
     o.append(W(X(100), y0 - 4, X(100), y0 + 4 * 34, c=GLD, lw=1.2, dash="4 3"))
     for i, (nm, P, R, c) in enumerate(rows):
         y = y0 + i * 34
@@ -544,8 +545,8 @@ def _f14_parts_fig():
         o.append(RECT(X(40), y + 6, X(45) - X(40), 18, 0, MSOFT, "none", 0))
         o.append(RECT(X(45), y + 6, max(X(min(tj, 140)) - X(45), 1), 18, 2, soft(c), c, 1.1))
         o.append(T(X(min(tj, 140)) + 5, y + 19, "%.0f °C" % tj, "start", 10, c, True))
-    o.append(T(X(125) + 3, y0 + 4 * 34 - 4, "上限（例 125 °C）", "start", 9, ALI, halo=True))
-    o.append(T(X(100) - 3, y0 + 4 * 34 - 4, "余裕の目安", "end", 9, GLD, halo=True))
+    o.append(T(X(125) + 3, y0 + 2, "上限（例 125 °C）", "start", 9, ALI, halo=True))
+    o.append(T(X(100) - 3, y0 + 2, "余裕の目安", "end", 9, GLD, halo=True))
     # (b) ディレーティング
     xb = 540
     o.append(T(xb - 30, 18, "(b) LDO の許される損失", "start", 11.5, INK, True))
