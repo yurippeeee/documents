@@ -48,14 +48,14 @@ def _f10_period():
     o.append(p.steps(st, c=SIG, lw=1.8))
     for a, b in st:
         o.append(D(p.X(a), p.Y(b), SIG, 3.6))
-    o.append(DIM(p.X(39), p.Y(22.1), p.X(39), p.Y(22.2), None, c=ALI))
-    o.append(T(p.X(39) - 5, p.Y(22.15) + 4, "S T = 0.1 °C", "end", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(47), p.Y(22.36), "本当の温度（0.005 °C/s）", "middle", 9.5, TEA, True, halo=True))
-    o.append(T(p.X(62), p.Y(22.235), "使う値（T = 20 s ごとに測る）", "start", 9.5, SIG, True, halo=True))
+    o.append(DIM(p.X(38), p.Y(22.1), p.X(38), p.Y(22.2), None, c=ALI))
+    o.append(T(p.X(41), p.Y(22.11), "差は最大 S T = 0.1 °C", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(4), p.Y(22.3), "本当の温度（0.005 °C/s で上がる）", "start", 9.5, TEA, True, halo=True))
+    o.append(T(p.X(62), p.Y(22.25), "使う値（直前の値）", "start", 9.5, SIG, True, halo=True))
     # (c) 見つける確率
     o.append(T(470, 20, "(c) 短い出来事を見つける確率", "start", 11, INK, True))
     q = Plot(510, 34, 170, 130, (0, 2), (0, 1.1))
-    o.append(q.axes(xl="出来事の長さ d ÷ T", yl="見つける確率", xt=[0, 0.5, 1, 1.5, 2], yt=[0, 0.5, 1],
+    o.append(q.axes(xl="出来事の長さと周期の比 d/T", yl="見つける確率", xt=[0, 0.5, 1, 1.5, 2], yt=[0, 0.5, 1],
                     xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
     o.append(q.line([(0, 0), (1, 1), (2, 1)], c=SIG, lw=2.2))
     o.append(D(q.X(0.2), q.Y(0.2), ALI, 4))
@@ -174,7 +174,8 @@ def _f10_clock():
         o.append(ARR(X(sens[idx - 1]), ys + 5, X(t), ym - 5, c=FNT, lw=1, head=5))
         o.append(D(X(t), ym, ALI if idx == 6 else SIG, 3.6))
         o.append(T(X(t), ym + 16, str(idx), "middle", 9.5, ALI if idx == 6 else SIG, True))
-    o.append(T(X(176), ym + 34, "5 番を読み落とす", "middle", 9.5, ALI, True))
+    o.append(T(X(176), ym + 34, "5 番を読み落とす", "middle", 9.5, ALI, True, halo=True))
+    o.append(CIRC(X(sens[4]), ys, 7, c=ALI, lw=1.6))
     # データレディ
     for i, t in enumerate(sens):
         o.append(ARR(X(t), ys + 5, X(t + 3), yd - 5, c=FNT, lw=0.9, head=4))
@@ -229,7 +230,7 @@ def _f10_fifo():
     pts.append((26, lvl))
     o.append(PL([(p.X(a), p.Y(b)) for a, b in pts], c=SIG, lw=1.8))
     o.append(RECT(X(12.6), p.y + 2, X(15.6) - X(12.6), p.h - 2, 2, MSOFT, "none", 0))
-    o.append(T((X(12.6) + X(15.6)) / 2, p.y + 14, "応えられない間 t_d", "middle", 9, MUT, True, halo=True))
+    o.append(T((X(12.6) + X(15.6)) / 2, p.y + p.h - 6, "応えられない間 t_d", "middle", 9, MUT, True, halo=True))
     o.append(T(X(15.6) + 4, p.Y(9) - 2, "9 個まで（あふれない）", "start", 9, SIG, True, halo=True))
     # マイコンの電流
     ym = yb + 14 + 130 + 24
@@ -255,7 +256,7 @@ def _f10_fifocur():
                     xfmt=lambda v: "%d" % v, yfmt=lambda v: "%g" % v))
     o.append(RECT(p.X(27), p.y, p.X(64) - p.X(27), p.h, 0, ASOFT, "none", 0, op=0.6))
     o.append(T(p.X(41), p.y + 14, "あふれる", "middle", 9.5, ALI, True, halo=True))
-    for nm, Qr, c, dy in (("I2C 400 kHz", 0.6, ALI, -8), ("SPI 8 MHz", 0.02, SIG, -8)):
+    for nm, Qr, c, dy in (("I2C 400 kHz", 0.589, ALI, -8), ("SPI 8 MHz", 0.018, SIG, -8)):
         pts = [(m, Qe / (m * Tm) + Qr / Tm) for m in [1 + k * 0.25 for k in range(253)]]
         o.append(p.line(pts, c=c, lw=2.3))
         o.append(p.line([(1, Qr / Tm), (64, Qr / Tm)], c=c, lw=1.1, dash="5 4"))
@@ -264,22 +265,22 @@ def _f10_fifocur():
             o.append(D(p.X(ms), p.Y(Qe / (ms * Tm) + Qr / Tm), c, 4))
         I27 = Qe / (27 * Tm) + Qr / Tm
         o.append(D(p.X(27), p.Y(I27), c, 3.4))
-    o.append(T(p.X(2.5) + 6, p.Y(30) - 6, "M* = 2.5", "start", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(1.5), p.Y(15) - 6, "下限 Q_r/T = 15 µA", "start", 9.5, ALI, halo=True))
-    o.append(T(p.X(1.5), p.Y(0.5) - 6, "下限 Q_r/T = 0.5 µA", "start", 9.5, SIG, halo=True))
-    o.append(T(p.X(27) - 6, p.Y(16.4) + 16, "16.4 µA", "end", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(27) - 6, p.Y(1.89) + 16, "1.9 µA", "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(2.55) + 6, p.Y(29.4) - 6, "M* = 2.5", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(4.5), p.Y(14.7) + 13, "下限 Q_r/T = 14.7 µA", "start", 9.5, ALI, halo=True))
+    o.append(T(p.X(1.5), p.Y(0.45) - 6, "下限 Q_r/T = 0.45 µA", "start", 9.5, SIG, halo=True))
+    o.append(T(p.X(27) - 6, p.Y(16.1) - 8, "16.1 µA", "end", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(27) - 6, p.Y(1.84) + 16, "1.8 µA", "end", 9.5, SIG, True, halo=True))
     # 右の凡例
     o.append(T(540, 60, "I2C 400 kHz", "start", 10.5, ALI, True))
-    o.append(T(540, 76, "Q_r = 0.6 µC", "start", 9.5, MUT))
+    o.append(T(540, 76, "Q_r = 0.59 µC", "start", 9.5, MUT))
     o.append(T(540, 92, "M* = Q_e/Q_r = 2.5", "start", 9.5, MUT))
     o.append(T(540, 130, "SPI 8 MHz", "start", 10.5, SIG, True))
-    o.append(T(540, 146, "Q_r = 0.02 µC", "start", 9.5, MUT))
-    o.append(T(540, 162, "M* = 75", "start", 9.5, MUT))
+    o.append(T(540, 146, "Q_r = 0.018 µC", "start", 9.5, MUT))
+    o.append(T(540, 162, "M* = 83", "start", 9.5, MUT))
     o.append(T(540, 200, "共通: T = 40 ms、", "start", 9.5, MUT))
     o.append(T(540, 215, "Q_e = 1.5 µC、", "start", 9.5, MUT))
     o.append(T(540, 230, "深さ 32、t_d = 0.2 s", "start", 9.5, MUT))
-    return SVG(700, 300, o, "1 回に読む数 M と、読むための平均電流 Q_e/(M T) + Q_r/T（例の値。両軸とも対数目盛）。M を増やすと第 1 項が減り、破線の下限 Q_r/T に近づく。I2C では値を読む電荷が大きく、M* = 2.5 より先はほとんど減らない。M = 27 より大きいと、応えられない 0.2 s の間に深さ 32 を超えてあふれる。")
+    return SVG(700, 300, o, "1 回に読む数 M と、読むための平均電流 Q_e/(M T) + Q_r/T（例の値。両軸とも対数目盛）。M を増やすと第 1 項が減り、破線の下限 Q_r/T に近づく。I2C では値を読む電荷が大きく、M* = 2.5 より先はあまり減らない。M = 27 より大きいと、応えられない 0.2 s の間に深さ 32 を超えてあふれる。")
 F["e10_fifocur"] = _f10_fifocur()
 
 # ---- 3 節: 自己発熱 ----
@@ -332,10 +333,9 @@ def _f10_heat():
     o.append(p.line(sim(20.0, 5.0)[::5], c=GLD, lw=1.6))
     o.append(p.line(sim(2.0, 0.5)[::2], c=SIG, lw=1.6))
     o.append(p.line([(0, 0.25), (40, 0.25)], c=FNT, lw=1, dash="4 3"))
-    o.append(T(p.X(39), p.Y(0.95), "流しっぱなし: 1 °C へ", "end", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(39), p.Y(0.86), "流しっぱなし: 1 °C へ", "end", 9.5, ALI, True, halo=True))
     o.append(T(p.X(9.2), p.Y(0.62), "20 s ごとに 5 s", "start", 9.5, GLD, True, halo=True))
     o.append(T(p.X(25), p.Y(0.36), "2 s ごとに 0.5 s", "start", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(39), p.Y(0.25) + 14, "平均はどちらも 0.25 °C", "end", 9.5, MUT, True, halo=True))
     # (c) 測る間隔と上昇の平均（サーミスタの例）
     yc = 286
     o.append(T(14, yc, "(c) サーミスタ（225 µW、k_th = 1 °C/mW）の温度の上昇の平均", "start", 11, INK, True))
@@ -354,11 +354,11 @@ def _f10_heat():
             pts.append((T_, max(v, 1e-7)))
         o.append(q.line(pts, c=c, lw=2))
         o.append(T(q.X(1000) + 6, q.Y(k * P * ton / 1000) + 4, "流す時間 " + lab, "start", 9.5, c, True))
-    for T_, lab, dx, a in ((1.0, "1 s ごと: 2.3 × 10⁻⁴ °C", 8, "start"), (60.0, "60 s ごと: 3.8 × 10⁻⁶ °C", -8, "end")):
+    for T_, lab, dx, a in ((1.0, "1 s ごと: 2.3 × 10⁻⁴ °C", -8, "end"), (60.0, "60 s ごと: 3.8 × 10⁻⁶ °C", -8, "end")):
         v = k * P * 0.001 / T_
         o.append(D(q.X(T_), q.Y(v), SIG, 4))
         o.append(T(q.X(T_) + dx, q.Y(v) + 15, lab, a, 9.5, SIG, True, halo=True))
-    return SVG(700, yc + 16 + 150 + 44, o, "自己発熱。(a) 09 章のサーミスタの分圧では、25 °C でサーミスタに 225 µW が流れる。(b) 電力を周期的に入れ切りすると、温度の上昇の平均は平均の電力で決まり、周期の長さで変わるのは上下の幅だけである（14 章 1 節の一次の模型で計算した）。(c) 測るときだけ短く流せば、上昇の平均は無視できるほど小さい。")
+    return SVG(700, yc + 16 + 150 + 44, o, "自己発熱。(a) 09 章のサーミスタの分圧では、25 °C でサーミスタに 225 µW が流れる。(b) 電力を周期的に入れ切りすると、温度の上昇の平均は平均の電力で決まり（2 つの入れ切りとも、破線の 0.25 °C）、周期の長さで変わるのは上下の幅だけである（14 章 1 節の一次の模型で計算した）。(c) 測るときだけ短く流せば、上昇の平均は無視できるほど小さい。")
 F["e10_heat"] = _f10_heat()
 
 def _f10_board():
@@ -417,9 +417,9 @@ def _f10_cal():
                     xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
     g, off = 1.12, 5.0
     o.append(p.line([(0, 0), (50, 50)], c=FNT, lw=1.3, dash="5 4"))
-    o.append(T(p.X(47), p.Y(44) + 14, "誤差の無い x = y", "end", 9.5, MUT, halo=True))
+    o.append(T(p.X(49), p.Y(14), "誤差の無い x = y", "end", 9.5, MUT, halo=True))
     o.append(p.line([(0, off), (50, g * 50 + off)], c=TEA, lw=2.2))
-    o.append(T(p.X(4), p.Y(g * 4 + off) - 12, "x = g y + o", "start", 10, TEA, True, halo=True))
+    o.append(T(p.X(2), p.Y(56), "x = g y + o（傾き g がゲイン）", "start", 9.5, TEA, True, halo=True))
     o.append(DIM(p.X(0) + 8, p.Y(0), p.X(0) + 8, p.Y(off), None, c=ALI))
     o.append(T(p.X(0) + 14, p.Y(off / 2) + 4, "オフセット o", "start", 9.5, ALI, True, halo=True))
     for yv in (10, 40):
@@ -429,7 +429,6 @@ def _f10_cal():
         o.append(D(p.X(yv), p.Y(xv), SIG, 4.2))
     o.append(T(p.X(10) + 6, p.Y(g * 10 + off) - 8, "(y₁, x₁)", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(40) - 6, p.Y(g * 40 + off) - 8, "(y₂, x₂)", "end", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(31), p.Y(g * 31 + off) + 20, "傾き = ゲイン g", "start", 9.5, TEA, True, halo=True))
     # (b) サーミスタの例の誤差
     o.append(T(370, 20, "(b) サーミスタの例の誤差（固定抵抗 +1 %、R₂₅ −1 %、B +1 %）", "start", 10.5, INK, True))
     q = Plot(410, 36, 270, 190, (-20, 80), (-0.2, 1.5))
@@ -447,9 +446,13 @@ def _f10_cal():
     o.append(q.line([(t, a * ind(t) + b - t) for t in ths], c=GRN, lw=2.2))
     for t in (0, 40):
         o.append(D(q.X(t), q.Y(0), GRN, 3.8))
-    o.append(T(q.X(66), q.Y(1.12) - 8, "校正の前", "end", 9.5, ALI, True, halo=True))
-    o.append(T(q.X(78), q.Y(0.6), "1 点（25 °C）", "end", 9.5, GLD, True, halo=True))
-    o.append(T(q.X(78), q.Y(0.23), "2 点（0・40 °C）", "end", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(60), q.Y(ind(60) - 60 + 0.12), "校正の前", "end", 9.5, ALI, True, halo=True))
+    ga, gb = 54.0, 72.0
+    gx1, gy1, gx2, gy2 = q.X(ga), q.Y(ind(ga) - off25 - ga), q.X(gb), q.Y(ind(gb) - off25 - gb)
+    gang = math.degrees(math.atan2(gy2 - gy1, gx2 - gx1))
+    gnx, gny = math.sin(math.radians(gang)), -math.cos(math.radians(gang))
+    o.append(T((gx1 + gx2) / 2 + 9 * gnx, (gy1 + gy2) / 2 + 9 * gny, "1 点（25 °C）", "middle", 9.5, GLD, True, rot=gang, halo=True))
+    o.append(T(q.X(79), q.Y(a * ind(79) + b - 79 + 0.12), "2 点（0・40 °C）", "end", 9.5, GRN, True, halo=True))
     return SVG(700, 270, o, "2 点校正。(a) 読み x が本当の値 y に対して x = g y + o の直線になるとき、本当の値の分かる 2 点を測れば、読みから本当の値を求める直線 y = a x + b が決まる。(b) 09 章のサーミスタで、部品が許容差の中でずれた例。0 °C と 40 °C の 2 点で校正すると、その間の誤差は 0.016 °C 以下になるが、外では直線を延ばした誤差が増える。")
 F["e10_cal"] = _f10_cal()
 
@@ -476,9 +479,9 @@ def _f10_tcomp():
     o.append(q.axes(xl="センサの温度 θ [°C]", yl="残るずれ [g]", xt=[-10, 0, 10, 20, 30, 40, 50], yt=[-10, -5, 0, 5, 10],
                     xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
     o.append(RECT(q.X(5), q.y, q.X(40) - q.X(5), q.h, 0, GSOFT, "none", 0, op=0.7))
-    o.append(T(q.X(22.5), q.y + 14, "5〜40 °C: 3.1 g 以下", "middle", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(22.5), q.y + q.h - 8, "5〜40 °C: 3.1 g 以下", "middle", 9.5, GRN, True, halo=True))
     o.append(q.line([(t, off(t) - fit(t)) for t in ths], c=GRN, lw=2.2))
-    o.append(T(q.X(-9), q.Y(7.5) + 4, "−10 °C: 7.5 g", "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(-8), q.Y(8.4), "−10 °C: 7.5 g", "start", 9.5, ALI, True, halo=True))
     return SVG(700, 270, o, "温度補正（例の値）。(a) ひずみゲージのはかりで、何も載せないときの読み（オフセット）が温度で動く。5 °C と 40 °C で測ったオフセットを結ぶ直線（傾き c）を、測ったときのセンサの温度で引く。(b) 直した後に残るずれは、2 つの温度の間では小さいが、外では増える。")
 F["e10_tcomp"] = _f10_tcomp()
 
@@ -518,7 +521,10 @@ def _f10_filt():
             o.append(_f10_dots(p, [(k, _f10_clip(v, yr[0], yr[1])) for k, v in enumerate(xs)], c=TEA, r=1.7))
             ys = fn(xs)
             o.append(p.line([(k, _f10_clip(v, yr[0], yr[1])) for k, v in enumerate(ys)], c=c, lw=1.9))
-            o.append(T(p.x + p.w - 4, p.y + 12, notes[i][j], "end", 9, c, True, halo=True))
+            if j == 0:
+                o.append(T(p.x + p.w - 4, p.y + 12, notes[i][j], "end", 9, c, True, halo=True))
+            else:
+                o.append(T(p.x + 4, p.y + 12, notes[i][j], "start", 9, c, True, halo=True))
     o.append(T(x0s[0], 318, "点: フィルタの入力（測った値）。線: 出力。横軸は測った回（T ごとに 1 つ。各図 60 回）。", "start", 9.5, MUT))
     return SVG(700, 330, o, "3 つのフィルタの比較（入力は乱数で作った例。雑音の値は長い列で求めた標準偏差）。移動平均と一次 IIR は雑音を減らすが、とび値を薄く広げ、段差に遅れる。中央値（3 個）は雑音をあまり減らさないが、1 回だけのとび値を消し、段差に 1 回遅れるだけで追いつく。")
 F["e10_filt"] = _f10_filt()
@@ -591,10 +597,8 @@ def _f10_faults():
     o.append(T(X(4095) - 4, y - 6, "断線を疑う", "end", 9.5, ALI, True))
     for v, lab in ((0, "0"), (215, "215"), (2048, "2048（25 °C）"), (3937, "3937"), (4095, "4095")):
         o.append(W(X(v), y + 18, X(v), y + 23, c=MUT, lw=1))
-        a = "start" if v == 0 else ("end" if v == 4095 else "middle")
-        if v == 3937:
-            a = "end"
-        o.append(T(X(v) + (0 if a == "middle" else (-1 if a == "end" else 0)), y + 34, lab, a, 9, MUT))
+        a = {0: "start", 3937: "end", 4095: "start"}.get(v, "middle")
+        o.append(T(X(v) + {3937: -2, 4095: 2}.get(v, 0), y + 34, lab, a, 9, MUT))
     o.append(D(X(2048), y + 9, GRN, 3.5))
     # 下: 故障の種類
     yh = 112
@@ -642,10 +646,10 @@ F["e10_faults"] = _f10_faults()
 
 def _f10_pipe():
     o = []
-    boxes = [("測る", "ADC の値・通信の結果", TEA), ("妥当性の検査", "範囲・通信・張り付き・急変", ALI),
+    boxes = [("測る", "ADC の値・通信の結果", TEA), ("妥当性の検査", "範囲・急変・張り付き", ALI),
              ("校正", "a x + b・温度補正", GLD), ("中央値 3 個", "とび値を除く", PUR),
              ("一次 IIR", "雑音をならす", SIG), ("使う", "表示・送信・制御", GRN)]
-    bw, gap, x0, y0, bh = 96, 18, 15, 24, 58
+    bw, gap, x0, y0, bh = 104, 12, 8, 24, 58
     for i, (nm, sub, c) in enumerate(boxes):
         x = x0 + i * (bw + gap)
         o.append(BOX(x, y0, bw, bh, nm, sub, c, soft(c), INK, sz=11, ssz=9))
@@ -659,9 +663,9 @@ def _f10_pipe():
     o.append(ARR(xc, 234, xc, 252, c=ALI, lw=1.4, head=6))
     o.append(BOX(xc - 90, 254, 180, 58, "安全な状態へ・記録", "戻すのを試し（08 章）、検査が通るまで使わない（15 章）", ALI, ASOFT, INK, sz=10.5, ssz=9))
     xk = x0 + 2 * (bw + gap) + bw / 2
-    o.append(ARR(xk, y0 + bh + 2, xk, 120, c=GLD, lw=1.2, head=6, dash="4 3"))
-    o.append(BOX(xk - 58, 122, 116, 44, "ほかのセンサと比較", "校正した単位で", GLD, GOSOFT, INK, sz=10, ssz=9))
-    o.append(ARR(xk - 58, 160, xc + 92, 205, c=GLD, lw=1.2, head=6, dash="4 3"))
+    o.append(ARR(xk, y0 + bh + 2, xk, 186, c=GLD, lw=1.2, head=6, dash="4 3"))
+    o.append(BOX(xk - 14, 188, 114, 44, "ほかのセンサと比較", "校正した単位で", GLD, GOSOFT, INK, sz=10, ssz=9))
+    o.append(ARR(xk - 14, 210, xc + 92, 210, c=GLD, lw=1.2, head=6, dash="4 3"))
     # 右下: フィルタの後では見えにくい
     p = Plot(440, 146, 240, 140, (0, 40), (1900, 4300))
     o.append(T(440, 136, "フィルタの後では、故障がゆっくりした変化に見える", "start", 9.5, INK, True))
