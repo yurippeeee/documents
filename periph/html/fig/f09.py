@@ -718,8 +718,8 @@ F["e09_avg"] = _f09_avg()
 def _f09_periodic():
     o = []
     o.append(T(14, 18, "(a) 1 回ごとに位相が θ ずつ進むノイズ", "start", 11.5, INK, True))
-    for k, (cx, title, sub, ang, c) in enumerate(((90, "時間が周期の整数倍", "点が円を等しく分ける → 和は 0", [i * 72 for i in range(5)], GRN),
-                                                 (250, "間隔が周期の整数倍", "毎回同じ位相 → 減らない", [40] * 5, ALI))):
+    for k, (cx, title, sub, ang, c) in enumerate(((90, "平均の時間が周期の整数倍", "点が円を等しく分ける → 和は 0", [i * 72 for i in range(5)], GRN),
+                                                 (250, "測る間隔が周期の整数倍", "毎回同じ位相 → 減らない", [40] * 5, ALI))):
         cy, r = 120, 52
         o.append(CIRC(cx, cy, r, c=LIN, lw=1.2))
         o.append(W(cx - r - 8, cy, cx + r + 8, cy, c=FNT, lw=1))
