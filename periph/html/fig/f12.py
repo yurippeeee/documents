@@ -414,7 +414,7 @@ def _f12_lowhigh():
     xl = 190
     o.append(W(xl - 40, 44, xl + 40, 44, c=GLD, lw=2.2) + T(xl + 46, 48, "+12 V", "start", 10, GLD, True))
     o.append(W(xl, 44, xl, 60, c=INK, lw=1.5))
-    o.append(BOX(xl - 44, 58, 88, 46, "負荷", "切っても両端 12 V", PUR, PSOFT, PUR, sz=11, ssz=9, sc=ALI))
+    o.append(BOX(xl - 52, 58, 104, 46, "負荷", "切っても両端 12 V", PUR, PSOFT, PUR, sz=11, ssz=9, sc=ALI))
     o.append(W(xl, 104, xl, 138, c=INK, lw=1.5))
     o.append(D(xl, 120, INK, 2.6))
     o.append(_f12_fet(xl, 160, "N", SIG))
@@ -451,7 +451,7 @@ def _f12_lowhigh():
     o.append(_f12_pin(x0 + 22, 154) + W(x0 + 26, 154, xg2 - 58, 154, c=SIG, lw=1.5))
     o.append(D(x0 + 64, 154, SIG, 2.6) + W(x0 + 64, 154, x0 + 64, 162, c=SIG, lw=1.4) + _f12_resv(x0 + 64, 162, 186, c=SIG, n=4) + W(x0 + 64, 186, x0 + 64, 196, c=SIG, lw=1.4) + _f12_gnd(x0 + 64, 196))
     o.append(T(x0 + 22, 142, "GPIO", "middle", 9.5, SIG, True))
-    o.append(T(xg2 - 40, 186, "小さな N チャネル", "end", 9, SIG))
+    o.append(T(xg2 - 34, 224, "小さな N チャネル", "middle", 9, SIG))
     o.append(W(xh, 112, xh + 60, 112, xh + 60, 168, c=ALI, lw=1.6, dash="5 3") + _f12_gnd(xh + 60, 168, ALI))
     o.append(T(xh + 68, 178, "触れても負荷は入らない", "start", 9.5, GRN, True))
     o.append(T(xh + 68, 192, "（電源の短絡で気づく）", "start", 9, MUT))
