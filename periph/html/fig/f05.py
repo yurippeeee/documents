@@ -337,7 +337,7 @@ def _f05_inrush():
     yl = 338
     o.append(LEGEND(14, yl, [(SIG, "マイコンの側の電圧 V_A"), (PUR, "周辺の側の電圧 V_B・スイッチの電流"), (GLD, "電池の電流")], gap=12))
     o.append(T(14, yl + 18, "新しい CR2032（3.0 V・15 Ω）、マイコン 3 mA、C_A = C_L = 10 µF（例の値）。小さな時間刻みで回路の式を解いた。", "start", 9.5, MUT))
-    return SVG(700, yl + 28, o, "負荷スイッチを入れたときの電圧と電流。(a) 一気に入れると、C_A の電荷が C_L へ移って、マイコンの側の電圧が 1.48 V まで落ち、0.2 ms ほど V_min を下回る。(b) 1 ms で立ち上げると、突入電流は 30 mA で、電圧は 2.51 V までしか下がらない。")
+    return SVG(700, yl + 28, o, "負荷スイッチを入れたときの電圧と電流。(a) 一気に入れると、C_A の電荷が C_L へ移って、マイコンの側の電圧が約 1.5 V まで落ち、0.2 ms ほど V_min を下回る。(b) 1 ms で立ち上げると、突入電流は 30 mA で、電圧は 2.51 V までしか下がらない。")
 F["e05_inrush"] = _f05_inrush()
 
 # ---- 4 節: 電源の入っていない IC への信号 ----
@@ -653,7 +653,7 @@ def _f05_levels():
         o.append(W(X(v), y0 - 4, X(v), ym + 26, c=c, lw=1.3, dash="5 3"))
     ya = ym + 40
     o.append(W(x0, ya, x1, ya, c=MUT, lw=1))
-    for k in range(9):
+    for k in range(8):
         v = 1.8 + 0.2 * k
         o.append(W(X(v), ya, X(v), ya + 4, c=MUT, lw=1) + T(X(v), ya + 15, "%.1f" % v, "middle", 9, MUT))
     o.append(T(x1, ya + 30, "電源電圧 [V]（左へ行くほど電池が減っている）", "end", 9.5, MUT))
