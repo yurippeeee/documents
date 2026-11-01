@@ -117,8 +117,9 @@ def _f08_noise():
     o.append(PL(pts, c=TEA, lw=1.6))
     k = ns.index(max(ns))
     o.append(D(pts[k][0], pts[k][1], ALI, 4))
-    o.append(T(pts[k][0] + 8, pts[k][1] - 4, "ここで読むと 270 mV", "start", 9.5, ALI, True))
-    o.append(T(x0 + w, Y(250) + 13, "本当の値 250 mV（25 °C）", "end", 9, MUT))
+    rt = pts[k][0] > x0 + w / 2
+    o.append(T(pts[k][0] + (-8 if rt else 8), pts[k][1] - 4, "ここで読むと 270 mV", "end" if rt else "start", 9.5, ALI, True, halo=True))
+    o.append(T(x0, y0 + h + 14, "破線: 本当の値 250 mV（25 °C）", "start", 9, MUT))
     o.append(T(x0 + w, y0 + h + 14, "時間", "end", 9, MUT))
     o.append(T(14, 172, "20 mV の雑音 ÷ 10 mV/°C = 2 °C の誤差（27 °C と読む）", "start", 10, ALI, True))
     # (b) パルス出力
@@ -130,7 +131,7 @@ def _f08_noise():
         o.append(W(x1 - 4, Yb(v), x1, Yb(v), c=MUT, lw=1))
         o.append(T(x1 - 7, Yb(v) + 3.5, "%d V" % v, "end", 9, MUT))
     o.append(W(x1, Yb(1.5), x1 + 300, Yb(1.5), c=MUT, lw=1.1, dash="4 3"))
-    o.append(T(x1 + 300, Yb(1.5) - 4, "しきい値", "end", 9, MUT))
+    o.append(T(x1 + 300, Yb(1.5) - 4, "しきい値", "end", 9, MUT, halo=True))
     per, edge = 58.0, 5.0
     pts, marks = [], []
     for i in range(301):
@@ -452,7 +453,7 @@ def _f08_gatecurve():
 F["e08_gatecurve"] = _f08_gatecurve()
 
 # ---- 4 節: 逆流の 3 つの道 ----
-def _f08_bfsensor(o, sx, sy, ypin, label="センサ（電源は切った）", c=TEA, powered=False):
+def _f08_bfsensor(o, sx, sy, ypin, label="電源を切ったセンサ", c=TEA, powered=False):
     """電源を切ったセンサ: ピン → 保護ダイオード → 電源の線 → 中の回路。"""
     o.append(RECT(sx, sy, 92, 112, 6, soft(c), c, 1.2))
     o.append(T(sx + 46, sy + 106, label, "middle", 8.5, c, True))
@@ -486,7 +487,7 @@ def _f08_backflow():
             o.append(ARR(mx + 66, ypin - 7, sx - 8, ypin - 7, c=ALI, lw=1.8, head=5))
             _f08_bfsensor(o, sx, 44, ypin)
             o.append(T(x + 10, 178, "UART の TX、SPI の CS など", "start", 9.5, INK))
-            o.append(T(x + 10, 196, "H の出力から数百 µA〜数 mA", "start", 9.5, ALI, True))
+            o.append(T(x + 10, 196, "H の出力から数十 µA〜数 mA", "start", 9.5, ALI, True))
         elif k == 1:
             o.append(T(mx + 29, my + 46, "入力", "middle", 9.5, INK, True))
             o.append(W(mx + 29, my, mx + 29, 40, x + 96, 40, c=GLD, lw=1.5))
@@ -500,11 +501,11 @@ def _f08_backflow():
         else:
             o.append(T(mx + 29, my + 46, "マスタ", "middle", 9.5, INK, True))
             o.append(W(mx + 58, ypin, sx - 4, ypin, c=INK, lw=1.4))
-            o.append(W(mx + 29, my, mx + 29, 40, x + 88, 40, c=GLD, lw=1.5))
-            o.append(_f08_resv(x + 88, 40, ypin, c=GLD, n=5) + D(x + 88, ypin, INK, 2.6))
-            o.append(W(x + 106, ypin, x + 106, 148, c=INK, lw=1.2) + D(x + 106, ypin, INK, 2.4))
-            o.append(RECT(x + 82, 148, 50, 24, 4, GSOFT, GRN, 1.1))
-            o.append(T(x + 107, 164, "入れたまま", "middle", 8.5, GRN, True))
+            o.append(W(mx + 29, my, mx + 29, 40, x + 80, 40, c=GLD, lw=1.5))
+            o.append(_f08_resv(x + 80, 40, ypin, c=GLD, n=5) + D(x + 80, ypin, INK, 2.6))
+            o.append(W(x + 100, ypin, x + 100, 146, c=INK, lw=1.2) + D(x + 100, ypin, INK, 2.4))
+            o.append(RECT(x + 74, 146, 46, 24, 4, GSOFT, GRN, 1.1))
+            o.append(T(x + 97, 162, "入れたまま", "middle", 8.5, GRN, True))
             _f08_bfsensor(o, sx, 44, ypin)
             o.append(T(x + 10, 188, "線が 1.25 V までしか上がらない", "start", 9.5, ALI, True))
             o.append(T(x + 10, 204, "→ 入れたままのセンサとも通信できない", "start", 9.5, ALI))
@@ -538,7 +539,7 @@ def _f08_bfcalc():
     o.append(q.axes(xl="センサの電源の線（R_x）", yl="電圧 [V]", xt=[100, 1e3, 1e4, 1e5, 1e6], yt=[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
                     xfmt=lambda v: xf[v], yfmt=lambda v: "%g" % v))
     o.append(q.line([(100, 2.1), (1e6, 2.1)], c=ALI, lw=1.3, dash="5 4"))
-    o.append(T(q.X(1.2e5), q.Y(2.1) + 13, "H と読める下限 2.1 V", "start", 9, ALI, halo=True))
+    o.append(T(q.X(1.5e4), q.Y(2.1) + 13, "H と読める下限 2.1 V", "start", 9, ALI, halo=True))
     o.append(q.line([(R, Vb(Rs_pu, R)) for R in Rx], c=GLD, lw=2.2))
     o.append(W(q.X(Rt), q.Y(0), q.X(Rt), q.Y(2.1), c=ALI, lw=1.2, dash="3 3"))
     o.append(D(q.X(Rt), q.Y(2.1), ALI, 4))
@@ -615,9 +616,7 @@ def _f08_rise():
         ts = [i2 * 7.0 for i2 in range(201)]
         o.append(p.line([(t, VDD * (1 - math.exp(-t / tau))) for t in ts], c=c, lw=2.2))
         t30, t70 = tau * math.log(1 / 0.7), tau * math.log(1 / 0.3)
-        o.append(p.line([(t30, 0.9), (t70, 2.1)], c=c, lw=0.1))
         o.append(D(p.X(t30), p.Y(0.9), c, 3.2) + D(p.X(t70), p.Y(2.1), c, 3.2))
-        yy = 262 + i * 0
     xl = p.x + p.w + 14
     for i, (R, c) in enumerate(rows):
         tau = R * Cb * 1e9
@@ -626,8 +625,8 @@ def _f08_rise():
     o.append(T(xl, 170, "Fast-mode（400 kHz）の", "start", 9, INK))
     o.append(T(xl, 183, "上限 300 ns を満たすのは", "start", 9, INK))
     o.append(T(xl, 196, "2.2 kΩ だけ", "start", 9, INK, True))
-    o.append(T(p.X(5), p.Y(0.9) - 5, "0.3 V_DD = 0.9 V", "start", 9, MUT, halo=True))
-    o.append(T(p.X(1395), p.Y(2.1) - 5, "0.7 V_DD = 2.1 V", "end", 9, MUT, halo=True))
+    o.append(T(xl, 222, "破線: 0.3 V_DD = 0.9 V と", "start", 9, MUT))
+    o.append(T(xl, 235, "0.7 V_DD = 2.1 V", "start", 9, MUT))
     return SVG(700, 286, o, "プルアップ抵抗がバス容量を充電して線が上がる様子（V_DD = 3.0 V、バス容量 100 pF の例）。点は 30 % と 70 % を通る時刻で、その間が立ち上がり時間 t_r = R C ln(7/3) ≈ 0.8473 R C である。")
 F["e08_rise"] = _f08_rise()
 
@@ -651,7 +650,7 @@ def _f08_window():
     o.append(T(p.X(11), p.Y(Rmax(300e-9, 11)) + 16, lines[1][2], "start", 9, SIG, True, halo=True))
     o.append(T(p.X(11), p.Y(Rmax(120e-9, 11)) + 16, lines[2][2], "start", 9, PUR, True, halo=True))
     o.append(p.line([(10, 867), (1000, 867)], c=INK, lw=1.4, dash="6 4"))
-    o.append(T(p.X(560), p.Y(867) - 6, "下限 867 Ω", "end", 9, INK, True, halo=True))
+    o.append(T(p.X(11), p.Y(867) + 14, "下限 867 Ω（3 mA）", "start", 9, INK, True, halo=True))
     o.append(p.line([(10, 130), (1000, 130)], c=PUR, lw=1.2, dash="6 4"))
     o.append(T(p.X(560), p.Y(130) - 6, "1 MHz の下限 130 Ω", "end", 9, PUR, halo=True))
     o.append(p.line([(400, 100), (400, 1e5)], c=MUT, lw=1.1, dash="3 3"))
@@ -675,22 +674,21 @@ def _f08_hang():
     scl, sda, drv = [(0.0, 0)], [(0.0, 0)], []
     clk_marks, events = [], []
     for b in range(4):              # 7〜4 番のビット（すべて 0）
-        drv.append((t, t + 2, "s")); t += 1; scl.append((t, 1)); t += 1; scl.append((t, 0))
-    drv.append((t, t + 1, "s")); t += 1          # 3 番のビットを出したところ（SCL は L）
+        t += 1; scl.append((t, 1)); t += 1; scl.append((t, 0))
+    t += 1                          # 3 番のビットを出したところ（SCL は L）
     t_reset = t
     scl.append((t, 1))                            # リセットでピンが離れ、SCL は H に
     gap = 9.0
-    drv.append((t, t + gap, "s")); t += gap
+    t += gap
     t_rec = t
     for n in range(4):              # 復旧のクロック 1〜4
         t += 0.4
         scl.append((t, 0))
-        if n < 3:
-            drv.append((t - 0.4, t + 2.0, "s"))
-        else:
-            sda.append((t + 0.25, 1))
+        if n == 3:
+            sda.append((t + 0.25, 1)); t_rel = t + 0.25
         clk_marks.append((t + 0.5, n + 1))
         t += 1.0; scl.append((t, 1)); t += 0.6
+    drv.append((0.0, t_rel, "s"))
     t += 0.4; sda.append((t, 0)); drv.append((t, t + 0.8, "m")); t_s = t
     t += 0.8; sda.append((t, 1)); t_p = t
     t += 3.0
@@ -744,7 +742,7 @@ def _f08_recflow():
     _f08_dia(o, 276, 126, 188, 54, "⑤ SDA が H か")
     o.append(ARR(182, 126, 166, 126, c=GRN, lw=1.5, head=6))
     o.append(T(174, 118, "H", "middle", 9, GRN, True))
-    o.append(BOX(14, 104, 150, 44, "⑥ 開始条件と停止条件", "BUS_OK・BUS_CLOCKED", GRN, GSOFT, INK, sz=10, ssz=8.5))
+    o.append(BOX(14, 104, 150, 44, "⑥ 開始条件と停止条件", "→ バスは使える", GRN, GSOFT, INK, sz=10, ssz=9))
     # 戻らないとき
     o.append(W(626, 42, 676, 42, 676, 198, 470, 198, c=ALI, lw=1.5))
     o.append(_head(676, 198, 468, 198, ALI, 6))
@@ -753,7 +751,10 @@ def _f08_recflow():
     o.append(T(282, 168, "L のまま", "start", 9, ALI, True))
     o.append(BOX(226, 178, 242, 44, "⑦ センサとプルアップの電源を切って", "入れ直し、③〜⑤ をもう一度", ALI, ASOFT, INK, sz=9.5, ssz=9))
     o.append(ARR(226, 200, 166, 200, c=INK, lw=1.4, head=6))
-    o.append(BOX(14, 172, 150, 56, "⑧ 戻れば BUS_REPOWERED", "戻らなければ BUS_DEAD（そのセンサを使わずに続ける）", GLD, GOSOFT, INK, sz=9, ssz=8.5))
+    o.append(RECT(14, 172, 150, 56, 8, GOSOFT, GLD, 1.4))
+    o.append(T(89, 188, "⑧ 戻れば使える", "middle", 9, INK, True))
+    o.append(T(89, 203, "戻らなければ故障として記録し、", "middle", 8.5, INK))
+    o.append(T(89, 217, "そのセンサを使わずに続ける", "middle", 8.5, INK))
     o.append(T(14, 252, "戻ったら: センサの設定を最初から書き直し（電源を入れ直したなら起動時間を待つ）、復旧の回数と原因を記録する。", "start", 9.5, INK))
-    return SVG(700, 262, o, "バスの復旧の手順（6 節のコードと同じ）。SCL が H になれば、SDA が H になるまでクロックを送り、開始条件と停止条件で終える。SCL が L のまま、または 9 回でも SDA が戻らなければ、センサの電源を入れ直す。")
+    return SVG(700, 262, o, "バスの復旧の手順（下のコードと同じ流れ）。SCL が H になれば、SDA が H になるまでクロックを送り、開始条件と停止条件で終える。SCL が L のまま、または 9 回でも SDA が戻らなければ、センサの電源を入れ直す。")
 F["e08_recflow"] = _f08_recflow()
