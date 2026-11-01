@@ -2,7 +2,7 @@
   /* 狭い画面（表示枠が 520 px 未満）では、図を幅 400 に組み替える */
   function _w14_nar(box){var w=box.el.clientWidth;return w>0&&w<520;}
   function _w14_sig(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
-  function _w14_f(v,d){return (+v).toFixed(d).replace("-","−");}
+  function _w14_f(v,d){v=+v;if(Math.abs(v)<0.5*Math.pow(10,-d))v=0;return v.toFixed(d).replace("-","−");}
   function _w14_days(n){return n>=365?_w14_sig(n/365,2)+" 年":_w14_sig(n,3)+" 日";}
 
   /* PID（本文 3 節の離散の式。微分は読みに掛け、aw なら条件付きの積分と積分の項の上限） */
@@ -80,7 +80,7 @@
     U.button(br,"PID（ジーグラとニコルス）",function(){base();pid(3,0.3,40,10);draw();});
     U.button(br,"積分の飽和の対策なし",function(){base();pid(3,0.3,40,10);aw.set(false);draw();});
     U.button(br,"むだ時間を見誤る（実は 40 s）",function(){base();pid(3,0.3,40,10);ld.set(40);draw();});
-    U.button(br,"穏やかな PID（0.15 /K・80 s・10 s）",function(){base();pid(3,0.15,80,10);ld.set(40);draw();});
+    U.button(br,"穏やかな PID で L 40 s（0.15 /K・80 s・10 s）",function(){base();pid(3,0.15,80,10);ld.set(40);draw();});
     var box=U.svgbox(el); var ro=U.readout(el);
     function draw(){
       var M=mode.get();
@@ -119,13 +119,13 @@
       var h="",K=P*R,warn="";
       if(Ta+K<Tset)warn+='<span class="warn">ヒータの電力が足りない: 入れ続けても '+_w14_f(Ta+K,1)+' °C までしか上がらない</span><br>';
       if(W2&&Ta+P*R*0.64<Tset)warn+='<span class="warn">風が当たると、入れ続けても '+_w14_f(Ta+P*R*0.64,1)+' °C までしか上がらない</span><br>';
-      h+="冷えた所から: 最高 <b>"+_w14_f(A.mx,2)+" °C</b>"+(A.mx>Tset?"（行き過ぎ "+_w14_f(A.mx-Tset,2)+" K）":"")+"、"+(settle<0?"始めから":"")+(settle>=1199?'<span class="warn">±0.5 K に落ち着かない</span>':"±0.5 K に入ったまま: "+Math.round(settle+2)+" s 以降")+"<br>";
+      h+="冷えた所から: 最高 <b>"+_w14_f(A.mx,2)+" °C</b>"+(A.mx>Tset?"（行き過ぎ "+_w14_f(A.mx-Tset,2)+" K）":"")+(M===0?"":(settle>=1100?'、<span class="warn">1200 s までに ±0.5 K に落ち着かない</span>':"、±0.5 K に入るのは "+Math.round(settle+2)+" s（その後は出ない）"))+"<br>";
       h+="1000〜1200 s: 平均 "+_w14_f(B.av,2)+" °C（偏差 "+_w14_f(Tset-B.av,2)+" K）、振れ幅 "+_w14_f(B.mx-B.mn,2)+" K"+(M>0&&B.mx-B.mn>0.5?' <span class="warn">振動が収まらない</span>':"")+"<br>";
       if(W2)h+="風の後: 最低 "+_w14_f(Dd.mn,2)+" °C、2200〜2400 s の平均 "+_w14_f(D2.av,2)+" °C（偏差 "+_w14_f(Tset-D2.av,2)+" K）、振れ幅 "+_w14_f(D2.mx-D2.mn,2)+" K<br>";
       if(M===0){
-        var c1=ons.filter(function(t){return t>=600&&t<1200;}).length,perDay=c1/600*86400,hh=hy.get();
+        var on1=ons.filter(function(t){return t>=300&&t<1200;}),c1=on1.length,perDay=c1>=2?86400*(c1-1)/(on1[c1-1]-on1[0]):0,hh=hy.get();
         var up=(Ta+K-(Tset+hh))*(1-Math.exp(-L/(R*C))),dn=((Tset-hh)-Ta)*(1-Math.exp(-L/(R*C)));
-        h+="入れ切り: 600〜1200 s に "+c1+" 回 → 1 日 約 "+Math.round(perDay)+" 回、リレー（10 万回）は約 "+(perDay>0?_w14_days(1e5/perDay):"—")+"<br>";
+        h+="入れ切り: 300〜1200 s の往復の周期 "+(c1>=2?_w14_sig((on1[c1-1]-on1[0])/(c1-1),4)+" s":"—")+" → 1 日 約 "+Math.round(perDay)+" 回、リレー（10 万回）は約 "+(perDay>0?_w14_days(1e5/perDay):"—")+"<br>";
         if(Ta+K>Tset+hh&&Tset-hh>Ta)h+="2 節の式（読む間隔を 0 とした値）: "+_w14_f(Tset-hh-dn,2)+"〜"+_w14_f(Tset+hh+up,2)+" °C（行き過ぎ "+_w14_f(up,2)+" K、下がり過ぎ "+_w14_f(dn,2)+" K）<br>";
       }
       if(M===1){var kv=kp.get();h+="定常偏差の式 (T_set − T_a) ÷ (1 + K Kp) = "+_w14_f((Tset-Ta)/(1+K*kv),2)+" K（K = "+_w14_sig(K,3)+" K）"+(W2?"、風の後 "+_w14_f((Tset-Ta)/(1+K*0.64*kv),2)+" K":"")+"<br>";}
@@ -207,7 +207,7 @@
       var h="";
       h+="平均の電力: <b>"+_w14_sig(pw*100,4)+" %</b>（"+_w14_sig(pw*Pm,4)+" W）"+(m===1?"・細かさ 1/N = "+_w14_sig(100/N,3)+" %、窓 "+_w14_sig(N/f,3)+" s":"")+(m===3?"・α = "+_w14_sig(alpha*180/Math.PI,4)+"°（半周期の途中で入れる: ノイズと高調波）":"")+"<br>";
       h+="直流の成分（電流の平均）: "+(Math.abs(Idc)<1e-3*Ipk?'<span class="ok">ほぼ 0</span>':'<span class="warn">'+_w14_sig(Math.abs(Idc),3)+" A（山の値 "+_w14_sig(Ipk,3)+" A の "+_w14_sig(Math.abs(Idc)/Ipk*100,3)+" %）</span>")+"<br>";
-      h+="板（80 W・400 J/K）の温度の上下の幅: "+_w14_sig(mx-mn,2)+" K"+(m===1?"（式 D(1 − D) P T_w ÷ C = "+_w14_sig(pw*(1-pw)*80*(N/f)/Cth,2)+" K）":"")+"<br>";
+      h+="板（80 W・400 J/K）の温度の上下の幅: "+(mx-mn<1e-6?"ほぼ 0":_w14_sig(mx-mn,2)+" K")+(m===1?"（式 D(1 − D) P T_w ÷ C = "+_w14_sig(pw*(1-pw)*80*(N/f)/Cth,2)+" K）":"")+"<br>";
       h+="入れ切りの変わり目: 1 秒に約 "+_w14_sig(trPerS,3)+" 回"+(big?"・変わり目ごとに電流が "+_w14_sig(Irms,3)+" A 変わり、配線の抵抗 0.2 Ω（例）なら電圧が "+_w14_sig(Irms*0.2,2)+" V 変わる":"")+"<br>";
       ro.innerHTML=h+'<div class="wnote">電流は抵抗の負荷（ヒータ）の正弦波とした。散らす入れ方は本文 4 節の cycle_on と同じ規則（1 周期ごとに出力を足し込み、1000 ‰ に届いたら入れる）。半周期単位は、同じ規則を半周期ごとに使った例。温度の上下の幅は、80 W・400 J/K の板で、周期の中の熱の出入りを足し合わせて求めた。</div>';
     }
