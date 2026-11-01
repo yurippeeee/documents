@@ -400,13 +400,13 @@ def _f02_carnet():
     o.append(T(82, 133, "（鉛蓄電池）", "start", 9, MUT))
     # オルタネータ
     o.append(W(190, yb, 190, 106, c=GLD, lw=1.6) + CIRC(190, 124, 18, c=GLD, lw=1.6, fill=PAN) + T(190, 128.5, "G", "middle", 12, GLD, True) + W(190, 142, 190, yg, c=MUT, lw=1.4))
-    o.append(T(190, 166, "オルタネータ", "middle", 9.5, GLD, True))
-    o.append(T(190, 180, "（エンジンが回す）", "middle", 9, MUT))
+    o.append(T(198, 166, "オルタネータ", "start", 9.5, GLD, True))
+    o.append(T(198, 180, "（エンジンが回す）", "start", 9, MUT))
     # キー
     o.append(W(330, yb, 330, 92, c=GLD, lw=1.6) + RECT(296, 92, 68, 34, 6, PAN, MUT, 1.3) + T(330, 113, "キーの接点", "middle", 9.5, INK, True))
     o.append(W(316, 126, 316, 150, c=PUR, lw=1.6) + CIRC(316, 168, 18, c=PUR, lw=1.6, fill=PAN) + T(316, 172.5, "M", "middle", 12, PUR, True) + W(316, 186, 316, yg, c=MUT, lw=1.4))
     o.append(T(292, 146, "ST", "end", 9, PUR, True))
-    o.append(T(316, 200, "スタータ", "middle", 9.5, PUR, True))
+    o.append(T(324, 206, "スタータ", "start", 9.5, PUR, True))
     o.append(W(350, 126, 350, 160, c=SIG, lw=1.6) + W(350, 160, 560, 160, c=SIG, lw=1.6))
     o.append(T(358, 146, "ACC", "start", 9, SIG, True))
     # 機器
