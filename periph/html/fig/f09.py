@@ -749,8 +749,8 @@ def _f09_periodic():
     r16 = abs(math.sin(math.pi * 50 * 0.016) / (16 * math.sin(math.pi * 50 * d)))
     o.append(D(pb.X(0.016), pb.Y(r16), SIG, 4))
     o.append(T(pb.X(0.016) + 6, pb.Y(r16) - 6, "16 ms: 23 %", "start", 9.5, SIG, True, halo=True))
-    o.append(LEGEND(430, 262, [(SIG, "50 Hz"), (PUR, "60 Hz")]))
-    o.append(T(430, 280, "0 になるのは、50 Hz で 20 ms ごと、60 Hz で 16.7 ms ごと", "start", 9.5, MUT))
+    o.append(LEGEND(380, 262, [(SIG, "50 Hz"), (PUR, "60 Hz")]))
+    o.append(T(380, 280, "0 になるのは、50 Hz で 20 ms ごと、60 Hz で 16.7 ms ごと", "start", 9.5, MUT))
     return SVG(700, 290, o, "周期的なノイズの平均。(a) 測るたびにノイズの位相が θ ずつ進むとみると、平均をとる時間が周期の整数倍なら、点は円を等しく分け、和は 0 になる。測る間隔が周期の整数倍なら、毎回同じ位相を測るので、平均しても減らない。(b) 50 Hz と 60 Hz のノイズを 1 ms ごとに測って平均したとき、平均に残る大きさの上限。100 ms なら両方とも 0 になる。")
 F["e09_periodic"] = _f09_periodic()
 
