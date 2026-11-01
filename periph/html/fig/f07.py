@@ -495,42 +495,6 @@ def _f07_tree():
     return SVG(700, y0 + 94, o, "マイコンのクロックと電源の配り方（例）。速いクロックは、周辺回路ごとの入れ切りの関門を通って配られ、使わない回路の関門を切ると、その回路の電流が減る。深い眠りでは速いクロックそのものが止まる。遅いクロックは、RTC や起こすためのピンの見張りに使われ、眠っている間も動く。")
 F["e07_tree"] = _f07_tree()
 
-# ---- 4 節: クロックを下げたときの電荷 ----
-def _f07_clockq():
-    o = []
-    k, I0, N = 150e-6 / 1e6, 0.3e-3, 32000
-    rows = [(16e6, "16 MHz"), (4e6, "4 MHz"), (1e6, "1 MHz")]
-    x0, sx, sy = 120, 16.0, 22.0             # px/ms, px/mA
-    for r, (f, lab) in enumerate(rows):
-        yb = 74 + r * 82
-        t = N / f * 1e3
-        Ik = k * f * 1e3                     # mA
-        I0m = I0 * 1e3
-        o.append(T(14, yb - 22, lab, "start", 11, INK, True))
-        o.append(T(14, yb - 6, "%s mA × %s ms" % (_f07_q(Ik + I0m, 2), _f07_q(t, 1)), "start", 9.5, MUT))
-        o.append(W(x0, yb, x0 + 34 * sx, yb, c=MUT, lw=1))
-        o.append(W(x0, yb, x0, yb - 3.2 * sy, c=MUT, lw=1))
-        for mA in (0, 1, 2, 3):
-            o.append(W(x0 - 3, yb - mA * sy, x0, yb - mA * sy, c=MUT, lw=1))
-            o.append(T(x0 - 6, yb - mA * sy + 3.5, "%d" % mA, "end", 8.5, MUT))
-        o.append(T(x0 + 6, yb - 3.2 * sy + 4, "mA", "start", 8.5, MUT))
-        o.append(RECT(x0, yb - I0m * sy, t * sx, I0m * sy, 0, GOSOFT, GLD, 1.0))
-        o.append(RECT(x0, yb - (I0m + Ik) * sy, t * sx, Ik * sy, 0, SSOFT, SIG, 1.0))
-        q0 = I0 * N / f * 1e6
-        lab2 = "%s µC（= 4.8 + %s）" % (_f07_q(4.8 + q0, 1), _f07_q(q0, 1))
-        if x0 + t * sx + 8 + tw(lab2, 10) < 696:
-            o.append(T(x0 + t * sx + 8, yb - 14, lab2, "start", 10, INK, True, halo=True))
-        else:
-            o.append(T(x0 + 8, yb - (I0m + Ik) * sy - 6, lab2, "start", 10, INK, True, halo=True))
-    ya = 74 + 2 * 82
-    for tm in (0, 8, 16, 24, 32):
-        o.append(W(x0 + tm * sx, ya, x0 + tm * sx, ya + 4, c=MUT, lw=1))
-        o.append(T(x0 + tm * sx, ya + 16, "%d" % tm, "middle", 9, MUT))
-    o.append(T(x0 + 17 * sx, ya + 30, "時間 [ms]", "middle", 9.5, MUT))
-    o.append(LEGEND(14, ya + 52, [(SIG, "周波数に比例する部分 kf（面積 kN = 4.8 µC。どれも同じ）"), (GLD, "周波数によらない部分 I0 = 0.3 mA（面積 I0 N/f）")], gap=14))
-    return SVG(700, ya + 62, o, "同じ仕事（クロック 32,000 回分）を 3 つの周波数で行うときの電流（例の値）。塗った面積が電荷である。周波数に比例する部分の面積はどれも同じで、周波数によらない部分は、遅いほど長く流れる。クロックを下げるとピーク電流は下がるが、電荷は増える。")
-F["e07_clockq"] = _f07_clockq()
-
 # ---- 4 節: 止める順番 ----
 def _f07_order():
     o = []
