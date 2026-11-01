@@ -298,7 +298,7 @@ def _f15_shared():
     box(176, 150, 92, 24, "センサ", TEA)
     o.append(W(176, 162, 66, 162, 66, yn, c=TEA, lw=1.2, dash="4 3") + D(66, yn, TEA, 2.4))
     o.append(ARR(222, 150, 222, 114, c=TEA, lw=1.2, head=5))
-    o.append(T(14, 196, "モータの電流が R_s・R_g を流れると、マイコンの電源が下がり、", "start", 9.5, ALI))
+    o.append(T(14, 196, "モータの電流が分け合う線を流れると、マイコンの電源が下がり、", "start", 9.5, ALI))
     o.append(T(14, 210, "GND が持ち上がる。例: 1.33 A × 0.05 Ω = 67 mV。電池の − に", "start", 9.5, ALI))
     o.append(T(14, 224, "つないだセンサの読みは、12 ビットの ADC で 83 LSB ずれる", "start", 9.5, ALI))
     # ---- (b) 電池の端子で分ける ----
@@ -385,10 +385,11 @@ def _f15_loop():
         o.append(q.line([(a, d) for a, b, c_, d in pts], c=PUR, lw=1.3))
         o.append(T(q.x - 6, q.y + 16, "電流", "end", 9, PUR))
         if resets:
-            msg = "リセット %d 回（赤の印）。モータは回らない" % len(resets)
+            lines = ["リセット %d 回" % len(resets), "（赤の印）。", "モータは回らない"]
+        elif kw.get("split"):
+            lines = ["リセットなし。", "マイコンの電源の", "最低 %.2f V" % min(c_ for a, b, c_, d in pts)]
         else:
-            msg = "リセットなし。電源の線の最低 %.2f V" % vmin
-        lines = wrap(msg, 8)
+            lines = ["リセットなし。", "電源の線の", "最低 %.2f V" % vmin]
         for i, l in enumerate(lines):
             o.append(T(600, y + 44 + i * 13, l, "start", 9.5, tc, True))
         y += 136
@@ -398,3 +399,217 @@ def _f15_loop():
     o.append(LEGEND(70, y + 28, [(GLD, "電源の線の電圧"), (SIG, "マイコンの電源"), (ALI, "BOR 2.7 V"), (PUR, "モータの電流（0〜2 A）")]))
     return SVG(700, y + 38, o, "使い終わりの電池（4.8 V・1.6 Ω）で 13 章の例のモータを回すとき（例の値、細かい時間刻みで解いた値）。(a) 回し始めて 1.9 ms で BOR がかかり、リセットでモータが止まると電圧が戻り、起動してまた回して、55 ms ごとにリセットを繰り返す。(b) 加速をゆっくりにすると起動電流が下がり、(c) マイコンの側を分けると、電源の線が下がってもマイコンの電源は保たれる。")
 F["e15_loop"] = _f15_loop()
+
+# ---- 4 節: 止まってから安全な状態まで ----
+def _f15_chain():
+    o = []
+    x0, x1, tmax = 170, 680, 900.0
+    X = lambda t: x0 + t / tmax * (x1 - x0)
+    Ts, J, TW, eps = 100.0, 10.0, 150.0, 0.10
+    t1 = Ts + J; t2 = t1 + TW / (1 - eps)
+    rows = [("ヒータ（SSR）", [(0, t1, "合図まで", GLD), (t1, t2, "数え終えるまで", SIG), (t2, t2 + 10, "", PUR)], t2 + 10, "SSR は次のゼロクロスで切れる（≤ 10 ms）"),
+            ("モータ（惰性で止まる）", [(0, t1, "合図まで", GLD), (t1, t2, "数え終えるまで", SIG), (t2, t2 + 550, "惰性で止まる（13 章 3 節）", PUR)], t2 + 550, "")]
+    y0 = 40
+    o.append(T(x0 - 10, 22, "プログラムが止まる →", "end", 9.5, ALI, True))
+    o.append(W(X(0), 26, X(0), y0 + 2 * 46 + 6, c=ALI, lw=1.4, dash="4 3"))
+    for i, (lab, segs, tend, note) in enumerate(rows):
+        y = y0 + i * 46
+        o.append(T(x0 - 10, y + 16, lab, "end", 10, PUR, True))
+        for a, b, t, c in segs:
+            o.append(RECT(X(a), y, X(b) - X(a), 24, 2, soft(c), c, 1.1))
+            if t and X(b) - X(a) > tw(t, 9) + 4:
+                o.append(T((X(a) + X(b)) / 2, y + 16, t, "middle", 9, c, True))
+        o.append(T(X(tend) + 5, y + 16, "%.0f ms" % tend, "start", 9.5, INK, True))
+        if note:
+            o.append(T(X(tend) + 50, y + 16, note, "start", 9, PUR))
+    ya = y0 + 2 * 46 + 8
+    o.append(W(X(0), ya, X(tmax), ya, c=MUT, lw=1))
+    for t in range(0, 901, 100):
+        o.append(W(X(t), ya, X(t), ya + 4, c=MUT, lw=1))
+        o.append(T(X(t), ya + 16, "%d" % t, "middle", 9, MUT))
+    o.append(T(X(tmax), ya + 30, "ms", "end", 9, MUT))
+    # 内訳の式
+    o.append(_f15_m(X(t1 / 2), y0 - 6, [("T", "s", True), (" + ", None, False), ("J", None, True)], "middle", 10, GLD))
+    o.append(_f15_m(X((t1 + t2) / 2), y0 - 6, [("T", "W", True), ("/(1 − ε)", None, False)], "middle", 10, SIG))
+    # 危険の育つ速さ
+    yb = ya + 50
+    o.append(T(14, yb, "危険が育つ速さと比べる", "start", 10.5, INK, True))
+    o.append(T(14, yb + 18, "ヒータの板（14 章の例）: 最大の電力でも 1 秒に 0.2 K。287 ms の間に 0.06 K 上がるだけで、間に合う。", "start", 9.5, GRN))
+    o.append(T(14, yb + 34, "挟み込み（13 章 4 節）: 拘束と決める 0.15 s でもけがをさせうる。ウォッチドッグでは守れない → インタロック・力の上限。", "start", 9.5, ALI))
+    return SVG(700, yb + 44, o, "プログラムが止まってからアクチュエータが止まるまで（例の値: 監視の周期 100 ms、ばらつき 10 ms、ウォッチドッグの時間 150 ms、発振器のずれ 10 %）。ウォッチドッグのリセットまで 277 ms かかり、さらにアクチュエータが止まる時間が加わる。")
+F["e15_chain"] = _f15_chain()
+
+# ---- 4 節: ウィンドウウォッチドッグ ----
+def _f15_window():
+    o = []
+    Topen, TW, eps = 75.0, 150.0, 0.10
+    o_lo, o_hi = Topen / (1 + eps), Topen / (1 - eps)
+    c_lo, c_hi = TW / (1 + eps), TW / (1 - eps)
+    # 上: 前の合図からの時間の物差し
+    x0, x1, tm = 150, 690, 200.0
+    R = lambda t: x0 + t / tm * (x1 - x0)
+    y = 34
+    o.append(T(x0 - 10, y + 18, "前の合図からの時間", "end", 10, INK, True))
+    for a, b, f, c, lab in ((0, o_lo, ASOFT, ALI, "早すぎる"), (o_lo, o_hi, MSOFT, MUT, ""), (o_hi, c_lo, GSOFT, GRN, "窓（受け付ける）"),
+                            (c_lo, c_hi, MSOFT, MUT, ""), (c_hi, tm, ASOFT, ALI, "遅すぎる")):
+        o.append(RECT(R(a), y, R(b) - R(a), 28, 2, f, c, 1.1))
+        if lab:
+            o.append(T((R(a) + R(b)) / 2, y + 18, lab, "middle", 9.5, c, True))
+    o.append(W(R(0), y - 4, R(0), y + 32, c=SIG, lw=2.2))
+    for t, lab in ((o_lo, "68"), (o_hi, "83"), (c_lo, "136"), (c_hi, "167")):
+        o.append(T(R(t), y + 42, lab, "middle", 9, MUT))
+    o.append(T(R(tm), y + 42, "ms", "end", 9, MUT))
+    o.append(T((R(o_lo) + R(o_hi)) / 2, y - 6, "開く", "middle", 9, MUT))
+    o.append(T((R(c_lo) + R(c_hi)) / 2, y - 6, "閉じる", "middle", 9, MUT))
+    o.append(T(R(0) + 4, y - 6, "合図", "start", 9, SIG, True))
+    # 下: 3 つの場合
+    x0, x1, tmax = 150, 690, 480.0
+    X = lambda t: x0 + t / tmax * (x1 - x0)
+    lanes = [("(a) 正常", [0, 104, 196, 303, 398], None, GRN, "間隔 90〜110 ms。どの合図も窓の中"),
+             ("(b) ループが速く回る", [0, 104, 129], ("early", 129), ALI, "25 ms で次の合図 → 窓が開く前なのでリセット"),
+             ("(c) タスクが止まる", [0, 104], ("late", 104 + c_hi), ALI, "合図が来ないまま窓が閉じてリセット")]
+    y = 112
+    for lab, sig, rst, c, note in lanes:
+        o.append(T(x0 - 10, y + 16, lab, "end", 10, c, True))
+        o.append(W(X(0), y + 12, X(tmax), y + 12, c=LIN, lw=1))
+        for i, s0 in enumerate(sig):
+            nxt = sig[i + 1] if i + 1 < len(sig) else None
+            if nxt is None and rst and rst[0] == "early":
+                continue
+            end = nxt if nxt is not None else (rst[1] if rst else tmax)
+            # 窓（緑）を、次の合図か終わりまで描く
+            a, b = s0 + o_hi, min(s0 + c_lo, end, tmax)
+            if b > a:
+                o.append(RECT(X(a), y + 2, X(b) - X(a), 20, 2, GSOFT, GRN, 1.1))
+        for s0 in sig:
+            o.append(W(X(s0), y - 2, X(s0), y + 26, c=SIG, lw=2.2))
+        if rst:
+            tx = rst[1]
+            o.append(W(X(tx) - 6, y + 6, X(tx) + 6, y + 18, c=ALI, lw=2.2) + W(X(tx) - 6, y + 18, X(tx) + 6, y + 6, c=ALI, lw=2.2))
+        o.append(T(X(tmax), y + 40, note, "end", 9.5, c))
+        y += 54
+    ya = y - 6
+    o.append(W(X(0), ya, X(tmax), ya, c=MUT, lw=1))
+    for t in range(0, 481, 50):
+        o.append(W(X(t), ya, X(t), ya + 4, c=MUT, lw=1))
+        o.append(T(X(t), ya + 16, "%d" % t, "middle", 9, MUT))
+    o.append(T(X(tmax), ya + 30, "時間 [ms]", "end", 9, MUT))
+    o.append(LEGEND(14, ya + 50, [(SIG, "合図"), (GRN, "窓（ずれで最も狭くなった場合）"), (ALI, "リセット")]))
+    return SVG(700, ya + 60, o, "ウィンドウウォッチドッグ（例の値: 窓 75〜150 ms、発振器のずれ ±10 %）。前の合図から、窓が開く前に来た合図も、窓が閉じるまでに来ない合図も、リセットになる。境目は発振器のずれで動く（灰色）ので、正常な合図の間隔（90〜110 ms）が、最も狭くなった窓（83〜136 ms）に入るように決める。")
+F["e15_window"] = _f15_window()
+
+# ---- 5 節: 故障ごとの扱い ----
+def _f15_faults():
+    o = []
+    cols = [("故障", 126), ("見つけ方", 132), ("止める", 128), ("続ける", 148), ("戻し方", 136)]
+    rows = [(["室温のセンサ"], ["妥当性の検査", "（10 章 6 節）"], ["室温に合わせる暖房"], ["弱い決まった出力の暖房・", "送風・遠くからの操作"], ["検査が続けて通れば", "自動で"], GLD),
+            (["過熱を見張るセンサ"], ["妥当性の検査"], ["暖房（すべて）"], ["送風（余熱を逃がす）・", "知らせる"], ["利用者が直して", "操作するまで"], ALI),
+            (["ファンが回らない"], ["回転や電流", "（13 章 4 節）"], ["暖房・ファン"], ["知らせる"], ["利用者が直して", "操作するまで"], ALI),
+            (["切ったのに", "ヒータに電流"], ["電流の測り", "（14 章 5 節）"], ["すべて。2 つ目の", "スイッチで切る"], ["知らせる"], ["修理するまで"], ALI),
+            (["無線"], ["応答が無い"], ["遠くからの操作"], ["本体での操作のすべて"], ["つながれば自動で"], GLD)]
+    x = 14
+    xs = []
+    for t, w in cols:
+        xs.append(x); x += w
+    y0, rh = 30, 42
+    for (t, w), xx in zip(cols, xs):
+        o.append(T(xx + 4, 20, t, "start", 10, INK, True))
+    for i, r in enumerate(rows):
+        y = y0 + i * rh
+        o.append(W(14, y, 684, y, c=LIN, lw=1))
+        c = r[5]
+        for j, ((t, w), xx) in enumerate(zip(cols, xs)):
+            lines = r[j]
+            cc = PUR if j == 0 else (c if j in (2, 4) else (GRN if j == 3 else INK))
+            for q, l in enumerate(lines):
+                o.append(T(xx + 4, y + rh / 2 + 4 + (q - (len(lines) - 1) / 2) * 13, l, "start", 9.5, cc, j == 0))
+    o.append(W(14, y0 + len(rows) * rh, 684, y0 + len(rows) * rh, c=LIN, lw=1))
+    yl = y0 + len(rows) * rh + 20
+    o.append(LEGEND(14, yl, [(GLD, "一時的なことがある故障: 自動で戻す"), (ALI, "安全にかかわる故障: 利用者が戻すまで止めたまま"), (GRN, "続ける機能")]))
+    return SVG(700, yl + 10, o, "ファンヒータに、過熱を見張る 2 つ目の温度センサ・ファンの回転の確かめ・ヒータの電流の測り・無線を足した機器で、故障ごとに止めるものと続けるものを決めた表（例の決め方）。守りに使う部品が壊れたら、守られていた機能も止める。")
+F["e15_faults"] = _f15_faults()
+
+# ---- 5 節: 異常なリセットの回数で段階を下げる ----
+def _f15_modes():
+    o = []
+    st = [(120, "通常", GRN, "故障ごとの表で縮退する"), (360, "縮退", GLD, "ヒータとファンを止め、知らせる"), (600, "安全な停止", ALI, "出力をすべて切り、知らせるだけ")]
+    yc = 86
+    for x, nm, c, sub in st:
+        o.append(STATE(x, yc, 150, 50, nm, c))
+        o.append(T(x, yc + 46, sub, "middle", 9.5, c))
+    o.append(EDGE(196, yc - 10, 284, yc - 10, None, c=ALI))
+    o.append(T(240, yc - 36, "異常なリセットが", "middle", 9.5, ALI))
+    o.append(T(240, yc - 22, "続けて 3 回", "middle", 9.5, ALI, True))
+    o.append(EDGE(436, yc - 10, 524, yc - 10, None, c=ALI))
+    o.append(T(480, yc - 36, "異常なリセットが", "middle", 9.5, ALI))
+    o.append(T(480, yc - 22, "続けて 6 回", "middle", 9.5, ALI, True))
+    o.append(EDGE(284, yc + 12, 196, yc + 12, None, c=GRN))
+    o.append(T(240, yc + 26, "10 分続けて正常", "middle", 9.5, GRN))
+    # 安全な停止 → 通常（下を回る）
+    o.append(PATH("M%g,%g C%g,%g %g,%g %g,%g" % (600, yc + 60, 560, yc + 130, 160, yc + 130, 120, yc + 62), c=GRN, lw=1.5))
+    o.append(_head(126, yc + 74, 120, yc + 62, GRN, 7))
+    o.append(T(360, yc + 130, "利用者が入れ直す・電源を入れ直す（POR）と、回数を 0 に戻す", "middle", 9.5, GRN, True))
+    o.append(T(14, yc + 156, "異常なリセット: BOR とウォッチドッグによるもの。回数はリセットで消えない RAM に、確かめの値と一緒に数える。", "start", 9.5, MUT))
+    o.append(T(14, yc + 172, "1・2 回目は、待つ時間を延ばしてからやり直す（3 節）。電源が POR より下まで下がると数えられない。", "start", 9.5, MUT))
+    return SVG(700, yc + 182, o, "異常なリセットの回数で、縮退の段階を下げる（例の決め方: 3 回で縮退、6 回で安全な停止）。決めた時間正常に動くか、利用者が入れ直すと、回数を 0 に戻す。")
+F["e15_modes"] = _f15_modes()
+
+# ---- 6 節: 起動の手順 ----
+def _f15_boot():
+    o = []
+    steps = [("リセット・電源が入る", MUT), ("1 ピンを切る側の値にしてから出力に", GRN), ("2 原因と記録を読み、段階を決める", SIG),
+             ("3 電源・センサ・スイッチを確かめる", SIG), ("4 原因ごとに、再開してよいものを決める", GLD), ("5 危なくないものから、間を空けて入れる", PUR)]
+    x, w, h, y0, dy = 14, 290, 30, 14, 44
+    for i, (t, c) in enumerate(steps):
+        y = y0 + i * dy
+        o.append(RECT(x, y, w, h, 7, soft(c), c, 1.3))
+        o.append(T(x + w / 2, y + 20, t, "middle", 10, c, True))
+        if i + 1 < len(steps):
+            o.append(ARR(x + w / 2, y + h, x + w / 2, y + dy - 1, c=MUT, lw=1.3, head=6))
+    # 4 の分かれ
+    y4 = y0 + 4 * dy + h / 2
+    rows = [("POR", ["前の状態が分からない。危険な動作は", "利用者の操作を待つ（06 章 4 節）"]),
+            ("BOR", ["重い負荷をすぐ動かさず、待つ時間を", "延ばす。続けば縮退（3・5 節）"]),
+            ("ウォッチドッグ", ["プログラムの誤りを疑って記録する。", "危険な動作は利用者の操作を待つ"]),
+            ("更新の試しの起動", ["自己診断を通してから動かし、", "確定する（この節の後半）"])]
+    xr, yr0, rh = 360, 12, 58
+    for i, (nm, txt) in enumerate(rows):
+        y = yr0 + i * rh
+        o.append(RECT(xr, y, 326, rh - 6, 6, GOSOFT, GLD, 1.1))
+        o.append(T(xr + 8, y + 16, nm, "start", 10, GLD, True))
+        for q, l in enumerate(txt):
+            o.append(T(xr + 8, y + 31 + q * 13, l, "start", 9, INK))
+        o.append(W(x + w + 4, y4, xr - 14, y + (rh - 6) / 2, c=GLD, lw=1.1, dash="3 2"))
+    return SVG(700, y0 + 6 * dy, o, "原因によらず同じ手順で起動する。危険なアクチュエータのピンを最初に切る側にし、原因と記録・電源・センサ・スイッチを確かめてから、原因ごとの決まりで再開してよいものを選ぶ。")
+F["e15_boot"] = _f15_boot()
+
+# ---- 6 節: 更新の間 ----
+def _f15_update():
+    o = []
+    x0, x1 = 120, 690
+    segs = [(0, 26, "古い版が動く（取り込み）", SIG, "制御している", PUR),
+            (26, 38, "手順で止める", SIG, "安全な状態へ", GRN),
+            (38, 60, "ブートローダ（例 19 s）", MUT, "既定の状態（切）", GRN),
+            (60, 80, "新しい版の試しの起動", GLD, "既定の状態のまま", GRN),
+            (80, 100, "確定して動く", SIG, "再開", PUR)]
+    X = lambda u: x0 + u / 100.0 * (x1 - x0)
+    for y, lab in ((30, "プログラム"), (66, "アクチュエータ")):
+        o.append(T(x0 - 10, y + 16, lab, "end", 10, INK, True))
+    for a, b, t1, c1, t2, c2 in segs:
+        for y, t, c in ((30, t1, c1), (66, t2, c2)):
+            o.append(RECT(X(a), y, X(b) - X(a), 24, 2, soft(c), c, 1.1))
+            lines = [t] if X(b) - X(a) >= tw(t, 9) + 6 else wrap(t, max(3, int((X(b) - X(a) - 6) / 9)))
+            for q, l in enumerate(lines[:2]):
+                o.append(T((X(a) + X(b)) / 2, y + 16 + (q - (len(lines[:2]) - 1) / 2) * 11, l, "middle", 9 if len(lines) == 1 else 8.5, c, True))
+    # 自己診断に通らない → ロールバック
+    yb = 116
+    o.append(ARR(X(71), 56, X(71), yb - 2, c=ALI, lw=1.3, head=6))
+    o.append(RECT(X(54), yb, X(100) - X(54), 26, 5, ASOFT, ALI, 1.1))
+    o.append(T((X(54) + X(100)) / 2, yb + 17, "自己診断に通らない・固まる → ブートローダが元の版に戻す", "middle", 9, ALI, True))
+    notes = ["切り替えの前: 動作の途中・利用者が使っている間・電池の電圧が下限に近いときは切り替えない（05 章 6 節）。",
+             "ブートローダの間: アクチュエータのピンに触らない。止められないウォッチドッグには合図を送る。",
+             "試しの起動: 起動の手順の 1〜3 と、全タスクのチェックイン（4 節）を確かめてから、危険なアクチュエータを動かす。"]
+    for i, t in enumerate(notes):
+        o.append(T(14, yb + 50 + i * 16, t, "start", 9.5, MUT))
+    return SVG(700, yb + 50 + 3 * 16, o, "ファームウェアの更新の間のプログラムとアクチュエータ（長さは模式図。入れ替えの時間は組み込み通信シリーズ 22 章 6 節の例）。切り替えの前に手順で止め、ブートローダと試しの起動の間は既定の状態で待ち、確かめてから再開する。")
+F["e15_update"] = _f15_update()
