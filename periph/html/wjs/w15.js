@@ -196,7 +196,7 @@
     var twd=U.slider(r2,"ウォッチドッグの時間 T_W",{min:60,max:400,step:10,value:150,fmt:function(v){return v+" ms";},onInput:draw});
     var ts=U.slider(r2,"監視の周期 T_s",{values:[50,100,200],value:100,fmt:function(v){return v+" ms";},onInput:draw});
     var r3=U.ctrls(el);
-    var jj=U.slider(r3,"合図の間隔のばらつき ±J",{min:0,max:40,step:1,value:10,fmt:function(v){return "±"+v+" ms";},onInput:draw});
+    var jj=U.slider(r3,"合図の間隔のばらつき ±T_j",{min:0,max:40,step:1,value:10,fmt:function(v){return "±"+v+" ms";},onInput:draw});
     var ep=U.slider(r3,"発振器のずれ ε",{min:0,max:50,step:1,value:10,fmt:function(v){return v+" %";},onInput:draw});
     var ed=U.select(r3,"ずれの向き",["遅い側（窓が遅く開き、遅く閉じる）","速い側（早く開き、早く閉じる）","範囲の中の乱数"],0,draw);
     var ac=U.select(r3,"アクチュエータ",["SSR のヒータ（次のゼロクロスまで最大 10 ms）","モータ（惰性で止まるまで 550 ms）"],0,draw);
@@ -262,18 +262,18 @@
       if(fault===0)out=r.rst===null?'故障なし: <span class="ok">3 s の間リセットされない</span>':'故障なし: <span class="warn">誤ってリセットされた（'+(r.kind==="early"?"早すぎる合図":"合図が来ない")+"）</span>";
       else if(r.rst===null)out='<span class="warn">故障から 2 s たってもリセットされない（この送り方・設定では見つからない）</span>';
       else if(r.rst<1000)out='<span class="warn">故障の前に誤ってリセットされた</span>';
-      else out="故障からリセットまで <b>"+Math.round(r.rst-1000)+" ms</b>、アクチュエータが安全な状態になるまで <b>"+Math.round(r.rst-1000+tact)+" ms</b>（式の上限 T_s + J + T_W/(1 − ε) + t_act = "+Math.round(Ts+J+Tw/(1-e)+tact)+" ms）";
+      else out="故障からリセットまで <b>"+Math.round(r.rst-1000)+" ms</b>、アクチュエータが安全な状態になるまで <b>"+Math.round(r.rst-1000+tact)+" ms</b>（式の上限 T_s + T_j + T_W/(1 − ε) + t_act = "+Math.round(Ts+J+Tw/(1-e)+tact)+" ms）";
       ro.innerHTML=out+"<br>発振器の速さは名目の "+(clk*100).toFixed(1)+" %。窓は実際には "+(win?Math.round(r.openR)+"〜":"0〜")+Math.round(r.closeR)+" ms<br>"+
-        "誤ってリセットしない条件: "+(win?"T_open ≤ (T_s − J)(1 − ε) = "+_w15_sig(condO,3)+" ms "+(ok1?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"、":"")+
-        "T_W ≥ (T_s + J)(1 + ε) = "+_w15_sig(condW,3)+" ms "+(ok2?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"<br>"+
+        "誤ってリセットしない条件: "+(win?"T_open ≤ (T_s − T_j)(1 − ε) = "+_w15_sig(condO,3)+" ms "+(ok1?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"、":"")+
+        "T_W ≥ (T_s + T_j)(1 + ε) = "+_w15_sig(condW,3)+" ms "+(ok2?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"<br>"+
         "故障なしで 120 s ずつ 5 回動かした（同じ設定、別の乱数）: "+(falseN?'<span class="warn">'+falseN+" 回で誤ってリセット</span>":'<span class="ok">誤ったリセットなし</span>')+
-        '<div class="wnote">温度・ヒータ・ファンのタスクは 50 ms（±5 ms）ごとに動き、ヒータのタスクは 2 s より新しい温度があるときだけチェックインする。監視のタスクは、合図の間隔が T_s ± J の乱数になるように動く。「タイマの割り込みで無条件に」では、T_s ごとに必ず合図を送る。</div>';
+        '<div class="wnote">温度・ヒータ・ファンのタスクは 50 ms（±5 ms）ごとに動き、ヒータのタスクは 2 s より新しい温度があるときだけチェックインする。監視のタスクは、合図の間隔が T_s ± T_j の乱数になるように動く。「タイマの割り込みで無条件に」では、T_s ごとに必ず合図を送る。</div>';
     }
     draw();
   };
 
   /* ---- 5 節: 故障とリセットの繰り返しによる縮退（本文の rlog_boot・deg_allowed と同じ規則） ---- */
-  var _w15_FN=[["AUTO","室温に合わせる暖房"],["WEAK","弱い決まった出力の暖房"],["FAN","ファン（送風）"],["REMOTE","遠くからの操作・知らせ"]];
+  var _w15_FN=[["AUTO","室温に合わせる暖房"],["WEAK","弱い決まった出力の暖房"],["FAN","ファン（送風）"],["REMOTE","無線（遠くからの操作と知らせ）"]];
   var _w15_FAULT=[["室温のセンサ",1,false],["過熱を見張るセンサ",3,true],["ファンが回らない",7,true],["切ったのにヒータに電流",15,true],["無線",8,false]];
   REG.w15_mode=function(el,U){
     var S=U.S,streak=0,latched=0,log=[],nbor=0,nwdt=0;
@@ -312,7 +312,7 @@
         o.push(S.T(W-20,y+16,ok?"使ってよい":"止める（"+why[i].join("・")+"）","end",nar?9:10,ok?"green":"alias",false));});
       box.set(S.svg(W,y0+4*rh+4,o));
       ro.innerHTML="原因ごとの累計: BOR "+nbor+" 回、ウォッチドッグ "+nwdt+" 回<br>"+(log.length?"できごと（新しい順）: "+log.map(U.esc).join(" ／ "):"故障のチェックとボタンで、できごとを起こす")+
-        '<div class="wnote">5 節のファンヒータの例の決め方。利用者が戻すまで止めたままにする故障（過熱を見張るセンサ・ファン・ヒータの電流）は、直っても、利用者が入れ直すまで止めたままにする。</div>';
+        '<div class="wnote">5 節のファンヒータの例の決め方。表示（LED など）で知らせることは、どの段階でも続ける。利用者が戻すまで止めたままにする故障（過熱を見張るセンサ・ファン・ヒータの電流）は、直っても、利用者が入れ直すまで止めたままにする。</div>';
     }
     draw();
   };
