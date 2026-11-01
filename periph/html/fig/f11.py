@@ -393,11 +393,11 @@ def _f11_soft():
     o.append(T(x0 - 8, y4 + 28, "（20 ms）", "end", 9.5, ALI))
     o.append(RECT(X(6), y4, X(26) - X(6), 20, 3, ASOFT, ALI, 1.3))
     o.append(T((X(6) + X(26)) / 2, y4 + 14, "誤り", "middle", 9.5, ALI, True))
-    o.append(T((X(6) + X(26)) / 2, y4 + 36, "ノイズを押したと読む", "middle", 9.5, ALI, True))
+    o.append(T((X(6) + X(26)) / 2, y4 + 40, "ノイズを押したと読む", "middle", 9.5, ALI, True))
     o.append(RECT(X(50), y4, X(95) - X(50), 20, 3, GSOFT, GRN, 1.3))
     o.append(T((X(50) + X(95)) / 2, y4 + 14, "押されている（遅れ 0）", "middle", 10, GRN, True))
     for tt in (6, 50, 95):
-        o.append(W(X(tt), y4 + 22, X(tt), y4 + 30, c=ALI if tt == 6 else GRN, lw=1.2))
+        o.append(W(X(tt), y4 + 22, X(tt), y4 + 27, c=ALI if tt == 6 else GRN, lw=1.2))
     o.append(DIM(X(50), y4 + 34, X(70), y4 + 34, None, c=MUT))
     o.append(T(X(71), y4 + 38, "20 ms は変化を無視", "start", 9.5, MUT))
     # 時間軸
@@ -541,7 +541,7 @@ def _f11_quad():
     o.append(T((xs[8] + xs[12]) / 2 + 14, 212, "左へ 1 クリック", "middle", 9.5, PUR, True))
     o.append(T(14, 238, "1 回の変化では、A と B の片方だけが変わる。どちらが先に変わるかで向きが分かる。", "start", 9.5, MUT))
     # 右: 状態の輪
-    cx, cy, r = 588, 112, 66
+    cx, cy, r = 588, 116, 62
     pos = {3: (cx, cy - r), 1: (cx + r, cy), 0: (cx, cy + r), 2: (cx - r, cy)}
     for s, (px, py) in pos.items():
         o.append(CIRC(px, py, 17, c=INK, lw=1.4, fill=PAN))
@@ -553,9 +553,9 @@ def _f11_quad():
     o.append(W(pos[3][0], pos[3][1] + 19, pos[0][0], pos[0][1] - 19, c=ALI, lw=1.2, dash="4 3"))
     o.append(W(pos[2][0] + 19, pos[2][1], pos[1][0] - 19, pos[1][1], c=ALI, lw=1.2, dash="4 3"))
     o.append(T(cx + 6, cy - 6, "×", "start", 12, ALI, True))
-    o.append(T(cx, 30, "右回り: 時計回りに +1", "middle", 9.5, SIG, True))
-    o.append(T(cx, 210, "左回り: 逆にたどって −1", "middle", 9.5, PUR, True))
-    o.append(T(cx, 226, "× 対角（2 本とも変わる）は読み落とし", "middle", 9.5, ALI))
+    o.append(T(cx, 22, "右回り: 時計回りに +1", "middle", 9.5, SIG, True))
+    o.append(T(cx, 216, "左回り: 逆にたどって −1", "middle", 9.5, PUR, True))
+    o.append(T(cx, 232, "× 対角（2 本とも変わる）は読み落とし", "middle", 9.5, ALI))
     return SVG(700, 248, o, "ロータリーエンコーダの A と B（1 クリックで 4 回変わり、クリックの位置で 11 になる製品の例）。右に回すと (A, B) は 11 → 01 → 00 → 10 → 11 と変わり、左に回すと逆にたどる。右の輪の隣どうしの移り変わりで向きが決まり、対角への移り変わりは、間の変化を読み落としたことを表す。")
 F["e11_quad"] = _f11_quad()
 
@@ -667,11 +667,11 @@ def _f11_couple():
     o.append(_f11_m(196, yv + 22, [("C", "g", True), (" 500 pF", None, False)], "start", 9.5, INK))
     o.append(_f11_vdd(246, 60))
     o.append(_f11_resv(246, 60, yv, c=GLD))
-    o.append(_f11_m(234, 90, [("R", None, True)], "end", 10.5, INK))
+    o.append(_f11_m(234, 90, [("R", "p", True)], "end", 10.5, INK))
     o.append(D(246, yv, TEA, 3))
     o.append(T(296, yv + 4, "ピン", "start", 9.5, MUT))
     o.append(_f11_m(14, 196, [("速い変化の下がり幅 ≈ 24 V × ", None, False), ("C", "m", True), ("/(", None, False), ("C", "m", True), (" + ", None, False), ("C", "g", True), (") = 4 V", None, False)], "start", 10, INK))
-    o.append(_f11_m(14, 214, [("戻る時定数 τ = ", None, False), ("R", None, True), ("(", None, False), ("C", "m", True), (" + ", None, False), ("C", "g", True), (")", None, False)], "start", 10, INK))
+    o.append(_f11_m(14, 214, [("戻る時定数 τ = ", None, False), ("R", "p", True), ("(", None, False), ("C", "m", True), (" + ", None, False), ("C", "g", True), (")", None, False)], "start", 10, INK))
     o.append(T(14, 232, "スイッチが閉じていれば、線は GND に", "start", 9.5, GRN))
     o.append(T(14, 246, "つながっていて、ほとんど動かない", "start", 9.5, GRN))
     # 右: 波形
@@ -696,7 +696,7 @@ def _f11_couple():
             pts.append((t * 1e6, VD - u))
         o.append(p.line(pts, c=c, lw=2))
         labs.append((nm, c))
-    o.append(T(p.X(60) - 4, p.Y(0.5), "プルアップ抵抗: H と読めない時間", "end", 9, MUT))
+    o.append(_f11_m(p.X(60) - 4, p.Y(0.5), [("R", "p", True), (": H と読めない時間", None, False)], "end", 9, MUT))
     for k, (nm, c) in enumerate(labs):
         o.append(T(p.X(60) - 4, p.Y(0.5) + 15 * (k + 1), nm, "end", 9.5, c, True))
     return SVG(700, 268, o, "長い線の誘導ノイズ（C_m 100 pF、C_g 500 pF、24 V の線が 0.5 µs で下がる。例の値）。相手の線の変化が速いので、下がり幅は容量の分圧 4 V に近く、プルアップ抵抗ではあまり変わらない。元に戻る時定数はプルアップ抵抗に比例するので、抵抗を小さくするとノイズは短いパルスになる。")
@@ -765,8 +765,8 @@ def _f11_protect():
     o.append(W(xb + 40, 92, xb + 40, 100, c=TEA, lw=1.5))
     o.append(_f11_swv(xb + 40, 100, 132, True, c=TEA))
     o.append(_f11_gnd(xb + 40, 132))
-    o.append(T(xb + 18, 114, "普段は", "end", 9, MUT))
-    o.append(T(xb + 18, 126, "閉じている", "end", 9, MUT))
+    o.append(T(xb + 54, 116, "普段は", "start", 9, MUT))
+    o.append(T(xb + 54, 128, "閉じている", "start", 9, MUT))
     o.append(T(xb - 18, 166, "開く・線が切れる → H", "start", 9.5, GRN, True))
     o.append(T(xb - 18, 180, "→ 止める", "start", 9.5, GRN, True))
     return SVG(700, 280, o, "(a) 長い線の先のスイッチを読む入力の例（値は例）。コネクタのそばの TVS ダイオード、強めのプルアップ、ピンの前の R_s と C_f、シュミットトリガの入力を組み合わせる。(b) 非常停止のような止めるための入力は、普段は閉じている接点にし、開くか線が切れて H になったら止める。")
