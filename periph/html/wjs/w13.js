@@ -67,7 +67,7 @@
       ro.innerHTML=note+
         "リップル ΔI = <b>"+_w13_sig(ripple,3)+" A</b>（式 V D (1 − D) / (L f) = "+_w13_sig(approx,3)+" A）。周期 1/f = "+F.time(T)+"、電流の時定数 L/R = "+F.time(tauE)+(T<0.2*tauE?"（周期が十分短いので、式が合う）":'（周期が L/R に近いか長いので、<span class="warn">式は合わない</span>）')+"<br>"+
         "平均の電流 <b>"+_w13_sig(Iavg,3)+" A</b>、角速度 <b>"+_w13_sig(w,3)+" rad/s</b>（"+Math.round(rpm)+" rpm）。デューティ比から求めた (D V − R I) / k = "+_w13_sig(Math.max(0,ideal),3)+" rad/s<br>"+
-        "損失: 巻線 R I_rms² = "+_w13_sig(Pr,3)+" W（うちリップルの分 R ΔI²/12 ≈ "+_w13_sig(Prip,3)+" W）、スイッチ ½ V I (t_r + t_f) f ≈ "+_w13_sig(Psw,3)+" W（t_r + t_f = 1 µs として）<br>"+
+        "損失: 巻線の熱 R ×（電流の 2 乗の平均）= "+_w13_sig(Pr,3)+" W（うちリップルの分 R ΔI²/12 ≈ "+_w13_sig(Prip,3)+" W）、スイッチ ½ V I (t_r + t_f) f ≈ "+_w13_sig(Psw,3)+" W（t_r + t_f = 1 µs として）<br>"+
         (f<20000?'<span class="warn">'+_w13_sig(f/1000,3)+' kHz は人の耳に聞こえる周波数（20 kHz 程度まで）。巻線が鳴ることがある。</span>':'<span class="ok">20 kHz 以上: 耳には聞こえにくい。</span>')+
         '<div class="wnote">トルク定数 k は 0.02 N·m/A に固めた。速さは 1 周期の中では変わらないとして、周期ごとの電流を閉じた式で求め、平均の電流 × k が負荷のトルクに等しくなる速さを探した。ダイオードの順電圧は無視した。値は例の値。</div>';
     }
@@ -164,7 +164,7 @@
     function preset(v,a,h){vm.set(v);ac.set(a);tl.set(0.05);jj.set(1e-4);th.set(h);ns.set(4000);draw();}
     U.button(br,"5 節の例（10,000 段/s²）",function(){preset(3000,10000,0.4);});
     U.button(br,"加速を急に（30,000 段/s²）",function(){preset(3000,30000,0.4);});
-    U.button(br,"最高の速さを上げる（4,000 段/s）",function(){preset(4000,10000,0.4);});
+    U.button(br,"最高の速さを上げる（5,000 段/s）",function(){preset(5000,10000,0.4);});
     U.button(br,"電流を下げる（保持トルク 0.2 N·m）",function(){preset(3000,10000,0.2);});
     var box=U.svgbox(el); var ro=U.readout(el);
     var TH=Math.PI/100,NR=50;
@@ -215,7 +215,7 @@
       o.push(S.T(pc.X(60),pc.Y(need)-6,"加速の間に要る","start",9.5,bad?"alias":"signal",true,false,null,true));
       box.set(S.svg(W,nar?610:360,o));
       var dist=vmax*vmax/(2*a);
-      ro.innerHTML=(r.slip?'<span class="warn">脱調した</span>。回転子は指令に '+_w13_sig(r.err,3)+' 段遅れたまま止まった（マイコンは気づかない）。':'<span class="ok">脱調しない</span>。最後の位置の差 '+_w13_sig(r.err,2)+' 段。')+"<br>"+
+      ro.innerHTML=(r.slip?'<span class="warn">脱調した</span>。回転子は指令に '+_w13_sig(r.err,3)+' 段遅れたまま止まった（マイコンは気づかない）。':(need>have?'脱調しなかったが、<span class="warn">要るトルクが出せるトルクを超えていて、余裕が無い</span>（この模型では遅れが戻った）。':'<span class="ok">脱調しない</span>。')+'最後の位置の差 '+_w13_sig(r.err,2)+' 段。')+"<br>"+
         "加速の間に要るトルク J a θ_s + T_L = <b>"+_w13_sig(need,3)+" N·m</b>、最高の速さで出せるトルク T_p = <b>"+_w13_sig(have,3)+" N·m</b> → 加速度の上限 (T_p − T_L) / (J θ_s) = <b>"+(amax>0?Math.round(amax).toLocaleString("en-US")+" 段/s²":"0（負荷にも勝てない）")+"</b><br>"+
         "減速を始める位置: 残り v² / (2a) = "+Math.round(dist).toLocaleString("en-US")+" 段（"+F.time(vmax/a)+"）"+(2*dist>N?"。段の数が少なく、最高の速さに届く前に減速する":"")+(r.tdone?"。指令を出し終えるまで "+F.time(r.tdone):"")+
         '<div class="wnote">出せるトルクは T_p(v) = 保持トルク ÷ √(1 + (v/800)²) の代表的な形の例。回転子は、指令の角度との差に応じたトルク（差が 1 段で最大）で引かれる簡単な模型で、振動を少し抑える減衰を加えた。ステップ角 1.8°。値は例の値。</div>';

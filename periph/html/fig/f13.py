@@ -366,7 +366,7 @@ def _f13_freq():
     o.append(D(pa.X(2e4), pa.Y(_f13_dI(2e4)), SIG, 3.6))
     o.append(T(pa.X(2e4) + 6, pa.Y(_f13_dI(2e4)) - 6, "20 kHz: 0.15 A", "start", 9.5, SIG, True, halo=True))
     o.append(T(pa.X(130), pa.Y(0.02), "破線: 式 V/(4Lf)", "start", 9, MUT, halo=True))
-    o.append(T(pa.X(115), pa.Y(2.0), "6 A（V/R）で頭打ち", "start", 9, SIG, halo=True))
+    o.append(T(pa.X(115), pa.Y(0.9), "6 A（V/R）で頭打ち", "start", 9, SIG, halo=True))
     pr = [(f, _f13_loss(f)[0]) for f in fs]
     ps = [(f, _f13_loss(f)[1]) for f in fs]
     pt = [(f, a + b) for (f, a), (_, b) in zip(pr, ps)]
@@ -610,7 +610,7 @@ def _f13_stallfig():
     o.append(pa.line([(r[0] * 1e3, r[1]) for r in rows], c=SIG, lw=2))
     o.append(T(pa.X(260), pa.Y(4.29) - 6, "拘束電流 DV/R（温まった巻線 2.8 Ω で計算）", "start", 9.5, GLD, True, halo=True))
     o.append(T(pa.X(260), pa.Y(3.0) - 6, "その 70 %（しきい値）", "start", 9.5, ALI, True, halo=True))
-    o.append(T(pa.X(380), pa.Y(0.5) + 15, "回っている間 0.5 A", "start", 9.5, SIG, halo=True))
+    o.append(T(pa.X(380), pa.Y(1.3), "回っている間 0.5 A", "start", 9.5, SIG, halo=True))
     o.append(T(pa.X(612), pa.Y(5.8) + 4, "止められた", "start", 9.5, SIG, True, halo=True))
     o.append(W(pa.X(600), pa.y, pa.X(600), pb.y + pb.h, c=FNT, lw=1, dash="3 3"))
     o.append(pb.steps([(r[0] * 1e3, r[3]) for r in rows], c=PUR, lw=1.8))
@@ -821,9 +821,9 @@ def _f13_batt():
     o.append(pb.line([(q * 100, nocomp(q)[1]) for q in qs], c=ALI, lw=1.6, dash="5 3"))
     o.append(pc.line([(q * 100, comp(q)[2]) for q in qs], c=SIG, lw=2))
     o.append(pc.line([(q * 100, nocomp(q)[2]) for q in qs], c=ALI, lw=1.6, dash="5 3"))
-    o.append(_f13_m(pb.X(4), pb.Y(comp(0)[1]) - 8, [("直す: D = V", "set", False), (" / V", None, False)], "start", 9.5, SIG, True))
+    o.append(_f13_m(pb.X(4), pb.Y(0.9), [("直す: D = V", "set", False), (" / V", None, False)], "start", 9.5, SIG, True))
     o.append(T(pb.X(4), pb.Y(0.714) + 14, "直さない: 0.714 のまま", "start", 9.5, ALI, True, halo=True))
-    o.append(T(pc.X(4), pc.Y(400) + 14, "直す: %.0f rad/s のまま" % comp(0.5)[2], "start", 9.5, SIG, True, halo=True))
+    o.append(T(pc.X(4), pc.Y(400) - 6, "直す: %.0f rad/s のまま" % comp(0.5)[2], "start", 9.5, SIG, True, halo=True))
     q93 = 0.95 + 0.05 * (3.35 - 3.10) / 0.35            # 起電力 9.3 V の所
     o.append(T(pc.X(88), pc.Y(285), "直さない: %.0f rad/s → 起電力 9.3 V で %.0f rad/s" % (nocomp(0)[2], nocomp(q93)[2]), "end", 9.5, ALI, True, halo=True))
     return SVG(700, 400, o, "電池が減ったときのデューティ比と速さ（例のモータ、電池の内部抵抗 0.3 Ω。電池の電圧は代表的な形の例）。デューティ比を満充電のときのままにすると、電池が減るにつれて遅くなる。測った電池の電圧で目標の平均の電圧を割ってデューティ比にすると、速さは変わらない。")
