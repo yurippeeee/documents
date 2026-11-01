@@ -14,7 +14,7 @@ def _f06_m(x, y, parts, a="start", sz=12, c=INK, b=False):
     for s, sub, it in parts:
         o.append('<tspan font-style="%s">%s</tspan>' % ("italic" if it else "normal", E(s)))
         if sub:
-            o.append('<tspan dy="3" font-size="%g">%s</tspan><tspan dy="-3"></tspan>' % (sz * 0.72, E(sub)))
+            o.append('<tspan dy="3" font-size="%g">%s</tspan><tspan dy="-3">​</tspan>' % (sz * 0.72, E(sub)))
     o.append("</text>")
     return "".join(o)
 

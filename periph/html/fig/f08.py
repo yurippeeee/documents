@@ -15,7 +15,7 @@ def _f08_m(x, y, parts, a="start", sz=12, c=INK, b=False):
     for s, sub, it in parts:
         o.append('<tspan font-style="%s">%s</tspan>' % ("italic" if it else "normal", E(s)))
         if sub:
-            o.append('<tspan dy="3" font-size="%g">%s</tspan><tspan dy="-3"></tspan>' % (sz * 0.72, E(sub)))
+            o.append('<tspan dy="3" font-size="%g">%s</tspan><tspan dy="-3">​</tspan>' % (sz * 0.72, E(sub)))
     o.append("</text>")
     return "".join(o)
 
@@ -64,9 +64,9 @@ def _f08_cur(uA):
 # ---- 1 節: 出力の 3 つの形 ----
 def _f08_forms():
     o = []
-    cols = [("(a) アナログ出力", "センサ", "ADC", ["電圧を測って量に直す", "線の雑音が値の誤差になる"]),
+    cols = [("(a) アナログ出力", "センサ", "ADC", ["電圧を測って量に直す", "線のノイズが値の誤差になる"]),
             ("(b) デジタル出力", "センサ（中に ADC と校正）", "I2C・SPI・UART の回路", ["数値をそのまま読む", "通信の手順と、起動・設定が要る"]),
-            ("(c) パルス出力", "センサ", "タイマ（測る・数える）", ["幅・周期・数を測る", "長い線と雑音に強い"])]
+            ("(c) パルス出力", "センサ", "タイマ（測る・数える）", ["幅・周期・数を測る", "長い線とノイズに強い"])]
     for k, (tt, sname, mname, notes) in enumerate(cols):
         x = 12 + k * 232
         cx = x + 106
@@ -97,7 +97,7 @@ def _f08_forms():
     return SVG(700, 248, o, "センサの出力の 3 つの形。(a) 量を電圧の大きさで表し、マイコンは ADC で読む。(b) センサの中で数値にして送り、マイコンは通信の回路で読む。(c) 量をパルスの幅・周期・数で表し、マイコンはタイマで測る。")
 F["e08_forms"] = _f08_forms()
 
-# ---- 1 節: 同じ雑音が乗ったとき ----
+# ---- 1 節: 同じノイズが乗ったとき ----
 def _f08_noise():
     o = []
     nz = lambda t: 0.55 * math.sin(7.3 * t + 0.4) + 0.3 * math.sin(17.1 * t + 1.3) + 0.15 * math.sin(41.7 * t + 2.1)
@@ -106,7 +106,7 @@ def _f08_noise():
     ns = [v / m for v in ns]                     # いちばん大きい所がちょうど +20 mV になるように
     # (a) アナログ出力
     x0, y0, w, h = 62, 36, 260, 104
-    o.append(T(14, 20, "(a) アナログ出力: 雑音がそのまま値になる", "start", 11, ALI, True))
+    o.append(T(14, 20, "(a) アナログ出力: ノイズがそのまま値になる", "start", 11, ALI, True))
     Y = lambda mv: y0 + h - (mv - 210) / 80.0 * h
     o.append(W(x0, y0, x0, y0 + h, x0 + w, y0 + h, c=MUT, lw=1.1))
     for mv in (230, 250, 270):
@@ -121,7 +121,7 @@ def _f08_noise():
     o.append(T(pts[k][0] + (-8 if rt else 8), pts[k][1] - 4, "ここで読むと 270 mV", "end" if rt else "start", 9.5, ALI, True, halo=True))
     o.append(T(x0, y0 + h + 14, "破線: 本当の値 250 mV（25 °C）", "start", 9, MUT))
     o.append(T(x0 + w, y0 + h + 14, "時間", "end", 9, MUT))
-    o.append(T(14, 172, "20 mV の雑音 ÷ 10 mV/°C = 2 °C の誤差（27 °C と読む）", "start", 10, ALI, True))
+    o.append(T(14, 172, "20 mV のノイズ ÷ 10 mV/°C = 2 °C の誤差（27 °C と読む）", "start", 10, ALI, True))
     # (b) パルス出力
     x1 = 380
     o.append(T(366, 20, "(b) パルス出力: 数は変わらない", "start", 11, GRN, True))
@@ -157,8 +157,8 @@ def _f08_noise():
             o.append(W(pts[i][0], y0 + h + 3, pts[i][0], y0 + h + 9, c=GRN, lw=2))
     o.append(T(x1 + 300, y0 + h + 22, "立ち上がりを数える: %d 個" % n, "end", 9.5, GRN, True))
     o.append(T(366, 172, "変わり目の時刻が少しずれるだけで、数えた数は同じ", "start", 10, GRN, True))
-    o.append(T(14, 192, "デジタル出力も、H と L のしきい値をまたぐほどの雑音でなければ、値は変わらない。", "start", 9.5, MUT))
-    return SVG(700, 202, o, "配線に同じ大きさの雑音が乗ったとき（値は例）。(a) アナログ出力では、雑音がそのまま値の誤差になる。(b) パルス出力では、しきい値をまたぐ時刻が少しずれるだけで、数えたパルスの数は変わらない。")
+    o.append(T(14, 192, "デジタル出力も、H と L のしきい値をまたぐほどのノイズでなければ、値は変わらない。", "start", 9.5, MUT))
+    return SVG(700, 202, o, "配線に同じ大きさのノイズが乗ったとき（値は例）。(a) アナログ出力では、ノイズがそのまま値の誤差になる。(b) パルス出力では、しきい値をまたぐ時刻が少しずれるだけで、数えたパルスの数は変わらない。")
 F["e08_noise"] = _f08_noise()
 
 # ---- 1 節: パルスの 2 つの測り方 ----
