@@ -39,7 +39,7 @@
     p10_6:["10",6,"センサの故障を見つける"],p11_5:["11",5,"長い配線-esd-誘導ノイズ-保護"],p11_6:["11",6,"電圧の違う入力と絶縁"],p12_2:["12",2,"led-を点ける-電流と-pwm"],p12_6:["12",6,"突入電流の大きい負荷"],
     p13_3:["13",3,"回し始めと止め方"],p13_7:["13",7,"電池で回すとき"],p14_4:["14",4,"ac-のヒータをオンオフする"],p14_5:["14",5,"過熱から守る"],p14_6:["14",6,"機器自身の発熱"],
     p15_1:["15",1,"リセットの間のピンの状態"],p15_2:["15",2,"安全な状態を決める"],p15_3:["15",3,"負荷がマイコンを乱すとき-電源の揺れとグラウンド"],p15_4:["15",4,"ウォッチドッグと安全な停止"],p15_5:["15",5,"故障を見つけて縮退する"],p15_6:["15",6,"電源が戻った後と-更新の間"]};
-  function _w16_lk(keys){return keys.map(function(k){var l=_w16_L[k];return _w16_a(l[0],l[1],l[2]);}).join("・");}
+  function _w16_lk(keys){return keys.map(function(k){var l=_w16_L[k];return '<span style="white-space:nowrap">'+_w16_a(l[0],l[1],l[2])+'</span>';}).join("<br>");}
 
   /* ---- 2 節: 電池の機器の電力の予算 ---- */
   REG.w16_budget=function(el,U){
@@ -84,7 +84,7 @@
       rows.forEach(function(r,i){var y=24+i*rh,c=i===7?"gold":(r[1]>1?"alias":"signal");
         o.push(S.T(x0-8,y+13,r[0],"end",10,"ink"));
         o.push(S.RECT(x0,y+3,Math.max(r[1]*sc,0.8),13,2,U.soft(c),c,1.1));
-        o.push(S.T(x0+r[1]*sc+6,y+13,U.sig(r[1],3),"start",9.5,c,true));
+        o.push(S.T(x0+r[1]*sc+6,y+13,r[1]>=0.1||r[1]===0?r[1].toFixed(2):U.sig(r[1],2),"start",9.5,c,true));
         o.push(S.T(640,y+13,r[2],"end",9,"muted"));});
       var yt=24+rows.length*rh+8;
       o.push(S.T(x0-8,yt+12,"合計","end",10.5,"ink",true));
@@ -105,7 +105,7 @@
         ["条件の書き出し","出荷までに失う電荷","—",U.sig(stor,3)+" mAh","",_w16_lk(["p04_6"])],
         ["確かめ","電池寿命",goal.get()+" 年以上",Qleft>0?_w16_yr(lifeH):"保管の後に使える電荷が残らない",_w16_ok(okLife),_w16_lk(["p03_5"])]];
       ro.innerHTML="平均電流 = Σ（行の電流）= <b>"+U.sig(tot,3)+" µA</b>、使える電荷 = "+U.sig(us.u*100,3)+" % × "+b.Qn+" mAh − 保管 "+U.sig(stor,3)+" mAh = <b>"+U.sig(Math.max(Qleft,0),3)+" mAh</b> → 電池寿命 <b>"+(Qleft>0?_w16_yr(lifeH):"0（すぐ止まる）")+"</b><br>"+
-        U.tbl(["段","確かめること","基準","値","判定","読む節"],trs,["left","wrap","left","wrap","center","left"])+
+        U.tbl(["段","確かめること","基準","値","判定","読む節"],trs,["left","wrap","left","wrap","center","wrap"])+
         '<div class="wnote">温度センサ・分圧・LED・送信・自己放電の値は 2 節と同じ例の値（08 章 3 節の待機 2 µA のセンサ、起動の電荷 4 µC）。使える割合は、BOR のしきい値 2.2 V として、03 章 4 節（コンデンサなし）と 04 章 1 節（コンデンサあり、ESR 0.1 Ω）の電池の模型で、LED と送信のパルスのうち厳しいほうで求めた。実際の電池の値は仕様書で確かめる。</div>';
     }
     draw();
@@ -148,7 +148,7 @@
     var em=U.slider(r2,"蓄え（使えるエネルギー）",{values:[0.4,0.8,1.6,3.2,6.4],value:1.6,fmt:function(v){return v+" Wh";},onInput:draw});
     var s0=U.slider(r2,"始めの蓄え",{min:10,max:100,step:10,value:60,fmt:function(v){return v+" %";},onInput:draw});
     var r3=U.ctrls(el);
-    var pl=U.select(r3,"電池の置き方",["日陰の箱（日が当たると最大 +1.8 K、時定数 2 時間）","日の当たる側で断熱（最大 +9 K、時定数 4 時間）"],0,draw);
+    var pl=U.select(r3,"電池の置き方",["日陰の箱（+1.8 K・2 時間）","日なたで断熱（+9 K・4 時間）"],0,draw);
     var md=U.select(r3,"送る間隔",["5 分ごと（平均 10 mW）","蓄えに合わせる（5〜60 分）"],0,draw);
     var hd=U.slider(r3,"蓄えを使い切る日数の見込み",{min:2,max:10,step:1,value:5,fmt:function(v){return v+" 日";},onInput:draw});
     var br=U.btnrow(el);
@@ -183,7 +183,7 @@
       var stopTxt=r.stopAt===null?'<span class="ok">止まらない</span>':'<span class="warn">'+(Math.floor(r.stopAt)+1)+' 日目の '+Math.floor((r.stopAt%1)*24)+' 時ごろに蓄えが尽き、'+U.sig(r.downH,3)+' 時間止まる</span>';
       ro.innerHTML="入ったエネルギー <b>"+U.sig(r.inWh,3)+" Wh</b>（充電できた時間 "+U.sig(r.chgH,3)+" 時間）・使ったエネルギー <b>"+U.sig(r.outWh,3)+" Wh</b>・最も少ない蓄え <b>"+U.sig(r.minWh,3)+" Wh</b><br>"+
         "送った回数 "+Math.round(r.nrep)+" 回（5 分ごとなら 2016 回）・"+stopTxt+
-        '<div class="wnote">電池の温度は、気温に時定数で追いつき、日が当たると高くなる簡単な模型（例の値）。太陽電池は 8〜16 時に、晴れで夏の山の 6 割、曇りで 1.2 割、雪で 0 の正弦の形で電力を出し、蓄えへ移すときに 2 割を失う。眠りとセンサで 1 mW、1 回の送信に 2.7 J。蓄えに合わせるときは、蓄えを見込みの日数で使い切る電力を上限に間隔を決める（02 章 6 節のコードと同じ考え方）。</div>';
+        '<div class="wnote">電池の温度は、気温に時定数（置き方の括弧の中の時間）で追いつき、日が当たると最大で括弧の中の K だけ高くなる簡単な模型（例の値）。太陽電池は 8〜16 時に、晴れで夏の山の 6 割、曇りで 1.2 割、雪で 0 の正弦の形で電力を出し、蓄えへ移すときに 2 割を失う。眠りとセンサで 1 mW、1 回の送信に 2.7 J。蓄えに合わせるときは、蓄えを見込みの日数で使い切る電力を上限に間隔を決める（02 章 6 節のコードと同じ考え方）。</div>';
     }
     draw();
   };
@@ -318,8 +318,8 @@
         var dry=_w16_dry(mh.get(),mb.get(),mtau.get(),mk.get()),mmin=(mh.get()/mk.get()-mb.get())/4.18;
         R.push(["電源の構成","絶縁が要るか","触れる・つなぐなら要る",iso?"要る（絶縁電源）":"非絶縁も選べる",null,["p02_4","p06_2"]]);
         R.push(["異常への備え","停電に気づいてから電源が保てるまで（後始末の 2 倍以上）",C(2*mw.get()," ms")+" 以上",h.rem>0?C(rem," ms"):"谷で既に下限を割る",h.rem>0?rem/(2*mw.get()):0.01,["p06_3"]]);
-        R.push(["異常への備え","空だきに気づく時間と底の板の温度","100 °C より低いうち（例の基準）",dry?C(dry.t," s")+"・"+C(dry.Tp," °C"):"2 分では気づかない",dry?100/dry.Tp:0.01,["p14_5","p10_6"]]);
-        R.push(["測り方の設計","空とみなす水の量（これより少ないと判定の速さを超える）","—",mmin>0?C(mmin," g"):"水があっても超える",null,["p14_5"]]);
+        R.push(["異常への備え","空だきに気づく時間と底の板の温度","100 °C より低いうち（例の基準）",dry?dry.t.toFixed(1)+" s・"+C(dry.Tp," °C"):"2 分では気づかない",dry?100/dry.Tp:0.01,["p14_5","p10_6"]]);
+        R.push(["測り方の設計","空とみなす水の量（これより少ないと判定の速さを超える）","—",mmin>0?U.sig(mmin,4)+" g":"水があっても超える",null,["p14_5"]]);
         R.push(["条件の書き出し","待機電力の 1 年の電力量","規格と地域の値",C(ms.get()*8.76," kWh"),null,["p06_7"]]);}
       if(m===3){var E0=12.6,Rb=vr.get()/1000,I0=E0/(Rb+0.015),Vc=E0-I0*Rb-vd.get(),need=Vc<vm.get();
         var V1=E0-vd.get(),Ej=0.5*vc.get()*1e-3*(V1*V1-vm.get()*vm.get()),th=Ej/(vk.get()?vq.get()*1e-3:vp.get());
@@ -353,7 +353,7 @@
       q.list.forEach(function(x,i){rows.push([x[0],x[1],"—","—",q.cs[i].get()?'<span class="ok">確かめた</span>':"まだ",_w16_lk(x[2])]);});
       var bad=num.filter(function(r){return r[4]<1;}).length,done=q.cs.filter(function(c){return c.get();}).length;
       ro.innerHTML="数で判定した "+num.length+" 行のうち、基準を満たさないもの <b>"+bad+"</b> 行・確かめた印 <b>"+done+" / "+q.cs.length+"</b>"+
-        U.tbl(["段","確かめること","基準","値","判定","読む節"],rows,["left","wrap","wrap","wrap","center","left"])+
+        U.tbl(["段","確かめること","基準","値","判定","読む節"],rows,["left","wrap","wrap","wrap","center","wrap"])+
         '<div class="wnote">値はどれも例の値で、前の章の模型で計算した。基準を満たさない行は、読む節の方法で直してから、もう一度確かめる。商用電源と車の電源では、規格・法令・車両のメーカの要求を必ず確かめること。</div>';
     }
     draw();

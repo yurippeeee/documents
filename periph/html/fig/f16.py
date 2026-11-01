@@ -73,7 +73,7 @@ def _f16_heavy():
         [("寿命と", "パルスの底", 1), ("電池の種類・", "静止電流", 1), ("測るときだけ", "電源を入れる", 0), ("大きな動作を", "重ねない", 0), ("尽きかけたら", "段階で止まる", 0)],
         [("電流の予算と", "回し始めの電流", 1), ("ケーブル・", "抜き差し・突入", 1), ("PC と GND を", "共有する", 0), ("時間をかけて", "上げる", 0), ("抜かれたら", "書き始めない", 0)],
         [("待機電力", "", 0), ("絶縁・", "サージ", 1), ("絶縁した", "信号で受ける", 0), ("ゼロクロス・", "サイクル単位", 0), ("停電・復電・", "過熱と空だき", 1)],
-        [("止めている間の", "暗電流", 1), ("クランキング・", "ロードダンプ", 1), ("ACC の線を", "読む", 0), ("ノイズに", "強く切る", 0), ("下がったら", "保持して守る", 1)],
+        [("止めている間の", "暗電流", 1), ("クランキング・", "ロードダンプ", 1), ("ACC の線を", "読む", 0), ("ハイサイドで", "負荷を切る", 0), ("下がったら", "保持して守る", 1)],
         [("1 週間の", "エネルギーの収支", 1), ("低温で充電", "できない時間", 1), ("結露・", "長い配線と雷", 1), ("寒いときは", "仕事を減らす", 0), ("故障したら", "縮退運転", 0)]]
     xl, cw, y0, rh = 128, 112, 46, 44
     for j in range(5):
@@ -155,7 +155,7 @@ def _f16_capacity():
     o = []
     # 03・04 章の模型で求めた割合（本文と同じ値）
     rows = [("はじめ・0 °C", 0.781, 28.74, "2.5 年"), ("はじめ・−20 °C", 0.123, 28.74, "すぐ止まる"),
-            ("直した後・0 °C", 0.913, 1.10, "6.9 年"), ("直した後・−20 °C", 0.860, 1.10, "6.5 年")]
+            ("直した後・0 °C", 0.913, 1.10, "7.0 年"), ("直した後・−20 °C", 0.860, 1.10, "6.5 年")]
     x0, wd, y0, rh = 150, 420, 40, 40
     sc = wd / 220.0
     for k in (0, 50, 100, 150, 200, 220):
@@ -224,16 +224,16 @@ def _f16_usb():
     a2, k2 = _f16_fan(1.0, 0.5, 1.5)
     b1, k3 = _f16_fan(0.5, 0, 2.5)
     b2, k4 = _f16_fan(0.5, 2.0, 2.5)
-    for lv, lab, c in ((1.35, "BC 1.2・Type-C 1.5 A の 9 割", MUT), (0.9, "専用の AC アダプタ 1 A の 9 割", GLD)):
+    for lv, lab, c, dy in ((1.35, "BC 1.2・Type-C 1.5 A の 9 割", MUT, -5), (0.9, "専用の AC アダプタ 1 A の 9 割", GLD, 13)):
         o.append(pa.line([(0, lv), (1.5, lv)], c=c, lw=1.2, dash="6 4"))
-        o.append(T(pa.X(1.5) - 2, pa.Y(lv) - 5, lab, "end", 9.5, c, halo=True))
+        o.append(T(pa.X(1.5) - 2, pa.Y(lv) + dy, lab, "end", 9.5, c, halo=True))
     o.append(pb.line([(0, 0.09), (2.5, 0.09)], c=GLD, lw=1.2, dash="6 4"))
-    o.append(T(pb.X(2.5) - 2, pb.Y(0.09) - 5, "ふつうのポート 100 mA の 9 割", "end", 9.5, GLD, halo=True))
+    o.append(T(pb.X(1.15), pb.Y(0.09) - 5, "ふつうのポート 100 mA の 9 割", "middle", 9.5, GLD, halo=True))
     o.append(pa.line(a1, c=ALI, lw=2))
     o.append(pa.line(a2, c=GRN, lw=2))
     o.append(pb.line(b1, c=ALI, lw=2))
     o.append(pb.line(b2, c=GRN, lw=2))
-    o.append(T(pa.X(0.06), pa.Y(k1) + 4, "一気に回す: 最大 %.2f A" % k1, "start", 9.5, ALI, True, halo=True))
+    o.append(T(pa.X(0.05), pa.Y(k1) - 6, "一気に回す: 最大 %.2f A" % k1, "start", 9.5, ALI, True, halo=True))
     o.append(T(pa.X(0.62), pa.Y(k2) - 8, "0.5 s で上げる: 最大 %.2f A" % k2, "start", 9.5, GRN, True, halo=True))
     o.append(T(pb.X(0.08), pb.Y(k3) + 4, "一気に回す: 最大 %.2f A" % k3, "start", 9.5, ALI, True, halo=True))
     o.append(T(pb.X(0.9), pb.Y(0.05) + 22, "2 s で上げる: 最大 %d mA" % round(k4 * 1000), "start", 9.5, GRN, True, halo=True))
@@ -245,36 +245,37 @@ def _f16_pot():
     o = []
     yb = 168
     o.append(W(10, yb, 690, yb, c=GRN, lw=1.6, dash="7 4"))
-    o.append(T(14, yb - 8, "二次側（人が触れる側）", "start", 10, GRN, True))
-    o.append(T(14, yb + 17, "一次側（商用電源の電位）", "start", 10, ALI, True))
+    o.append(T(14, yb - 8, "二次側（触れる側）", "start", 10, GRN, True))
+    o.append(T(14, yb + 17, "一次側（商用電源）", "start", 10, ALI, True))
     o.append(T(686, yb - 8, "絶縁の境界", "end", 10, GRN, True))
     # 二次側
-    o.append(BOX(250, 22, 210, 78, "マイコン", "上がる速さ・上限・停電の後始末・ウォッチドッグ", SIG, SSOFT, INK, sz=12, ssz=9.5))
-    o.append(BOX(500, 30, 120, 50, "表示とボタン", None, MUT, PAN, INK, sz=10.5))
-    o.append(W(460, 55, 500, 55, c=MUT, lw=1.3))
+    o.append(BOX(262, 22, 210, 78, "マイコン", "上がる速さ・上限・停電の後始末・ウォッチドッグ", SIG, SSOFT, INK, sz=12, ssz=9.5))
+    o.append(CHIP(240, 40, "①", SIG, 9.5, a="middle")[0])
+    o.append(BOX(520, 34, 120, 46, "表示とボタン", None, MUT, PAN, INK, sz=10.5))
+    o.append(W(472, 57, 520, 57, c=MUT, lw=1.3))
     # 境界をまたぐ部品
-    parts = [(40, 92, "絶縁電源", "2 W・22 µF"), (150, 92, "交流の検出", "フォトカプラ"), (270, 86, "リレー", "コイル｜接点"),
-             (374, 86, "SSR", "光で絶縁"), (478, 150, "サーミスタ", "ヒータから絶縁して付ける")]
+    parts = [(134, 84, "絶縁電源", "2 W・22 µF"), (228, 84, "交流の検出", "フォトカプラ"), (322, 72, "リレー", "コイル｜接点"),
+             (404, 72, "SSR", "光で絶縁"), (486, 140, "サーミスタ", "ヒータから絶縁して付ける")]
     for x, w, nm, sub in parts:
         o.append(RECT(x, yb - 26, w, 52, 6, PAN, INK, 1.3))
         o.append(T(x + w / 2, yb - 8, nm, "middle", 10.5, INK, True, halo=True))
         o.append(T(x + w / 2, yb + 15, sub, "middle", 9, MUT, halo=True))
-    # 信号と電力の線（二次側）
-    o.append(ARR(86, yb - 26, 86, 62, c=GLD, lw=1.4) + ARR(86, 62, 248, 62, c=GLD, lw=1.4))
-    o.append(T(160, 56, "12 V・3.3 V", "middle", 9.5, GLD))
-    o.append(ARR(196, yb - 26, 196, 92, c=TEA, lw=1.3) + ARR(196, 92, 248, 92, c=TEA, lw=1.3))
-    o.append(ARR(316, 100, 316, yb - 28, c=PUR, lw=1.3))
-    o.append(ARR(417, 100, 417, yb - 28, c=PUR, lw=1.3))
-    o.append(W(553, yb - 26, 553, 120, 470, 120, c=TEA, lw=1.3) + ARR(470, 120, 430, 102, c=TEA, lw=1.3))
-    o.append(CHIP(316, 128, "②", GRN, 9.5)[0])
-    o.append(CHIP(417, 128, "②", GRN, 9.5)[0])
+    # 二次側の線
+    o.append(W(176, yb - 26, 176, 62, c=GLD, lw=1.4) + ARR(176, 62, 260, 62, c=GLD, lw=1.4))
+    o.append(T(212, 56, "12 V・3.3 V", "middle", 9.5, GLD))
+    o.append(W(270, yb - 26, 270, 112, c=TEA, lw=1.3) + ARR(270, 112, 300, 102, c=TEA, lw=1.3))
+    o.append(ARR(358, 100, 358, yb - 28, c=PUR, lw=1.3))
+    o.append(ARR(440, 100, 440, yb - 28, c=PUR, lw=1.3))
+    o.append(W(556, yb - 26, 556, 120, 480, 120, c=TEA, lw=1.3) + ARR(480, 120, 455, 102, c=TEA, lw=1.3))
+    o.append(CHIP(364, 128, "②", GRN, 9.5)[0])
+    o.append(CHIP(446, 128, "②", GRN, 9.5)[0])
     # 一次側: 商用電源とヒータの道
-    ym = 262
-    o.append(BOX(14, 214, 86, 60, "商用電源", "100 V・50/60 Hz", ALI, ASOFT, INK, sz=10.5, ssz=9))
-    o.append(W(100, 232, 120, 232, 120, yb + 26, c=ALI, lw=1.3))
-    o.append(W(120, 232, 196, 232, 196, yb + 26, c=ALI, lw=1.3))
+    ym = 254
+    o.append(BOX(14, 206, 86, 62, "商用電源", "100 V・50/60 Hz", ALI, ASOFT, INK, sz=10.5, ssz=9))
+    o.append(W(100, 222, 270, 222, 270, yb + 26, c=ALI, lw=1.3))
+    o.append(W(176, 222, 176, yb + 26, c=ALI, lw=1.3))
     o.append(W(100, ym, 112, ym, c=ALI, lw=1.6))
-    xs = [(112, 74, "温度ヒューズ", ALI), (196, 76, "サーモスタット", ALI), (282, 64, "リレーの接点", PUR), (374, 86, "SSR の出力", PUR), (488, 90, "ヒータ 1 kW", ALI)]
+    xs = [(112, 80, "温度ヒューズ", ALI), (202, 86, "サーモスタット", ALI), (318, 80, "リレーの接点", PUR), (402, 76, "SSR の出力", PUR), (500, 92, "ヒータ 1 kW", ALI)]
     prev = 112
     for x, w, nm, c in xs:
         if x > prev:
@@ -282,15 +283,14 @@ def _f16_pot():
         o.append(RECT(x, ym - 14, w, 28, 5, soft(c), c, 1.3))
         o.append(T(x + w / 2, ym + 4, nm, "middle", 9.5, INK, True))
         prev = x + w
-    o.append(W(prev, ym, 640, ym, 640, 300, 57, 300, 57, 274, c=ALI, lw=1.6))
-    o.append(W(316, yb + 26, 316, ym - 14, c=PUR, lw=1.2, dash="3 3"))
-    o.append(W(417, yb + 26, 417, ym - 14, c=PUR, lw=1.2, dash="3 3"))
-    o.append(W(533, ym - 14, 533, yb + 26, c=TEA, lw=1.2, dash="2 3"))
+    o.append(W(prev, ym, 650, ym, 650, 292, 57, 292, 57, 268, c=ALI, lw=1.6))
+    o.append(W(358, yb + 26, 358, ym - 14, c=PUR, lw=1.2, dash="3 3"))
+    o.append(W(440, yb + 26, 440, ym - 14, c=PUR, lw=1.2, dash="3 3"))
+    o.append(W(546, ym - 14, 546, yb + 26, c=TEA, lw=1.2, dash="2 3"))
     # 守りの番号
-    o.append(CHIP(300, 74, "①", SIG, 9.5)[0])
-    o.append(CHIP(282, 312, "③ 2 つ目のスイッチ", PUR, 9.5)[0])
-    o.append(CHIP(112, 312, "④ マイコンに頼らない保護", ALI, 9.5)[0])
-    yl = 336
+    o.append(CHIP(318, 316, "③ 2 つ目のスイッチ", PUR, 9.5)[0])
+    o.append(CHIP(112, 316, "④ マイコンに頼らない保護", ALI, 9.5)[0])
+    yl = 342
     o.append(T(14, yl, "① マイコンの判定　② リセットの間はプルダウンで切る（既定の状態）　③ SSR が短絡しても切れるリレー　④ 決めた温度で開く・溶ける部品", "start", 9.5, MUT))
     return SVG(700, yl + 10, o, "電気ポットの構成と守りの置き場所（模式図）。利用者が触れる二次側と、商用電源の電位にある一次側を絶縁し、境界をまたぐ部品（絶縁電源・交流の検出・リレー・SSR・サーミスタの取り付け）で絶縁を保つ。ヒータの電流の道には、マイコンが入れ切りするリレーと SSR に加えて、マイコンに頼らない温度ヒューズとサーモスタットを直列に入れる。絶縁の種類と距離は規格で決まる。")
 F["e16_pot"] = _f16_pot()
@@ -326,9 +326,9 @@ def _f16_dry():
     o.append(D(p.X(tdet), p.Y(Tdet), ALI, 4))
     o.append(D(p.X(tdet), p.Y(Sdet), ALI, 3.4))
     o.append(T(p.X(tdet) + 8, p.Y(Tdet) - 8, "%.1f s で気づいて切る（底の板 %.0f °C）" % (tdet, Tdet), "start", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(30) + 6, p.Y(Tdet) + 4, "空: 底の板", "start", 9.5, ALI, True))
-    o.append(T(p.X(30) + 6, p.Y(Sdet) + 14, "空: サーミスタの読み", "start", 9.5, ALI))
-    return SVG(700, 280, o, "空だきと、水があるときの温度の上がり方（ヒータ 1 kW、本体の熱容量 400 J/K、サーミスタは時定数 5 s の一次遅れ。例の値）。水 2 L では 0.114 K/s だが、空では 2.5 K/s で上がる。1 秒ごとの読みの差が 1 K を超えることが 3 回続いたら切ると、空だきには 6.0 s で気づく。水 200 g でも 0.81 K/s で、判定の 1 K/s より遅い。")
+    o.append(T(p.X(30) + 6, p.Y(Tdet) + 4, "空（切った後）", "start", 9.5, ALI, True))
+    o.append(T(p.X(9), p.Y(16.5), "空のとき　実線: 底の板　破線: サーミスタの読み（遅れ 5 s）", "start", 9.5, ALI, halo=True))
+    return SVG(700, 280, o, "空だきと、水があるときの温度の上がり方（ヒータ 1 kW、本体の熱容量 400 J/K、サーミスタの読みは時定数 5 s で遅れて追いつく。例の値）。水 2 L では 0.114 K/s だが、空では 2.5 K/s で上がる。1 秒ごとの読みの差が 1 K を超えることが 3 回続いたら切ると、空だきには 6.0 s で気づく。水 200 g でも 0.81 K/s で、判定の 1 K/s より遅い。")
 F["e16_dry"] = _f16_dry()
 
 # ---- 5 節: クランキングの間の電源 ----
@@ -407,7 +407,7 @@ def _f16_week_sim(dTsun, tau_h, adapt, Ppanel=0.5, Emax_wh=1.6, soc0=0.6, eta=0.
 
 def _f16_week():
     o = []
-    A, dA, iA = _f16_week_sim(1.5 / 0.6 * 0.6 * 0 + 3.0, 2.0, False)
+    A, dA, iA = _f16_week_sim(3.0, 2.0, False)
     B, dB, iB = _f16_week_sim(3.0, 2.0, True)
     Cc, dC, iC = _f16_week_sim(15.0, 4.0, True)
     x0, wd = 70, 600
@@ -452,7 +452,6 @@ def _f16_week():
     o.append(T(pe.X(0.1), pe.Y(1.55), "(a) 日陰・5 分ごと", "start", 9.5, ALI, True, halo=True))
     o.append(T(pe.X(2.6), pe.Y(1.55), "(b) 日陰・蓄えに合わせる（最少 %.2f Wh）" % mB, "start", 9.5, GLD, True, halo=True))
     o.append(T(pe.X(2.6), pe.Y(1.38), "(c) 日なた・断熱・蓄えに合わせる（最少 %.2f Wh）" % mC, "start", 9.5, GRN, True, halo=True))
-    o.append(T(x0 - 6, 92, "", "end", 9, MUT))
     o.append(LEGEND(x0, pe.y + pe.h + 44, [(MUT, "気温"), (TEA, "電池の温度（破線は日陰の箱、実線は日なたで断熱）")]))
     return SVG(700, pe.y + pe.h + 54, o, "冬の 1 週間の電池の温度と蓄え（例の値の天気と気温、1 分刻みの計算）。日陰の箱では、電池が 0 °C に届いて充電できたのは 1 日目の 2.1 時間だけで、5 分ごとに送り続ける (a) は 5 日目の夜に止まる。送る間隔を蓄えに合わせる (b) は止まらず、電池を日の当たる側に置いて断熱すると (c)、充電できる時間が延びて余裕が増す。")
 F["e16_week"] = _f16_week()
@@ -476,12 +475,12 @@ def _f16_loads():
         o.append(W(xx, p.y - 4, xx, p.y + p.h, c=GRD, lw=1))
         lab = {1e-7: "0.1 µA", 1e-6: "1 µA", 1e-5: "10 µA", 1e-4: "100 µA", 1e-3: "1 mA", 1e-2: "10 mA", 0.1: "100 mA", 1: "1 A", 10: "10 A"}[v]
         o.append(T(xx, p.y + p.h + 14, lab, "middle", 9.5, MUT))
-    for v, lab, c in ((0.015, "CR2032 の短い間の上限（十数 mA）", SIG), (0.1, "USB 設定の前 100 mA", GLD), (0.5, "USB 2.0 の 500 mA", GLD)):
+    for v, lab, c in ((0.015, "CR2032", SIG), (0.1, "100 mA", GLD), (0.5, "500 mA", GLD)):
         xx = p.X(v)
         o.append(W(xx, p.y - 6, xx, p.y + p.h, c=c, lw=1.2, dash="4 3"))
-    o.append(T(p.X(0.015) - 3, p.y - 10, "CR2032 の短い間の上限", "end", 9, SIG, halo=True))
-    o.append(T(p.X(0.1), p.y - 18, "USB 設定の前 100 mA", "middle", 9, GLD, halo=True))
-    o.append(T(p.X(0.5) + 3, p.y - 6, "500 mA", "start", 9, GLD, halo=True))
+    o.append(T(p.X(0.015), p.y - 10, "CR2032", "middle", 9, SIG, True, halo=True))
+    o.append(T(p.X(0.1), p.y - 21, "100 mA", "middle", 9, GLD, True, halo=True))
+    o.append(T(p.X(0.5), p.y - 10, "500 mA", "middle", 9, GLD, True, halo=True))
     for i, (nm, lo, hi, pk, c, ch) in enumerate(rows):
         y = p.y + i * 22 + 4
         o.append(T(p.x - 8, y + 11, nm, "end", 10, INK))
@@ -495,10 +494,11 @@ def _f16_loads():
             else:
                 o.append(W(p.X(hi) + 5, y + 9, p.X(pk), y + 9, c=c, lw=1.3, dash="3 2"))
                 o.append(D(p.X(pk), y + 9, ALI, 4))
-                o.append(T(p.X(pk) + 7, y + 13, "起動 %g A" % pk, "start", 9, ALI, True))
+                o.append(T(p.X(pk), y + 1, "起動 %g A" % pk, "middle", 9, ALI, True, halo=True))
     yl = p.y + p.h + 34
     o.append(T(p.x - 160, yl, "太い帯: ふつうに流れる範囲（代表値）　破線: 回し始め・動き始めに流れる電流", "start", 9.5, MUT))
-    return SVG(700, yl + 10, o, "負荷が電源から取る電流の大きさ（代表値と、前の章の例の値。横軸は対数目盛）。センサ・スイッチ・LED は mA 以下だが、リレーからヒータまでは数十 mA〜A で、モータは回し始めにその数倍〜十数倍が流れる。縦の破線は、電源の側の上限の例。")
+    o.append(T(p.x - 160, yl + 16, "縦の破線: CR2032 が短い間に流せる十数 mA（03 章 3 節）、USB の設定の前の 100 mA、USB 2.0 の 500 mA（02 章 3 節）", "start", 9.5, MUT))
+    return SVG(700, yl + 26, o, "負荷が電源から取る電流の大きさ（代表値と、前の章の例の値。横軸は対数目盛）。センサ・スイッチ・LED は mA 以下だが、リレーからヒータまでは数十 mA〜A で、モータは回し始めにその数倍〜十数倍が流れる。縦の破線は、電源の側の上限の例。")
 F["e16_loads"] = _f16_loads()
 
 # ---- 8 節: 段と章の対応 ----
@@ -520,5 +520,5 @@ def _f16_tools():
         o.append(W(xl + n * cw, y0 - 4, xl + n * cw, y0 + 7 * rh, c=GRD, lw=1))
     yb = y0 + 7 * rh + 18
     o.append(T(xl, yb, "● その段で使う道具がある章（8 節の表の「段」の列と同じ）", "start", 9.5, MUT))
-    return SVG(700, yb + 10, o, "設計の手順の段ごとに、道具を扱った章。電力の予算と電源の構成は第 I 部（01〜07 章）、測り方は第 II 部（08〜11 章）、駆動は第 III 部（12〜14 章）が受け持ち、異常への備えは多くの章にまたがって、15 章でまとめた。")
+    return SVG(700, yb + 10, o, "設計の手順の段ごとに、道具を扱った章。電力の予算と電源の構成は 01〜07 章、測り方は 08〜11 章、駆動は 12〜14 章が受け持ち、異常への備えは多くの章にまたがって、15 章でまとめた。")
 F["e16_tools"] = _f16_tools()
