@@ -14,10 +14,13 @@ def _f09_m(x, y, parts, a="start", sz=12, c=INK, b=False):
         _BOXES.append((x0, y - sz * 0.82, x0 + w, y + sz * 0.22 + 2, "".join(p[0] + (p[1] or "") for p in parts)))
     o = ['<text x="%g" y="%g" text-anchor="start" font-size="%g" fill="%s" font-family="var(--sans)" font-weight="%s"'
          ' stroke="%s" stroke-width="3" stroke-linejoin="round" paint-order="stroke">' % (round(x0, 2), y, sz, c, "700" if b else "400", SCR)]
+    pend = 0
     for s, sub, it in parts:
-        o.append('<tspan font-style="%s">%s</tspan>' % ("italic" if it else "normal", E(s)))
+        o.append('<tspan font-style="%s"%s>%s</tspan>' % ("italic" if it else "normal", (' dy="%g"' % pend) if pend else "", E(s)))
+        pend = 0
         if sub:
-            o.append('<tspan dy="3" font-size="%g">%s</tspan><tspan dy="-3"></tspan>' % (sz * 0.72, E(sub)))
+            o.append('<tspan dy="3" font-size="%g">%s</tspan>' % (sz * 0.72, E(sub)))
+            pend = -3
     o.append("</text>")
     return "".join(o)
 
@@ -316,7 +319,7 @@ def _f09_ratio():
     o.append(BOX(236, yn - 24, 84, 48, "ADC", "入力", SIG, SSOFT, INK, sz=11.5, ssz=9.5))
     o.append(W(300, yv, 300, yn - 24, c=SIG, lw=2))
     o.append(T(306, yv + 40, "基準電圧", "start", 10, SIG, True))
-    o.append(_f09_m(14, yn + 104, [("N", None, True), (" = 2", None, False), ("n", None, True), (" × (", None, False), ("V", "DD", True), (" ÷ ", None, False), ("V", "DD", True),
+    o.append(_f09_m(14, yn + 104, [("N", None, True), (" = 2ⁿ × (", None, False), ("V", "DD", True), (" ÷ ", None, False), ("V", "DD", True),
                                    (") × ", None, False), ("R", "th", True), (" ÷ (", None, False), ("R", "f", True), (" + ", None, False), ("R", "th", True), (")", None, False)], "start", 10.5, INK))
     o.append(T(14, yn + 122, "→ 電源の電圧が消え、抵抗の比だけが残る", "start", 10.5, GRN, True))
     # (b) 誤差の比較
@@ -384,8 +387,8 @@ def _f09_divcur():
         o.append(D(pb.X(4.9e5), pb.Y(e), c, 4))
     o.append(T(pb.X(4.9e5) - 8, pb.Y(0.39) - 8, "0.39 V", "end", 10, ALI, True, halo=True))
     o.append(T(pb.X(4.9e5) + 8, pb.Y(0.0195) + 15, "20 mV", "start", 10, GLD, True, halo=True))
-    o.append(LEGEND(386, 270, [(ALI, "漏れ電流 1 µA（データシートの最大値の例）"), (GLD, "50 nA（室温の値の例）")]))
-    o.append(T(386, 290, "誤差 = 漏れ電流 × 信号源抵抗 ÷ 分圧の比 = 漏れ電流 × R1", "start", 10, MUT))
+    o.append(LEGEND(386, 270, [(ALI, "漏れ電流 1 µA（最大値の例）"), (GLD, "50 nA（室温の例）")]))
+    o.append(_f09_m(386, 290, [("誤差 = 漏れ電流 × 信号源抵抗 ÷ 分圧の比 = 漏れ電流 × ", None, False), ("R", "1", True)], "start", 10, MUT))
     return SVG(700, 300, o, "車の電源の分圧（比 100/490 のまま、抵抗の大きさを変えた場合）。(a) 抵抗を大きくすると、流れ続ける電流は減る。(b) その代わり、ピンの漏れ電流が信号源抵抗を流れて作る誤差が、抵抗に比例して増える。漏れ電流は温度が高いほど大きいので、最大値で考える。")
 F["e09_divcur"] = _f09_divcur()
 
@@ -419,8 +422,8 @@ def _f09_switch():
     o.append(T(xb, 44, "車の電源 14 V", "middle", 10, GLD, True))
     o.append(W(xb, 50, xb, 58, c=GLD, lw=1.6))
     o.append(_f09_swv(xb, 58, 96, False, c=GLD))
-    o.append(T(xb + 16, 72, "P チャネル", "start", 9.5, GLD, True))
-    o.append(T(xb + 16, 85, "MOSFET（切）", "start", 9.5, GLD, True))
+    o.append(T(xb - 14, 72, "P チャネル", "end", 9.5, GLD, True))
+    o.append(T(xb - 14, 85, "MOSFET（切）", "end", 9.5, GLD, True))
     o.append(_f09_resv(xb, 96, 136, c=INK))
     o.append(_f09_m(xb - 10, 120, [("R", "1", True)], "end", 10.5, INK))
     yb = 150
@@ -471,7 +474,7 @@ def _f09_settle():
     R1, R2, C, V = 390e3, 100e3, 100e-9, 14.0
     Rs, Vk = R1 * R2 / (R1 + R2), V * R2 / (R1 + R2)
     tau, toff = Rs * C, R2 * C
-    t_on, t_s = 5e-3, 5e-3 + tau * math.log(2 ** 13 * Vk / 3.3)
+    t_on, t_s = 5e-3, 5e-3 + tau * math.log(2 ** 13)
     t_end = t_s + 3e-3
     def v_of(t):
         if t < t_on:
@@ -521,8 +524,266 @@ def _f09_settle():
         o.append(pb.line([(0, th), (0.09, th)], c=c, lw=1.2, dash="5 3"))
         o.append(D(pb.X(tc), pb.Y(th), c, 3.6))
         o.append(T(pb.X(0.002), pb.Y(th) + (13 if bits == 12 else -5), "%d ビットの 1/2 LSB" % bits, "start", 9.5, c, True, halo=True))
-        o.append(T(pb.X(tc) - 4, pb.Y(th) + (-6 if bits == 12 else 14), "%.0f ms" % (tc * 1000), "end", 9.5, c, True, halo=True))
+        if bits == 12:
+            o.append(T(pb.X(tc) + 4, pb.Y(th) + 15, "%.0f ms" % (tc * 1000), "start", 9.5, c, True, halo=True))
+        else:
+            o.append(T(pb.X(tc) + 5, pb.Y(th) - 6, "%.0f ms" % (tc * 1000), "start", 9.5, c, True, halo=True))
     o.append(T(pb.X(0.03), pb.Y(1.5), "τ = 7.96 ms で", "start", 9.5, TEA, halo=True))
     o.append(T(pb.X(0.03), pb.Y(1.5) + 13, "1/e ずつ減る", "start", 9.5, TEA, halo=True))
-    return SVG(700, 296, o, "分圧回路の電源を入れてから測るまで（390 kΩ と 100 kΩ、つなぎ目に 100 nF。信号源抵抗 79.6 kΩ で τ = 7.96 ms）。(a) つなぎ目の電圧は τ で 2.86 V に近づく。12 ビットでは、残りの差が 1/2 LSB を切る約 71 ms 後に測り、すぐに切る。切った後は R2 を通して放電する。(b) 残りの差は、時間とともに一定の割合で減り、対数目盛では直線になる。")
+    return SVG(700, 296, o, "分圧回路の電源を入れてから測るまで（390 kΩ と 100 kΩ、つなぎ目に 100 nF。信号源抵抗 79.6 kΩ で τ = 7.96 ms）。(a) つなぎ目の電圧は τ で 2.86 V に近づく。12 ビットでは、どの電圧でも 1/2 LSB 以内に入る 9τ ≈ 72 ms 待って測り、すぐに切る。切った後は R2 を通して放電する。(b) 残りの差は、時間とともに一定の割合で減り、対数目盛では直線になる（2.86 V では 12 ビットの 1/2 LSB を約 71 ms で切る）。")
 F["e09_settle"] = _f09_settle()
+
+# ---- 5 節: サンプル・ホールド ----
+def _f09_sh():
+    o = []
+    o.append(T(14, 18, "(a) ADC の入力の等価回路", "start", 11.5, INK, True))
+    yw = 70
+    o.append(BOX(14, yw - 22, 84, 44, "信号源", None, TEA, TSOFT, INK, sz=11))
+    o.append(_f09_m(56, yw + 38, [("V", "in", True)], "middle", 11, TEA, True))
+    o.append(W(98, yw, 110, yw, c=INK, lw=1.5))
+    o.append(_f09_resh(110, 170, yw, c=INK))
+    o.append(_f09_m(140, yw - 12, [("R", "s", True)], "middle", 11, INK))
+    o.append(T(140, yw + 22, "信号源抵抗", "middle", 9.5, MUT))
+    o.append(W(170, yw, 236, yw, c=INK, lw=1.5))
+    o.append(CIRC(236, yw, 5, c=SIG, lw=1.6, fill=PAN))
+    o.append(T(236, yw - 12, "ピン", "middle", 10, SIG, True))
+    o.append(D(205, yw, INK, 3))
+    o.append(_f09_capv(205, yw, yw + 46, c=MUT))
+    o.append(_f09_gnd(205, yw + 46))
+    o.append(_f09_m(193, yw + 30, [("C", "ext", True)], "end", 10.5, MUT))
+    o.append(T(193, yw + 44, "（付けるとき）", "end", 9, MUT))
+    # マイコンの中
+    o.append(RECT(250, 34, 440, 132, 10, "none", SIG, 1.4, dash="5 4"))
+    o.append(T(682, 52, "マイコンの中の ADC", "end", 10, SIG, True))
+    o.append(W(241, yw, 280, yw, c=INK, lw=1.5))
+    o.append(_f09_swh(280, 330, yw, True, c=INK))
+    o.append(T(305, yw - 14, "チャネルの", "middle", 9.5, MUT))
+    o.append(T(305, yw + 22, "切り替え", "middle", 9.5, MUT))
+    o.append(_f09_swh(330, 390, yw, True, c=TEA))
+    o.append(T(360, yw - 14, "標本化の", "middle", 9.5, TEA, True))
+    o.append(T(360, yw - 2 + 24, "スイッチ", "middle", 9.5, TEA, True))
+    o.append(_f09_resh(390, 440, yw, c=INK))
+    o.append(_f09_m(415, yw - 12, [("R", "sw", True)], "middle", 11, INK))
+    o.append(W(440, yw, 500, yw, c=INK, lw=1.5))
+    o.append(D(480, yw, INK, 3))
+    o.append(_f09_capv(480, yw, yw + 46, c=SIG))
+    o.append(_f09_gnd(480, yw + 46))
+    o.append(_f09_m(494, yw + 30, [("C", "sh", True), ("（数 pF〜数十 pF）", None, False)], "start", 10.5, SIG))
+    o.append(ARR(500, yw, 560, yw, c=SIG, lw=1.5, head=6))
+    o.append(T(566, yw + 4, "量子化（1 節）", "start", 10, SIG, True))
+    # (b) 時間の流れ
+    o.append(T(14, 200, "(b) 1 回の変換の時間の流れ", "start", 11.5, INK, True))
+    x0, w = 90, 560
+    X = lambda t: x0 + t * w
+    yv = 226
+    pts = []
+    for i in range(101):
+        t = i / 100.0
+        if t < 0.1:
+            v = 0.2
+        elif t < 0.4:
+            v = 1.0 - 0.8 * math.exp(-(t - 0.1) / 0.06)
+        else:
+            v = 1.0 - 0.8 * math.exp(-0.3 / 0.06)
+        pts.append((X(t), yv + 50 - v * 44))
+    o.append(PL(pts, c=SIG, lw=2))
+    o.append(_f09_m(x0 - 8, yv + 44, [("V", "0", True)], "end", 10.5, MUT))
+    o.append(_f09_m(x0 - 8, yv + 12, [("V", "in", True)], "end", 10.5, TEA))
+    o.append(W(x0, yv + 6, X(1.0), yv + 6, c=TEA, lw=1, dash="3 3"))
+    o.append(_f09_m(X(0.7), yv + 26, [("C", "sh", True), (" の電圧（保ったまま変換する）", None, False)], "middle", 9.5, SIG))
+    s, hh = TIMEBAR(x0, yv + 60, w, 0, 1, [(0.0, 0.1, "前の変換", MUT), (0.1, 0.4, "標本化時間（スイッチが入る）", TEA),
+                                           (0.4, 0.95, "変換（スイッチは切れている）", SIG)], h=26, axis=False)
+    o.append(s)
+    o.append(_f09_m(x0, yv + 104, [("前のチャネルの電圧 ", None, False), ("V", "0", True), (" から入力の電圧 ", None, False), ("V", "in", True),
+                                   (" に向かって、時定数 (", None, False), ("R", "s", True), (" + ", None, False), ("R", "sw", True), (") ", None, False), ("C", "sh", True), (" で充電される", None, False)], "start", 9.5, MUT))
+    return SVG(700, yv + 114, o, "ADC の入力のサンプル・ホールド。(a) チャネルを切り替える回路と標本化のスイッチを通して、小さなコンデンサを入力の電圧まで充電する。信号源抵抗とスイッチの抵抗が直列に入る。(b) 標本化時間の間に充電し、スイッチを切って、保った電圧を量子化する。標本化の初めには、前のチャネルの電圧が残っている。")
+F["e09_sh"] = _f09_sh()
+
+def _f09_shcharge():
+    o = []
+    Csh, Rsw = 8e-12, 1e3
+    V0, Vin = 1.2, 14 * 100 / 490.0
+    cases = [(5e3, GRN, "5 kΩ（サーミスタ）"), (390e3 * 100e3 / 490e3, GLD, "79.6 kΩ（車の分圧）"), (500e3, ALI, "500 kΩ（1 MΩ・1 MΩ）")]
+    o.append(T(14, 18, "(a) 1.2 V の後に 2.86 V を測る", "start", 11.5, INK, True))
+    pa = Plot(70, 40, 270, 180, (0, 10e-6), (1.0, 3.0))
+    o.append(pa.axes(xl="標本化を始めてからの時間 [µs]", yl="コンデンサの電圧 [V]", xt=[0, 2e-6, 4e-6, 6e-6, 8e-6, 10e-6], yt=[1.0, 1.5, 2.0, 2.5, 3.0],
+                     xfmt=lambda v: "%d" % round(v * 1e6), yfmt=lambda v: "%.1f" % v))
+    for Rs, c, lab in cases:
+        tau = (Rs + Rsw) * Csh
+        o.append(pa.line([(i * 1e-7, Vin - (Vin - V0) * math.exp(-i * 1e-7 / tau)) for i in range(101)], c=c, lw=2.2))
+    o.append(W(pa.X(1.5e-6), pa.y, pa.X(1.5e-6), pa.y + pa.h, c=MUT, lw=1.2, dash="4 3"))
+    o.append(T(pa.X(1.5e-6) + 4, pa.Y(1.12), "1.5 µs", "start", 9.5, MUT, True, halo=True))
+    tau = (cases[1][0] + Rsw) * Csh
+    v = Vin - (Vin - V0) * math.exp(-1.5e-6 / tau)
+    o.append(D(pa.X(1.5e-6), pa.Y(v), GLD, 3.8))
+    o.append(T(pa.X(1.5e-6) + 6, pa.Y(v) + 15, "2.70 V（−0.16 V）", "start", 9.5, GLD, True, halo=True))
+    tau = (cases[2][0] + Rsw) * Csh
+    v = Vin - (Vin - V0) * math.exp(-1.5e-6 / tau)
+    o.append(D(pa.X(1.5e-6), pa.Y(v), ALI, 3.8))
+    o.append(T(pa.X(1.5e-6) + 6, pa.Y(v) + 4, "1.72 V", "start", 9.5, ALI, True, halo=True))
+    o.append(T(pa.X(9.8e-6), pa.Y(Vin) - 6, "2.86 V", "end", 9.5, TEA, True, halo=True))
+    # (b) 残りの差（最悪の場合）
+    o.append(T(386, 18, "(b) 差が基準電圧いっぱい（3.3 V）のとき", "start", 11.5, INK, True))
+    pb = Plot(450, 40, 230, 180, (0, 40e-6), (1e-4, 10), ylog=True)
+    o.append(pb.axes(xl="時間 [µs]", yl=None, xt=[0, 10e-6, 20e-6, 30e-6, 40e-6], yt=[1e-4, 1e-3, 1e-2, 1e-1, 1, 10],
+                     xfmt=lambda v: "%d" % round(v * 1e6), yfmt=lambda v: {1e-4: "0.1 mV", 1e-3: "1 mV", 1e-2: "10 mV", 1e-1: "0.1 V", 1: "1 V", 10: "10 V"}[v]))
+    th = 3.3 / 8192
+    o.append(pb.line([(0, th), (40e-6, th)], c=SIG, lw=1.2, dash="5 3"))
+    o.append(T(pb.X(39e-6), pb.Y(th) + 14, "12 ビットの 1/2 LSB", "end", 9.5, SIG, True, halo=True))
+    for k, (Rs, c, lab) in enumerate(cases):
+        tau = (Rs + Rsw) * Csh
+        o.append(pb.line([(i * 4e-7, max(1e-4, 3.3 * math.exp(-i * 4e-7 / tau))) for i in range(101)], c=c, lw=2.2))
+        tc = tau * math.log(2 ** 13)
+        o.append(D(pb.X(tc), pb.Y(th), c, 3.6))
+        o.append(T(pb.X(tc) + 5, pb.Y(th) + (15 if k == 0 else -7), _f09_g(tc * 1e6, 2) + " µs", "start", 9.5, c, True, halo=True))
+    o.append(LEGEND(70, 270, [(c, "信号源抵抗 " + lab) for Rs, c, lab in cases], gap=14))
+    # (c) ピンのコンデンサ
+    y3 = 300
+    o.append(T(14, y3, "(c) ピンのコンデンサがあるとき（1.2 V の後に 2.86 V、12 ビット、3.3 V）", "start", 11.5, INK, True))
+    lsb, dv = 3.3 / 4096, Vin - V0
+    tau79 = (390e3 * 100e3 / 490e3 + Rsw) * Csh
+    rows = [("なし（標本化時間 1.5 µs）", dv * math.exp(-1.5e-6 / tau79) / lsb, ALI)] + \
+           [(lab, dv * Csh / (cx + Csh) / lsb, c) for lab, cx, c in (("1 nF", 1e-9, GLD), ("10 nF", 10e-9, GLD), ("100 nF", 100e-9, GRN))]
+    x0, w = 210, 400
+    XL = lambda v: x0 + (math.log10(v) + 1) / 4.0 * w
+    for t_ in (0.1, 1, 10, 100, 1000):
+        o.append(W(XL(t_), y3 + 12, XL(t_), y3 + 12 + 4 * 22, c=GRD, lw=1))
+        o.append(T(XL(t_), y3 + 12 + 4 * 22 + 13, "%g LSB" % t_, "middle", 9, MUT))
+    for i, (lab, v, c) in enumerate(rows):
+        yy = y3 + 14 + i * 22
+        o.append(T(x0 - 8, yy + 13, lab, "end", 10, INK))
+        o.append(RECT(x0, yy + 2, XL(v) - x0, 15, 2, soft(c), c, 1.1))
+        o.append(T(XL(v) + 6, yy + 14, _f09_g(v, 3) + " LSB", "start", 9.5, c, True))
+    return SVG(700, y3 + 122, o, "標本化の時間とコンデンサの電圧（サンプル・ホールドの容量 8 pF、スイッチの抵抗 1 kΩ。例の値）。(a) 信号源抵抗が大きいと、標本化時間の間に充電しきれず、前のチャネルの電圧に引きずられる。(b) 対数目盛では残りの差は直線で減り、12 ビットの 1/2 LSB を切る時間が、要る標本化時間（表の値）になる。(c) ピンに大きなコンデンサを付けると、信号源抵抗によらず誤差が小さくなる（横軸は対数目盛）。")
+F["e09_shcharge"] = _f09_shcharge()
+
+# ---- 6 節: 平均化 ----
+def _f09_avg():
+    o = []
+    rnd = _f09_random.Random(9)
+    sig, mu = 3.0, 2048.0
+    xs = [round(mu + rnd.gauss(0, sig)) for _ in range(64)]
+    o.append(T(14, 18, "(a) σ = 3 LSB のノイズがある 64 回の値と、16 回ずつの平均", "start", 11.5, INK, True))
+    pa = Plot(70, 36, 610, 130, (0, 64), (2036, 2060))
+    o.append(pa.axes(xl="測った順番", yl="ADC の値", xt=[0, 16, 32, 48, 64], yt=[2036, 2042, 2048, 2054, 2060], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%d" % v))
+    o.append(pa.line([(0, mu), (64, mu)], c=GRN, lw=1.4, dash="6 4"))
+    o.append(PL([(pa.X(i + 0.5), pa.Y(v)) for i, v in enumerate(xs)], c=TEA, lw=0.8))
+    for i, v in enumerate(xs):
+        o.append(D(pa.X(i + 0.5), pa.Y(v), TEA, 2.6))
+    for b in range(4):
+        m = sum(xs[b * 16:(b + 1) * 16]) / 16.0
+        o.append(pa.line([(b * 16 + 0.3, m), (b * 16 + 15.7, m)], c=SIG, lw=3))
+        o.append(T(pa.X(b * 16 + 8), pa.Y(m) - 8 if m >= mu else pa.Y(m) + 16, "%.2f" % m, "middle", 10, SIG, True, halo=True))
+    o.append(T(pa.X(63.6), pa.Y(2058.5), "本当の値 2048", "end", 9.5, GRN, True, halo=True))
+    # (b) ヒストグラム
+    y2 = 232
+    o.append(T(14, y2, "(b) 1 回の値と、16 回の平均の分布（4000 回ずつ）", "start", 11.5, INK, True))
+    rnd = _f09_random.Random(5)
+    single = [round(mu + rnd.gauss(0, sig)) - mu for _ in range(4000)]
+    avg16 = []
+    for _ in range(4000):
+        avg16.append(sum(round(mu + rnd.gauss(0, sig)) for _ in range(16)) / 16.0 - mu)
+    pb = Plot(70, y2 + 18, 290, 140, (-10, 10), (0, 0.6))
+    o.append(pb.axes(xl="本当の値からのずれ [LSB]", yl="割合（1 LSB あたり）", xt=[-10, -5, 0, 5, 10], yt=[0, 0.2, 0.4, 0.6], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%.1f" % v))
+    def hist(vals, w):
+        bins = {}
+        for v in vals:
+            k = math.floor(v / w + 0.5)
+            bins[k] = bins.get(k, 0) + 1
+        return [(k * w, n / len(vals) / w) for k, n in sorted(bins.items())]
+    for vals, w, c in ((single, 1.0, TEA), (avg16, 0.25, SIG)):
+        for x, h in hist(vals, w):
+            if -10 <= x - w / 2 and x + w / 2 <= 10:
+                o.append(RECT(pb.X(x - w / 2), pb.Y(min(h, 0.6)), pb.X(x + w / 2) - pb.X(x - w / 2), pb.Y(0) - pb.Y(min(h, 0.6)), 0, soft(c), c, 0.8))
+    o.append(T(pb.X(-9.6), pb.Y(0.52), "1 回: σ = 3 LSB", "start", 9.5, TEA, True, halo=True))
+    o.append(T(pb.X(-9.6), pb.Y(0.44), "16 回の平均: 0.75 LSB", "start", 9.5, SIG, True, halo=True))
+    # (c) σ と回数
+    o.append(T(410, y2, "(c) 平均の回数とばらつき", "start", 11.5, INK, True))
+    pc = Plot(470, y2 + 18, 210, 140, (1, 256), (0.1, 5), xlog=True, ylog=True)
+    o.append(pc.axes(xl="平均の回数 N", yl="平均の σ [LSB]", xt=[1, 4, 16, 64, 256], yt=[0.1, 1], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%g" % v))
+    o.append(pc.line([(n, sig / math.sqrt(n)) for n in (1, 256)], c=GLD, lw=1.6, dash="5 3"))
+    rnd = _f09_random.Random(7)
+    for n in (1, 4, 16, 64, 256):
+        ms = []
+        for _ in range(1500):
+            ms.append(sum(rnd.gauss(0, sig) for _ in range(n)) / n)
+        m0 = sum(ms) / len(ms)
+        sd = math.sqrt(sum((v - m0) ** 2 for v in ms) / len(ms))
+        o.append(D(pc.X(n), pc.Y(sd), SIG, 4))
+    o.append(T(pc.X(1.5), pc.Y(0.16), "点: 乱数で試した値", "start", 9.5, SIG, True, halo=True))
+    o.append(T(pc.X(20), pc.Y(1.6), "線: 3 ÷ √N", "start", 9.5, GLD, True, halo=True))
+    return SVG(700, y2 + 200, o, "平均化でランダムなノイズが減る様子（ノイズの標準偏差 σ = 3 LSB、乱数で作った例）。(a) 1 回ずつの値は ±数 LSB ばらつくが、16 回の平均は本当の値に近い。(b) 平均の分布の幅は、1 回の値の 1/4 になる。(c) 平均の標準偏差は σ ÷ √N で、回数を 4 倍にすると半分になる。")
+F["e09_avg"] = _f09_avg()
+
+def _f09_periodic():
+    o = []
+    o.append(T(14, 18, "(a) 1 回ごとに位相が θ ずつ進むノイズ", "start", 11.5, INK, True))
+    for k, (cx, title, sub, ang, c) in enumerate(((90, "時間が周期の整数倍", "点が円を等しく分ける → 和は 0", [i * 72 for i in range(5)], GRN),
+                                                 (250, "間隔が周期の整数倍", "毎回同じ位相 → 減らない", [40] * 5, ALI))):
+        cy, r = 120, 52
+        o.append(CIRC(cx, cy, r, c=LIN, lw=1.2))
+        o.append(W(cx - r - 8, cy, cx + r + 8, cy, c=FNT, lw=1))
+        o.append(W(cx, cy - r - 8, cx, cy + r + 8, c=FNT, lw=1))
+        for i, a in enumerate(ang):
+            ax, ay = cx + r * math.cos(math.radians(a)), cy - r * math.sin(math.radians(a))
+            o.append(ARR(cx, cy, ax, ay, c=c, lw=1.3, head=5))
+            o.append(D(ax, ay, c, 3.6))
+        o.append(T(cx, 50, title, "middle", 10.5, c, True))
+        o.append(T(cx, 196, sub, "middle", 9.5, c, True))
+    o.append(T(170, 220, "縦の位置が、その回に測るノイズ", "middle", 9.5, MUT))
+    # (b) 残る割合
+    o.append(T(380, 18, "(b) 1 ms ごとに測って平均したときに残る割合", "start", 11.5, INK, True))
+    pb = Plot(430, 40, 250, 170, (0, 0.12), (0, 1.0))
+    o.append(pb.axes(xl="平均をとる時間 [ms]", yl="残る割合", xt=[0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12], yt=[0, 0.25, 0.5, 0.75, 1.0],
+                     xfmt=lambda v: "%d" % round(v * 1000), yfmt=lambda v: "%g" % v))
+    d = 1e-3
+    for f, c in ((50.0, SIG), (60.0, PUR)):
+        pts = []
+        for n in range(1, 121):
+            W_ = n * d
+            pts.append((W_, abs(math.sin(math.pi * f * W_) / (n * math.sin(math.pi * f * d)))))
+        o.append(pb.line(pts, c=c, lw=2))
+    o.append(W(pb.X(0.1), pb.y, pb.X(0.1), pb.y + pb.h, c=GRN, lw=1.4, dash="4 3"))
+    o.append(T(pb.X(0.1) - 4, pb.Y(0.9), "100 ms で", "end", 9.5, GRN, True, halo=True))
+    o.append(T(pb.X(0.1) - 4, pb.Y(0.9) + 13, "両方 0", "end", 9.5, GRN, True, halo=True))
+    r16 = abs(math.sin(math.pi * 50 * 0.016) / (16 * math.sin(math.pi * 50 * d)))
+    o.append(D(pb.X(0.016), pb.Y(r16), SIG, 4))
+    o.append(T(pb.X(0.016) + 6, pb.Y(r16) - 6, "16 ms: 23 %", "start", 9.5, SIG, True, halo=True))
+    o.append(LEGEND(430, 262, [(SIG, "50 Hz"), (PUR, "60 Hz")]))
+    o.append(T(430, 280, "0 になるのは、50 Hz で 20 ms ごと、60 Hz で 16.7 ms ごと", "start", 9.5, MUT))
+    return SVG(700, 290, o, "周期的なノイズの平均。(a) 測るたびにノイズの位相が θ ずつ進むとみると、平均をとる時間が周期の整数倍なら、点は円を等しく分け、和は 0 になる。測る間隔が周期の整数倍なら、毎回同じ位相を測るので、平均しても減らない。(b) 50 Hz と 60 Hz のノイズを 1 ms ごとに測って平均したとき、平均に残る大きさの上限。100 ms なら両方とも 0 になる。")
+F["e09_periodic"] = _f09_periodic()
+
+def _f09_dither():
+    o = []
+    def expect(x, s):
+        if s == 0:
+            return math.floor(x + 0.5)
+        tot = 0.0
+        for k in range(int(math.floor(x)) - 8, int(math.floor(x)) + 10):
+            a = (k - 0.5 - x) / (s * math.sqrt(2))
+            b = (k + 0.5 - x) / (s * math.sqrt(2))
+            tot += k * 0.5 * (math.erf(b) - math.erf(a))
+        return tot
+    o.append(T(14, 18, "何回も平均したときの値と、本当の入力（ノイズの大きさ別）", "start", 11.5, INK, True))
+    p = Plot(80, 40, 380, 200, (1000, 1002), (999.8, 1002.2))
+    o.append(p.axes(xl="本当の入力 [LSB]", yl="平均した値 [LSB]", xt=[1000, 1000.5, 1001, 1001.5, 1002], yt=[1000, 1000.5, 1001, 1001.5, 1002],
+                    xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    o.append(p.line([(1000, 1000), (1002, 1002)], c=FNT, lw=1.2, dash="4 4"))
+    xs = [1000 + i / 200.0 for i in range(401)]
+    for s, c, lw in ((0.0, ALI, 2.2), (0.2, GLD, 1.8), (0.5, GRN, 2.4)):
+        o.append(p.line([(x, expect(x, s)) for x in xs], c=c, lw=lw))
+    o.append(D(p.X(1000.3), p.Y(1000), ALI, 4))
+    o.append(T(p.X(1000.3) + 6, p.Y(1000) + 15, "1000.3 → 1000（ノイズ 0）", "start", 9.5, ALI, True, halo=True))
+    x0 = 500
+    o.append(LEGEND(x0, 66, [(ALI, "ノイズ 0")]))
+    o.append(T(x0 + 16, 84, "毎回同じ値。平均しても", "start", 9.5, MUT))
+    o.append(T(x0 + 16, 98, "±1/2 LSB の誤差が残る", "start", 9.5, MUT))
+    o.append(LEGEND(x0, 126, [(GLD, "σ = 0.2 LSB")]))
+    o.append(T(x0 + 16, 144, "段の近くだけ滑らか。", "start", 9.5, MUT))
+    o.append(T(x0 + 16, 158, "最大 0.15 LSB ほどずれる", "start", 9.5, MUT))
+    o.append(LEGEND(x0, 186, [(GRN, "σ = 0.5 LSB")]))
+    o.append(T(x0 + 16, 204, "本当の入力にほぼ重なる。", "start", 9.5, MUT))
+    o.append(T(x0 + 16, 218, "回数を増やせば細かく分かる", "start", 9.5, MUT))
+    return SVG(700, 286, o, "オーバーサンプリングにノイズが要る理由。十分な回数を平均したときの値（期待値）を、本当の入力に対して描いた。ノイズが無いと、平均は ADC の値の段のまま変わらない。標準偏差が 1/2 LSB 程度のノイズがあると、平均は本当の入力に沿って動き、1 LSB より細かい値が分かる。")
+F["e09_dither"] = _f09_dither()
