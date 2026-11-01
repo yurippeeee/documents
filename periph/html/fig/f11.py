@@ -8,17 +8,20 @@ def _f11_m(x, y, parts, a="start", sz=12, c=INK, b=False):
     """添字付きの記号を並べた文字。parts = [(文字, 添字, 斜体か), ...]（09 章の図と同じ書き方）。"""
     w = 0.0
     for s, sub, it in parts:
-        w += tw(s, sz) + (tw(sub, sz * 0.72) if sub else 0)
+        w += tw(s, sz) + (tw(sub.lstrip("^"), sz * 0.72) if sub else 0)
     x0 = x - (w / 2 if a == "middle" else (w if a == "end" else 0))
     if _CHECK:
-        _BOXES.append((x0, y - sz * 0.82, x0 + w, y + sz * 0.22 + 2, "".join(p[0] + (p[1] or "") for p in parts)))
+        _BOXES.append((x0, y - sz * 0.82 - 2, x0 + w, y + sz * 0.22 + 2, "".join(p[0] + (p[1] or "") for p in parts)))
     o = ['<text x="%g" y="%g" text-anchor="start" font-size="%g" fill="%s" font-family="var(--sans)" font-weight="%s"'
          ' stroke="%s" stroke-width="3" stroke-linejoin="round" paint-order="stroke">' % (round(x0, 2), y, sz, c, "700" if b else "400", SCR)]
     pend = 0
     for s, sub, it in parts:
         o.append('<tspan font-style="%s"%s>%s</tspan>' % ("italic" if it else "normal", (' dy="%g"' % pend) if pend else "", E(s)))
         pend = 0
-        if sub:
+        if sub and sub.startswith("^"):
+            o.append('<tspan dy="-5" font-size="%g">%s</tspan>' % (sz * 0.72, E(sub[1:])))
+            pend = 5
+        elif sub:
             o.append('<tspan dy="3" font-size="%g">%s</tspan>' % (sz * 0.72, E(sub)))
             pend = -3
     o.append("</text>")
@@ -69,14 +72,17 @@ def _f11_swv(x, y1, y2, closed=False, c=INK):
     o += W(x, ym1, x + (0 if closed else 11), ym2, c=c, lw=1.8)
     return o
 
-def _f11_diode(x, y1, y2, c=INK, s=6, tvs=False):
-    """縦向きのダイオード。y1（上）が陰極、y2（下）が陽極（下から上へ電流を通す）。tvs=True で陰極の棒に鉤を付ける。"""
+def _f11_diode(x, y1, y2, c=INK, s=6, tvs=False, down=False):
+    """縦向きのダイオード。既定は y1（上）が陰極、y2（下）が陽極で、下から上へ電流を通す。
+    down=True なら上が陽極で、上から下へ通す。tvs=True で陰極の棒に鉤を付ける。"""
     ym = (y1 + y2) / 2
-    o = W(x, y1, x, ym - s * 0.8, c=c, lw=1.5) + W(x, ym + s * 0.8, x, y2, c=c, lw=1.5)
-    o += PL([(x - s, ym + s * 0.8), (x + s, ym + s * 0.8), (x, ym - s * 0.8)], c=c, lw=1.3, fill=soft(c))
-    o += W(x - s, ym - s * 0.8, x + s, ym - s * 0.8, c=c, lw=1.8)
+    k = s * 0.8
+    o = W(x, y1, x, ym - k, c=c, lw=1.5) + W(x, ym + k, x, y2, c=c, lw=1.5)
+    yb, yk = (ym - k, ym + k) if down else (ym + k, ym - k)     # 三角の底（陽極）と、陰極の棒
+    o += PL([(x - s, yb), (x + s, yb), (x, yk)], c=c, lw=1.3, fill=soft(c))
+    o += W(x - s, yk, x + s, yk, c=c, lw=1.8)
     if tvs:
-        o += W(x - s, ym - s * 0.8, x - s - 3, ym - s * 0.8 + 4, c=c, lw=1.5) + W(x + s, ym - s * 0.8, x + s + 3, ym - s * 0.8 - 4, c=c, lw=1.5)
+        o += W(x - s, yk, x - s - 3, yk + 4, c=c, lw=1.5) + W(x + s, yk, x + s + 3, yk - 4, c=c, lw=1.5)
     return o
 
 def _f11_schmitt(x, y, c=SIG, h=30):
@@ -408,7 +414,7 @@ def _f11_wait():
     o = []
     x0, x1 = 150, 684
     X = lambda t: x0 + t / 60.0 * (x1 - x0)
-    seq = [(0, 1), (10, 0), (10.4, 1), (10.9, 0), (11.5, 1), (12.2, 0), (60, 0)]
+    seq = [(0, 1), (10, 0), (11, 1), (12, 0), (13.2, 1), (14, 0), (60, 0)]
     def lev(t):
         v = 1
         for tt, vv in seq:
@@ -416,7 +422,7 @@ def _f11_wait():
         return v
     o.append(T(x0 - 10, 44, "ピンの値", "end", 10, TEA, True))
     o.append(_f11_dwave(seq, X, 34, 50, c=TEA, lw=1.8))
-    o.append(T(X(11), 26, "押す（はね返り）", "middle", 9.5, INK))
+    o.append(T(X(12), 26, "押す（はね返り 4 ms）", "middle", 9.5, INK))
     rows = []
     # (a) 周期的に読む: 2.5 ms から 5 ms ごと
     wa = [2.5 + 5 * k for k in range(12)]
@@ -664,7 +670,7 @@ def _f11_couple():
     o.append(_f11_m(234, 90, [("R", None, True)], "end", 10.5, INK))
     o.append(D(246, yv, TEA, 3))
     o.append(T(296, yv + 4, "ピン", "start", 9.5, MUT))
-    o.append(_f11_m(14, 196, [("下がり幅 ", None, False), ("u", "pk", True), (" = ", None, False), ("R C", "m", True), (" S", None, True), ("(1 − e", None, False), ("−t/τ", None, False), (")", None, False)], "start", 10, INK))
+    o.append(_f11_m(14, 196, [("速い変化の下がり幅 ≈ 24 V × ", None, False), ("C", "m", True), ("/(", None, False), ("C", "m", True), (" + ", None, False), ("C", "g", True), (") = 4 V", None, False)], "start", 10, INK))
     o.append(_f11_m(14, 214, [("戻る時定数 τ = ", None, False), ("R", None, True), ("(", None, False), ("C", "m", True), (" + ", None, False), ("C", "g", True), (")", None, False)], "start", 10, INK))
     o.append(T(14, 232, "スイッチが閉じていれば、線は GND に", "start", 9.5, GRN))
     o.append(T(14, 246, "つながっていて、ほとんど動かない", "start", 9.5, GRN))
@@ -674,8 +680,8 @@ def _f11_couple():
                     xfmt=lambda v: "%d" % v, yfmt=lambda v: "%d" % v))
     for v, nm, c in ((0.7 * VD, "IH", GRN), (0.3 * VD, "IL", GLD)):
         o.append(W(p.X(0), p.Y(v), p.X(60), p.Y(v), c=c, lw=1, dash="5 3"))
-    o.append(_f11_m(p.X(60) - 2, p.Y(0.7 * VD) - 4, [("V", "IH", True)], "end", 9.5, GRN))
-    o.append(_f11_m(p.X(60) - 2, p.Y(0.3 * VD) + 13, [("V", "IL", True)], "end", 9.5, GLD))
+    o.append(_f11_m(p.X(52), p.Y(0.7 * VD) + 13, [("V", "IH", True)], "middle", 9.5, GRN))
+    o.append(_f11_m(p.X(52), p.Y(0.3 * VD) - 5, [("V", "IL", True)], "middle", 9.5, GLD))
     labs = []
     for R, c, nm in ((47e3, ALI, "47 kΩ: 約 39 µs"), (4.7e3, GLD, "4.7 kΩ: 約 4 µs"), (1e3, GRN, "1 kΩ: 約 1 µs")):
         tau = R * (Cm + Cg)
@@ -690,9 +696,9 @@ def _f11_couple():
             pts.append((t * 1e6, VD - u))
         o.append(p.line(pts, c=c, lw=2))
         labs.append((nm, c))
+    o.append(T(p.X(60) - 4, p.Y(0.5), "プルアップ抵抗: H と読めない時間", "end", 9, MUT))
     for k, (nm, c) in enumerate(labs):
-        o.append(T(p.X(60) - 2, p.Y(-0.55) - (2 - k) * 15, nm, "end", 9.5, c, True))
-    o.append(T(p.X(60) - 2, p.Y(-0.55) - 3 * 15, "プルアップ抵抗と H と読めない時間", "end", 9, MUT))
+        o.append(T(p.X(60) - 4, p.Y(0.5) + 15 * (k + 1), nm, "end", 9.5, c, True))
     return SVG(700, 268, o, "長い線の誘導ノイズ（C_m 100 pF、C_g 500 pF、24 V の線が 0.5 µs で下がる。例の値）。相手の線の変化が速いので、下がり幅は容量の分圧 4 V に近く、プルアップ抵抗ではあまり変わらない。元に戻る時定数はプルアップ抵抗に比例するので、抵抗を小さくするとノイズは短いパルスになる。")
 F["e11_couple"] = _f11_couple()
 
@@ -794,12 +800,15 @@ def _f11_levels():
     o.append(_f11_resh(xb + 52, xb + 102, 116, c=INK))
     o.append(T(xb + 77, 104, "10 kΩ", "middle", 9.5, INK))
     o.append(W(xb + 102, 116, xb + 132, 116, c=TEA, lw=1.5))
-    o.append(RECT(xb + 132, 60, 78, 96, 6, SSOFT, SIG, 1.3))
-    o.append(T(xb + 171, 148, "マイコン", "middle", 9.5, SIG, True))
-    o.append(_f11_diode(xb + 150, 72, 116, c=ALI, s=4))
-    o.append(W(xb + 150, 72, xb + 196, 72, c=GLD, lw=1.5))
-    o.append(_f11_m(xb + 171, 66, [("V", "DD", True), (" 3.3 V", None, False)], "middle", 9.5, GLD))
-    o.append(ARR(xb + 162, 106, xb + 162, 80, c=ALI, lw=1.6, head=6))
+    o.append(RECT(xb + 132, 44, 86, 118, 6, SSOFT, SIG, 1.3))
+    o.append(T(xb + 175, 154, "マイコン", "middle", 9.5, SIG, True))
+    o.append(_f11_m(xb + 175, 66, [("V", "DD", True), (" 3.3 V", None, False)], "middle", 9.5, GLD))
+    o.append(W(xb + 140, 78, xb + 210, 78, c=GLD, lw=1.6))
+    o.append(_f11_diode(xb + 152, 78, 116, c=ALI, s=4))
+    o.append(W(xb + 132, 116, xb + 152, 116, c=TEA, lw=1.5))
+    o.append(ARR(xb + 168, 110, xb + 168, 84, c=ALI, lw=1.6, head=6))
+    o.append(T(xb + 174, 102, "保護", "start", 8.5, ALI))
+    o.append(T(xb + 174, 113, "ダイオード", "start", 8.5, ALI))
     o.append(T(xb, 190, "0.11 mA が電源の線へ流れ込む", "start", 9.5, ALI, True))
     o.append(T(xb, 206, "眠っていて 2 µA しか使わないと、", "start", 9.5, ALI))
     o.append(T(xb, 222, "電源の電圧が押し上げられる", "start", 9.5, ALI))
@@ -829,20 +838,17 @@ def _f11_opto():
     yt, yb = 64, 150
     o.append(T(14, 30, "入力（24 V 系、18〜30 V）", "start", 10.5, PUR, True))
     o.append(CIRC(20, yt, 4, c=PUR, lw=1.4, fill=PAN))
-    o.append(T(30, yt - 10, "+", "start", 11, PUR, True))
+    o.append(T(10, yt + 4, "+", "end", 11, PUR, True))
     o.append(CIRC(20, yb, 4, c=PUR, lw=1.4, fill=PAN))
-    o.append(T(30, yb + 18, "0 V", "start", 9.5, PUR, True))
+    o.append(T(20, yb + 18, "0 V", "middle", 9.5, PUR, True))
     o.append(W(24, yt, 34, yt, c=PUR, lw=1.5))
     o.append(_f11_resh(34, 84, yt, c=INK))
     o.append(_f11_m(59, yt - 10, [("R", "in", True), (" 4.7 kΩ", None, False)], "middle", 9.5, INK))
     o.append(W(84, yt, 196, yt, c=PUR, lw=1.5))
     o.append(W(24, yb, 196, yb, c=PUR, lw=1.5))
-    # 逆向きのダイオード（上から下へ通す: 陰極が下）
+    # 逆向きのダイオード（LED と逆向き: 下から上へ通す）
     xd = 104
-    o.append(W(xd, yt, xd, yt + 20, c=INK, lw=1.4))
-    o.append(PL([(xd - 6, yt + 26), (xd + 6, yt + 26), (xd, yt + 36)], c=INK, lw=1.2, fill=MSOFT))
-    o.append(W(xd - 6, yt + 36, xd + 6, yt + 36, c=INK, lw=1.8))
-    o.append(W(xd, yt + 36, xd, yb, c=INK, lw=1.4))
+    o.append(_f11_diode(xd, yt, yb, c=INK, s=6))
     o.append(T(xd - 8, yt + 60, "逆向き", "end", 9, MUT))
     o.append(T(xd - 8, yt + 72, "の保護", "end", 9, MUT))
     # R_sh
@@ -855,10 +861,10 @@ def _f11_opto():
     o.append(RECT(158, 40, 150, 128, 8, "none", MUT, 1.2, dash="5 3"))
     o.append(T(233, 34, "フォトカプラ", "middle", 9.5, MUT, True))
     xL = 180
-    o.append(_f11_diode(xL, yt + 18, yb - 18, c=GLD, s=7))
+    o.append(_f11_diode(xL, yt + 18, yb - 18, c=GLD, s=7, down=True))
     o.append(W(xL, yt, xL, yt + 18, c=PUR, lw=1.4))
     o.append(W(xL, yb - 18, xL, yb, c=PUR, lw=1.4))
-    o.append(T(xL - 8, yt + 30, "LED", "end", 9, GLD, True))
+    o.append(T(xL + 8, yb - 22, "LED", "start", 9, GLD, True))
     o.append(ARR(xL + 12, 100, xL + 44, 100, c=GLD, lw=1.3, head=5))
     o.append(ARR(xL + 12, 112, xL + 44, 112, c=GLD, lw=1.3, head=5))
     o.append(W(233, 44, 233, 166, c=ALI, lw=1.2, dash="3 3"))
@@ -882,10 +888,10 @@ def _f11_opto():
     o.append(T(316, 104, "入力が来ると L", "start", 9, SIG))
     o.append(T(14, 214, "LED の電流", "start", 9.5, INK, True))
     o.append(_f11_m(14, 232, [("I", "F", True), (" = (", None, False), ("V", "in", True), (" − ", None, False), ("V", "F", True), (")/", None, False), ("R", "in", True), (" − ", None, False), ("V", "F", True), ("/", None, False), ("R", "sh", True)], "start", 10, INK))
-    o.append(T(14, 254, "18 V で 2.37 mA、30 V で 4.93 mA（V_F = 1.2 V）", "start", 9.5, MUT))
+    o.append(_f11_m(14, 254, [("18 V で 2.37 mA、30 V で 4.93 mA（", None, False), ("V", "F", True), (" = 1.2 V）", None, False)], "start", 9.5, MUT))
     o.append(T(14, 270, "約 5.7 V より低い入力では LED が光らない（OFF）", "start", 9.5, GRN))
     # 右: 電流の比べ
-    p = Plot(500, 0, 180, 1, (0, 2.5), (0, 1))
+    p = Plot(500, 0, 140, 1, (0, 2.5), (0, 1))
     X = p.X
     o.append(T(440, 30, "入力 18 V のとき", "start", 10.5, INK, True))
     bars = [("LED の電流", 2.37, TEA, "2.37 mA"), ("CTR 50 %", 1.185, GRN, "1.19 mA"), ("年月で 25 %", 0.593, GLD, "0.59 mA"),
@@ -898,6 +904,6 @@ def _f11_opto():
     o.append(_f11_m(440, 184, [("要る電流 = (3.3 − 0.4) V ÷ ", None, False), ("R", "L", True), (" 10 kΩ", None, False)], "start", 9.5, SIG))
     o.append(T(440, 202, "流せる 0.59 mA は要る電流の 2 倍", "start", 9.5, GRN, True))
     o.append(_f11_m(440, 220, [("→ ", None, False), ("R", "L", True), (" ≥ 4.9 kΩ なら L にできる", None, False)], "start", 9.5, INK))
-    o.append(T(440, 246, "30 V のとき R_in の電力 0.18 W", "start", 9.5, MUT))
+    o.append(_f11_m(440, 246, [("30 V のとき ", None, False), ("R", "in", True), (" の電力 0.18 W", None, False)], "start", 9.5, MUT))
     return SVG(700, 282, o, "24 V 系の信号をフォトカプラで受ける回路の例（値は例）。R_in で LED の電流を決め、R_sh で小さな入力では光らないようにし、逆向きのダイオードで逆接続から LED を守る。右は、入力が最も低いときの、LED の電流と、フォトトランジスタが流せる電流（CTR 50 % と、年月で半分になった 25 %）、ピンを L にするのに要る電流。")
 F["e11_opto"] = _f11_opto()
