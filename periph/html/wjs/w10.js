@@ -91,7 +91,7 @@
     var S=U.S,seed=1,NS=150,N0=75;
     U.head(el,"FILTER","移動平均・中央値・一次 IIR を比べる");
     var r1=U.ctrls(el);
-    var sd=U.slider(r1,"雑音の大きさ σ",{min:0,max:2,step:0.1,value:0.5,fmt:function(v){return v.toFixed(1);},onInput:draw});
+    var sd=U.slider(r1,"ノイズの大きさ σ",{min:0,max:2,step:0.1,value:0.5,fmt:function(v){return v.toFixed(1);},onInput:draw});
     var pr=U.slider(r1,"とび値の割合",{values:[0,1,2,5,10,20],value:5,fmt:function(v){return v+" %";},onInput:draw});
     var amp=U.slider(r1,"とび値の大きさ",{min:0,max:10,step:0.5,value:5,fmt:function(v){return v.toFixed(1);},onInput:draw});
     var stp=U.slider(r1,"段差の大きさ",{min:0,max:10,step:0.5,value:4,fmt:function(v){return v.toFixed(1);},onInput:draw});
@@ -104,7 +104,7 @@
     var br=U.btnrow(el);
     U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
     U.button(br,"5 節の例（N = 8・3 個・α = 1/8）",function(){sd.set(0.5);pr.set(5);amp.set(5);stp.set(4);Nm.set(8);Nd.set(3);kk.set(3);cMa.set(true);cMd.set(true);cEm.set(true);cCo.set(false);draw();});
-    U.button(br,"同じ雑音の移動平均と IIR（N = 15・α = 1/8）",function(){Nm.set(15);kk.set(3);cMa.set(true);cMd.set(false);cEm.set(true);cCo.set(false);draw();});
+    U.button(br,"同じノイズの移動平均と IIR（N = 15・α = 1/8）",function(){Nm.set(15);kk.set(3);cMa.set(true);cMd.set(false);cEm.set(true);cCo.set(false);draw();});
     U.button(br,"とび値を除いてからならす",function(){cMa.set(false);cMd.set(false);cEm.set(true);cCo.set(true);pr.set(10);draw();});
     var box=U.svgbox(el,{scroll:true}); var ro=U.readout(el);
     function series(noise,out,step){
@@ -135,8 +135,8 @@
       o.push(S.T(p.x+p.w+6,p.Y(St)+4,"段差","start",9,"muted"));
       o.push(S.T(70,322,"点: 入力（測った値）。破線: 本当の値。","start",9.5,"muted"));
       box.set(S.svg(W,330,o));
-      ro.innerHTML=(rows.length?U.tbl(["フィルタ","残った雑音","とび値の影響","段差の 9 割まで"],rows,["left","right","right","right"]):"表示する出力を選ぶ。")+
-        '<div class="wnote">表の値は、同じ乱数で雑音だけ・とび値だけ・段差だけの列を別々に作ってフィルタに通し、求めた（重なると見分けにくいため）。残った雑音は出力の標準偏差を入力の σ で割った値、とび値の影響は出力の最大のずれ、段差は 9 割に届くのが段差から何回目か。とび値は正の向きに決めた割合で入れ、始めの 5 回には入れない。2 回以上続くとび値は、中央値（3 個）でも残る。</div>';
+      ro.innerHTML=(rows.length?U.tbl(["フィルタ","残ったノイズ","とび値の影響","段差の 9 割まで"],rows,["left","right","right","right"]):"表示する出力を選ぶ。")+
+        '<div class="wnote">表の値は、同じ乱数でノイズだけ・とび値だけ・段差だけの列を別々に作ってフィルタに通し、求めた（重なると見分けにくいため）。残ったノイズは出力の標準偏差を入力の σ で割った値、とび値の影響は出力の最大のずれ、段差は 9 割に届くのが段差から何回目か。とび値は正の向きに決めた割合で入れ、始めの 5 回には入れない。2 回以上続くとび値は、中央値（3 個）でも残る。</div>';
     }
     draw();
   };
@@ -148,7 +148,7 @@
     U.head(el,"FAULT","故障を起こして、妥当性の検査が気づくまでを見る");
     var r1=U.ctrls(el);
     var kind=U.select(r1,"故障の種類（150 回目から）",KINDS,1,draw);
-    var nz=U.slider(r1,"雑音の大きさ（標準偏差）",{values:[0.2,0.5,1,2,4,8],value:1,fmt:function(v){return v+" LSB";},onInput:draw});
+    var nz=U.slider(r1,"ノイズの大きさ（標準偏差）",{values:[0.2,0.5,1,2,4,8],value:1,fmt:function(v){return v+" LSB";},onInput:draw});
     var r2=U.ctrls(el);
     var jm=U.slider(r2,"急変のしきい値 JUMP_MAX",{values:[10,20,40,80,160],value:40,fmt:String,onInput:draw});
     var sn=U.slider(r2,"張り付きの回数 STUCK_N",{values:[5,10,20,30,60],value:30,fmt:function(v){return v+" 回";},onInput:draw});
@@ -213,7 +213,7 @@
       var h="";
       if(A.at>=0)h+='<span class="warn">正しい間に、誤って故障と確定した</span>（'+A.at+" 回目、理由: "+WHY[A.fault]+"）。しきい値か回数を見直す。<br>";
       else h+='正しい間（0〜149 回目）: <span class="ok">誤った確定なし</span>（使わなかった値 '+A.rej+" 個、急変と数えた回数 "+A.jumps+" 回）<br>";
-      if(K===0)h+="故障なし。雑音を小さくすると張り付き、急変のしきい値を小さくすると急変で、誤って確定することがある。";
+      if(K===0)h+="故障なし。ノイズを小さくすると張り付き、急変のしきい値を小さくすると急変で、誤って確定することがある。";
       else if(B.at>=NF)h+="故障に気づいた: <b>"+B.at+" 回目</b>（故障から <b>"+(B.at-NF+1)+" 回目</b>、T = 1 s なら "+(B.at-NF+1)+" s）・理由: <b>"+WHY[B.fault]+"</b>";
       else if(B.at>=0)h+='<span class="warn">故障の前に確定した</span>（'+B.at+" 回目、理由: "+WHY[B.fault]+"）";
       else h+='<span class="warn">故障に気づかなかった</span>'+(K===6?"（範囲の中のゆっくりしたずれは、範囲・急変・張り付きの規則では見つからない。ほかのセンサと比べる）":K===5?"（外れが続かないので確定しない。外れた値は使わないので、出力はほぼ正しい。外れた回数を記録して接触不良を知らせる）":"");
