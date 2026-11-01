@@ -100,7 +100,8 @@ def _f13_run(tend, dt, ramp=0.0, Rin=0.0, keep=500):
 
 def _f13_panel(o, p, title, yl, yt, yfmt, xt=None, xfmt=None, xl=None):
     """縦に並べるグラフの 1 枚（x の目盛の文字は xl を渡したものだけに書く）。"""
-    o.append(T(p.x, p.y - 7, title, "start", 10.5, INK, True))
+    if title:
+        o.append(T(p.x, p.y - 7, title, "start", 10.5, INK, True))
     for v in yt:
         o.append(W(p.x, p.Y(v), p.x + p.w, p.Y(v), c=GRD, lw=1))
         o.append(T(p.x - 6, p.Y(v) + 3.5, yfmt(v), "end", 9.5, MUT))
@@ -315,24 +316,26 @@ def _f13_ripple():
     wa, ca = _f13_ss(D, 20e3, True)
     wb, cb = _f13_ss(D, 2e3, True)
     ws, cs = _f13_ss(D, 2e3, False)
-    pa = Plot(80, 52, 560, 92, (0, 200), (0.35, 0.65))
-    pb = Plot(80, 222, 560, 120, (0, 2.0), (-0.4, 1.4))
-    _f13_panel(o, pa, "(a) 20 kHz（デューティ比 0.5）", "電流 [A]", [0.4, 0.5, 0.6], lambda v: "%g" % v, [0, 50, 100, 150, 200], lambda v: "%g" % v, "時間 [µs]")
-    _f13_onoff(o, pa, 20e3, D, 4, 1e6, 22)
+    pa = Plot(80, 56, 560, 100, (0, 200), (0.35, 0.72))
+    pb = Plot(80, 250, 560, 130, (0, 2.0), (-0.45, 1.65))
+    o.append(T(14, 18, "(a) 20 kHz（デューティ比 0.5）", "start", 10.5, INK, True))
+    _f13_panel(o, pa, "", "電流 [A]", [0.4, 0.5, 0.6, 0.7], lambda v: "%g" % v, [0, 50, 100, 150, 200], lambda v: "%g" % v, "時間 [µs]")
+    _f13_onoff(o, pa, 20e3, D, 4, 1e6, 30)
     o.append(pa.line([(t * 1e6, I) for t, I in _f13_wave(ca)], c=SIG, lw=2))
     o.append(pa.line([(0, 0.5), (200, 0.5)], c=MUT, lw=1, dash="4 3"))
-    xx = pa.X(75)
+    xx = pa.X(125)
     o.append(DIM(xx, pa.Y(ca["Ib"]), xx, pa.Y(ca["Ia"]), None, c=ALI))
-    o.append(T(xx + 8, pa.Y(0.5) + 4, "ΔI = %.3f A（式 %.3f A）" % (ca["Ib"] - ca["Ia"], 12 * D * (1 - D) / (1e-3 * 20e3)), "start", 9.5, ALI, True, halo=True))
-    o.append(T(pa.X(200) - 4, pa.Y(0.5) - 5, "平均 0.5 A", "end", 9, MUT, halo=True))
-    _f13_panel(o, pb, "(b) 2 kHz（デューティ比 0.5）", "電流 [A]", [-0.4, 0, 0.4, 0.8, 1.2], lambda v: "%g" % v, [0, 0.5, 1.0, 1.5, 2.0], lambda v: "%g" % v, "時間 [ms]")
-    _f13_onoff(o, pb, 2e3, D, 4, 1e3, 192)
+    o.append(T(pa.X(127), pa.Y(0.66), "ΔI = %.3f A（式 V D (1 − D)/(L f) = %.3f A）" % (ca["Ib"] - ca["Ia"], 12 * D * (1 - D) / (1e-3 * 20e3)), "start", 9.5, ALI, True, halo=True))
+    o.append(T(pa.X(2), pa.Y(0.66), "破線: 平均 0.5 A", "start", 9, MUT, halo=True))
+    o.append(T(14, 212, "(b) 2 kHz（デューティ比 0.5）", "start", 10.5, INK, True))
+    _f13_panel(o, pb, "", "電流 [A]", [-0.4, 0, 0.4, 0.8, 1.2, 1.6], lambda v: "%g" % v, [0, 0.5, 1.0, 1.5, 2.0], lambda v: "%g" % v, "時間 [ms]")
+    _f13_onoff(o, pb, 2e3, D, 4, 1e3, 224)
     o.append(pb.line([(0, 0), (2.0, 0)], c=FNT, lw=1))
     o.append(pb.line([(t * 1e3, I) for t, I in _f13_wave(cs)], c=PUR, lw=1.6, dash="5 3"))
     o.append(pb.line([(t * 1e3, I) for t, I in _f13_wave(cb)], c=SIG, lw=2))
-    o.append(T(pb.X(0.52), pb.Y(1.31), "ダイオードで流す: 電流は 0 で止まり、速さ %.0f rad/s" % wb, "start", 9.5, SIG, True, halo=True))
-    o.append(T(pb.X(0.52), pb.Y(-0.32), "下の 2 つで流す（破線）: 負まで流れ、速さ %.0f rad/s" % ws, "start", 9.5, PUR, True, halo=True))
-    return SVG(700, 384, o, "PWM の電流の波（例のモータ、12 V、デューティ比 0.5、速さが落ち着いた後。閉じた式で計算した値）。(a) 20 kHz では、電流は平均の上下に 0.15 A だけ揺れる。(b) 2 kHz では揺れが平均より大きく、ダイオードで流すと電流が 0 で途切れ、速さがデューティ比から求めた 250 rad/s からずれる。")
+    o.append(T(pb.X(0.02), pb.Y(1.48), "実線: ダイオードで流す。電流は 0 で止まり、速さ %.0f rad/s" % wb, "start", 9.5, SIG, True, halo=True))
+    o.append(T(pb.X(0.02), pb.Y(1.48) + 14, "破線: 下の 2 つで流す。負まで流れ、速さ %.0f rad/s" % ws, "start", 9.5, PUR, True, halo=True))
+    return SVG(700, 424, o, "PWM の電流の波（例のモータ、12 V、デューティ比 0.5、速さが落ち着いた後。閉じた式で計算した値）。(a) 20 kHz では、電流は平均の上下に 0.15 A だけ揺れる。(b) 2 kHz では揺れが平均より大きく、ダイオードで流すと電流が 0 で途切れ、速さがデューティ比から求めた 250 rad/s からずれる。")
 F["e13_ripple"] = _f13_ripple()
 
 def _f13_dI(f, D=0.5, V=_F13_V, R=_F13_R, L=_F13_L):
@@ -363,7 +366,7 @@ def _f13_freq():
     o.append(D(pa.X(2e4), pa.Y(_f13_dI(2e4)), SIG, 3.6))
     o.append(T(pa.X(2e4) + 6, pa.Y(_f13_dI(2e4)) - 6, "20 kHz: 0.15 A", "start", 9.5, SIG, True, halo=True))
     o.append(T(pa.X(130), pa.Y(0.02), "破線: 式 V/(4Lf)", "start", 9, MUT, halo=True))
-    o.append(T(pa.X(150), pa.Y(5.0) + 18, "6 A（V/R）で頭打ち", "start", 9, SIG, halo=True))
+    o.append(T(pa.X(115), pa.Y(2.0), "6 A（V/R）で頭打ち", "start", 9, SIG, halo=True))
     pr = [(f, _f13_loss(f)[0]) for f in fs]
     ps = [(f, _f13_loss(f)[1]) for f in fs]
     pt = [(f, a + b) for (f, a), (_, b) in zip(pr, ps)]
@@ -372,9 +375,9 @@ def _f13_freq():
     o.append(pb.line([q for q in pt if 0.001 <= q[1] <= 10], c=ALI, lw=2.2))
     fmin = min(pt, key=lambda q: q[1])
     o.append(D(pb.X(fmin[0]), pb.Y(fmin[1]), ALI, 3.6))
-    o.append(T(pb.X(fmin[0]), pb.Y(fmin[1]) + 16, "和の最小 %.0f mW" % (fmin[1] * 1e3), "middle", 9, ALI, True, halo=True))
-    o.append(T(pb.X(300), pb.Y(1.2), "リップル R ΔI²/12", "start", 9, SIG, True, halo=True))
-    o.append(T(pb.X(9e4), pb.Y(0.08), "スイッチ", "end", 9, GLD, True, halo=True))
+    o.append(T(pb.X(fmin[0]), pb.Y(fmin[1]) - 10, "和の最小 %.0f mW" % (fmin[1] * 1e3), "middle", 9, ALI, True, halo=True))
+    o.append(T(pb.X(130), pb.Y(0.25), "リップル R ΔI²/12", "start", 9, SIG, True, halo=True))
+    o.append(T(pb.X(3e4), pb.Y(0.025), "スイッチ", "middle", 9, GLD, True, halo=True))
     for p in (pa, pb):
         o.append(T(p.X(1e3), p.y + 14, "耳に聞こえる（20 kHz 程度まで）", "start", 9, MUT, halo=True))
     return SVG(700, 290, o, "PWM の周波数とリップル・損失（例のモータ、12 V、0.5 A。スイッチの入れ切りに合わせて 1 µs かかるとした例の値。網の部分は人の耳に聞こえる周波数）。周波数を下げると、リップルによる巻線の熱と音が増え、上げると、スイッチの損失が増える。")
@@ -502,34 +505,44 @@ def _f13_energy():
 F["e13_energy"] = _f13_energy()
 
 # ================= 4 節 =================
+def _f13_swbox(x, y1, y2, label, side, c=INK, lc=MUT):
+    """縦向きのスイッチを四角で描き、入れ方を横に書く（side = -1 で左、1 で右）。"""
+    ym = (y1 + y2) / 2
+    o = W(x, y1, x, ym - 9, c=INK, lw=1.5) + W(x, ym + 9, x, y2, c=INK, lw=1.5)
+    o += RECT(x - 6, ym - 9, 12, 18, 2, PAN, c, 1.4)
+    o += T(x + side * 12, ym + 4, label, "start" if side > 0 else "end", 9, lc, True)
+    return o
+
 def _f13_sense():
     o = []
-    # (a) 回路: H ブリッジの下にシャント抵抗
-    xl, xr, xm = 60, 210, 135
-    yt, ym, yb = 52, 130, 206
-    o.append(T(14, 22, "(a) ローサイドのシャント抵抗", "start", 10.5, INK, True))
+    # (a) 回路: H ブリッジの下にシャント抵抗。正転の PWM（左上を入れ切り、右下は入れたまま）
+    xl, xr, xm = 118, 236, 177
+    yt, ym, yb = 52, 126, 198
+    o.append(T(14, 22, "(a) ローサイドのシャント抵抗（正転の PWM）", "start", 10.5, INK, True))
     o.append(PL([(xl, yt), (xl, ym), (xr, ym), (xr, yb), (xm, yb), (xm, yb + 34)], c=SSOFT, lw=7))
-    o.append(PL([(xl, ym + 4), (xl, yb + 4), (xr, yb + 4), (xr, ym + 4)], c=PSOFT, lw=6))
+    o.append(PL([(xl + 5, ym + 3), (xl + 5, yb - 4), (xr - 5, yb - 4), (xr - 5, ym + 3)], c=PSOFT, lw=6))
     o.append(W(xl - 10, yt, xr + 10, yt, c=GLD, lw=1.8) + T(xr + 14, yt + 4, "V", "start", 9.5, GLD, True))
-    o.append(_f13_swv(xl, yt, ym - 6, True) + W(xl, ym - 6, xl, ym + 6, c=INK, lw=1.5) + _f13_swv(xl, ym + 6, yb, False))
-    o.append(_f13_swv(xr, yt, ym - 6, False) + W(xr, ym - 6, xr, ym + 6, c=INK, lw=1.5) + _f13_swv(xr, ym + 6, yb, True))
+    o.append(_f13_swbox(xl, yt, ym, "ON の間だけ入る", -1, SIG, SIG))
+    o.append(_f13_swbox(xl, ym, yb, "OFF の間だけ入る", -1, PUR, PUR))
+    o.append(_f13_swbox(xr, yt, ym, "切ったまま", 1))
+    o.append(_f13_swbox(xr, ym, yb, "入れたまま", 1))
     o.append(W(xl, ym, xm - 14, ym, c=INK, lw=1.5) + W(xm + 14, ym, xr, ym, c=INK, lw=1.5) + _f13_motor(xm, ym, 14))
+    o.append(D(xl, ym, INK, 2.4) + D(xr, ym, INK, 2.4))
     o.append(W(xl, yb, xr, yb, c=INK, lw=1.5) + D(xm, yb, INK, 2.6))
     o.append(_f13_resv(xm, yb, yb + 34, c=GLD) + _f13_gnd(xm, yb + 34))
     o.append(_f13_m(xm - 12, yb + 22, [("R", "sh", True)], "end", 11, GLD, True))
     o.append(T(xm - 12, yb + 36, "20 mΩ", "end", 9, GLD))
-    # アンプと ADC
-    ax = 252
-    o.append(W(xm, yb + 2, xm + 30, yb + 2, xm + 30, yb + 14, ax, yb + 14, c=INK, lw=1.3))
-    o.append(PL([(ax, yb + 2), (ax, yb + 30), (ax + 30, yb + 16)], c=TEA, lw=1.5, fill=TSOFT))
-    o.append(T(ax + 11, yb + 20, "×20", "middle", 8.5, TEA, True))
-    o.append(W(ax + 30, yb + 16, ax + 42, yb + 16, c=INK, lw=1.3))
-    o.append(RECT(ax + 42, yb + 4, 44, 24, 4, SSOFT, SIG, 1.3) + T(ax + 64, yb + 21, "ADC", "middle", 10, SIG, True))
-    o.append(T(14, yb + 68, "青: ON の間（シャントを通る）", "start", 9.5, SIG, True))
-    o.append(T(14, yb + 83, "紫: OFF の間（下の 2 つを回り、通らない）", "start", 9.5, PUR, True))
+    ax = 250
+    o.append(W(xm, yb + 4, xm + 26, yb + 4, xm + 26, yb + 16, ax, yb + 16, c=INK, lw=1.3))
+    o.append(PL([(ax, yb + 4), (ax, yb + 32), (ax + 30, yb + 18)], c=TEA, lw=1.5, fill=TSOFT))
+    o.append(T(ax + 11, yb + 22, "×20", "middle", 8.5, TEA, True))
+    o.append(W(ax + 30, yb + 18, ax + 40, yb + 18, c=INK, lw=1.3))
+    o.append(RECT(ax + 40, yb + 6, 44, 24, 4, SSOFT, SIG, 1.3) + T(ax + 62, yb + 23, "ADC", "middle", 10, SIG, True))
+    o.append(T(14, yb + 66, "青: ON の間の電流（シャント抵抗を通る）", "start", 9.5, SIG, True))
+    o.append(T(14, yb + 81, "紫: OFF の間の電流（下の 2 つを回り、通らない）", "start", 9.5, PUR, True))
     # (b) 波形
-    p = Plot(420, 70, 260, 150, (0, 150), (0, 0.75))
-    o.append(T(380, 22, "(b) 電流と、測る時刻（20 kHz・デューティ比 0.5）", "start", 10.5, INK, True))
+    p = Plot(424, 70, 256, 150, (0, 150), (0, 0.75))
+    o.append(T(384, 22, "(b) 電流と、測る時刻（20 kHz・デューティ比 0.5）", "start", 10.5, INK, True))
     w, c = _f13_ss(0.5, 20e3, False)
     wave = _f13_wave(c, 3, 60)
     for q in range(3):
@@ -543,15 +556,11 @@ def _f13_sense():
         sh.append((t * 1e6, I if on else 0.0))
     o.append(p.line(sh, c=SIG, lw=2))
     for q in range(3):
-        tm = q * 50 + 12.5
-        Im = c["Ia"] + (c["Ib"] - c["Ia"]) * 0.5
-        o.append(D(p.X(tm), p.Y(c["Ion"] + (c["Ia"] - c["Ion"]) * math.exp(-12.5e-6 / c["tau"])), ALI, 4))
+        o.append(D(p.X(q * 50 + 12.5), p.Y(c["Ion"] + (c["Ia"] - c["Ion"]) * math.exp(-12.5e-6 / c["tau"])), ALI, 4))
     o.append(p.line([(0, c["Iavg"]), (150, c["Iavg"])], c=ALI, lw=1, dash="3 3"))
-    o.append(T(p.X(150), p.Y(c["Iavg"]) - 22, "赤い点: ON の中央で測る", "end", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(150), p.Y(c["Iavg"]) - 9, "= 1 周期の平均 0.5 A", "end", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(2), p.Y(0.08), "青: シャントの電流", "start", 9, SIG, True, halo=True))
-    o.append(T(p.X(2), p.Y(0.68), "紫の破線: 巻線の電流", "start", 9, PUR, True, halo=True))
-    return SVG(700, 304, o, "電流検出。(a) H ブリッジと 0 V の間のシャント抵抗の電圧を増幅して ADC で測る。(b) シャント抵抗には ON の間だけ巻線の電流が流れる。電流は三角の形なので、ON の中央の値は 1 周期の平均の電流に等しい。")
+    o.append(LEGEND(384, 274, [(SIG, "シャント抵抗の電流"), (PUR, "巻線の電流（破線）")]))
+    o.append(T(384, 292, "赤い点: ON の中央で測った値 = 1 周期の平均 0.5 A", "start", 9.5, ALI, True))
+    return SVG(700, 302, o, "電流検出。(a) H ブリッジと 0 V の間のシャント抵抗の電圧を増幅して ADC で測る。(b) シャント抵抗には ON の間だけ巻線の電流が流れる。電流は三角の形なので、ON の中央の値は 1 周期の平均の電流に等しい。")
 F["e13_sense"] = _f13_sense()
 
 def _f13_stall_py(i_ma, duty_pm, v_mv, r_mohm, st):
@@ -601,7 +610,7 @@ def _f13_stallfig():
     o.append(pa.line([(r[0] * 1e3, r[1]) for r in rows], c=SIG, lw=2))
     o.append(T(pa.X(260), pa.Y(4.29) - 6, "拘束電流 DV/R（温まった巻線 2.8 Ω で計算）", "start", 9.5, GLD, True, halo=True))
     o.append(T(pa.X(260), pa.Y(3.0) - 6, "その 70 %（しきい値）", "start", 9.5, ALI, True, halo=True))
-    o.append(T(pa.X(260), pa.Y(0.5) - 6, "回っている間 0.5 A", "start", 9.5, SIG, halo=True))
+    o.append(T(pa.X(380), pa.Y(0.5) + 15, "回っている間 0.5 A", "start", 9.5, SIG, halo=True))
     o.append(T(pa.X(612), pa.Y(5.8) + 4, "止められた", "start", 9.5, SIG, True, halo=True))
     o.append(W(pa.X(600), pa.y, pa.X(600), pb.y + pb.h, c=FNT, lw=1, dash="3 3"))
     o.append(pb.steps([(r[0] * 1e3, r[3]) for r in rows], c=PUR, lw=1.8))
@@ -719,7 +728,7 @@ def _f13_trap():
         o.append(pb.line([(0, need), (3000, need)], c=c, lw=1.8))
         o.append(T(pb.X(40), pb.Y(need) - 5, "%s: %.3f N·m" % (lab, need), "start", 9, c, True, halo=True))
     o.append(pb.line([(0, 0.05), (5000, 0.05)], c=MUT, lw=1.1, dash="4 3"))
-    o.append(T(pb.X(4950), pb.Y(0.05) - 5, "負荷のトルク 0.05", "end", 9, MUT, halo=True))
+    o.append(T(pb.X(4950), pb.Y(0.05) + 13, "負荷のトルク 0.05", "end", 9, MUT, halo=True))
     vx = 800 * math.sqrt((0.4 / (1e-4 * 30000 * th + 0.05)) ** 2 - 1)
     o.append(D(pb.X(vx), pb.Y(_f13_tp(vx)), ALI, 4))
     o.append(T(pb.X(vx) + 8, pb.Y(_f13_tp(vx)) - 22, "%.0f 段/s で足りなくなり" % round(vx, -1), "start", 9.5, ALI, True, halo=True))
@@ -733,7 +742,7 @@ F["e13_trap"] = _f13_trap()
 def _f13_servo():
     o = []
     # (a) 周期の全体（1.5 ms のパルス）
-    p1 = Plot(70, 40, 290, 50, (0, 45), (0, 1))
+    p1 = Plot(70, 54, 290, 46, (0, 45), (0, 1))
     o.append(T(14, 22, "(a) 20 ms ごとのパルス", "start", 10.5, INK, True))
     pts = []
     for q in range(3):
@@ -744,11 +753,11 @@ def _f13_servo():
     for v in (0, 20, 40):
         o.append(T(p1.X(v), p1.y + p1.h + 14, "%d" % v, "middle", 9, MUT))
     o.append(T(p1.X(45), p1.y + p1.h + 14, "ms", "end", 9, MUT))
-    o.append(DIM(p1.X(0), p1.y - 4, p1.X(20), p1.y - 4, None, c=MUT))
-    o.append(T(p1.X(10), p1.y - 9, "周期 20 ms（50 Hz）", "middle", 9.5, MUT))
+    o.append(DIM(p1.X(1.5), p1.y + 10, p1.X(20), p1.y + 10, None, c=MUT))
+    o.append(T(p1.X(10.8), p1.y + 6, "周期 20 ms（50 Hz）", "middle", 9.5, MUT))
     # 拡大: 幅と角度
-    p2 = Plot(70, 140, 220, 120, (0, 3), (0, 3))
-    o.append(T(14, 128, "幅を拡大（代表値。製品で確かめる）", "start", 9.5, MUT))
+    p2 = Plot(70, 150, 220, 120, (0, 3), (0, 3))
+    o.append(T(14, 138, "幅を拡大（代表値。製品で確かめる）", "start", 9.5, MUT))
     for i, (wd, ang, lab) in enumerate(((1.0, -60, "1.0 ms"), (1.5, 0, "1.5 ms"), (2.0, 60, "2.0 ms"))):
         y = 2.6 - i * 1.0
         o.append(p2.line([(0, y - 0.6), (0.4, y - 0.6), (0.4, y), (0.4 + wd, y), (0.4 + wd, y - 0.6), (3, y - 0.6)], c=SIG, lw=1.8))
@@ -772,7 +781,7 @@ def _f13_servo():
     o.append(pb.line([(t, pulse(t, 20) + pulse(t, 140) + pulse(t, 260) - 0.06) for t in ts], c=SIG, lw=1.8))
     o.append(T(pb.X(30), pb.Y(2.4), "同時に動かす: 最大 2.4 A", "start", 9.5, ALI, True, halo=True))
     o.append(T(pb.X(160), pb.Y(1.1), "120 ms ずつずらす: 0.8 A", "start", 9.5, SIG, True, halo=True))
-    return SVG(700, 300, o, "サーボモータ（RC サーボ）の信号と電流。(a) パルスの幅で角度を指令する（周期・幅・角度の範囲は製品で違う）。(b) 動き始めるたびに、中の DC モータの起動電流が流れる。同時に動かすと電流が重なる（電流の値は例の値）。")
+    return SVG(700, 306, o, "サーボモータ（RC サーボ）の信号と電流。(a) パルスの幅で角度を指令する（周期・幅・角度の範囲は製品で違う）。(b) 動き始めるたびに、中の DC モータの起動電流が流れる。同時に動かすと電流が重なる（電流の値は例の値）。")
 F["e13_servo"] = _f13_servo()
 
 # ================= 7 節 =================
@@ -812,56 +821,58 @@ def _f13_batt():
     o.append(pb.line([(q * 100, nocomp(q)[1]) for q in qs], c=ALI, lw=1.6, dash="5 3"))
     o.append(pc.line([(q * 100, comp(q)[2]) for q in qs], c=SIG, lw=2))
     o.append(pc.line([(q * 100, nocomp(q)[2]) for q in qs], c=ALI, lw=1.6, dash="5 3"))
-    o.append(_f13_m(pb.X(4), pb.Y(comp(0)[1]) - 8, [("直す: D = V", None, False), ("set", None, False)], "start", 9.5, SIG, True))
+    o.append(_f13_m(pb.X(4), pb.Y(comp(0)[1]) - 8, [("直す: D = V", "set", False), (" / V", None, False)], "start", 9.5, SIG, True))
     o.append(T(pb.X(4), pb.Y(0.714) + 14, "直さない: 0.714 のまま", "start", 9.5, ALI, True, halo=True))
     o.append(T(pc.X(4), pc.Y(400) + 14, "直す: %.0f rad/s のまま" % comp(0.5)[2], "start", 9.5, SIG, True, halo=True))
-    o.append(T(pc.X(70), pc.Y(nocomp(0.7)[2]) - 8, "直さない: %.0f → %.0f rad/s" % (nocomp(0)[2], nocomp(0.98)[2]), "end", 9.5, ALI, True, halo=True))
+    q93 = 0.95 + 0.05 * (3.35 - 3.10) / 0.35            # 起電力 9.3 V の所
+    o.append(T(pc.X(88), pc.Y(285), "直さない: %.0f rad/s → 起電力 9.3 V で %.0f rad/s" % (nocomp(0)[2], nocomp(q93)[2]), "end", 9.5, ALI, True, halo=True))
     return SVG(700, 400, o, "電池が減ったときのデューティ比と速さ（例のモータ、電池の内部抵抗 0.3 Ω。電池の電圧は代表的な形の例）。デューティ比を満充電のときのままにすると、電池が減るにつれて遅くなる。測った電池の電圧で目標の平均の電圧を割ってデューティ比にすると、速さは変わらない。")
 F["e13_batt"] = _f13_batt()
 
 def _f13_split():
     o = []
     def bat(x, y):
-        o.append(RECT(x, y, 34, 60, 4, GOSOFT, GLD, 1.4))
-        o.append(T(x + 17, y + 26, "電池", "middle", 9.5, GLD, True))
-        o.append(T(x + 17, y + 40, "12 V", "middle", 9, GLD))
-        o.append(T(x + 40, y + 8, "+", "start", 10, GLD, True) + T(x + 40, y + 58, "−", "start", 10, GLD, True))
+        o.append(RECT(x, y, 36, 72, 4, GOSOFT, GLD, 1.4))
+        o.append(T(x + 18, y + 32, "電池", "middle", 9.5, GLD, True))
+        o.append(T(x + 18, y + 47, "12 V", "middle", 9, GLD))
+        o.append(T(x + 41, y + 12, "+", "start", 11, GLD, True) + T(x + 41, y + 68, "−", "start", 11, GLD, True))
     def box(x, y, w, h, t, c):
         o.append(RECT(x, y, w, h, 5, soft(c), c, 1.3))
         o.append(T(x + w / 2, y + h / 2 + 4, t, "middle", 9.5, c, True))
-    # (a) 同じ線
+    # ---- (a) 同じ線でつなぐ ----
     o.append(T(14, 22, "(a) 同じ線でつなぐ", "start", 10.5, ALI, True))
-    bat(20, 70)
-    o.append(W(54, 74, 80, 74, c=INK, lw=1.5) + _f13_resh(80, 120, 74) + W(120, 74, 150, 74, c=INK, lw=1.5) + D(150, 74, INK, 2.6))
-    o.append(W(54, 126, 80, 126, c=INK, lw=1.5) + _f13_resh(80, 120, 126) + W(120, 126, 150, 126, c=INK, lw=1.5) + D(150, 126, INK, 2.6))
-    o.append(T(100, 62, "線の抵抗", "middle", 9, MUT))
-    o.append(W(150, 74, 150, 52, 190, 52, c=INK, lw=1.4) + W(150, 74, 150, 96, 190, 96, c=INK, lw=1.4))
-    o.append(W(150, 126, 150, 148, 190, 148, c=INK, lw=1.4) + W(150, 126, 236, 126, c=INK, lw=1.4))
-    box(190, 38, 110, 28, "モータのドライバ", PUR)
-    box(190, 84, 110, 28, "マイコンの電源", SIG)
-    o.append(W(236, 66, 236, 84, c=FNT, lw=1, dash="2 2"))
-    o.append(W(245, 112, 245, 126, c=INK, lw=1.2) + W(245, 66, 280, 66, 280, 148, 190, 148, c=FNT, lw=0))
-    o.append(PL([(56, 80), (148, 80)], c=ASOFT, lw=5))
-    o.append(T(30, 176, "モータの電流が線の抵抗に電圧を生み、", "start", 9.5, ALI))
-    o.append(T(30, 190, "マイコンの電源が下がり、GND も揺れる", "start", 9.5, ALI))
-    # (b) 分ける
-    o.append(T(370, 22, "(b) 電池の端子で道を分ける", "start", 10.5, GRN, True))
-    bat(376, 70)
-    xa = 410
-    o.append(W(xa, 74, 440, 74, 440, 50, 560, 50, c=PUR, lw=1.6))
-    o.append(W(xa, 126, 446, 126, 446, 150, 560, 150, c=PUR, lw=1.6))
-    box(560, 36, 120, 28, "モータのドライバ", PUR)
-    o.append(W(620, 64, 620, 150, 560, 150, c=PUR, lw=0))
-    o.append(W(440, 74, 440, 96, 468, 96, c=SIG, lw=1.4))
-    o.append(PL([(468, 90), (468, 102), (478, 96)], c=SIG, lw=1.2, fill=SSOFT) + W(478, 90, 478, 102, c=SIG, lw=1.6))
-    o.append(W(478, 96, 520, 96, c=SIG, lw=1.4) + D(500, 96, SIG, 2.4))
-    o.append(W(500, 96, 500, 104, c=SIG, lw=1.4) + W(492, 104, 508, 104, c=SIG, lw=1.8) + W(492, 109, 508, 109, c=SIG, lw=1.8) + W(500, 109, 500, 126, c=SIG, lw=1.4))
-    box(520, 82, 140, 28, "マイコンの電源", SIG)
-    o.append(W(446, 126, 590, 126, 590, 110, c=SIG, lw=1.4))
-    o.append(W(560, 150, 620, 150, 620, 64, c=PUR, lw=1.4))
-    o.append(T(470, 84, "ダイオード", "middle", 9, SIG))
-    o.append(T(512, 140, "コンデンサ", "middle", 9, SIG))
-    o.append(T(386, 176, "モータの電流はマイコンの線を通らない。短い落ち込みの間は", "start", 9.5, GRN))
-    o.append(T(386, 190, "コンデンサが電流を出す（ダイオードで電池へ戻さない）", "start", 9.5, GRN))
-    return SVG(700, 204, o, "電池でモータとマイコンを動かすときの配線。(a) 同じ線でつなぐと、モータの電流による電圧の低下がマイコンの電源と GND に現れる。(b) 電池の端子の所で道を分け、マイコンの側にはダイオードとコンデンサを置く。")
+    bat(16, 56)
+    yp, yn = 66, 120                                  # + と − の線の高さ
+    o.append(PL([(52, yp), (150, yp)], c=ASOFT, lw=7) + PL([(52, yn), (150, yn)], c=ASOFT, lw=7))
+    o.append(W(52, yp, 80, yp, c=INK, lw=1.5) + _f13_resh(80, 122, yp) + W(122, yp, 150, yp, c=INK, lw=1.5))
+    o.append(W(52, yn, 80, yn, c=INK, lw=1.5) + _f13_resh(80, 122, yn) + W(122, yn, 150, yn, c=INK, lw=1.5))
+    o.append(T(101, yp - 12, "共通の線の抵抗", "middle", 9, ALI))
+    o.append(W(150, 44, 150, 96, c=INK, lw=1.5) + D(150, yp, INK, 2.6))
+    o.append(W(150, 44, 190, 44, c=INK, lw=1.5) + W(150, 96, 190, 96, c=INK, lw=1.5))
+    box(190, 32, 110, 24, "モータのドライバ", PUR)
+    box(190, 84, 110, 24, "マイコンの電源", SIG)
+    o.append(W(300, 44, 322, 44, 322, yn, 150, yn, c=INK, lw=1.5) + W(300, 96, 312, 96, 312, yn, c=INK, lw=1.5) + D(312, yn, INK, 2.4) + D(150, yn, INK, 2.6))
+    o.append(T(14, 154, "モータの電流が共通の線の抵抗に電圧を生み、", "start", 9.5, ALI))
+    o.append(T(14, 168, "マイコンの電源の電圧が下がり、GND も揺れる", "start", 9.5, ALI))
+    # ---- (b) 電池の端子で道を分ける ----
+    o.append(T(366, 22, "(b) 電池の端子で道を分ける", "start", 10.5, GRN, True))
+    bx = 366
+    bat(bx, 56)
+    xp = bx + 36
+    # モータの道（紫）: + から上へ、ドライバの右から − へ
+    o.append(W(xp, 62, 420, 62, 420, 44, 560, 44, c=PUR, lw=1.6))
+    box(560, 32, 120, 24, "モータのドライバ", PUR)
+    o.append(W(680, 44, 690, 44, 690, 140, 420, 140, 420, 124, xp, 124, c=PUR, lw=1.6))
+    # マイコンの道（青）: + からダイオード・コンデンサを通って
+    o.append(W(xp, 70, 440, 70, 440, 96, 470, 96, c=SIG, lw=1.4))
+    o.append(PL([(470, 90), (470, 102), (481, 96)], c=SIG, lw=1.2, fill=SSOFT) + W(481, 90, 481, 102, c=SIG, lw=1.6))
+    o.append(W(481, 96, 560, 96, c=SIG, lw=1.4) + D(505, 96, SIG, 2.4))
+    o.append(W(505, 96, 505, 103, c=SIG, lw=1.4) + W(497, 103, 513, 103, c=SIG, lw=1.8) + W(497, 108, 513, 108, c=SIG, lw=1.8) + W(505, 108, 505, 116, c=SIG, lw=1.4))
+    box(560, 84, 120, 24, "マイコンの電源", SIG)
+    o.append(W(620, 108, 620, 116, 430, 116, 430, 116, c=SIG, lw=1.4) + W(430, 116, xp, 116, c=SIG, lw=1.4) + D(505, 116, SIG, 2.4))
+    o.append(T(475, 84, "ダイオード", "middle", 9, SIG))
+    o.append(T(520, 128, "コンデンサ", "start", 9, SIG))
+    o.append(T(366, 160, "電池の端子でモータの道とマイコンの道に分ける。モータの電流は", "start", 9.5, GRN))
+    o.append(T(366, 174, "マイコンの線を通らない。短い落ち込みの間はコンデンサが電流を出す", "start", 9.5, GRN))
+    return SVG(700, 184, o, "電池でモータとマイコンを動かすときの配線。(a) 同じ線でつなぐと、モータの電流による電圧の低下がマイコンの電源と GND に現れる。(b) 電池の端子の所で道を分け、マイコンの側にはダイオードとコンデンサを置く（ダイオードは、コンデンサの電荷がモータの側へ流れ出るのを防ぐ）。")
 F["e13_split"] = _f13_split()
