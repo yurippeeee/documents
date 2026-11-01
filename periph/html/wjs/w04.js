@@ -327,7 +327,7 @@
           if(mode==="cv"&&meas<=Ite){endT=t;endWhy="full";break;}
         }
         if(mode==="cv"&&p>=99.5)hold+=dt;
-        if(mode==="pre"&&ib<0)starve=true;
+        if((mode==="pre"||mode==="cc")&&ib<=0)starve=true;
         log.push([t,ib,meas,E+ib/1000*R,E,p,mode]);
         p=Math.min(100,p+ib*dt/Q*100);t+=dt;
       }
@@ -371,9 +371,9 @@
       var s="";
       if(endWhy==="full")s+='<span class="ok">'+U.sig(endT,3)+' 時間で満充電を見分けて終了</span>（残量 '+Math.round(last[5])+' %）';
       else if(endWhy==="temp")s+='<span class="warn">電池の温度 '+String(T).replace("-","−")+' °C は充電してよい範囲（この例では 0〜45 °C）の外なので、充電器 IC は充電しない</span>'+(pp?"":"。機器の電流は電池から流れ、電池は減っていく");
-      else if(starve)s+='<span class="warn">予備充電の電流 '+U.sig(Ipre,3)+' mA より機器の電流 '+Isys+' mA が大きく、電池は充電されずに減っていく（空の電池では機器が起動できない）</span>'+(endWhy==="timer"?"。マイコンのタイマが "+U.sig(endT,3)+" 時間で止めた":"");
+      else if(starve)s+='<span class="warn">機器の電流 '+Isys+' mA が、充電器 IC が出せる電流（'+(pp?"USB の予算の残り":(p0<0?"予備充電の "+U.sig(Ipre,3)+" mA":"設定と USB の予算の小さいほう"))+'）を使い切り、電池は充電されない'+(p0<0&&!pp?"（空の電池では機器が起動できない）":"")+'</span>'+(endWhy==="timer"?"。マイコンのタイマが "+U.sig(endT,3)+" 時間で止めた":"");
       else s+='<span class="warn">充電器 IC は満充電を見分けられない</span>（充電器が見る電流が終了電流の '+U.sig(Ite,3)+' mA まで下がらない）。'+(endWhy==="timer"?"マイコンのタイマが "+U.sig(endT,3)+" 時間で止め、異常として知らせた":"12 時間たっても終わらない")+"。電池が 4.2 V のまま保たれた時間 "+U.sig(hold,2)+" 時間";
-      s+="<br>定電流の間に電池へ入る電流 "+U.sig(Math.max(0,Math.min(Icc,pp?bud-Isys:Math.min(Icc,bud)-Isys)),3)+" mA（設定 "+U.sig(Icc,3)+" mA"+(pp?"、予算 "+bud+" mA から機器の "+Isys+" mA を引いた残りが上限":"。機器の "+Isys+" mA が差し引かれる")+"）・ マイコンの予定の時間 "+U.sig(exp,3)+" 時間（1.5 倍で "+U.sig(1.5*exp,3)+" 時間）";
+      if(tempOk)s+="<br>定電流の間に電池へ入る電流 "+U.sig(Math.max(0,Math.min(Icc,pp?bud-Isys:Math.min(Icc,bud)-Isys)),3)+" mA（設定 "+U.sig(Icc,3)+" mA"+(pp?"、予算 "+bud+" mA から機器の "+Isys+" mA を引いた残りが上限":"。機器の "+Isys+" mA が差し引かれる")+"）・ マイコンの予定の時間 "+U.sig(exp,3)+" 時間（1.5 倍で "+U.sig(1.5*exp,3)+" 時間）";
       ro.innerHTML=s+'<div class="wnote">充電そのものは充電器 IC が行う（この図はその動きの簡単な模型）。マイコンは状態を読み、温度と時間を見張って止めるだけで、充電の電流や電圧を直接作らない。値はすべて例の値で、実際の電池の充電の条件は電池の仕様書で確かめる。</div>';
     }
     draw();

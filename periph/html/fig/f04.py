@@ -526,7 +526,7 @@ def _f04_chg_sim():
     返り値は [(時間 h, 電流 A, 端子電圧 V, 起電力 V, 残量 %, 段)] と、CV の始まり、終わり。"""
     def ocv(p):
         if p < 0:
-            return 3.30 + (p / 2.0) * 0.5          # 残量 −2 % で 2.8 V（予備充電の範囲を表すための例）
+            return 3.00 + (p / 2.0) * 0.2          # 残量 −2 % で 2.8 V、0 % で 3.0 V（予備充電の範囲を表すための例）
         return _f04_li_ocv(p)
     p, t, dt = -2.0, 0.0, 1.0 / 3600
     out, cv, end = [], None, None
@@ -574,7 +574,7 @@ def _f04_cccv():
     o.append(T(pV.X(0.05), pV.Y(4.2) - 6, "充電電圧 4.2 V", "start", 9.5, ALI, halo=True))
     o.append(pV.line([(d[0], d[2]) for d in data[::step]] + [(end[0], 4.2)], c=GLD, lw=2.2))
     o.append(pV.line([(d[0], d[3]) for d in data[::step]], c=PUR, lw=1.6, dash="5 3"))
-    o.append(T(pV.X(0.45), pV.Y(3.42), "起電力 E（破線）", "middle", 9.5, PUR, True, halo=True))
+    o.append(T(pV.X(0.55), pV.Y(3.22), "起電力 E（破線）", "middle", 9.5, PUR, True, halo=True))
     o.append(_f04_m(pV.X(0.62), pV.Y(3.93), [("端子電圧 ", None, False), ("V", None, True), (" = ", None, False), ("E", None, True), (" + ", None, False), ("I R", "in", True)], "middle", 9.5, GLD, True))
     o.append(D(pV.X(cv[0]), pV.Y(cv[2]), PUR, 3.6))
     o.append(W(pV.X(cv[0]), pV.Y(cv[2]) + 4, pV.X(cv[0]), pV.Y(3.38), c=PUR, lw=1, dash="2 2"))
@@ -582,7 +582,7 @@ def _f04_cccv():
     o.append(T(pV.X(cv[0]) - 4, pV.Y(3.42) + 14, "で定電圧に移る", "end", 9.5, PUR, True, halo=True))
     o.append(D(pI.X(end[0]), pI.Y(100), ALI, 3.6))
     o.append(W(pI.X(end[0]), pI.Y(100), pI.X(end[0]), pI.y + pI.h + 6, c=ALI, lw=1, dash="2 2"))
-    o.append(T(pI.X(end[0]) + 4, pI.y + pI.h + 18, "%.1f 時間: 電流が 100 mA まで減り、残量 %.0f %% で終了" % (end[0], end[1]), "end", 9.5, ALI, True, halo=True))
+    o.append(T(pI.X(end[0]) + 4, pI.y + pI.h + 18, "%.1f 時間: 電流が 100 mA まで減り、残量 %.1f %% で終了" % (end[0], end[1]), "end", 9.5, ALI, True, halo=True))
     return SVG(700, 344, o, "CC/CV 充電の例（簡単な模型: 1000 mAh、500 mA、充電電圧 4.2 V、充電の間の内部抵抗 0.3 Ω、終了電流 100 mA）。端子電圧は起電力より I R_in だけ高いので、定電流のまま 4.2 V に達したとき、起電力はまだ 4.05 V である。電圧を 4.2 V に保つと、電流 (4.2 V − E)/R_in は起電力が上がるほど減り、100 mA で終わる。")
 F["e04_cccv"] = _f04_cccv()
 
