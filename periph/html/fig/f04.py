@@ -3,19 +3,25 @@
 
 # ---- 補助: 記号・回路の部品 ----
 def _f04_m(x, y, parts, a="start", sz=12, c=INK, b=False):
-    """添字付きの記号を並べた文字。parts = [(文字, 添字, 斜体か), ...]。例 [("R", "in", True)]。"""
+    """添字付きの記号を並べた文字。parts = [(文字, 添字, 斜体か[, 上付き]), ...]。例 [("R", "in", True)]、[("e", None, False, "−t/τ")]。"""
     w = 0.0
-    for s, sub, it in parts:
-        w += tw(s, sz) + (tw(sub, sz * 0.72) if sub else 0)
+    for q in parts:
+        s_, sub, it = q[0], q[1], q[2]
+        sup = q[3] if len(q) > 3 else None
+        w += tw(s_, sz) + (tw(sub, sz * 0.72) if sub else 0) + (tw(sup, sz * 0.72) if sup else 0)
     x0 = x - (w / 2 if a == "middle" else (w if a == "end" else 0))
     if _CHECK:
-        _BOXES.append((x0, y - sz * 0.82, x0 + w, y + sz * 0.22 + 2, "".join(p[0] + (p[1] or "") for p in parts)))
+        _BOXES.append((x0, y - sz * 0.82 - 3, x0 + w, y + sz * 0.22 + 2, "".join(q[0] + (q[1] or "") for q in parts)))
     o = ['<text x="%g" y="%g" text-anchor="start" font-size="%g" fill="%s" font-family="var(--sans)" font-weight="%s">'
          % (round(x0, 2), y, sz, c, "700" if b else "400")]
-    for s, sub, it in parts:
-        o.append('<tspan font-style="%s">%s</tspan>' % ("italic" if it else "normal", E(s)))
+    for q in parts:
+        s_, sub, it = q[0], q[1], q[2]
+        sup = q[3] if len(q) > 3 else None
+        o.append('<tspan font-style="%s">%s</tspan>' % ("italic" if it else "normal", E(s_)))
         if sub:
             o.append('<tspan dy="3" font-size="%g">%s</tspan><tspan dy="-3"></tspan>' % (sz * 0.72, E(sub)))
+        if sup:
+            o.append('<tspan dy="-5" font-size="%g" font-style="italic">%s</tspan><tspan dy="5"></tspan>' % (sz * 0.72, E(sup)))
     o.append("</text>")
     return "".join(o)
 
@@ -114,13 +120,13 @@ def _f04_bulk():
     # 負荷
     xl = 238
     o.append(W(xl, yt, xl, 161, c=PUR, lw=1.5) + _f04_isrc(xl, 176, 15, PUR) + W(xl, 191, xl, yb, c=PUR, lw=1.5))
-    o.append(T(xl, 210, "負荷", "middle", 10, PUR, True))
-    o.append(T(xl, 223, "送信", "middle", 9.5, PUR))
-    o.append(T(xl, 236, "15 mA", "middle", 9.5, PUR))
-    o.append(T(xl, 249, "3 ms", "middle", 9.5, PUR))
+    o.append(T(xl + 8, 212, "負荷", "start", 10, PUR, True))
+    o.append(T(xl + 8, 225, "送信", "start", 9.5, PUR))
+    o.append(T(xl + 8, 238, "15 mA", "start", 9.5, PUR))
+    o.append(T(xl + 8, 251, "3 ms", "start", 9.5, PUR))
     # 電流の矢印
-    o.append(ARR(116, yt - 14, 148, yt - 14, c=GLD, lw=1.6, head=6))
-    o.append(T(132, yt - 21, "電池の電流", "middle", 9.5, GLD, True))
+    o.append(ARR(130, yt - 12, 152, yt - 12, c=GLD, lw=1.6, head=6))
+    o.append(T(156, yt - 8, "電池の電流", "start", 9.5, GLD, True))
     o.append(ARR(xc + 16, 152, xc + 16, 114, c=SIG, lw=1.6, head=6))
     o.append(T(xc + 21, 128, "コンデンサ", "start", 9.5, SIG, True))
     o.append(T(xc + 21, 141, "の電流", "start", 9.5, SIG, True))
@@ -140,7 +146,7 @@ def _f04_bulk():
     pV = Plot(330, 168, 346, 112, (0, 40), (1.0, 3.0))
     o.append(T(290, 156, "端子電圧", "start", 10.5, INK, True))
     o.append(pV.axes(xt=[0, 10, 20, 30, 40], yt=[1.0, 1.5, 2.0, 2.5, 3.0], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%.1f" % v))
-    o.append(T(pV.x - 34, pV.y + pV.h / 2, "V", "middle", 9.5, MUT, rot=-90))
+    o.append(T(pV.x - 30, pV.y + pV.h / 2 + 4, "V", "middle", 9.5, MUT))
     o.append(T(pV.x + pV.w, pV.y + pV.h + 28, "時間 [ms]", "end", 9.5, MUT))
     o.append(pV.line([(0, 2.2), (40, 2.2)], c=ALI, lw=1.1, dash="3 3"))
     o.append(T(pV.X(39.5), pV.Y(2.2) + 12, "最低の電圧 2.2 V（例）", "end", 9, ALI, halo=True))
@@ -187,8 +193,7 @@ def _f04_dv():
         o.append(W(q.X(tt), q.Y(0), q.X(tt), q.Y(uu), c=FNT, lw=1, dash="3 3"))
         o.append(D(q.X(tt), q.Y(uu), SIG, 3.4))
         o.append(T(q.X(tt) + 5, q.Y(uu) - 8 - (14 if k == 5 else 0), lab, "start", 9.5, SIG, True, halo=True))
-    o.append(_f04_m(q.X(12), q.Y(0.40), [("u", None, True), (" = ", None, False), ("u", None, True), ("(0) e", None, False)], "start", 10, INK))
-    o.append(_f04_m(q.X(12) + 70, q.Y(0.40) - 5, [("−t/τ", None, True)], "start", 8.5, INK))
+    o.append(_f04_m(q.X(12), q.Y(0.40), [("u", None, True), (" = ", None, False), ("u", None, True), ("(0) e", None, False, "−t/τ")], "start", 10, INK))
     o.append(_f04_m(q.X(12), q.Y(0.345), [("τ = (", None, False), ("R", "in", True), (" + ", None, False), ("R", "ESR", True), (") ", None, False), ("C", None, True)], "start", 10, INK))
     return SVG(700, 262, o, "(a) パルスの間の端子電圧の低下（例の値: 15 mA、内部抵抗 100 Ω、ESR 0.5 Ω）。破線は、電流をすべてコンデンサが出すとした上限 I t/C + I R_ESR（ESR の段差 7.5 mV は細くて見えない）、実線は電池の電流も含めて回路の式を解いた値。容量が大きく、パルスが時定数 τ より短いほど、2 つは近い。(b) パルスの後、電圧の不足分は時定数 τ = 10 ms で減り、5τ（50 ms）で 0.7 % になる。")
 F["e04_dv"] = _f04_dv()
@@ -227,7 +232,7 @@ def _f04_order():
         vmin = min(v for _, v in pts)
         tmin = [t for t, v in pts if v == vmin][0]
         o.append(D(p.X(tmin), p.Y(vmin), rc, 3.6))
-        o.append(T(p.x - 34, p.y + p.h / 2, "V", "middle", 9, MUT, rot=-90))
+        o.append(T(p.x - 30, p.y + p.h / 2 + 4, "V", "middle", 9.5, MUT))
     yb = y0 + 3 * rh
     o.append(T(670, yb + 10, "時間 [ms]", "end", 9.5, MUT))
     o.append(LEGEND(14, yb + 30, [(SIG, "端子電圧"), (ALI, "最低の電圧 2.2 V（下回るとリセット）"), (GRN, "守りたい 2.3 V")]))
@@ -363,30 +368,31 @@ def _f04_stop():
     o.append(T(14, 262, "幅: 昼夜の上下（0.04 V）と誤差より大きく。", "start", 9, MUT))
     o.append(T(14, 276, "余裕: 誤差と、後始末の間の低下の分。", "start", 9, MUT))
     # 右: 状態
-    xo, xl, xc, ys = 360, 500, 640, 70
+    xo, xl, xc, ys = 360, 495, 630, 112
     o.append(STATE(xo, ys, 92, 40, "OK", GRN))
     o.append(STATE(xl, ys, 92, 40, "LOW", GLD))
     o.append(STATE(xc, ys, 92, 40, "CRIT", ALI))
-    o.append(EDGE(xo + 47, ys - 8, xl - 47, ys - 8, "2.45 V 未満が", 0, GLD, lc=GLD, loff=(0, -14)))
-    o.append(T((xo + xl) / 2, ys - 12, "3 回続く", "middle", 9.5, GLD))
+    o.append(EDGE(xo + 47, ys - 8, xl - 47, ys - 8, None, 0, GLD))
+    o.append(T((xo + xl) / 2, ys - 36, "2.45 V 未満が", "middle", 9.5, GLD))
+    o.append(T((xo + xl) / 2, ys - 23, "3 回続く", "middle", 9.5, GLD))
     o.append(EDGE(xl - 47, ys + 10, xo + 47, ys + 10, None, 0, GRN))
-    o.append(T((xo + xl) / 2, ys + 26, "2.60 V 超えが", "middle", 9.5, GRN))
-    o.append(T((xo + xl) / 2, ys + 39, "3 回続く", "middle", 9.5, GRN))
+    o.append(T((xo + xl) / 2, ys + 32, "2.60 V 超えが", "middle", 9.5, GRN))
+    o.append(T((xo + xl) / 2, ys + 45, "3 回続く", "middle", 9.5, GRN))
     o.append(EDGE(xl + 47, ys, xc - 47, ys, None, 0, ALI))
-    o.append(T((xl + xc) / 2, ys - 26, "2.35 V 未満が", "middle", 9.5, ALI))
-    o.append(T((xl + xc) / 2, ys - 13, "3 回続く", "middle", 9.5, ALI))
-    o.append(CARR(xo + 20, ys - 21, xc - 20, ys - 21, bend=0.16, c=ALI, lw=1.3, head=6, dash="4 3"))
-    o.append(T(xl, 14, "OK からも直接", "middle", 9, ALI, halo=True))
-    # 動作
+    o.append(T((xl + xc) / 2, ys - 49, "2.35 V 未満が", "middle", 9.5, ALI))
+    o.append(T((xl + xc) / 2, ys - 36, "3 回続く", "middle", 9.5, ALI))
+    o.append(T((xl + xc) / 2, ys - 23, "（OK からも）", "middle", 9.5, ALI))
     acts = [(xo, GRN, ["ふだんどおり"]), (xl, GLD, ["利用者に知らせる", "LED などを止める", "送る間隔を延ばす"]),
             (xc, ALI, ["記録を 1 回書く", "最後の知らせを送る", "最も深く眠る"])]
     for x, c, lines in acts:
         for i, l in enumerate(lines):
-            o.append(T(x, 136 + i * 15, l, "middle", 9.5, c))
-    o.append(CARR(xc, ys + 22 + 64, xo + 10, ys + 22 + 64, bend=-0.18, c=GRN, lw=1.3, head=6, dash="4 3"))
-    o.append(T((xo + xc) / 2 + 20, 244, "電池を替えたときだけ（起動したとき、", "middle", 9.5, GRN, halo=True))
-    o.append(T((xo + xc) / 2 + 20, 258, "休んでいるときの電圧が 2.9 V を超えたとき）", "middle", 9.5, GRN, halo=True))
-    return SVG(700, 286, o, "低電池の判定の 3 つの状態（値は例）。左: しきい値は、最低の電圧 2.2 V に余裕を足して CRIT に入る値を決め、その上に LOW に入る値と、ヒステリシスの幅を足した戻る値を置く。右: 各状態ですること。CRIT からは、電池を替えたことが分かるまで戻らない。")
+            o.append(T(x, ys + 72 + i * 15, l, "middle", 9.5, c))
+    yb = ys + 128
+    o.append(W(xc + 46, ys, 690, ys, 690, yb, 318, yb, 318, ys, c=GRN, lw=1.3, dash="4 3"))
+    o.append(ARR(318, ys, xo - 47, ys, c=GRN, lw=1.3, head=6))
+    o.append(T(504, yb + 16, "電池を替えたときだけ戻る（起動したとき、", "middle", 9.5, GRN))
+    o.append(T(504, yb + 30, "休んでいるときの電圧が 2.9 V を超えたとき）", "middle", 9.5, GRN))
+    return SVG(700, 292, o, "低電池の判定の 3 つの状態（値は例）。左: しきい値は、最低の電圧 2.2 V に余裕を足して CRIT に入る値を決め、その上に LOW に入る値と、ヒステリシスの幅を足した戻る値を置く。右: 各状態ですること。CRIT からは、電池を替えたことが分かるまで戻らない。")
 F["e04_stop"] = _f04_stop()
 
 # ---- 4 節: 残量の推定 ----
@@ -442,10 +448,10 @@ def _f04_ocvfig():
     o.append(q.line([(r, max(2.2, _f04_vop(1 - r / 100.0, 0))) for r in range(0, 101)], c=TEA, lw=1.8, dash="5 3"))
     vb = _f04_ocv(0.5)
     ra, rb = _f04_coin_soc(vb + 0.015), _f04_coin_soc(vb - 0.015)
-    o.append(RECT(q.X(ra), q.y, q.X(rb) - q.X(ra), q.h, 0, SSOFT, "none", 0))
+    o.append(RECT(q.X(min(ra, rb)), q.y, abs(q.X(rb) - q.X(ra)), q.h, 0, SSOFT, "none", 0))
     o.append(RECT(q.x, q.Y(vb + 0.015), q.w, q.Y(vb - 0.015) - q.Y(vb + 0.015), 0, SSOFT, "none", 0))
-    o.append(T(q.X(36), q.Y(2.26), "±15 mV → ±%.0f %%" % ((rb - ra) / 2), "start", 9.5, SIG, True, halo=True))
-    o.append(T(q.X(98), q.Y(3.05) + 0, "休んでいるとき", "end", 9.5, GLD, True, halo=True))
+    o.append(T(q.X(36), q.Y(2.26), "±15 mV → ±%.0f %%" % (abs(rb - ra) / 2), "start", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(72), q.Y(3.065), "休んでいるとき", "middle", 9.5, GLD, True, halo=True))
     vt = _f04_vop(0.3, 0)
     rt = _f04_coin_soc(vt)
     o.append(D(q.X(70), q.Y(vt), ALI, 3.6))
@@ -474,13 +480,14 @@ def _f04_cc():
         if t < 8.5: return true(5) - (cnt(5) - cnt(t))
         return true(t)
     o.append(p.line([(t / 20.0, fix(t / 20.0)) for t in range(0, 101)], c=SIG, lw=2.2))
-    o.append(T(p.X(10) - 2, p.Y(cnt(10)) - 6, "数えただけ: 本当は 0 %% で %.0f %% と示す" % cnt(10), "end", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(10), p.Y(95), "破線: 数えただけ。本当は", "end", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(10), p.Y(88), "0 %% のときに %.0f %% と示す" % cnt(10), "end", 9.5, GLD, True, halo=True))
     o.append(T(p.X(0.3), p.Y(12), "本当の残量", "start", 9.5, INK, True, halo=True))
     o.append(D(p.X(5), p.Y(true(5)), SIG, 3.6) + D(p.X(8.5), p.Y(true(8.5)), SIG, 3.6))
     o.append(T(p.X(5) + 6, p.Y(true(5)) - 30, "長く休んだので", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(5) + 6, p.Y(true(5)) - 17, "電圧で合わせ直す", "start", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(8.5) - 6, p.Y(true(8.5)) - 26, "使い終わりの近くで", "end", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(8.5) - 6, p.Y(true(8.5)) - 13, "電圧で合わせ直す", "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(8.5) - 6, p.Y(true(8.5)) + 16, "使い終わりの近くで", "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(8.5) - 6, p.Y(true(8.5)) + 29, "電圧で合わせ直す", "end", 9.5, SIG, True, halo=True))
     # (b) 一次電池: 数えた電荷が 15 % 少ない
     o.append(T(372, 18, "(b) 一次電池: 低電池の判定で合わせ直す", "start", 11, INK, True))
     q = Plot(430, 34, 250, 190, (100, 0), (0, 100))
@@ -493,11 +500,13 @@ def _f04_cc():
     rl = 4.0
     comb = [(r, c2(r)) for r in range(100, int(rl), -1)] + [(rl, c2(rl)), (rl, 10.0), (0.4, 10.0), (0.4, 0.0), (0, 0)]
     o.append(q.line(comb, c=SIG, lw=2.2))
-    o.append(T(q.X(2) - 2, q.Y(c2(0)) + 18, "数えただけ: %.0f %% のまま止まる" % c2(0), "end", 9.5, GLD, True, halo=True))
+    o.append(T(q.X(0), q.Y(66), "破線: 数えただけ。", "end", 9.5, GLD, True, halo=True))
+    o.append(T(q.X(0), q.Y(59), "%.0f %% と示したまま止まる" % c2(0), "end", 9.5, GLD, True, halo=True))
     o.append(D(q.X(rl), q.Y(c2(rl)), SIG, 3.6))
-    o.append(T(q.X(rl) - 6, q.Y(c2(rl)) - 34, "LOW になったので", "end", 9.5, SIG, True, halo=True))
-    o.append(T(q.X(rl) - 6, q.Y(c2(rl)) - 21, "10 % 以下に下げ、", "end", 9.5, SIG, True, halo=True))
-    o.append(T(q.X(rl) - 6, q.Y(c2(rl)) - 8, "CRIT で 0 %", "end", 9.5, SIG, True, halo=True))
+    o.append(W(q.X(rl) - 4, q.Y(c2(rl)) + 3, q.X(40), q.Y(12), c=SIG, lw=1, dash="2 2"))
+    o.append(T(q.X(68), q.Y(17), "LOW になったので", "start", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(68), q.Y(10), "10 % 以下に下げ、", "start", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(68), q.Y(3), "CRIT で 0 %", "start", 9.5, SIG, True, halo=True))
     o.append(T(q.X(95), q.Y(85), "本当の残量", "start", 9.5, INK, True, halo=True))
     return SVG(700, 266, o, "電荷を数える方法のずれと、電圧による合わせ直し（例の値）。(a) 電流を 2 % と 0.5 mA 少なく測ると、数えた残量は本当より多くなり続ける（破線）。長く休んだときと使い終わりの近くで電圧の表に合わせ直すと（実線）、ずれは 0 に戻る。(b) 一次電池で、動作 1 回の電荷を 15 % 少なく見積もると、0 % のときに 15 % と示す。3 節の判定が LOW になったら示す値を下げれば、残量があると示したまま止まることを防げる。")
 F["e04_cc"] = _f04_cc()
@@ -549,17 +558,19 @@ def _f04_cccv():
             o.append(RECT(pp.X(a), pp.y, pp.X(b) - pp.X(a), pp.h, 0, soft(c), "none", 0, op=0.5))
         o.append(T((pI.X(a) + pI.X(b)) / 2 if b - a > 0.2 else pI.X(b) + 4, pI.y + 14, lab, "middle" if b - a > 0.2 else "start", 9.5, c, True, halo=True))
     o.append(pI.line([(0, 100), (2.5, 100)], c=ALI, lw=1.1, dash="3 3"))
-    o.append(T(pI.X(2.48), pI.Y(100) - 5, "終了電流 100 mA", "end", 9.5, ALI, halo=True))
+    o.append(T(pI.X(1.2), pI.Y(100) - 5, "終了電流 100 mA", "middle", 9.5, ALI, halo=True))
     step = max(1, len(data) // 400)
     o.append(pI.line([(d[0], d[1] * 1000) for d in data[::step]] + [(end[0], 100), (end[0], 0), (2.5, 0)], c=GLD, lw=2.2))
     o.append(pV.line([(0, 4.2), (2.5, 4.2)], c=ALI, lw=1.1, dash="3 3"))
     o.append(T(pV.X(0.05), pV.Y(4.2) - 6, "充電電圧 4.2 V", "start", 9.5, ALI, halo=True))
     o.append(pV.line([(d[0], d[2]) for d in data[::step]] + [(end[0], 4.2)], c=GLD, lw=2.2))
     o.append(pV.line([(d[0], d[3]) for d in data[::step]], c=PUR, lw=1.6, dash="5 3"))
-    o.append(T(pV.X(0.9), pV.Y(_f04_li_ocv(40)) + 34, "起電力 E（破線）", "middle", 9.5, PUR, True, halo=True))
-    o.append(_f04_m(pV.X(0.9), pV.Y(_f04_li_ocv(40) + 0.15) - 12, [("端子電圧 ", None, False), ("V", None, True), (" = ", None, False), ("E", None, True), (" + ", None, False), ("I R", "in", True)], "middle", 9.5, GLD, True))
+    o.append(T(pV.X(0.45), pV.Y(3.42), "起電力 E（破線）", "middle", 9.5, PUR, True, halo=True))
+    o.append(_f04_m(pV.X(0.62), pV.Y(3.93), [("端子電圧 ", None, False), ("V", None, True), (" = ", None, False), ("E", None, True), (" + ", None, False), ("I R", "in", True)], "middle", 9.5, GLD, True))
     o.append(D(pV.X(cv[0]), pV.Y(cv[2]), PUR, 3.6))
-    o.append(T(pV.X(cv[0]) - 6, pV.Y(cv[2]) + 16, "%.1f 時間: 起電力 %.2f V（残量 %.0f %%）で定電圧へ" % (cv[0], cv[2], cv[1]), "end", 9.5, PUR, True, halo=True))
+    o.append(W(pV.X(cv[0]), pV.Y(cv[2]) + 4, pV.X(cv[0]), pV.Y(3.38), c=PUR, lw=1, dash="2 2"))
+    o.append(T(pV.X(cv[0]) - 4, pV.Y(3.42), "%.1f 時間: 起電力 %.2f V（残量 %.0f %%）" % (cv[0], cv[2], cv[1]), "end", 9.5, PUR, True, halo=True))
+    o.append(T(pV.X(cv[0]) - 4, pV.Y(3.42) + 14, "で定電圧に移る", "end", 9.5, PUR, True, halo=True))
     o.append(D(pI.X(end[0]), pI.Y(100), ALI, 3.6))
     o.append(W(pI.X(end[0]), pI.Y(100), pI.X(end[0]), pI.y + pI.h + 6, c=ALI, lw=1, dash="2 2"))
     o.append(T(pI.X(end[0]) + 4, pI.y + pI.h + 18, "%.1f 時間: 電流が 100 mA まで減り、残量 %.0f %% で終了" % (end[0], end[1]), "end", 9.5, ALI, True, halo=True))
@@ -673,17 +684,23 @@ def _f04_revpanel(o, x0, kind):
         o.append(W(xd + 6, yt + 16, xs_ - 6, yt + 16, c=SIG, lw=1.8))
         xg = (xd + xs_) / 2
         o.append(W(xg, yt + 16, xg, yt + 26, c=SIG, lw=1.5) + _f04_resv(xg, yt + 26, yt + 62, c=INK, h=5, n=5) + W(xg, yt + 62, xg, yb, c=INK, lw=1.5) + D(xg, yb, INK, 2.6))
-        o.append(T(xd + 2, yt - 6, "D", "middle", 9.5, SIG, True) + T(xs_ - 2, yt - 6, "S", "middle", 9.5, SIG, True) + T(xg + 8, yt + 24, "G", "start", 9.5, SIG, True))
+        o.append(T(xd + 9, yt - 6, "D", "middle", 9.5, SIG, True) + T(xs_ - 9, yt - 6, "S", "middle", 9.5, SIG, True) + T(xg + 8, yt + 24, "G", "start", 9.5, SIG, True))
         # ボディダイオード（D → S）
         o.append(W(xd, yt, xd, yt - 22, c=TEA, lw=1.2) + W(xs_, yt, xs_, yt - 22, c=TEA, lw=1.2))
         o.append(W(xd, yt - 22, xg - 7, yt - 22, c=TEA, lw=1.2) + _f04_diode(xg + 4, yt - 22, TEA, 5) + W(xg + 4, yt - 22, xs_, yt - 22, c=TEA, lw=1.2))
         o.append(T(xg, yt - 32, "ボディダイオード", "middle", 8.5, TEA, True))
     # 結果
     res = {"none": [("正しく: 低下なし", GRN), ("逆: 回路の中のダイオードを通って", ALI), ("大きな電流が流れ、焼ける", ALI)],
-           "diode": [("正しく: V_F 下がり、V_F × I が熱に", GLD), ("（終止電圧が V_F 上がる）", GLD), ("逆: 流れない", GRN)],
+           "diode": [None, None, ("逆: 流れない", GRN)],
            "pmos": [("正しく: オン抵抗 × 電流だけ下がる", GRN), ("（50 mΩ・15 mA で 0.75 mV）", GRN), ("逆: ゲートが高い側で入らず、流れない", GRN)]}
-    for i, (l, c) in enumerate(res[kind]):
+    for i, item in enumerate(res[kind]):
+        if item is None:
+            continue
+        l, c = item
         o.append(T(x0 + 2, 186 + i * 15, l, "start", 9.5, c, i != 1 or kind == "none"))
+    if kind == "diode":
+        o.append(_f04_m(x0 + 2, 186, [("正しく: ", None, False), ("V", "F", True), (" だけ下がり、", None, False), ("V", "F", True), (" × ", None, False), ("I", None, True), (" が熱に", None, False)], "start", 9.5, GLD, True))
+        o.append(_f04_m(x0 + 2, 201, [("（終止電圧が ", None, False), ("V", "F", True), (" だけ上がる）", None, False)], "start", 9.5, GLD))
 
 def _f04_rev():
     o = []
