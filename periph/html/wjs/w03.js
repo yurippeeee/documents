@@ -60,7 +60,7 @@
       var Qn=B.Qn,vmax=N*_w03_E(t,0),vlo=Math.min(vEnd,N*(_w03_E(t,1)-I*_w03_R(t,1,T)));
       var y0=Math.max(0,Math.floor((Math.min(vlo,vEnd)-0.15*N)*10)/10),y1=Math.ceil((vmax+0.05*N)*10)/10;
       var W=700,o=[],p=U.plot(80,22,470,230,[0,Qn],[y0,y1]);
-      o.push(p.axes({xl:"取り出した電荷 [mAh]",yl:"電池全体の端子電圧 [V]",xt:U.nice(0,Qn,5),yt:U.nice(y0,y1,5),xfmt:function(v){return String(Math.round(v));},yfmt:function(v){return v.toFixed(1);}}));
+      o.push(p.axes({xl:"取り出した電荷 [mAh]",yl:"電池全体の端子電圧 [V]",xt:U.nice(0,Qn,5),yt:U.nice(y0,y1,5),xfmt:function(v){return String(Math.round(v));},yfmt:function(v){return String(+v.toFixed(2));}}));
       var ref=[],cur=[];
       for(var k=0;k<=200;k++){var x=k/200;ref.push([x*Qn,N*_w03_E(t,x)]);var v=N*(_w03_E(t,x)-I*_w03_R(t,x,T));if(x<=u+1e-9&&v>=y0)cur.push([x*Qn,v]);}
       if(u>0)cur.push([u*Qn,vEnd]);
@@ -120,13 +120,14 @@
     function draw(){
       var t=bt.get(),B=_w03_B[t],N=NB[t],I=Ip.get()*1e-3,tp=Tp.get()*1e-3,x=Xd.get()/100,T=Tc.get(),vb=Bor.get();
       var Rt=N*_w03_R(t,x,T),R0=_w03_R0F*Rt,R1=Rt-R0,tau=B.tau,E=N*_w03_E(t,x);
-      var Reff=R0+R1*(1-Math.exp(-tp/tau)),dV=I*Reff,vbot=E-dV;
+      var Reff=R0+R1*(1-Math.exp(-tp/tau)),dV=I*Reff,vbot=E-dV,over=vbot<0.3*E;
+      if(over)vbot=Math.max(vbot,0);
       var W=700,o=[];
       /* 上: 1 回のパルスの波形 */
       var span=tp+4*tau,t0=-0.2*span,X0=80,WD=450,sc=WD/(span-t0),X=function(s){return X0+(s-t0)*sc;};
       var yI=24,hI=34,yV=86,hV=120;
       var vlo=Math.min(vbot,vb)-0.1*Math.max(0.2,E-Math.min(vbot,vb)),vhi=E+0.08*Math.max(0.2,E-Math.min(vbot,vb));
-      var Y=function(v){return yV+hV-(v-vlo)/(vhi-vlo)*hV;};
+      var Y=function(v){return yV+hV-(Math.max(v,vlo)-vlo)/(vhi-vlo)*hV;};
       o.push(S.T(X0-8,yI+hI/2+4,"電流","end",9.5,"muted"));
       o.push(S.W([X(t0),yI+hI,X(0),yI+hI,X(0),yI,X(tp),yI,X(tp),yI+hI,X(span),yI+hI],"gold",2));
       o.push(S.T(X(tp)+6,yI+12,F.cur(I),"start",9.5,"gold",true));
@@ -135,7 +136,7 @@
       var v1=I*R1*(1-Math.exp(-tp/tau));pts.push([X(tp),Y(E-v1)]);
       for(k=1;k<=60;k++){var s2=tp+(span-tp)*k/60;pts.push([X(s2),Y(E-v1*Math.exp(-(s2-tp)/tau))]);}
       o.push(S.L(X0,yV+hV,X0+WD,yV+hV,"muted",1));o.push(S.L(X0,yV,X0,yV+hV,"muted",1));
-      U.nice(vlo,vhi,4).forEach(function(v){if(v>=vlo&&v<=vhi){o.push(S.L(X0-4,Y(v),X0,Y(v),"muted",1));o.push(S.T(X0-7,Y(v)+3.5,v.toFixed(2),"end",9,"muted"));}});
+      U.nice(vlo,vhi,4).forEach(function(v){if(v>=vlo&&v<=vhi){o.push(S.L(X0-4,Y(v),X0,Y(v),"muted",1));o.push(S.T(X0-7,Y(v)+3.5,String(+v.toFixed(3)),"end",9,"muted"));}});
       o.push(S.T(X0-50,yV+hV/2,"端子電圧 [V]","middle",9.5,"muted",false,false,-90));
       o.push(S.L(X0,Y(vb),X0+WD,Y(vb),"alias",1.3,"6 4"));
       o.push(S.T(X0+WD-2,Y(vb)-5,"BOR "+vb.toFixed(2)+" V","end",9.5,"alias",true,false,null,true));
@@ -149,9 +150,9 @@
       [["E（休んでいるとき）",E.toFixed(3)+" V"],["R₀ / R₁",U.sig(R0,3)+" / "+U.sig(R1,3)+" Ω"],["τ",F.time(tau)],["R_eff",U.sig(Reff,3)+" Ω"],["電圧降下",U.sig(dV*1e3,3)+" mV"]].forEach(function(r,i){
         o.push(S.T(xr,yV+6+i*24,r[0],"start",9.5,"muted"));o.push(S.T(xr,yV+18+i*24,r[1],"start",10,"ink",true));});
       /* 下: 放電の進み具合とパルスの底 */
-      var yP=262,p=U.plot(80,yP,450,150,[0,100],[Math.max(0,N*1.4),N*_w03_E(t,0)+0.05*N]);
+      var yP=262,p=U.plot(80,yP,450,150,[0,100],[Math.max(0,Math.min(N*B.vend,vb)-0.2),N*_w03_E(t,0)+0.05*N]);
       var plo=p.yr[0],phi=p.yr[1];
-      o.push(p.axes({xl:"放電の進み具合（公称容量の %）",yl:"端子電圧 [V]",xt:[0,25,50,75,100],yt:U.nice(plo,phi,4),xfmt:function(v){return String(v);},yfmt:function(v){return v.toFixed(1);}}));
+      o.push(p.axes({xl:"放電の進み具合（公称容量の %）",yl:"端子電圧 [V]",xt:[0,25,50,75,100],yt:U.nice(plo,phi,4),xfmt:function(v){return String(v);},yfmt:function(v){return String(+v.toFixed(2));}}));
       var pe=[],pb=[];
       for(k=0;k<=200;k++){var xx=k/200,ee=N*_w03_E(t,xx),bb=ee-I*N*_w03_reff(t,xx,T,tp);pe.push([xx*100,ee]);if(bb>=plo)pb.push([xx*100,bb]);}
       o.push(p.line(pe,"ink",1.6));
@@ -169,9 +170,10 @@
       box.set(S.svg(W,yP+192,o));
       var warn="";
       if(T<B.T[0]||T>B.T[1])warn+='<span class="warn">'+String(T).replace("-","−")+' °C は、この種類の放電してよい温度の範囲（代表値）の外である。</span><br>';
+      if(over)warn+='<span class="warn">電圧降下が起電力の 7 割を超える。この電池から、この電流は実際には流せない（模型の範囲の外。底は 0 V 以上で描いた）。</span><br>';
       ro.innerHTML=warn+"R_eff = R₀ + R₁ (1 − e^(−t_p/τ)) = "+U.sig(R0,3)+" + "+U.sig(R1,3)+" × "+U.sig(1-Math.exp(-tp/tau),3)+" = <b>"+U.sig(Reff,3)+" Ω</b>（電池全体。25 °C の "+U.sig(_w03_kT(t,T),3)+" 倍）<br>"+
-        "パルスの底 = E − I_pk R_eff = "+E.toFixed(3)+" V − "+F.cur(I)+" × "+U.sig(Reff,3)+" Ω = <b>"+vbot.toFixed(3)+" V</b> → "+
-        (vbot<vb?'<span class="warn">BOR を割る（'+U.sig((vb-vbot)*1e3,3)+' mV 足りない）。マイコンはリセットされる</span>':'<span class="ok">BOR を割らない（余裕 '+U.sig((vbot-vb)*1e3,3)+' mV）</span>')+"<br>"+
+        "パルスの底 = E − I_pk R_eff = "+E.toFixed(3)+" V − "+F.cur(I)+" × "+U.sig(Reff,3)+" Ω = <b>"+(E-dV).toFixed(3).replace("-","−")+" V</b> → "+
+        (vbot<vb?'<span class="warn">BOR を割る'+(over?'':'（'+U.sig((vb-vbot)*1e3,3)+' mV 足りない）')+'。マイコンはリセットされる</span>':'<span class="ok">BOR を割らない（余裕 '+U.sig((vbot-vb)*1e3,3)+' mV）</span>')+"<br>"+
         "パルスの底で決まる使える割合 <b>"+_w03_pct(up)+"</b>（休んでいるときの電圧だけなら "+_w03_pct(ur)+"）"+
         '<div class="wnote">内部抵抗を、すぐ現れる部分 R₀（55 %）と、時定数 τ で大きくなる部分 R₁（45 %）に分けた模型（4 節）。放電の進み具合と温度による変わり方は代表的な形、値はすべて例。パルスの前は十分に休んでいたとした。</div>';
     }

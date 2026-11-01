@@ -431,7 +431,7 @@ def _f03_model():
     # 注記
     o.append(W(pv.X(0) - 14, pv.Y(E0), pv.X(0) - 4, pv.Y(E0), c=MUT, lw=1))
     o.append(DARR(pv.X(0) - 9, pv.Y(E0) + 1, pv.X(0) - 9, pv.Y(E0 - I * 1e-3 * R0) - 1, c=ALI, lw=1.1, head=4))
-    o.append(T(pv.X(0.8), pv.Y(E0 - I * 1e-3 * R0 / 2) + 4, "I R₀ = 124 mV（すぐ）", "start", 9.5, ALI, True, halo=True))
+    o.append(T(pv.X(0.8), pv.Y(E0 - I * 1e-3 * R0 / 2) + 4, "I R₀ = 124 mV", "start", 9.5, ALI, True, halo=True))
     v3 = V(3.0)
     o.append(D(pv.X(3), pv.Y(v3), PUR, 3.5))
     o.append(T(pv.X(3) + 5, pv.Y(v3) + 15, "3 ms: 169 mV", "start", 9.5, PUR, True, halo=True))
