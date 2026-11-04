@@ -756,7 +756,115 @@ def _f01_map_fig():
         o.append(T(x0 + 200, yy, "%.1f" % b_, "end", 10, ALI, L == 0.1))
     o.append(T(x0, 194, "遅れが無ければ、どこまで", "start", 9.5, MUT))
     o.append(T(x0, 208, "上げても振動しない", "start", 9.5, MUT))
-    o.append(T(x0, 236, "点: 図の (b) の 4 通りのゲイン", "start", 9.5, MUT))
+    o.append(T(x0, 236, "点: 4 通りの比例ゲイン", "start", 9.5, MUT))
     o.append(T(x0, 250, "（むだ時間 0.1 s）", "start", 9.5, MUT))
     return SVG(700, 318, o, "比例ゲインとむだ時間の組で、台車の速度の動きは 3 つに分かれる（荷物なし）。むだ時間が長いほど、振動し始める比例ゲインと、振れが大きくなり始める比例ゲインが小さくなる。境目は細かい時間刻みの数値計算と一致する。")
 F["e01_map"] = _f01_map_fig()
+
+# ==== 6 節: シリーズの地図 ====
+def _f01_series_fig():
+    o = []
+    parts = [
+        ("第 I 部", "フィードバックと", "動きのモデル", SIG, ["01 制御とは何か", "02 動きを式にする", "03 一次遅れの応答", "04 二次遅れの応答"],
+         ["台車・モータ・温度の動きを", "微分方程式で表し、時間の応答", "（速さ・行き過ぎ）を読む"]),
+        ("第 II 部", "伝達関数と", "周波数応答", TEA, ["05 ラプラス変換", "06 伝達関数と極・零点", "07 フィードバック系の式", "08 周波数応答とボード線図", "09 安定性と安定余裕"],
+         ["応答を代数で計算し、極と周波", "数応答から、安定か、余裕は", "どれだけかを判定する"]),
+        ("第 III 部", "制御器を", "設計する", GRN, ["10 PID 制御", "11 PID の調整と現場の問題", "12 根軌跡", "13 ループ整形", "14 フィードフォワード・カスケード"],
+         ["PID を調整し、根軌跡とボード", "線図で、仕様を満たす制御器を", "設計する"]),
+        ("第 IV 部", "デジタル制御", None, GLD, ["15 サンプリングと離散化", "16 マイコンで実装する"],
+         ["設計した制御器を、一定の周期", "で動くマイコンのプログラムに", "する"]),
+        ("第 V 部", "状態空間と", "推定", PUR, ["17 状態空間モデル", "18 状態フィードバック", "19 最適レギュレータ", "20 オブザーバとカルマンフィルタ", "21 総合演習（倒立振子を立てる）"],
+         ["複数の量をまとめて扱い、測れ", "ない量を推定して、倒立振子を", "立てる"]),
+    ]
+    o.append(T(14, 18, "部", "start", 10.5, INK, True)); o.append(T(196, 18, "章", "start", 10.5, INK, True)); o.append(T(450, 18, "できるようになること", "start", 10.5, INK, True))
+    y = 30
+    for i, (nm, t1, t2, c, chs, can) in enumerate(parts):
+        h = max(len(chs), 3) * 16 + 14
+        o.append(RECT(14, y, 160, h, 7, soft(c), c, 1.4))
+        o.append(T(26, y + 22, nm, "start", 11.5, c, True))
+        o.append(T(26, y + 40, t1, "start", 10.5, INK, True))
+        if t2:
+            o.append(T(26, y + 55, t2, "start", 10.5, INK, True))
+        for k, ch in enumerate(chs):
+            o.append(T(196, y + 20 + k * 16, ch, "start", 10.5, ALI if ch.startswith("01") else INK, ch.startswith("01")))
+        for k, l in enumerate(can):
+            o.append(T(450, y + 20 + k * 16, l, "start", 10, MUT))
+        if i + 1 < len(parts):
+            o.append(ARR(94, y + h, 94, y + h + 12, c=MUT, lw=1.6, head=6))
+        y += h + 12
+    o.append(T(196 + 104, 30 + 20, "← この章", "start", 10, ALI, True))
+    return SVG(700, y - 4, o, "このシリーズの 5 つの部と 21 章。第 I 部は時間の微分方程式とシミュレーションだけで書き、第 II 部でラプラス変換と伝達関数を入れて、極・周波数応答・安定余裕で調べる。第 III 部で制御器を設計し、第 IV 部でマイコンに載せ、第 V 部で状態空間の方法に進む。")
+F["e01_series"] = _f01_series_fig()
+
+# ==== 6 節: 例の対象 ====
+def _f01_objects_fig():
+    o = []
+    cells = [(14, 10), (360, 10), (14, 196), (360, 196)]
+    W_, H_ = 330, 176
+    for x, y in cells:
+        o.append(RECT(x, y, W_, H_, 8, PAN, LIN, 1.2))
+    # 台車（ばね・ダンパ付き）
+    x, y = cells[0]
+    o.append(T(x + 12, y + 20, "台車（ばね・ダンパ付き）", "start", 11, SIG, True))
+    gy = y + 112
+    o.append(W(x + 14, gy, x + 160, gy, c=MUT, lw=1.6)); o.append(W(x + 18, gy, x + 18, gy - 64, c=MUT, lw=2.4))
+    zz = [(x + 18, gy - 46)]
+    for k in range(8):
+        zz.append((x + 26 + k * 5.5, gy - 46 + (-6 if k % 2 == 0 else 6)))
+    zz.append((x + 74, gy - 46))
+    o.append(PL(zz, c=INK, lw=1.4))
+    o.append(W(x + 18, gy - 22, x + 40, gy - 22, c=INK, lw=1.4)); o.append(W(x + 40, gy - 30, x + 40, gy - 14, c=INK, lw=1.6))
+    o.append(W(x + 34, gy - 32, x + 58, gy - 32, x + 58, gy - 12, x + 34, gy - 12, c=INK, lw=1.4)); o.append(W(x + 58, gy - 22, x + 74, gy - 22, c=INK, lw=1.4))
+    o.append(RECT(x + 74, gy - 58, 54, 44, 4, SSOFT, SIG, 1.5))
+    o.append(CIRC(x + 86, gy - 7, 7, c=INK, lw=1.3, fill=PAN)); o.append(CIRC(x + 116, gy - 7, 7, c=INK, lw=1.3, fill=PAN))
+    o.append(ARR(x + 128, gy - 36, x + 156, gy - 36, c=GLD, lw=2, head=6)); o.append(T(x + 142, gy - 44, "力", "middle", 9.5, GLD, True))
+    o.append(ARR(x + 74, gy + 18, x + 108, gy + 18, c=SIG, lw=1.4, head=5)); o.append(T(x + 112, gy + 22, "位置", "start", 9.5, SIG))
+    for k, l in enumerate(["質量 1 kg", "抵抗の係数 2 N·s/m", "ばね定数 25 N/m", "ばねを外すと速度の例", "（この章の台車）"]):
+        o.append(T(x + 178, y + 46 + k * 16, l, "start", 10, INK if k < 3 else MUT))
+    o.append(T(x + 12, y + H_ - 12, "使う章: 1・2・4・5・6・17", "start", 10, SIG, True))
+    # DC モータ
+    x, y = cells[1]
+    o.append(T(x + 12, y + 20, "DC モータ", "start", 11, SIG, True))
+    my = y + 82
+    o.append(RECT(x + 46, my - 24, 56, 48, 6, SSOFT, SIG, 1.5)); o.append(RECT(x + 102, my - 10, 8, 20, 2, PAN, SIG, 1.2))
+    o.append(W(x + 110, my, x + 132, my, c=INK, lw=2.4)); o.append(RECT(x + 132, my - 26, 10, 52, 2, MSOFT, MUT, 1.2))
+    o.append(CARR(x + 128, my - 36, x + 150, my - 28, 0.4, c=GLD, lw=1.4, head=5))
+    o.append(W(x + 46, my - 12, x + 22, my - 12, x + 22, my + 40, c=GLD, lw=1.4)); o.append(W(x + 46, my + 12, x + 34, my + 12, x + 34, my + 40, c=GLD, lw=1.4))
+    o.append(T(x + 28, my + 54, "電圧", "middle", 9.5, GLD, True))
+    o.append(T(x + 120, my + 46, "回転の速さ", "middle", 9.5, SIG))
+    for k, l in enumerate(["電源 12 V", "巻線 2 Ω・1 mH", "トルク定数 0.02 N·m/A", "慣性モーメント 1×10⁻⁵ kg·m²"]):
+        o.append(T(x + 166, y + 46 + k * 16, l, "start", 10, INK))
+    o.append(T(x + 12, y + H_ - 12, "使う章: 2〜4・7・10・12〜16", "start", 10, SIG, True))
+    # 温度の板
+    x, y = cells[2]
+    o.append(T(x + 12, y + 20, "温度の板（ヒータ）", "start", 11, SIG, True))
+    py_ = y + 92
+    o.append(RECT(x + 24, py_ - 12, 120, 18, 3, MSOFT, MUT, 1.4)); o.append(RECT(x + 40, py_ + 6, 88, 7, 2, PSOFT, PUR, 1.2))
+    o.append(T(x + 84, py_ + 30, "ヒータ 0〜80 W", "middle", 9.5, PUR, True))
+    o.append(RECT(x + 112, py_ - 20, 16, 8, 2, TSOFT, TEA, 1.2)); o.append(T(x + 120, py_ - 26, "センサ", "middle", 9.5, TEA, True))
+    for k in range(3):
+        xx = x + 44 + k * 22
+        o.append(PATH("M%g,%g c-5,-6 5,-10 0,-16 c-5,-6 5,-10 0,-16" % (xx, py_ - 16), c=GLD, lw=1.3))
+    o.append(T(x + 64, py_ - 56, "逃げる熱", "middle", 9.5, GLD))
+    for k, l in enumerate(["熱容量 400 J/K", "熱抵抗 1.25 K/W", "センサの遅れ 20 s", "周り 25 °C、目標 60 °C"]):
+        o.append(T(x + 166, y + 46 + k * 16, l, "start", 10, INK))
+    o.append(T(x + 12, y + H_ - 12, "使う章: 2・3・9〜11・14", "start", 10, SIG, True))
+    # 倒立振子
+    x, y = cells[3]
+    o.append(T(x + 12, y + 20, "倒立振子（台車型）", "start", 11, SIG, True))
+    gy = y + 132
+    o.append(W(x + 14, gy, x + 160, gy, c=MUT, lw=1.6))
+    o.append(RECT(x + 52, gy - 30, 56, 20, 3, SSOFT, SIG, 1.5))
+    o.append(CIRC(x + 64, gy - 6, 6, c=INK, lw=1.3, fill=PAN)); o.append(CIRC(x + 96, gy - 6, 6, c=INK, lw=1.3, fill=PAN))
+    ax_, ay_ = x + 80, gy - 30
+    tx_, ty_ = ax_ + 70 * math.sin(math.radians(12)), ay_ - 70 * math.cos(math.radians(12))
+    o.append(W(ax_, ay_, tx_, ty_, c=INK, lw=2.4)); o.append(D(tx_, ty_, ALI, 7))
+    o.append(W(ax_, ay_, ax_, ay_ - 76, c=FNT, lw=1, dash="3 3"))
+    o.append(ARR(x + 22, gy - 20, x + 50, gy - 20, c=GLD, lw=2, head=6)); o.append(T(x + 30, gy - 28, "押す力", "middle", 9.5, GLD, True))
+    o.append(PATH("M%g,%g A34,34 0 0,1 %g,%g" % (ax_, ay_ - 34, ax_ + 34 * math.sin(math.radians(12)), ay_ - 34 * math.cos(math.radians(12))), c=ALI, lw=1.3))
+    o.append(T(ax_ + 14, ay_ - 30, "角度", "start", 9.5, ALI, True))
+    for k, l in enumerate(["台車 0.5 kg", "振子 0.2 kg", "長さ 0.3 m", "真上で倒れないように", "台車を押して立てる"]):
+        o.append(T(x + 166, y + 46 + k * 16, l, "start", 10, INK if k < 3 else MUT))
+    o.append(T(x + 12, y + H_ - 12, "使う章: 2・17〜21", "start", 10, SIG, True))
+    return SVG(700, 380, o, "シリーズの例の対象（値はどれも計算のための例の値）。章をまたいで同じ値を使い、前の章で求めた式や性質を、後の章でそのまま使う。DC モータと温度の板は、電源と周辺の制御シリーズ 13・14 章と同じものである。")
+F["e01_objects"] = _f01_objects_fig()
