@@ -2,8 +2,8 @@
   /* 狭い画面（表示枠が 520 px 未満）では、図を幅 400 に組み替える */
   function _w01_nar(box){var w=box.el.clientWidth;return w>0&&w<520;}
   function _w01_f(v,d){v=+v;if(!isFinite(v))return v>0?"∞":"−∞";if(Math.abs(v)<0.5*Math.pow(10,-d))v=0;return v.toFixed(d).replace("-","−");}
-  var _W01_C=2,_W01_G=9.81,_W01_R=1;
-  function _w01_dslope(m,deg){return m*_W01_G*Math.sin(deg*Math.PI/180);}
+  var _w01_C=2,_w01_G=9.81,_w01_R=1;
+  function _w01_dslope(m,deg){return m*_w01_G*Math.sin(deg*Math.PI/180);}
   /* 添字付きの文字（"K_P" → K の右下に小さな P） */
   function _w01_tx(U,x,y,s,a,sz,c,b,halo){
     sz=sz||10;var segs=[],re=/([A-Za-z])_([A-Za-z0-9∞]+)/g,m,pos=0;
@@ -20,22 +20,27 @@
      o = {Kp, L, m, tEnd, h, uff, noise, seed, hold, dFn(t, 位置), rec, stopAt}。返り値 {t, y, ym, u, d, p}（rec ごと） */
   function _w01_sim(U,o){
     var h=o.h||1e-3,n=Math.round(o.tEnd/h),nd=Math.round((o.L||0)/h),kr=Math.max(1,Math.round((o.rec||0.01)/h)),kh=Math.max(1,Math.round((o.hold||0.01)/h));
-    var m=o.m||1,a=Math.exp(-_W01_C*h/m),u0=o.uff===false?0:_W01_C*_W01_R,rg=o.noise?U.rng(o.seed||1):null;
+    var m=o.m||1,a=Math.exp(-_w01_C*h/m),u0=o.uff===false?0:_w01_C*_w01_R,rg=o.noise?U.rng(o.seed||1):null;
     var hist=new Float64Array(n+1),y=0,p=0,nz=0,out={t:[],y:[],ym:[],u:[],d:[],p:[]};
     for(var k=0;k<=n;k++){
       var t=k*h;hist[k]=y;
       var ym=k>=nd?hist[k-nd]:0;
       if(rg&&k%kh===0)nz=o.noise*rg.normal();
-      var ymn=ym+(rg?nz:0),u=u0+o.Kp*(_W01_R-ymn),d=o.dFn?o.dFn(t,p):0;
+      var ymn=ym+(rg?nz:0),u=u0+o.Kp*(_w01_R-ymn),d=o.dFn?o.dFn(t,p):0;
       var last=(o.stopAt!=null&&p>=o.stopAt)||Math.abs(y)>1e4;
       if(k%kr===0||last){out.t.push(t);out.y.push(y);out.ym.push(ymn);out.u.push(u);out.d.push(d);out.p.push(p);}
       if(last)break;
-      var yi=(u-d)/_W01_C;
-      p+=yi*h+(y-yi)*(m/_W01_C)*(1-a);
+      var yi=(u-d)/_w01_C;
+      p+=yi*h+(y-yi)*(m/_w01_C)*(1-a);
       y=yi+(y-yi)*a;
     }
     return out;
   }
+  /* 観測ノイズ（0.01 s ごとに変わる、標準偏差 sig の値）による力と速度の揺れの標準偏差（長い時間で見た値。図 e01_noise と同じ式） */
+  function _w01_noiseSd(Kp,sig,m){var h=1e-3,nh=10,lam=(_w01_C+Kp)/m,a=Math.exp(-lam*h),A=Math.pow(a,nh),g=Kp/(_w01_C+Kp),M1=0,M2=0;
+    for(var j=0;j<nh;j++){M1+=Math.pow(a,j)/nh;M2+=Math.pow(a,2*j)/nh;}
+    var Vk=(1-A)*g*g*sig*sig/(1+A),Vy=Vk*M2+g*g*sig*sig*(1-2*M1+M2),Vu=Kp*Kp*(Vy+sig*sig-2*(1-M1)*g*sig*sig);
+    return {su:Math.sqrt(Math.max(0,Vu)),sy:Math.sqrt(Math.max(0,Vy))};}
   /* 範囲の外に出たところで止める折れ線 */
   function _w01_clip(P,ts,vs,c,lw,dash,S){var q=[],lo=Math.min(P.yr[0],P.yr[1]),hi=Math.max(P.yr[0],P.yr[1]);
     for(var i=0;i<ts.length;i++){if(ts[i]<P.xr[0]-1e-9||ts[i]>P.xr[1]+1e-9)continue;var v=vs[i];
@@ -67,10 +72,9 @@
     var seedBtn=U.button(br,"もう一度（別の乱数で）",function(){seed++;sim();});
     var bd=U.svgbox(el,{scroll:true}),box=U.svgbox(el),ro=U.readout(el);
     var R=null,seed=1,m=1,NS=null;
-    function sd(a){var mu=0,v=0;a.forEach(function(x){mu+=x;});mu/=a.length;a.forEach(function(x){v+=(x-mu)*(x-mu);});return Math.sqrt(v/a.length);}
     function sim(){
       m=ld.get()?2:1;var slope=sl.get();
-      NS=null;if(nz.get()){var Q=_w01_sim(U,{Kp:kp.get(),m:m,tEnd:60,rec:0.001,noise:0.02,seed:seed});NS={su:sd(Q.u.slice(5000)),sy:sd(Q.y.slice(5000))};}
+      NS=nz.get()?_w01_noiseSd(kp.get(),0.02,m):null;
       R=_w01_sim(U,{Kp:kp.get(),L:0,m:m,tEnd:8,rec:0.01,noise:nz.get()?0.02:0,seed:seed,dFn:function(t){return slope&&t>=4-1e-9?_w01_dslope(m,3):0;}});
       draw();
     }
@@ -78,7 +82,7 @@
     function draw(){
       if(!R)return;
       seedBtn.style.display=nz.get()?"":"none";
-      var t=tt.get(),K=kp.get(),y=at(R.y,t),ym=at(R.ym,t),u=at(R.u,t),d=at(R.d,t),e=_W01_R-ym,u0=_W01_C*_W01_R,o=[];
+      var t=tt.get(),K=kp.get(),y=at(R.y,t),ym=at(R.ym,t),u=at(R.u,t),d=at(R.d,t),e=_w01_R-ym,u0=_w01_C*_w01_R,o=[];
       /* ブロック線図（図 e01_fb_bd と同じ並び） */
       var B={r0:18,br:70,s1:108,kp0:176,kp1:250,s2:300,sd:380,c0:428,c1:524,bp:592,end:690},Rr=15,yy=100,cy=yy+33,yu=yy-62,yf=yy+70;
       o.push(S.ARR(B.r0,yy,B.s1-Rr,yy,"muted",1.8));o.push(S.T(B.r0+2,yy-9,"目標値 r","start",10,"muted",true));
@@ -132,12 +136,12 @@
       q.push(S.T(x0,P2.y+P2.h+48,"青: 速度 y　"+(nz.get()?"青緑: 測った値　":"")+"金: 押す力 u　紫: 坂の力 d","start",9.5,"muted"));
       box.set(S.svg(Wd,P2.y+P2.h+56,q));
       /* 読み出し */
-      var acc=(u-_W01_C*y-d)/m,ess=(_W01_C*_W01_R-u0+(sl.get()?_w01_dslope(m,3):0))/(_W01_C+K),h="";
+      var acc=(u-_w01_C*y-d)/m,ess=(_w01_C*_w01_R-u0+(sl.get()?_w01_dslope(m,3):0))/(_w01_C+K),h="";
       h+="t = "+_w01_f(t,2)+" s: 目標値 r = 1.000 m/s、速度 y = <b>"+_w01_f(y,3)+" m/s</b>、測った値 = "+_w01_f(ym,3)+" m/s、偏差 = r − 測った値 = "+_w01_f(e,3)+" m/s<br>";
       h+="押す力 u = u<sub>0</sub> + K<sub>P</sub> × 偏差 = 2.00 + "+K+" × "+_w01_f(e,3)+" = <b>"+_w01_f(u,2)+" N</b><br>";
-      h+="後ろ向きの力: 抵抗 c y = 2 × "+_w01_f(y,3)+" = "+_w01_f(_W01_C*y,2)+" N、坂の力 d = "+_w01_f(d,2)+" N → 力の合計 "+_w01_f(u-_W01_C*y-d,2)+" N、加速度 "+_w01_f(acc,2)+" m/s²"+(Math.abs(acc)<0.02?'（<span class="ok">釣り合っている</span>）':"")+"<br>";
+      h+="後ろ向きの力: 抵抗 c y = 2 × "+_w01_f(y,3)+" = "+_w01_f(_w01_C*y,2)+" N、坂の力 d = "+_w01_f(d,2)+" N → 力の合計 "+_w01_f(u-_w01_C*y-d,2)+" N、加速度 "+_w01_f(acc,2)+" m/s²"+(Math.abs(acc)<0.02?'（<span class="ok">釣り合っている</span>）':"")+"<br>";
       h+="4 節の定常偏差の式: (c r − u<sub>0</sub> + d) ÷ (c + K<sub>P</sub>) = "+_w01_f(ess,3)+" m/s（"+(sl.get()?"坂の上":"平らな道")+"で落ち着いた後の値）";
-      if(nz.get()&&NS)h+="<br>観測ノイズによる揺れ（平らな道を 60 s 走らせたときの標準偏差）: 力 <b>"+_w01_f(NS.su,2)+" N</b>、速度 <b>"+_w01_f(NS.sy,4)+" m/s</b>";
+      if(nz.get()&&NS)h+="<br>観測ノイズによる揺れ（長い時間で見た標準偏差）: 力 <b>"+_w01_f(NS.su,2)+" N</b>、速度 <b>"+_w01_f(NS.sy,4)+" m/s</b>";
       ro.innerHTML=h+'<div class="wnote">台車は質量 '+m+' kg、抵抗の係数 c = 2 N·s/m、決めた力 u<sub>0</sub> = c r = 2 N。1 ms 刻みで計算した。観測ノイズは 0.01 s ごとに変わる値。</div>';
     }
     sim();
@@ -208,7 +212,7 @@
       var m=1+ms.get(),d0=_w01_dslope(m,deg),K=kp.get(),h="";
       var a8=cross(A,X1),b8=cross(B,X1),a13=cross(A,X2),b13=cross(B,X2),aE=cross(A,XE),bE=cross(B,XE);
       h+="坂の力 d = "+(1+ms.get())+" kg × 9.81 × sin "+deg+"° = "+_w01_f(d0,2)+" N<br>";
-      h+="上り坂の終わる直前（8 m）の速度: 開ループ <b>"+(a8?_w01_f(a8.y,3):"—")+" m/s</b>（式 r − d/c = "+_w01_f(1-d0/_W01_C,3)+"）、比例制御 <b>"+(b8?_w01_f(b8.y,3):"—")+" m/s</b>（式 r − d/(c + K<sub>P</sub>) = "+_w01_f(1-d0/(_W01_C+K),3)+"）<br>";
+      h+="上り坂の終わる直前（8 m）の速度: 開ループ <b>"+(a8?_w01_f(a8.y,3):"—")+" m/s</b>（式 r − d/c = "+_w01_f(1-d0/_w01_C,3)+"）、比例制御 <b>"+(b8?_w01_f(b8.y,3):"—")+" m/s</b>（式 r − d/(c + K<sub>P</sub>) = "+_w01_f(1-d0/(_w01_C+K),3)+"）<br>";
       h+="下り坂の終わる直前（13 m）の速度: 開ループ "+(a13?_w01_f(a13.y,3):"—")+" m/s、比例制御 "+(b13?_w01_f(b13.y,3):"—")+" m/s<br>";
       h+="16 m に着く時刻: 開ループ "+(aE?_w01_f(aE.t,1)+" s":"60 s で着かない")+"、比例制御 "+(bE?_w01_f(bE.t,1)+" s":"60 s で着かない")+(aE&&bE?"（差 "+_w01_f(aE.t-bE.t,1)+" s）":"");
       ro.innerHTML=h+'<div class="wnote">台車は質量 1 kg（＋荷物）、抵抗の係数 2 N·s/m。どちらも決めた力 2 N を出し、比例制御はそれに K<sub>P</sub> × 偏差を足す。坂の上の式の値は、坂が十分に長く、速度が落ち着いたときの値。「走らせる」は実際の 2 倍の速さで動く。</div>';
@@ -232,7 +236,7 @@
     var lo=U.checkbox(r2,"荷物 1 kg（質量 2 kg）",false,draw);
     var ff=U.checkbox(r2,"決めた力 u<sub>0</sub> = 2 N を足す",true,draw);
     var br=U.btnrow(el);
-    [2,8,14,20].forEach(function(k){U.button(br,"K<sub>P</sub> = "+k+"（L = 0.1 s）",function(){kp.set(k);ld.set(0.1);lo.set(false);ff.set(true);draw();});});
+    [8,2,14,20].forEach(function(k){U.button(br,(k===8?"本文の例: ":"")+"K<sub>P</sub> = "+k+"（L = 0.1 s）",function(){kp.set(k);ld.set(0.1);lo.set(false);ff.set(true);draw();});});
     U.button(br,"遅れなし（K<sub>P</sub> = 20）",function(){kp.set(20);ld.set(0);lo.set(false);ff.set(true);draw();});
     var box=U.svgbox(el),ro=U.readout(el),MP=null;
     U.ctl.drag(box,function(type,x,y){
@@ -242,7 +246,7 @@
       ld.set(Math.round(L/0.005)*0.005);kp.set(+K.toPrecision(3));draw();
     });
     function draw(){
-      var K=kp.get(),L=ld.get(),m=lo.get()?2:1,T=m/_W01_C,Kg=1/_W01_C,uff=ff.get(),bb=_w01_bounds(L,T,Kg);
+      var K=kp.get(),L=ld.get(),m=lo.get()?2:1,T=m/_w01_C,Kg=1/_w01_C,uff=ff.get(),bb=_w01_bounds(L,T,Kg);
       var nar=_w01_nar(box),Wd=nar?400:700,o=[];
       /* 地図 */
       var mx=nar?56:56,mw=nar?320:230,mh=nar?190:236,P=U.plot(mx,16,mw,mh,[0,0.3],[0.5,60],{ylog:true});MP=P;
@@ -280,7 +284,7 @@
       var n=R.y.length,last=R.y[n-1],tail=R.y.slice(Math.max(0,n-250)),amp=Math.max.apply(null,tail)-Math.min.apply(null,tail);
       if(R.t[n-1]<5.99||Math.abs(last)>50)grow=true;
       var cls=K<bb[0]?'<span class="ok">振動しない</span>':(K<bb[1]?"振動して収まる":'<span class="warn">振れが大きくなり続ける（不安定）</span>');
-      var d3=_w01_dslope(m,3),ess=(_W01_C*_W01_R-(uff?_W01_C*_W01_R:0)+d3)/(_W01_C+K),h="";
+      var d3=_w01_dslope(m,3),ess=(_w01_C*_w01_R-(uff?_w01_C*_w01_R:0)+d3)/(_w01_C+K),h="";
       h+="この組は "+cls+"。このむだ時間での境目: 振動し始める "+(isFinite(bb[0])?_w01_f(bb[0],1):"なし")+"、大きくなり始める "+(isFinite(bb[1])?_w01_f(bb[1],1):"なし")+" N/(m/s)<br>";
       h+="坂に入るまで（0〜3 s）: 最大の速度 "+(pk>50?"枠の外":_w01_f(pk,2)+" m/s")+(i95>=0?"、1 m/s の 95 % に初めて届く時刻 "+_w01_f(i95*0.004,2)+" s":"")+"<br>";
       if(peaks.length>=2&&!grow)h+="目標値を越えた分の比（次の山 ÷ 前の山）: "+_w01_f(peaks[1]/peaks[0],2)+" 倍<br>";
@@ -312,12 +316,12 @@
     var r2=U.ctrls(el);
     var dist=U.checkbox(r2,"20 s に給湯の温度が 50 °C に下がる",false,draw);
     var ro=U.readout(el);
-    var t,th,hmix,histT,histM,histK,running=false,inStart,doneAt,reached,leaves,inside,tmaxAfter,tminAfter;
+    var t,th,hmix,histT,histM,running=false,inStart,doneAt,reached,leaves,inside,tmaxAfter,tminAfter;
     var tick=U.ticker(function(){for(var i=0;i<5;i++)step();if(t>=TEND-1e-9){running=false;tick.stop();}draw();},50);
     function thot(tt){return (dist.get()&&tt>=20)?50:TH0;}
     function mixT(k,tt){return TC+k/100*(thot(tt)-TC);}
     function reset(){tick.stop();running=false;t=0;knob.set(20);var k=20;th=mixT(k,0);hmix=[];var nd=Math.round(dl.get()/DT);for(var i=0;i<=nd;i++)hmix.push(th);
-      histT=[[0,th]];histM=[[0,th]];histK=[[0,k]];inStart=null;doneAt=null;reached=null;leaves=0;inside=false;tmaxAfter=-Infinity;tminAfter=Infinity;draw();}
+      histT=[[0,th]];histM=[[0,th]];inStart=null;doneAt=null;reached=null;leaves=0;inside=false;tmaxAfter=-Infinity;tminAfter=Infinity;draw();}
     function step(){
       if(t>=TEND-1e-9)return;
       var k=knob.get();
@@ -329,7 +333,7 @@
       if(!ok&&inside){inside=false;inStart=null;leaves++;}
       if(reached!==null){tmaxAfter=Math.max(tmaxAfter,th);tminAfter=Math.min(tminAfter,th);}
       if(inside&&doneAt===null&&t-inStart>=5-1e-9)doneAt=t;
-      if(Math.round(t/DT)%5===0){histT.push([t,th]);histM.push([t,mx]);histK.push([t,k]);}
+      if(Math.round(t/DT)%5===0){histT.push([t,th]);histM.push([t,mx]);}
     }
     function wcol(v){return v<37?"signal":(v<39?"teal":(v<=41?"green":(v<=43?"gold":"alias")));}
     function draw(){

@@ -3,9 +3,9 @@
 import numpy as _f01_np
 
 # ---- 例の値（本文と同じ）: 台車 m = 1 kg、抵抗の係数 c = 2 N·s/m、目標 1 m/s、坂 3° ----
-_F01_C, _F01_G, _F01_R = 2.0, 9.81, 1.0
+_f01_C, _f01_G, _f01_R = 2.0, 9.81, 1.0
 def _f01_dslope(m, deg=3.0):
-    return m * _F01_G * math.sin(math.radians(deg))
+    return m * _f01_G * math.sin(math.radians(deg))
 
 def _f01_sim(Kp, L=0.0, m=1.0, tend=8.0, h=1e-3, slope_t=None, uff=True, noise=0.0, seed=1, hold=0.01, rec=0.005, y0=0.0):
     """台車の速度を h 刻みで進める（刻みの間は力が一定として、速度の式を厳密に解く）。
@@ -14,7 +14,7 @@ def _f01_sim(Kp, L=0.0, m=1.0, tend=8.0, h=1e-3, slope_t=None, uff=True, noise=0
     n = int(round(tend / h)); nd = int(round(L / h)); kr = max(1, int(round(rec / h))); kh = max(1, int(round(hold / h)))
     rng = _f01_np.random.default_rng(seed)
     hist = [0.0] * (n + 1); y = y0; nz = 0.0; out = []
-    a = math.exp(-_F01_C * h / m); u0 = _F01_C * _F01_R if uff else 0.0
+    a = math.exp(-_f01_C * h / m); u0 = _f01_C * _f01_R if uff else 0.0
     for k in range(n + 1):
         t = k * h
         hist[k] = y
@@ -22,11 +22,11 @@ def _f01_sim(Kp, L=0.0, m=1.0, tend=8.0, h=1e-3, slope_t=None, uff=True, noise=0
         if noise and k % kh == 0:
             nz = noise * rng.standard_normal()
         ymn = ym + (nz if noise else 0.0)
-        u = u0 + Kp * (_F01_R - ymn)
+        u = u0 + Kp * (_f01_R - ymn)
         d = _f01_dslope(m) if (slope_t is not None and t >= slope_t - 1e-9) else 0.0
         if k % kr == 0:
             out.append((t, y, ymn, u, d))
-        yinf = (u - d) / _F01_C
+        yinf = (u - d) / _f01_C
         y = yinf + (y - yinf) * a
     return out
 
@@ -79,11 +79,11 @@ def _f01_tx(x, y, s, a="start", sz=10, c=INK, b=False, halo=False):
     return "".join(o)
 
 # ---- ブロック線図の部品（この章のすべての線図で同じ大きさにする） ----
-_F01_SR = 15          # 加え合わせ点の半径
+_f01_SR = 15          # 加え合わせ点の半径
 def _f01_sum(x, y, signs, c=INK):
     """加え合わせ点。signs は {"l": "+", "t": "−", "b": "−", "r": "+"}: 矢印が入ってくる側と符号。
     丸を斜めの線で 4 つに区切り、矢印が入る側の区画に符号を小さく書く。"""
-    rr = _F01_SR; k = rr * 0.7071
+    rr = _f01_SR; k = rr * 0.7071
     o = [CIRC(x, y, rr, c=c, lw=1.5, fill=SCR),
          W(x - k, y - k, x + k, y + k, c=MUT, lw=0.9), W(x - k, y + k, x + k, y - k, c=MUT, lw=0.9)]
     pos = {"l": (-8.2, 3.9), "r": (8.2, 3.9), "t": (0, -4.6), "b": (0, 12.4)}
@@ -257,12 +257,12 @@ def _f01_bdrules_fig():
     y2 = 152
     o.append(T(14, y2, "(c) 加え合わせ点: 符号のとおりに足し引きする", "start", 11, INK, True))
     cx, cy2 = 170, y2 + 46
-    o.append(ARR(40, cy2, cx - _F01_SR, cy2, c=MUT, lw=1.8))
+    o.append(ARR(40, cy2, cx - _f01_SR, cy2, c=MUT, lw=1.8))
     o.append(T(86, cy2 - 8, "r = 1.0 m/s", "middle", 10, MUT, True))
-    o.append(ARR(cx, cy2 + 52, cx, cy2 + _F01_SR, c=SIG, lw=1.8))
+    o.append(ARR(cx, cy2 + 52, cx, cy2 + _f01_SR, c=SIG, lw=1.8))
     o.append(T(cx + 8, cy2 + 46, "y = 0.8 m/s", "start", 10, SIG, True))
     o.append(_f01_sum(cx, cy2, {"l": "+", "b": "−"}))
-    o.append(ARR(cx + _F01_SR, cy2, 318, cy2, c=ALI, lw=1.8))
+    o.append(ARR(cx + _f01_SR, cy2, 318, cy2, c=ALI, lw=1.8))
     o.append(T(250, cy2 - 8, "e = r − y = 0.2 m/s", "middle", 10, ALI, True))
     o.append(T(cx + 18, cy2 + 24, "丸の中の符号: 左から + 、下から −", "start", 9.5, MUT))
     # (d) 引き出し点
@@ -329,19 +329,19 @@ def _f01_bdac_fig():
     o.append(T(14, yb, "(b) ブロック線図", "start", 11, INK, True))
     y = yb + 52
     s1, s2 = 136, 404
-    o.append(ARR(20, y, s1 - _F01_SR, y, c=MUT, lw=1.8))
+    o.append(ARR(20, y, s1 - _f01_SR, y, c=MUT, lw=1.8))
     o.append(T(22, y - 9, "① 目標値 r", "start", 10, MUT, True))
     o.append(_f01_sum(s1, y, {"l": "+", "b": "−"}))
-    o.append(ARR(s1 + _F01_SR, y, 194, y, c=INK, lw=1.8))
+    o.append(ARR(s1 + _f01_SR, y, 194, y, c=INK, lw=1.8))
     o.append(T(171, y - 9, "偏差 e", "middle", 10, INK, True))
     o.append(_f01_blk(194, y - 21, 104, 42, "② 制御器", "マイコン"))
-    o.append(ARR(298, y, s2 - _F01_SR, y, c=GLD, lw=1.8))
+    o.append(ARR(298, y, s2 - _f01_SR, y, c=GLD, lw=1.8))
     o.append(T(346, y - 9, "③ 操作量 u", "middle", 10, GLD, True))
     o.append(T(346, y + 16, "冷やす強さ", "middle", 9.5, GLD))
     o.append(_f01_sum(s2, y, {"l": "−", "t": "+"}))
-    o.append(ARR(s2, y - 46, s2, y - _F01_SR, c=PUR, lw=1.8))
+    o.append(ARR(s2, y - 46, s2, y - _f01_SR, c=PUR, lw=1.8))
     o.append(T(s2 + 8, y - 34, "⑦ 外乱 d（入る熱）", "start", 10, PUR, True))
-    o.append(ARR(s2 + _F01_SR, y, 450, y, c=INK, lw=1.8))
+    o.append(ARR(s2 + _f01_SR, y, 450, y, c=INK, lw=1.8))
     o.append(_f01_blk(450, y - 21, 110, 42, "④ 制御対象", "部屋の空気", c=SIG))
     o.append(ARR(560, y, 690, y, c=SIG, lw=1.8))
     o.append(T(625, y - 9, "⑤ 制御量 y", "middle", 10, SIG, True))
@@ -353,18 +353,18 @@ def _f01_bdac_fig():
     o.append(ARR(bp, yf, 452, yf, c=SIG, lw=1.8))
     o.append(_f01_blk(352, yf - 18, 100, 36, "⑥ センサ", None, c=TEA, sz=10.5))
     o.append(W(352, yf, s1, yf, c=TEA, lw=1.8))
-    o.append(ARR(s1, yf, s1, y + _F01_SR, c=TEA, lw=1.8))
+    o.append(ARR(s1, yf, s1, y + _f01_SR, c=TEA, lw=1.8))
     o.append(T(250, yf - 8, "測った室温", "middle", 10, TEA, True))
     o.append(T(bp + 8, y + 44, "引き出し点", "start", 9.5, MUT))
     return SVG(700, yf + 26, o, "同じエアコンを、(a) 絵と (b) ブロック線図で描く。番号は同じものを指す。ブロック線図は、物の形ではなく、どの信号がどの信号を決めるかを描く。室温はセンサで測られて目標値と比べられ、その差（偏差）から制御器が冷やす強さを決める。部屋の温度は、入る熱（外乱）と取り去る熱の差で変わる。信号をたどると輪ができる。")
 F["e01_bd_ac"] = _f01_bdac_fig()
 
 # ==== 3・4 節: 台車の線図の並び（開ループと比例制御で同じ位置・大きさにする） ====
-_F01_BX = dict(r0=18, br=70, s1=108, kp=(176, 250), s2=300, sd=380, cart=(428, 524), bp=592, end=690)
+_f01_BX = dict(r0=18, br=70, s1=108, kp=(176, 250), s2=300, sd=380, cart=(428, 524), bp=592, end=690)
 
 def _f01_cart_bd(y, fb, vals=None, L=None):
     """台車の速度の線図。fb=False で開ループ、True で比例制御（センサと観測ノイズ付き）。vals は各信号の値の文字列。"""
-    B = _F01_BX; R = _F01_SR; o = []
+    B = _f01_BX; R = _f01_SR; o = []
     v = vals or {}
     cy = y + 33
     def chip(x, yy, key, c, a="middle"):
@@ -513,7 +513,7 @@ def _f01_leg(x, y, items, sz=10, gap=18):
     return "".join(o)
 
 # ==== 3 節: 開ループの速度の動き ====
-def _f01_resp_panel(o, Kp, title, ref=False):
+def _f01_resp_panel(o, Kp, ref=False):
     """止まった台車を 1 m/s で走らせ、4 s から 3° の上り坂。荷物なし（実線）と荷物 1 kg（破線）。"""
     p = Plot(64, 34, 606, 168, (0, 8), (0, 1.2))
     o.append(RECT(p.X(4), p.y, p.X(8) - p.X(4), p.h, 0, PSOFT, "none", 0))
@@ -539,7 +539,7 @@ def _f01_resp_panel(o, Kp, title, ref=False):
 
 def _f01_openresp_fig():
     o = []
-    p, q, runs = _f01_resp_panel(o, 0.0, "")
+    p, q, runs = _f01_resp_panel(o, 0.0)
     o.append(T(14, 18, "開ループ制御（決めた力 2 N を出し続ける）", "start", 11, INK, True))
     o.append(T(p.X(7.95), p.Y(0.743) - 7, "荷物なし 0.74 m/s", "end", 10, SIG, True, halo=True))
     o.append(T(p.X(7.95), p.Y(0.487) - 7, "荷物 1 kg 0.49 m/s", "end", 10, SIG, True, halo=True))
@@ -557,7 +557,7 @@ F["e01_open_resp"] = _f01_openresp_fig()
 # ==== 4 節: 比例制御の線図（坂の上で落ち着いたときの値） ====
 def _f01_fbbd_fig():
     o = []
-    d3 = _f01_dslope(1.0); e = d3 / (_F01_C + 8.0); y = 1.0 - e
+    d3 = _f01_dslope(1.0); e = d3 / (_f01_C + 8.0); y = 1.0 - e
     vals = {"r": "1.000 m/s", "e": "%.3f m/s" % e, "kpe": "%.2f N" % (8 * e), "u0": "2.00 N", "u": "%.2f N" % (2 + 8 * e),
             "d": "%.2f N" % d3, "y": "%.3f m/s" % y, "ym": "%.3f m/s" % y}
     o.append(_f01_tx(14, 18, "比例制御の線図。札は、坂 3° の上で落ち着いたときの値（K_P = 8 N/(m/s)、観測ノイズなし）", "start", 11, INK, True))
@@ -569,7 +569,7 @@ F["e01_fb_bd"] = _f01_fbbd_fig()
 # ==== 4 節: 比例制御の速度の動き ====
 def _f01_fbresp_fig():
     o = []
-    p, q, runs = _f01_resp_panel(o, 8.0, "", ref=True)
+    p, q, runs = _f01_resp_panel(o, 8.0, ref=True)
     o.append(_f01_tx(14, 18, "比例制御（K_P = 8 N/(m/s)）。灰色は開ループ", "start", 11, INK, True))
     o.append(T(p.X(7.95), p.Y(0.9487) - 7, "荷物なし 0.95 m/s", "end", 10, SIG, True, halo=True))
     o.append(T(p.X(5.6), p.Y(0.8973) + 15, "荷物 1 kg 0.90 m/s", "end", 10, SIG, True, halo=True))
@@ -591,12 +591,12 @@ def _f01_err_fig():
     p = Plot(70, 30, 430, 220, (0, 30), (0, 1.0))
     o.append(p.axes(xl="比例ゲイン [N/(m/s)]", yl="定常偏差 [m/s]", xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 0.2, 0.4, 0.6, 0.8, 1.0], yfmt=lambda v: "%.1f" % v))
     ks = [i * 0.1 for i in range(301)]
-    cases = [(_f01_dslope(1.0), SIG, None, 1.0, True), (_f01_dslope(2.0), SIG, "7 4", 2.0, True), (_F01_C * _F01_R, GLD, None, 1.0, False)]
+    cases = [(_f01_dslope(1.0), SIG, None, 1.0, True), (_f01_dslope(2.0), SIG, "7 4", 2.0, True), (_f01_C * _f01_R, GLD, None, 1.0, False)]
     for num, c, dash, m, uff in cases:
-        o.append(p.line([(k, num / (_F01_C + k)) for k in ks], c=c, lw=2.2, dash=dash))
+        o.append(p.line([(k, num / (_f01_C + k)) for k in ks], c=c, lw=2.2, dash=dash))
         for k in (0, 2, 4, 8, 16, 30):
             r = _f01_sim(k, m=m, tend=6.0, slope_t=0.0 if uff else None, uff=uff, rec=0.5)
-            o.append(CIRC(p.X(k), p.Y(_F01_R - r[-1][1]), 3.6, c=c, lw=1.6, fill=SCR))
+            o.append(CIRC(p.X(k), p.Y(_f01_R - r[-1][1]), 3.6, c=c, lw=1.6, fill=SCR))
     o.append(W(p.X(8), p.y, p.X(8), p.y + p.h, c=FNT, lw=1, dash="3 3"))
     o.append(T(p.X(8) + 4, p.Y(0.2) - 6, "0.200", "start", 9.5, GLD, True, halo=True))
     o.append(T(p.X(8) + 4, p.Y(0.1027) - 5, "0.103", "start", 9.5, SIG, True, halo=True))
@@ -618,13 +618,22 @@ def _f01_err_fig():
 F["e01_err"] = _f01_err_fig()
 
 # ==== 4 節: 観測ノイズ ====
+def _f01_noise_sd(Kp, sig=0.02, m=1.0, h=1e-3, nh=10):
+    """観測ノイズ（nh 刻みごとに変わる、標準偏差 sig の値）による、力と速度の揺れの標準偏差（長い時間で平均した値）。
+    1 刻みの間の速度の式を厳密に解いて、分散が釣り合う値を求める（数値計算の 200 s の値と一致する）。"""
+    lam = (_f01_C + Kp) / m; a = math.exp(-lam * h); A = a ** nh; g = Kp / (_f01_C + Kp)
+    Vk = (1 - A) * g * g * sig * sig / (1 + A)
+    M1 = sum(a ** j for j in range(nh)) / nh; M2 = sum(a ** (2 * j) for j in range(nh)) / nh
+    Vy = Vk * M2 + g * g * sig * sig * (1 - 2 * M1 + M2)
+    Vu = Kp * Kp * (Vy + sig * sig - 2 * (1 - M1) * g * sig * sig)
+    return math.sqrt(Vu), math.sqrt(Vy)
+
 def _f01_noise_fig():
     o = []
     o.append(T(14, 18, "平らな道を 1 m/s で走る台車（観測ノイズは 0.01 s ごとに変わる、標準偏差 0.02 m/s の値）", "start", 11, INK, True))
     for j, (Kp, x0) in enumerate(((8.0, 66), (30.0, 418))):
-        r = _f01_sim(Kp, tend=60.0, noise=0.02, seed=3, rec=0.001)
-        i0 = 5000
-        su = _f01_np.std([u for t, y, ym, u, d in r[i0:]]); sy = _f01_np.std([y for t, y, ym, u, d in r[i0:]])
+        r = _f01_sim(Kp, tend=6.0, noise=0.02, seed=3, rec=0.001)
+        su, sy = _f01_noise_sd(Kp)
         w = [(t - 4.0, y, ym, u) for t, y, ym, u, d in r if 4.0 <= t <= 5.5]
         o.append(_f01_tx(x0 - 50, 44, "(%s) K_P = %g N/(m/s)" % ("ab"[j], Kp), "start", 11, INK, True))
         p = Plot(x0, 56, 270, 110, (0, 1.5), (0.92, 1.08))
@@ -637,11 +646,11 @@ def _f01_noise_fig():
         o.append(q.line([(t, u) for t, y, ym, u in w], c=GLD, lw=1.2))
         o.append(T(q.X(1.48), q.Y(4) + 12, "力の揺れ %.2f N" % su, "end", 9.5, GLD, True, halo=True))
     o.append(LEGEND(66, 318, [(TEA, "測った値 y + n"), (SIG, "台車の速度 y"), (GLD, "押す力 u")]))
-    return SVG(700, 326, o, "観測ノイズの影響（揺れの大きさは標準偏差。60 s の計算から求めた）。制御器は測った値の揺れにも K<sub>P</sub> を掛けて力に足すので、比例ゲインが大きいほど力が大きく揺れる。台車の速度の揺れは、質量が速い力の変化をならすので小さいが、比例ゲインとともに増える。")
+    return SVG(700, 326, o, "観測ノイズの影響（揺れの大きさは、長い時間で見た標準偏差）。制御器は測った値の揺れにも K<sub>P</sub> を掛けて力に足すので、比例ゲインが大きいほど力が大きく揺れる。台車の速度の揺れは、質量が速い力の変化をならすので小さいが、比例ゲインとともに増える。")
 F["e01_noise"] = _f01_noise_fig()
 
 # ==== 5 節: 比例ゲインを 4 通りに ====
-_F01_GAINS = [(2.0, TEA), (8.0, SIG), (14.0, GLD), (20.0, ALI)]
+_f01_GAINS = [(2.0, TEA), (8.0, SIG), (14.0, GLD), (20.0, ALI)]
 
 def _f01_bounds(L, T_=0.5, K=0.5):
     """一次の台車 + 測定の遅れ L の比例制御の境目。返り値 (振動し始める K_P, 振れが大きくなり始める K_P)。"""
@@ -667,7 +676,7 @@ def _f01_gain4_fig():
         o.append(p.line([(0, 1.0), (6, 1.0)], c=MUT, lw=1.3, dash="5 3"))
         o.append(T(p.X(4.5), p.y + 14, "上り坂 3°", "middle", 9.5, PUR, True, halo=True))
         rows = []
-        for Kp, c in _F01_GAINS:
+        for Kp, c in _f01_GAINS:
             r = _f01_sim(Kp, L, tend=6.0, slope_t=3.0, rec=0.004)
             o.append(_f01_clipline(p, [(t, y) for t, y, ym, u, d in r], c, 1.9))
             ys = [y for t, y, ym, u, d in r]
@@ -683,7 +692,7 @@ def _f01_gain4_fig():
             xx = x0 - 48 + 124 + (i % 2) * 104
             yy = yt + (i // 2) * 16 - 8
             o.append(_f01_tx(xx, yy + 8 if i // 2 == 0 else yy + 8, ("K_P %g: " % Kp) + txt, "start", 9.5, c, True))
-    o.append(_f01_leg(62, 302, [(c, None, "K_P = %g N/(m/s)" % Kp) for Kp, c in _F01_GAINS]))
+    o.append(_f01_leg(62, 302, [(c, None, "K_P = %g N/(m/s)" % Kp) for Kp, c in _f01_GAINS]))
     return SVG(700, 312, o, "比例ゲインを 2・8・14・20 N/(m/s) にして、止まった台車を 1 m/s で走らせ、3 s から上り坂 3° に入る。(a) 測った値がすぐに届くと、ゲインを上げるほど速く近づき、坂の上の定常偏差も小さくなる。どのゲインでも目標値を越えない。(b) 測った値が 0.1 s 遅れて届くと、ゲインを上げるほど目標値を越えて振れ、20 N/(m/s) では振れが大きくなり続ける（線は枠を出たところで止めた）。")
 F["e01_gain4"] = _f01_gain4_fig()
 
@@ -741,7 +750,7 @@ def _f01_map_fig():
     o.append(T(p.X(0.21), p.Y(3.0), "振動して収まる", "middle", 10.5, GLD, True, halo=True))
     o.append(T(p.X(0.2), p.Y(30), "振れが大きくなり続ける", "middle", 10.5, ALI, True, halo=True))
     o.append(W(p.X(0.1), p.y, p.X(0.1), p.y + p.h, c=FNT, lw=1, dash="3 3"))
-    for Kp, c in _F01_GAINS:
+    for Kp, c in _f01_GAINS:
         o.append(D(p.X(0.1), p.Y(Kp), c, 4.6))
         o.append(T(p.X(0.1) - 8, p.Y(Kp) + 4, "%g" % Kp, "end", 10, c, True, halo=True))
     # 表
