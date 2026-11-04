@@ -185,23 +185,23 @@ def _f03_rate_fig():
     xb = 440
     o.append(T(xb, 18, "(b) 同じ式のブロック線図", "start", 11.5, INK, True))
     yy = 104
-    o.append(ARR(xb, yy, xb + 24, yy, c=GLD, lw=1.8))
+    o.append(ARR(xb, yy, xb + 20, yy, c=GLD, lw=1.8))
     o.append(TX(xb + 2, yy - 9, "u", "start", 10.5, GLD, True))
-    o.append(BOX(xb + 24, yy - 16, 32, 32, "× K", None, LIN, PAN, sz=10.5))
-    sx = xb + 84
-    o.append(ARR(xb + 56, yy, sx - 15, yy, c=GLD, lw=1.8))
-    o.append(TX(xb + 58, yy - 9, "Ku", "start", 10, GLD, True))
+    o.append(BOX(xb + 20, yy - 16, 30, 32, "× K", None, LIN, PAN, sz=10.5))
+    sx = xb + 90
+    o.append(ARR(xb + 50, yy, sx - 15, yy, c=GLD, lw=1.8))
+    o.append(TX(xb + 62, yy - 9, "Ku", "middle", 10, GLD, True))
     o.append(SUMJ(sx, yy, {"l": "+", "b": "−"}))
-    o.append(ARR(sx + 15, yy, sx + 46, yy, c=PUR, lw=1.8))
-    o.append(T(sx + 31, yy - 26, "残り", "middle", 10, PUR, True))
-    o.append(TX(sx + 31, yy - 12, "Ku − y", "middle", 9.5, PUR))
-    o.append(BOX(sx + 46, yy - 16, 32, 32, "÷ T", None, LIN, PAN, sz=10.5))
-    o.append(ARR(sx + 78, yy, sx + 100, yy, c=SIG, lw=1.8))
-    o.append(T(sx + 89, yy - 9, "ẏ", "middle", 11, SIG, True))
-    o.append(BOX(sx + 100, yy - 16, 38, 32, "積分", None, SIG, PAN, sz=10))
+    o.append(ARR(sx + 15, yy, sx + 44, yy, c=PUR, lw=1.8))
+    o.append(T(sx + 29, yy - 26, "残り", "middle", 10, PUR, True))
+    o.append(TX(sx + 29, yy - 12, "Ku − y", "middle", 9.5, PUR))
+    o.append(BOX(sx + 44, yy - 16, 42, 32, "× 1/T", None, LIN, PAN, sz=10))
+    o.append(ARR(sx + 86, yy, sx + 104, yy, c=SIG, lw=1.8))
+    o.append(T(sx + 95, yy - 9, "ẏ", "middle", 11, SIG, True))
+    o.append(BOX(sx + 104, yy - 16, 38, 32, "積分", None, SIG, PAN, sz=10))
     bp = sx + 152
-    o.append(ARR(sx + 138, yy, bp + 22, yy, c=SIG, lw=1.8))
-    o.append(T(bp + 9, yy - 9, "y", "middle", 11, SIG, True))
+    o.append(ARR(sx + 142, yy, bp + 16, yy, c=SIG, lw=1.8))
+    o.append(T(bp + 6, yy - 9, "y", "middle", 11, SIG, True))
     o.append(D(bp, yy, SIG, 3.8))
     o.append(W(bp, yy, bp, yy + 50, sx, yy + 50, c=SIG, lw=1.6))
     o.append(ARR(sx, yy + 50, sx, yy + 15, c=SIG, lw=1.6))
@@ -505,7 +505,7 @@ def _f03_square_fig():
             o.append(T(xr, y0 + 54, "幅 %.3f V" % (ymax - ymin), "start", 9.5, MUT))
         y0 += 124
     o.append(LEGL(70, y0 - 6, [(GLD, None, "入力 v（0 V と 1 V）"), (SIG, None, "コンデンサの電圧 v_c"), (MUT, "4 3", "式の y_max と y_min")]))
-    return SVG(700, y0 + 2, o, "RC 回路（T = 0.1 s）に方形波を加えたときの電圧。方形波は、増えるステップと減るステップが交互に並んだもので、応答はステップ応答を重ねたものになる。半周期 t_w が時定数より長いと出力は毎回ほぼ落ち着き、短いと平均 0.5 V のまわりで小さく往復するだけになる。破線は、往復が一定になったときの上端と下端の式の値。")
+    return SVG(700, y0 + 2, o, "RC 回路（T = 0.1 s）に方形波を加えたときの電圧。方形波は、増えるステップと減るステップが交互に並んだもので、応答はステップ応答を重ねたものになる。半周期 t<sub>w</sub> が時定数より長いと出力は毎回ほぼ落ち着き、短いと平均 0.5 V のまわりで小さく往復するだけになる。破線は、往復が一定になったときの上端と下端の式の値。")
 F["e03_square"] = _f03_square_fig()
 
 
@@ -959,12 +959,12 @@ def _f03_pctl_fig():
     xb = 470
     o.append(T(xb - 20, 18, "(b) 比例ゲインと時定数・定常偏差", "start", 11.5, INK, True))
     a = Plot(xb + 30, 46, 190, 84, (0, 30), (0, 0.55))
-    o.append(a.axes(xl=None, yl="T_cl [s]" if False else None, xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 0.25, 0.5], xfmt=lambda v: "", yfmt=_f03_fmt))
+    o.append(a.axes(xl=None, yl=None, xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 0.25, 0.5], xfmt=lambda v: "", yfmt=_f03_fmt))
     o.append(TX(a.x - 34, a.y - 6, "時定数 T_cl [s]", "start", 9.5, SIG, True))
     ks = _f03_np.linspace(0, 30, 301)
     o.append(a.line([(k, Tc / (1 + K * k)) for k in ks], c=SIG, lw=2))
     b = Plot(xb + 30, 166, 190, 86, (0, 30), (0, 0.3))
-    o.append(b.axes(xl="比例ゲイン K_P [N/(m/s)]" if False else None, yl=None, xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 0.1, 0.2, 0.3], xfmt=_f03_fmt, yfmt=_f03_fmt))
+    o.append(b.axes(xl=None, yl=None, xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 0.1, 0.2, 0.3], xfmt=_f03_fmt, yfmt=_f03_fmt))
     o.append(TX(b.x + b.w / 2, b.y + b.h + 31, "比例ゲイン K_P [N/(m/s)]", "middle", 10, MUT))
     o.append(TX(b.x - 34, b.y - 12, "坂の上の定常偏差 e_∞ [m/s]", "start", 9.5, PUR, True))
     o.append(b.line([(k, K * d3 / (1 + K * k)) for k in ks], c=PUR, lw=2))

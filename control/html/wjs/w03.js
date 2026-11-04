@@ -244,7 +244,7 @@
         ex.forEach(function(q){if(q[0]>=win-2*w-1e-9){lo=Math.min(lo,q[1]);hi=Math.max(hi,q[1]);}});
         h+="方形波（半周期 "+_w03_sig(w,3)+" s）: 往復の範囲の式 "+_w03_f(ymn,o.d)+"〜"+_w03_f(ymx,o.d)+" "+yu+"、数値で解いた最後の 1 周期 "+_w03_f(lo,o.d)+"〜"+_w03_f(hi,o.d)+" "+yu+"<br>";}
       if(M!==3)h+="足し合わせた応答と、微分方程式を細かい刻みで解いた応答の差: 最大 "+_w03_sig(maxd,2)+" "+yu+"<br>";
-      ro.innerHTML=h+'<div class="wnote">K = '+_w03_sig(K,3)+(o.uu==="N"?" (m/s)/N":(o.uu==="V"&&o.yu==="rad/s"?" (rad/s)/V":""))+'、T = '+_w03_sig(T,3)+' s。各ステップの応答は 2 節の式 a K (1 − e<sup>−(t − t₀)/T</sup>)。破線は 4 次のルンゲ・クッタ法（刻み幅は T と t<sub>w</sub> の小さい方の 1/60 以下）。</div>';
+      ro.innerHTML=h+'<div class="wnote">K = '+_w03_sig(K,3)+(o.uu==="N"?" (m/s)/N":(o.uu==="V"&&o.yu==="rad/s"?" (rad/s)/V":""))+'、T = '+_w03_sig(T,3)+' s。i 番目のステップ（時刻 t<sub>i</sub>、高さ Δu<sub>i</sub>）の応答は 2 節の式 K Δu<sub>i</sub> (1 − e<sup>−(t − t<sub>i</sub>)/T</sup>)。破線は 4 次のルンゲ・クッタ法（刻み幅は T と t<sub>w</sub> の小さい方の 1/60 以下）。</div>';
     }
     draw();
   };

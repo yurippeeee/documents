@@ -298,6 +298,31 @@ class Plot:
         return [10 ** k for k in range(lo, hi + 1) if r[0] * (1 - 1e-9) <= 10 ** k <= r[1] * (1 + 1e-9)]
     def line(self, pts, c=SIG, lw=2, dash=None):
         return PL([(self.X(a), self.Y(b)) for a, b in pts], c=c, lw=lw, dash=dash)
+    def clip(self, pts, c=SIG, lw=2, dash=None):
+        """枠の外に出る部分を切った折れ線（発散する応答や、目盛より大きい値を描くとき）。枠の境目で線を止める。"""
+        x0, x1 = sorted(self.xr); y0, y1 = sorted(self.yr)
+        runs, cur = [], []
+        for (ax, ay), (bx, by) in zip(pts[:-1], pts[1:]):
+            t0, t1, dx, dy = 0.0, 1.0, bx - ax, by - ay
+            ok = True
+            for p_, q_ in ((-dx, ax - x0), (dx, x1 - ax), (-dy, ay - y0), (dy, y1 - ay)):
+                if p_ == 0:
+                    if q_ < 0: ok = False; break
+                else:
+                    r_ = q_ / p_
+                    if p_ < 0: t0 = max(t0, r_)
+                    else: t1 = min(t1, r_)
+            if not ok or t0 > t1:
+                if cur: runs.append(cur); cur = []
+                continue
+            pa = (ax + t0 * dx, ay + t0 * dy); pb = (ax + t1 * dx, ay + t1 * dy)
+            if cur and (abs(cur[-1][0] - pa[0]) > 1e-12 * (1 + abs(pa[0])) or abs(cur[-1][1] - pa[1]) > 1e-12 * (1 + abs(pa[1]))):
+                runs.append(cur); cur = []
+            if not cur: cur = [pa]
+            cur.append(pb)
+            if t1 < 1.0: runs.append(cur); cur = []
+        if cur: runs.append(cur)
+        return "".join(self.line(r, c=c, lw=lw, dash=dash) for r in runs if len(r) >= 2)
     def steps(self, pts, c=SIG, lw=2, dash=None):
         """階段状の線（pts の各点から次の点の x まで水平に伸ばす）。"""
         q = []
