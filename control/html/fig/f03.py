@@ -416,18 +416,18 @@ def _f03_ramp_fig():
         yy = p.Y(K * vv)
         o.append(W(p.x + p.w, yy, p.x + p.w + 4, yy, c=GLD, lw=1))
         o.append(T(p.x + p.w + 7, yy + 3.5, "%d" % vv, "start", 9.5, GLD))
-    o.append(T(p.x + p.w + 30, p.y + p.h / 2, "電圧 [V]", "middle", 10, GLD, rot=90))
+    o.append(T(p.x + p.w + 30, p.y + p.h / 2, "電圧 [V]", "middle", 10, GLD, rot=-90))
     o.append(p.line(list(zip(ts, K * v)), c=GLD, lw=1.8, dash="6 3"))
     o.append(p.line(list(zip(ts, w)), c=SIG, lw=2.6))
-    o.append(T(p.X(0.26), p.Y(K * a_ * 0.26) - 8, "電圧 × K（= Kat）", "end", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(0.26), p.Y(K * a_ * 0.26) - 8, "電圧 × K（= Kαt）", "end", 9.5, GLD, True, halo=True))
     o.append(T(p.X(0.30), p.Y(K * a_ * (0.30 - Tm)) + 16, "角速度", "start", 9.5, SIG, True, halo=True))
-    # 遅れ T（横）と KaT（縦）
+    # 遅れ T（横）と KαT（縦）
     t1 = 0.4
     yv = K * a_ * (t1 - Tm)
     o.append(DIM(p.X(t1 - Tm), p.Y(yv), p.X(t1), p.Y(yv), None, c=ALI))
     o.append(T(p.X(t1 - Tm) - 4, p.Y(yv) + 4, "T = 0.05 s", "end", 9.5, ALI, True, halo=True))
     o.append(DIM(p.X(t1) + 6, p.Y(K * a_ * t1), p.X(t1) + 6, p.Y(yv), None, c=PUR))
-    o.append(T(p.X(t1) + 12, p.Y(K * a_ * t1 - 30) + 4, "KaT = 60 rad/s", "start", 9.5, PUR, True, halo=True))
+    o.append(T(p.X(t1) + 12, p.Y(K * a_ * t1 - 30) + 4, "KαT = 60 rad/s", "start", 9.5, PUR, True, halo=True))
     o.append(D(p.X(tr), p.Y(540), SIG, 3.6))
     o.append(T(p.X(tr) + 6, p.Y(540) + 14, "0.5 s で 540", "start", 9.5, SIG, True, halo=True))
     # (b) 電流
@@ -441,7 +441,7 @@ def _f03_ramp_fig():
     o.append(q.line(list(zip(ts, i_ramp)), c=SIG, lw=2.4))
     o.append(T(q.X(0.02) + 4, q.Y(6) + 4, "急に 12 V: 6 A", "start", 9.5, ALI, True, halo=True))
     o.append(T(q.X(0.1), q.Y(0.6) - 8, "0.5 s かけて: 0.6 A", "start", 9.5, SIG, True, halo=True))
-    return SVG(700, 290, o, "ランプ応答（モータ、K = 50 (rad/s)/V、T = 0.05 s）。(a) 電圧を一定の速さ 24 V/s で上げると、角速度は、電圧に K を掛けた直線より、ちょうど T だけ遅れてついていく（値では KaT = 60 rad/s だけ下）。0.5 s で上げるのを止めると、時定数 0.05 s で 600 rad/s に近づく。(b) 電流は 0.6 A を超えず、急に 12 V を加えたときの 6 A の 1/10 である（一次の式で計算した値）。")
+    return SVG(700, 290, o, "ランプ応答（モータ、K = 50 (rad/s)/V、T = 0.05 s）。(a) 電圧を一定の速さ 24 V/s で上げると、角速度は、電圧に K を掛けた直線より、ちょうど T だけ遅れてついていく（値では KαT = 60 rad/s だけ下）。0.5 s で上げるのを止めると、時定数 0.05 s で 600 rad/s に近づく。(b) 電流は 0.6 A を超えず、急に 12 V を加えたときの 6 A の 1/10 である（一次の式で計算した値）。")
 F["e03_ramp"] = _f03_ramp_fig()
 
 
@@ -643,20 +643,20 @@ def _f03_num(x, y, k, c=INK):
 def _f03_ident_read_fig():
     o = []
     K, Tp, L, dq = _F03_PLATE
-    p = Plot(66, 30, 430, 220, (-300, 3000), (20, 80))
-    o.append(p.axes(xl="ヒータの電力を変えてからの時間 t [s]", yl="温度 [°C]", xt=[0, 500, 1000, 1500, 2000, 2500, 3000], yt=[20, 30, 40, 50, 60, 70, 80], xfmt=_f03_fmt))
-    tp = _f03_np.linspace(-300, 3000, 1321)
+    p = Plot(66, 30, 430, 220, (-300, 4000), (20, 80))
+    o.append(p.axes(xl="ヒータの電力を変えてからの時間 t [s]", yl="温度 [°C]", xt=[0, 1000, 2000, 3000, 4000], yt=[20, 30, 40, 50, 60, 70, 80], xfmt=_f03_fmt))
+    tp = _f03_np.linspace(-300, 4000, 1721)
     yy = 25 + _f03_step(K, Tp, dq, tp, L)
     o.append(p.line(list(zip(tp, yy)), c=SIG, lw=2.4))
     # ① 始めの値・③ 落ち着いた値
-    o.append(W(p.X(-300), p.Y(25), p.X(3000), p.Y(25), c=MUT, lw=1, dash="4 3"))
-    o.append(W(p.X(-300), p.Y(75), p.X(3000), p.Y(75), c=MUT, lw=1, dash="4 3"))
-    o.append(_f03_num(p.X(-150), p.Y(25) - 14, 1))
-    o.append(T(p.X(-150) + 12, p.Y(25) - 10, "25.0 °C", "start", 9.5, INK, True, halo=True))
-    o.append(_f03_num(p.X(2700), p.Y(75) + 16, 3))
-    o.append(T(p.X(2700) - 12, p.Y(75) + 20, "75.0 °C", "end", 9.5, INK, True, halo=True))
-    o.append(DIM(p.X(2920), p.Y(25), p.X(2920), p.Y(75), None, c=PUR))
-    o.append(T(p.X(2880), p.Y(50), "50 K", "end", 10, PUR, True, halo=True))
+    o.append(W(p.X(-300), p.Y(25), p.X(4000), p.Y(25), c=MUT, lw=1, dash="4 3"))
+    o.append(W(p.X(-300), p.Y(75), p.X(4000), p.Y(75), c=MUT, lw=1, dash="4 3"))
+    o.append(_f03_num(p.X(-150), p.Y(25) + 10, 1))
+    o.append(T(p.X(-150) + 12, p.Y(25) + 14, "25.0 °C", "start", 9.5, INK, True, halo=True))
+    o.append(_f03_num(p.X(3600), p.Y(75) + 16, 3))
+    o.append(T(p.X(3600) - 12, p.Y(75) + 20, "75.0 °C", "end", 9.5, INK, True, halo=True))
+    o.append(DIM(p.X(3920), p.Y(25), p.X(3920), p.Y(75), None, c=PUR))
+    o.append(T(p.X(3870), p.Y(50), "50 K", "end", 10, PUR, True, halo=True))
     # ④ 接線
     o.append(W(p.X(L), p.Y(25), p.X(L + Tp), p.Y(75), c=GLD, lw=1.6, dash="6 3"))
     o.append(_f03_num(p.X(260), p.Y(25 + 0.1 * 240) - 4, 4, GLD))
@@ -671,12 +671,12 @@ def _f03_ident_read_fig():
     yb = p.y + p.h + 44
     o.append(T(p.x - 8, yb + 10, "ヒータ", "end", 9.5, GLD, True))
     o.append(RECT(p.x, yb, p.w, 14, 2, SCR, LIN, 0.8))
-    o.append(RECT(p.X(0), yb, p.X(3000) - p.X(0), 14, 0, GOSOFT, GLD, 1))
-    o.append(T(p.X(1500), yb + 11, "40 W", "middle", 9.5, GLD, True))
+    o.append(RECT(p.X(0), yb, p.X(4000) - p.X(0), 14, 0, GOSOFT, GLD, 1))
+    o.append(T(p.X(2000), yb + 11, "40 W", "middle", 9.5, GLD, True))
     o.append(T(p.X(-150), yb + 11, "0 W", "middle", 9.5, MUT))
     o.append(_f03_num(p.X(0) + 14, yb - 12, 2, GLD))
     # 拡大（始めの 100 s）
-    z = Plot(p.X(1450), p.Y(48), 150, 70, (0, 100), (24.5, 32))
+    z = Plot(p.X(1900), p.Y(48), 150, 70, (0, 100), (24.5, 32))
     o.append(RECT(z.x - 30, z.y - 22, z.w + 40, z.h + 56, 4, SCR, LIN, 0.9))
     o.append(z.axes(xl=None, yl=None, xt=[0, 20, 50, 100], yt=[25, 30], xfmt=_f03_fmt, yfmt=_f03_fmt, sz=8.5))
     tz = _f03_np.linspace(0, 100, 201)
@@ -706,7 +706,7 @@ F["e03_ident_read"] = _f03_ident_read_fig()
 
 
 # ---- 5 節: ノイズのある記録（固定の乱数の種）と、その読み取り ----
-def _f03_noisy(seed=7, sig=0.3, dt=5.0, t0=-300.0, t1=3000.0, two=False):
+def _f03_noisy(seed=7, sig=0.3, dt=5.0, t0=-300.0, t1=4000.0, two=False):
     rg = _f03_np.random.default_rng(seed)
     t = _f03_np.arange(t0, t1 + 1e-9, dt)
     K, Tp, L, dq = _F03_PLATE
@@ -760,14 +760,14 @@ def _f03_ident_noise_fig():
     t, y = _f03_noisy()
     r = _f03_read(t, y)
     o.append(T(14, 18, "(a) 観測ノイズのある記録（標準偏差 0.3 K、5 s ごと）を読む", "start", 11.5, INK, True))
-    p = Plot(66, 34, 470, 190, (-300, 3000), (20, 80))
-    o.append(p.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 500, 1000, 1500, 2000, 2500, 3000], yt=[20, 30, 40, 50, 60, 70, 80], xfmt=_f03_fmt))
-    o.append(RECT(p.X(2500), p.y, p.X(3000) - p.X(2500), p.h, 0, GSOFT, "none", 0))
+    p = Plot(66, 34, 470, 190, (-300, 4000), (20, 80))
+    o.append(p.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 1000, 2000, 3000, 4000], yt=[20, 30, 40, 50, 60, 70, 80], xfmt=_f03_fmt))
+    o.append(RECT(p.X(3500), p.y, p.X(4000) - p.X(3500), p.h, 0, GSOFT, "none", 0))
     o.append("".join(D(p.X(a), p.Y(b), TEA, 1.2) for a, b in zip(t, y)))
-    o.append(W(p.X(-300), p.Y(r["y0"]), p.X(3000), p.Y(r["y0"]), c=MUT, lw=1, dash="4 3"))
-    o.append(W(p.X(2500), p.Y(r["yinf"]), p.X(3000), p.Y(r["yinf"]), c=GRN, lw=2))
-    o.append(T(p.X(2750), p.Y(r["yinf"]) - 8, "平均 %.2f °C" % r["yinf"], "middle", 9.5, GRN, True, halo=True))
-    o.append(T(p.X(2750), p.y + p.h - 6, "最後の 500 s", "middle", 9.5, GRN, True, halo=True))
+    o.append(W(p.X(-300), p.Y(r["y0"]), p.X(4000), p.Y(r["y0"]), c=MUT, lw=1, dash="4 3"))
+    o.append(W(p.X(3500), p.Y(r["yinf"]), p.X(4000), p.Y(r["yinf"]), c=GRN, lw=2))
+    o.append(T(p.X(3750), p.Y(r["yinf"]) - 8, "平均 %.2f °C" % r["yinf"], "middle", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(3750), p.y + p.h - 6, "最後の 500 s", "middle", 9.5, GRN, True, halo=True))
     o.append(p.line([(a, b) for a, b in zip(t, r["ys"]) if a >= 0], c=SIG, lw=1.4))
     o.append(W(p.X(-300), p.Y(r["lev"]), p.X(r["t63"]), p.Y(r["lev"]), c=SIG, lw=1, dash="3 3"))
     o.append(D(p.X(r["t63"]), p.Y(r["lev"]), SIG, 4))
@@ -958,7 +958,7 @@ def _f03_pctl_fig():
     # (b) 時定数と定常偏差
     xb = 470
     o.append(T(xb - 20, 18, "(b) 比例ゲインと時定数・定常偏差", "start", 11.5, INK, True))
-    a = Plot(xb + 30, 34, 190, 92, (0, 30), (0, 0.55))
+    a = Plot(xb + 30, 46, 190, 84, (0, 30), (0, 0.55))
     o.append(a.axes(xl=None, yl="T_cl [s]" if False else None, xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 0.25, 0.5], xfmt=lambda v: "", yfmt=_f03_fmt))
     o.append(TX(a.x - 34, a.y - 6, "時定数 T_cl [s]", "start", 9.5, SIG, True))
     ks = _f03_np.linspace(0, 30, 301)
