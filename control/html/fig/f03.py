@@ -507,3 +507,522 @@ def _f03_square_fig():
     o.append(LEGL(70, y0 - 6, [(GLD, None, "入力 v（0 V と 1 V）"), (SIG, None, "コンデンサの電圧 v_c"), (MUT, "4 3", "式の y_max と y_min")]))
     return SVG(700, y0 + 2, o, "RC 回路（T = 0.1 s）に方形波を加えたときの電圧。方形波は、増えるステップと減るステップが交互に並んだもので、応答はステップ応答を重ねたものになる。半周期 t_w が時定数より長いと出力は毎回ほぼ落ち着き、短いと平均 0.5 V のまわりで小さく往復するだけになる。破線は、往復が一定になったときの上端と下端の式の値。")
 F["e03_square"] = _f03_square_fig()
+
+
+# =====================================================================
+# 4 節: むだ時間 — 運ばれる時間と、過去の値を貯める配列
+# =====================================================================
+def _f03_dead_pipe_fig():
+    o = []
+    o.append(T(14, 18, "(a) 配管を流れる湯: 混ぜ方を変えてから 1.2 s 後", "start", 11.5, INK, True))
+    # 弁と配管
+    o.append(BOX(14, 44, 70, 44, "混ぜる弁", None, GLD, GOSOFT, sz=10.5))
+    x0, x1, yp, hp = 92, 572, 56, 20
+    n = 20
+    for i in range(n):
+        xa = x0 + (x1 - x0) * i / n
+        hot = i < 12
+        o.append(RECT(xa, yp, (x1 - x0) / n, hp, 0, ASOFT if hot else SSOFT, ALI if hot else SIG, 0.6))
+    o.append(W(x0, yp, x1, yp, c=INK, lw=1.6)); o.append(W(x0, yp + hp, x1, yp + hp, c=INK, lw=1.6))
+    o.append(W(84, yp + hp / 2, x0, yp + hp / 2, c=INK, lw=1.6))
+    o.append(ARR(x0 + 6, yp + hp + 12, x0 + 70, yp + hp + 12, c=MUT, lw=1.4, head=6))
+    o.append(T(x0 + 76, yp + hp + 16, "流れの速さ 1 m/s", "start", 9.5, MUT))
+    xf = x0 + (x1 - x0) * 12 / n
+    o.append(W(xf, yp - 8, xf, yp + hp + 4, c=ALI, lw=1.6, dash="3 2"))
+    o.append(T(xf, yp - 12, "熱い湯の先頭（1.2 m）", "middle", 9.5, ALI, True))
+    o.append(T(x1 - 4, yp - 12, "まだぬるい湯", "end", 9.5, SIG, True))
+    # シャワーの口
+    o.append(RECT(x1, yp - 4, 30, hp + 8, 4, PAN, INK, 1.4))
+    for k in range(4):
+        o.append(W(x1 + 8 + k * 6, yp + hp + 6, x1 + 4 + k * 8, yp + hp + 30, c=SIG, lw=1.6, dash="3 4"))
+    o.append(T(x1 + 36, yp + 14, "シャワーの口", "start", 9.5, INK))
+    o.append(DIM(x0, 116, x1, 116, "長さ 2 m（L = 2 m ÷ 1 m/s = 2 s）", c=INK))
+    # 下: 入口と出口の温度
+    for k, (nm, Ls, c) in enumerate((("入口（弁）の温度", 0.0, GLD), ("出口（シャワーの口）の温度", 2.0, SIG))):
+        px = 70 + k * 330
+        p = Plot(px, 148, 250, 70, (-1, 5), (20, 45))
+        o.append(p.axes(xl="弁を回してからの時間 [s]", yl=None, xt=[-1, 0, 1, 2, 3, 4, 5], yt=[25, 40], xfmt=_f03_fmt))
+        o.append(T(px - 8, 140, nm, "start", 10, c, True))
+        o.append(p.line([(-1, 25), (Ls, 25), (Ls, 40), (5, 40)], c=c, lw=2.4))
+        o.append(W(p.X(1.2), p.y, p.X(1.2), p.y + p.h, c=ALI, lw=1, dash="3 3"))
+        o.append(T(p.X(1.2) + 3, p.y + p.h - 5, "1.2 s", "start", 9, ALI, halo=True))
+        o.append(T(p.x - 30, p.y + p.h / 2 + 4, "°C", "middle", 9, MUT))
+    o.append(T(330, 186, "→", "middle", 18, INK, True))
+    o.append(T(330, 204, "2 s 遅れる", "middle", 9.5, INK, True))
+    # (b) 配列
+    yb = 278
+    o.append(T(14, yb, "(b) 計算では: 過去の値を配列に貯め、N 個前を取り出す（L = 0.1 s、刻み幅 0.01 s → N = 10）", "start", 11.5, INK, True))
+    cx0, cw, cy0 = 120, 46, yb + 22
+    vals = [1, 1, 1, 1, 0, 0, 0, 0, 0, 0]
+    for i, v in enumerate(vals):
+        o.append(RECT(cx0 + i * cw, cy0, cw - 4, 30, 3, ASOFT if v else SSOFT, ALI if v else SIG, 1.1))
+        o.append(T(cx0 + i * cw + (cw - 4) / 2, cy0 + 20, str(v), "middle", 11, INK, True))
+        o.append(T(cx0 + i * cw + (cw - 4) / 2, cy0 + 46, ("%d 前" % (i + 1)) if i else "1 前", "middle", 9, MUT))
+    o.append(ARR(30, cy0 + 15, cx0 - 6, cy0 + 15, c=GLD, lw=1.8))
+    o.append(T(30, cy0 + 9, "今の入力を書く", "start", 9.5, GLD, True))
+    xe = cx0 + 10 * cw
+    o.append(ARR(xe, cy0 + 15, xe + 60, cy0 + 15, c=SIG, lw=1.8))
+    o.append(T(xe + 64, cy0 + 12, "10 個前", "start", 9.5, SIG, True))
+    o.append(T(xe + 64, cy0 + 25, "= 0.1 s 前", "start", 9.5, SIG, True))
+    o.append(T(cx0, cy0 + 70, "1 刻みごとに全体を 1 つ右へ送る（実際には、書く位置を 1 つずつ進める輪の形の配列にして、送る手間を省く）。", "start", 9.5, MUT))
+    o.append(T(cx0, cy0 + 86, "図は、0.04 s 前に入力が 0 から 1 に変わった所。出力（10 個前の値）が 1 になるのは、あと 0.06 s 後である。", "start", 9.5, MUT))
+    return SVG(700, cy0 + 96, o, "むだ時間。(a) 弁で混ぜ方を変えても、配管の中の湯が押し出されるまで、出口の温度は変わらない。長さ ÷ 流れの速さの時間だけ、入口の温度の変化が形を変えずに遅れて出口に現れる（値は例の値）。(b) 数値計算やマイコンでは、刻みごとの値を配列に貯めておき、むだ時間 ÷ 刻み幅の個数だけ前の値を取り出す。")
+F["e03_dead_pipe"] = _f03_dead_pipe_fig()
+
+
+# =====================================================================
+# 4 節: むだ時間と一次遅れの違い、温度の板の一次遅れ＋むだ時間
+# =====================================================================
+def _f03_dead_cmp_fig():
+    o = []
+    K, Tc = _F03_CART
+    ts = _f03_np.linspace(0, 3, 601)
+    pulse = lambda L: [(0, 0), (L, 0), (L, 2), (L + 1, 2), (L + 1, 0), (3, 0)]
+    resp = lambda L: _f03_step(K, Tc, 2, ts, L) - _f03_step(K, Tc, 2, ts, L + 1)
+    rows = [("(a) むだ時間 0.5 s だけ（届く力）", "力 [N]", (-0.3, 2.4), [0, 1, 2], "pure"),
+            ("(b) 一次遅れだけ（遅れずに届いた力で走る台車の速度）", "速度 [m/s]", (-0.1, 1.15), [0, 0.5, 1], "fo"),
+            ("(c) 一次遅れ＋むだ時間（0.5 s 遅れて届いた力で走る速度）", "速度 [m/s]", (-0.1, 1.15), [0, 0.5, 1], "fodt")]
+    y0 = 40
+    for k, (ttl, yl, yr, yt, kind) in enumerate(rows):
+        o.append(T(14, y0 - 10, ttl, "start", 10.5, INK, True))
+        p = Plot(70, y0, 300, 62, (0, 3), yr)
+        o.append(p.axes(xl="時間 t [s]" if k == 2 else None, yl=None, xt=[0, 0.5, 1, 1.5, 2, 2.5, 3], yt=yt, xfmt=(_f03_fmt if k == 2 else (lambda v: "")), yfmt=_f03_fmt))
+        o.append(T(p.x - 34, p.y + p.h / 2, yl, "middle", 9.5, MUT, rot=-90))
+        if kind == "pure":
+            o.append(p.line(pulse(0.0), c=GLD, lw=1.4, dash="5 3"))
+            o.append(p.line(pulse(0.5), c=SIG, lw=2.4))
+            o.append(T(p.X(1.6), p.Y(1.6), "形はそのまま", "start", 9.5, SIG, True, halo=True))
+        else:
+            sc = K  # K × 力（1 m/s）
+            o.append(p.line([(a, b * sc) for a, b in pulse(0.0)], c=GLD, lw=1.4, dash="5 3"))
+            L = 0.5 if kind == "fodt" else 0.0
+            o.append(p.line(list(zip(ts, resp(L))), c=SIG, lw=2.4))
+            pk = K * 2 * (1 - math.exp(-1 / Tc))
+            o.append(D(p.X(1 + L), p.Y(pk), SIG, 3.4))
+            o.append(T(p.X(1 + L) + 6, p.Y(pk) - 2, "%.3f m/s" % pk, "start", 9.5, SIG, True, halo=True))
+            if kind == "fodt":
+                o.append(T(p.X(0.04), p.Y(0.55), "0.5 s 動かない", "start", 9.5, ALI, True, halo=True))
+            else:
+                o.append(T(p.X(1.6), p.Y(0.75), "すぐ動き出すが角が丸い", "start", 9.5, SIG, True, halo=True))
+        y0 += 104
+    o.append(LEGL(70, y0 + 10, [(GLD, "5 3", "指令の力（(b)(c) は K 倍して m/s で）"), (SIG, None, "出力")]))
+    # (d) 温度の板
+    Kp_, Tp, Lp, dq = _F03_PLATE
+    xb = 452
+    o.append(T(xb - 30, 30, "(d) 温度の板: 0 W → 40 W", "start", 10.5, INK, True))
+    q = Plot(xb, 40, 230, 166, (0, 3000), (20, 80))
+    o.append(q.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 1000, 2000, 3000], yt=[20, 30, 40, 50, 60, 70, 80], xfmt=_f03_fmt))
+    tp = _f03_np.linspace(0, 3000, 601)
+    o.append(W(q.X(0), q.Y(75), q.X(3000), q.Y(75), c=MUT, lw=1, dash="4 3"))
+    o.append(q.line(list(zip(tp, 25 + _f03_step(Kp_, Tp, dq, tp, Lp))), c=SIG, lw=2.4))
+    y63 = 25 + Kp_ * dq * (1 - math.exp(-1))
+    o.append(D(q.X(Lp + Tp), q.Y(y63), SIG, 4))
+    o.append(T(q.X(Lp + Tp) + 6, q.Y(y63) + 15, "520 s で 56.6 °C", "start", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(2950), q.Y(75) - 5, "75 °C", "end", 9.5, MUT, halo=True))
+    # 拡大
+    z = Plot(xb + 110, 130 + 6, 110, 52, (0, 100), (24.5, 32))
+    o.append(RECT(z.x - 4, z.y - 4, z.w + 8, z.h + 8, 3, SCR, LIN, 0.8))
+    o.append(z.axes(xl=None, yl=None, xt=[0, 20, 100], yt=[25, 30], xfmt=_f03_fmt, yfmt=_f03_fmt, sz=8.5))
+    tz = _f03_np.linspace(0, 100, 201)
+    o.append(z.line(list(zip(tz, 25 + _f03_step(Kp_, Tp, dq, tz, Lp))), c=SIG, lw=2))
+    o.append(T(z.x + z.w / 2, z.y - 8, "始めの 100 s", "middle", 9, INK, True))
+    o.append(T(z.X(21), z.Y(25) - 5, "20 s 動かない", "start", 8.5, ALI, True, halo=True))
+    o.append(T(q.x, q.y + q.h + 46, "読み: 20 s 動かず、その後 0.1 K/s で上がり始める", "start", 9.5, INK))
+    return SVG(700, 374, o, "むだ時間と一次遅れの違い（(a)〜(c) は 2 N を 1 s 押す指令。台車は K = 0.5 (m/s)/N、T = 0.5 s。無線の遅れ 0.5 s は例の値）。(a) むだ時間は形を変えずにずらすだけ。(b) 一次遅れはすぐ動き始めるが、角が丸まる。(c) 両方が重なると、0.5 s の間は何も起きず、その後は (b) と同じ形で動く。(d) 温度の板（K = 1.25 K/W、T = 500 s、L = 20 s）のステップ応答。")
+F["e03_dead_cmp"] = _f03_dead_cmp_fig()
+
+
+# =====================================================================
+# 5 節: 同定 — 読み取りの手順
+# =====================================================================
+def _f03_num(x, y, k, c=INK):
+    """番号の丸。"""
+    return CIRC(x, y, 8, c=c, lw=1.4, fill=SCR) + T(x, y + 3.6, str(k), "middle", 10, c, True)
+
+
+def _f03_ident_read_fig():
+    o = []
+    K, Tp, L, dq = _F03_PLATE
+    p = Plot(66, 30, 430, 220, (-300, 3000), (20, 80))
+    o.append(p.axes(xl="ヒータの電力を変えてからの時間 t [s]", yl="温度 [°C]", xt=[0, 500, 1000, 1500, 2000, 2500, 3000], yt=[20, 30, 40, 50, 60, 70, 80], xfmt=_f03_fmt))
+    tp = _f03_np.linspace(-300, 3000, 1321)
+    yy = 25 + _f03_step(K, Tp, dq, tp, L)
+    o.append(p.line(list(zip(tp, yy)), c=SIG, lw=2.4))
+    # ① 始めの値・③ 落ち着いた値
+    o.append(W(p.X(-300), p.Y(25), p.X(3000), p.Y(25), c=MUT, lw=1, dash="4 3"))
+    o.append(W(p.X(-300), p.Y(75), p.X(3000), p.Y(75), c=MUT, lw=1, dash="4 3"))
+    o.append(_f03_num(p.X(-150), p.Y(25) - 14, 1))
+    o.append(T(p.X(-150) + 12, p.Y(25) - 10, "25.0 °C", "start", 9.5, INK, True, halo=True))
+    o.append(_f03_num(p.X(2700), p.Y(75) + 16, 3))
+    o.append(T(p.X(2700) - 12, p.Y(75) + 20, "75.0 °C", "end", 9.5, INK, True, halo=True))
+    o.append(DIM(p.X(2920), p.Y(25), p.X(2920), p.Y(75), None, c=PUR))
+    o.append(T(p.X(2880), p.Y(50), "50 K", "end", 10, PUR, True, halo=True))
+    # ④ 接線
+    o.append(W(p.X(L), p.Y(25), p.X(L + Tp), p.Y(75), c=GLD, lw=1.6, dash="6 3"))
+    o.append(_f03_num(p.X(260), p.Y(25 + 0.1 * 240) - 4, 4, GLD))
+    o.append(D(p.X(L + Tp), p.Y(75), GLD, 3.8))
+    # ⑤ 63.2 %
+    y63 = 25 + K * dq * (1 - math.exp(-1))
+    o.append(W(p.X(-300), p.Y(y63), p.X(L + Tp), p.Y(y63), c=SIG, lw=1, dash="3 3"))
+    o.append(W(p.X(L + Tp), p.Y(y63), p.X(L + Tp), p.Y(20), c=SIG, lw=1, dash="3 3"))
+    o.append(D(p.X(L + Tp), p.Y(y63), SIG, 4.2))
+    o.append(_f03_num(p.X(L + Tp) + 16, p.Y(y63) + 14, 5, SIG))
+    # ② 入力の帯
+    yb = p.y + p.h + 44
+    o.append(T(p.x - 8, yb + 10, "ヒータ", "end", 9.5, GLD, True))
+    o.append(RECT(p.x, yb, p.w, 14, 2, SCR, LIN, 0.8))
+    o.append(RECT(p.X(0), yb, p.X(3000) - p.X(0), 14, 0, GOSOFT, GLD, 1))
+    o.append(T(p.X(1500), yb + 11, "40 W", "middle", 9.5, GLD, True))
+    o.append(T(p.X(-150), yb + 11, "0 W", "middle", 9.5, MUT))
+    o.append(_f03_num(p.X(0) + 14, yb - 12, 2, GLD))
+    # 拡大（始めの 100 s）
+    z = Plot(p.X(1450), p.Y(48), 150, 70, (0, 100), (24.5, 32))
+    o.append(RECT(z.x - 30, z.y - 22, z.w + 40, z.h + 56, 4, SCR, LIN, 0.9))
+    o.append(z.axes(xl=None, yl=None, xt=[0, 20, 50, 100], yt=[25, 30], xfmt=_f03_fmt, yfmt=_f03_fmt, sz=8.5))
+    tz = _f03_np.linspace(0, 100, 201)
+    o.append(z.line(list(zip(tz, 25 + _f03_step(K, Tp, dq, tz, L))), c=SIG, lw=2))
+    o.append(z.line([(L, 25), (100, 25 + 0.1 * (100 - L))], c=GLD, lw=1.4, dash="5 3"))
+    o.append(D(z.X(L), z.Y(25), ALI, 3.6))
+    o.append(T(z.x + z.w / 2, z.y - 8, "④ 始めの 100 s を拡大", "middle", 9, INK, True))
+    o.append(T(z.x - 22, z.y + z.h + 28, "接線が 25.0 °C と交わる: 20 s", "start", 8.5, ALI, True))
+    # 右: 筆算
+    xr = 520
+    o.append(T(xr, 40, "読んだ値から計算する", "start", 10.5, INK, True))
+    lines = [(3, INK, "定常ゲイン"), (None, INK, "K = (75.0 − 25.0) ÷ 40"), (None, SIG, "　= 1.25 K/W"),
+             (4, GLD, "むだ時間"), (None, INK, "接線が 25.0 °C と交わる時刻"), (None, SIG, "L = 20 s"),
+             (5, SIG, "時定数"), (None, INK, "63.2 % の温度"), (None, INK, "25.0 + 0.632 × 50 = 56.6 °C"), (None, INK, "それに届く時刻 520 s から"), (None, SIG, "T = 520 − 20 = 500 s"),
+             (None, MUT, "（接線が 75.0 °C に届く"), (None, MUT, "　520 s から求めても同じ）")]
+    yy0 = 62
+    for k, (num, c, s) in enumerate(lines):
+        if num:
+            yy0 += 6
+            o.append(_f03_num(xr + 8, yy0 - 4, num, c))
+            o.append(T(xr + 22, yy0, s, "start", 10, c, True))
+        else:
+            o.append(T(xr + 4, yy0, s, "start", 9.5, c, c == SIG))
+        yy0 += 17
+    return SVG(700, yb + 24, o, "ステップ応答から一次遅れ＋むだ時間のモデルを求める手順（温度の板、ノイズの無い記録）。番号は本文の手順の番号。① 始めの値を記録し、② ヒータの電力を 40 W 上げ、③ 落ち着いた値から定常ゲインを、④ 最も急な所の接線からむだ時間を、⑤ 上がり幅の 63.2 % に届く時刻から時定数を読む。")
+F["e03_ident_read"] = _f03_ident_read_fig()
+
+
+# ---- 5 節: ノイズのある記録（固定の乱数の種）と、その読み取り ----
+def _f03_noisy(seed=7, sig=0.3, dt=5.0, t0=-300.0, t1=3000.0, two=False):
+    rg = _f03_np.random.default_rng(seed)
+    t = _f03_np.arange(t0, t1 + 1e-9, dt)
+    K, Tp, L, dq = _F03_PLATE
+    if two:
+        T1, T2 = 400.0, 100.0
+        tt = _f03_np.maximum(t, 0.0)
+        y = 25 + K * dq * (1 - (T1 * _f03_np.exp(-tt / T1) - T2 * _f03_np.exp(-tt / T2)) / (T1 - T2))
+    else:
+        y = 25 + _f03_step(K, Tp, dq, t, L)
+    return t, y + sig * rg.standard_normal(len(t))
+
+
+def _f03_read(t, y, dq=40.0, avg_from=None, win=100.0, smooth=9):
+    """本文の手順 3〜5 で読む。返り値 dict: y0, yinf, K, L, T63, Ttan, t63, slope, icpt。"""
+    t = _f03_np.asarray(t); y = _f03_np.asarray(y)
+    y0 = float(_f03_np.mean(y[t < 0])) if _f03_np.any(t < 0) else float(y[0])
+    tend = float(t[-1])
+    af = (tend - 500.0) if avg_from is None else avg_from
+    yinf = float(_f03_np.mean(y[t >= af]))
+    K = (yinf - y0) / dq
+    # ならした曲線（前後 smooth 点の平均）
+    h = smooth // 2
+    ys = _f03_np.array([_f03_np.mean(y[max(0, i - h):i + h + 1]) for i in range(len(y))])
+    lev = y0 + 0.632121 * (yinf - y0)
+    t63 = None
+    for i in range(1, len(t)):
+        if t[i] >= 0 and ys[i - 1] < lev <= ys[i]:
+            t63 = float(t[i - 1] + (lev - ys[i - 1]) / (ys[i] - ys[i - 1]) * (t[i] - t[i - 1]))
+            break
+    # 最も急な区間（幅 win）に直線を当てはめる
+    best = None
+    n = int(round(win / (t[1] - t[0]))) + 1
+    for i in range(len(t) - n):
+        if t[i] < 0 or t[i] > 0.5 * tend:
+            continue
+        tt, yy = t[i:i + n], y[i:i + n]
+        A = _f03_np.vstack([tt, _f03_np.ones_like(tt)]).T
+        sl, ic = _f03_np.linalg.lstsq(A, yy, rcond=None)[0]
+        if best is None or sl > best[0]:
+            best = (float(sl), float(ic))
+    sl, ic = best
+    L = (y0 - ic) / sl
+    ttan = (yinf - ic) / sl
+    return {"y0": y0, "yinf": yinf, "K": K, "L": L, "T63": (t63 - L) if t63 is not None else float("nan"), "Ttan": ttan - L,
+            "t63": t63, "slope": sl, "icpt": ic, "lev": lev, "ys": ys}
+
+
+def _f03_ident_noise_fig():
+    o = []
+    K, Tp, L, dq = _F03_PLATE
+    t, y = _f03_noisy()
+    r = _f03_read(t, y)
+    o.append(T(14, 18, "(a) 観測ノイズのある記録（標準偏差 0.3 K、5 s ごと）を読む", "start", 11.5, INK, True))
+    p = Plot(66, 34, 470, 190, (-300, 3000), (20, 80))
+    o.append(p.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 500, 1000, 1500, 2000, 2500, 3000], yt=[20, 30, 40, 50, 60, 70, 80], xfmt=_f03_fmt))
+    o.append(RECT(p.X(2500), p.y, p.X(3000) - p.X(2500), p.h, 0, GSOFT, "none", 0))
+    o.append("".join(D(p.X(a), p.Y(b), TEA, 1.2) for a, b in zip(t, y)))
+    o.append(W(p.X(-300), p.Y(r["y0"]), p.X(3000), p.Y(r["y0"]), c=MUT, lw=1, dash="4 3"))
+    o.append(W(p.X(2500), p.Y(r["yinf"]), p.X(3000), p.Y(r["yinf"]), c=GRN, lw=2))
+    o.append(T(p.X(2750), p.Y(r["yinf"]) - 8, "平均 %.2f °C" % r["yinf"], "middle", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(2750), p.y + p.h - 6, "最後の 500 s", "middle", 9.5, GRN, True, halo=True))
+    o.append(p.line([(a, b) for a, b in zip(t, r["ys"]) if a >= 0], c=SIG, lw=1.4))
+    o.append(W(p.X(-300), p.Y(r["lev"]), p.X(r["t63"]), p.Y(r["lev"]), c=SIG, lw=1, dash="3 3"))
+    o.append(D(p.X(r["t63"]), p.Y(r["lev"]), SIG, 4))
+    o.append(T(p.X(r["t63"]) + 8, p.Y(r["lev"]) + 16, "ならした曲線が 63.2 %% に届く: %.0f s" % r["t63"], "start", 9.5, SIG, True, halo=True))
+    sl, ic = r["slope"], r["icpt"]
+    o.append(W(p.X(r["L"]), p.Y(r["y0"]), p.X((r["yinf"] - ic) / sl), p.Y(r["yinf"]), c=GLD, lw=1.6, dash="6 3"))
+    o.append(T(p.X(620), p.Y(78), "← 最も急な 100 s の点に直線を当てはめた接線", "start", 9.5, GLD, True, halo=True))
+    xr = 552
+    o.append(T(xr, 48, "読んだ値", "start", 10.5, INK, True))
+    for k, (s, c) in enumerate((("K = %.3f K/W" % r["K"], SIG), ("L = %.0f s" % r["L"], GLD), ("T = %.0f s" % r["T63"], SIG),
+                                 ("本当の値", MUT), ("1.25 K/W・20 s・500 s", MUT))):
+        o.append(T(xr, 70 + k * 17 + (6 if k >= 3 else 0), s, "start", 10 if k < 3 else 9.5, c, k < 3))
+    o.append(T(xr, 170, "1 点だけで読むと、", "start", 9.5, INK))
+    o.append(T(xr, 184, "ノイズの分（±0.6 K", "start", 9.5, INK))
+    o.append(T(xr, 198, "ほど）ずれる", "start", 9.5, INK))
+    # (b) 記録が短い
+    yb = 284
+    o.append(T(14, yb, "(b) 記録を 1000 s で止める", "start", 11.5, INK, True))
+    q = Plot(66, yb + 16, 250, 150, (0, 2000), (20, 80))
+    o.append(q.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 500, 1000, 1500, 2000], yt=[20, 40, 60, 80], xfmt=_f03_fmt))
+    tq = _f03_np.linspace(0, 2000, 401)
+    yq = 25 + _f03_step(K, Tp, dq, tq, L)
+    o.append(q.line([(a, b) for a, b in zip(tq, yq) if a >= 1000], c=FNT, lw=1.6, dash="4 3"))
+    o.append(q.line([(a, b) for a, b in zip(tq, yq) if a <= 1000], c=SIG, lw=2.4))
+    yend = 25 + K * dq * (1 - math.exp(-(1000 - L) / Tp))
+    o.append(W(q.X(0), q.Y(yend), q.X(2000), q.Y(yend), c=ALI, lw=1.2, dash="5 3"))
+    o.append(W(q.X(0), q.Y(75), q.X(2000), q.Y(75), c=MUT, lw=1, dash="4 3"))
+    o.append(T(q.X(1980), q.Y(75) - 5, "本当は 75.0 °C", "end", 9.5, MUT, halo=True))
+    o.append(T(q.X(1980), q.Y(yend) + 14, "落ち着いたと見誤る %.1f °C" % yend, "end", 9.5, ALI, True, halo=True))
+    lev = 25 + 0.632121 * (yend - 25)
+    t63 = L - Tp * math.log(1 - (lev - 25) / (K * dq))
+    o.append(D(q.X(t63), q.Y(lev), ALI, 3.8))
+    o.append(W(q.X(t63), q.Y(lev), q.X(t63), q.Y(20), c=ALI, lw=1, dash="3 3"))
+    o.append(T(q.X(t63) + 6, q.Y(lev) + 26, "K = %.2f K/W" % ((yend - 25) / dq), "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(t63) + 6, q.Y(lev) + 40, "T = %.0f s と読み誤る" % (t63 - L), "start", 9.5, ALI, True, halo=True))
+    # (c) 遅れが 2 つ
+    xc = 380
+    o.append(T(xc, yb, "(c) 遅れが 2 つ重なる（400 s と 100 s）", "start", 11.5, INK, True))
+    c_ = Plot(xc + 52, yb + 16, 250, 150, (0, 2000), (20, 80))
+    o.append(c_.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 500, 1000, 1500, 2000], yt=[20, 40, 60, 80], xfmt=_f03_fmt))
+    T1, T2 = 400.0, 100.0
+    tc = _f03_np.linspace(0, 2000, 801)
+    yc = 25 + K * dq * (1 - (T1 * _f03_np.exp(-tc / T1) - T2 * _f03_np.exp(-tc / T2)) / (T1 - T2))
+    o.append(c_.line(list(zip(tc, yc)), c=SIG, lw=2.4))
+    ti = T1 * T2 / (T1 - T2) * math.log(T1 / T2)
+    yi = 25 + K * dq * (1 - (T1 * math.exp(-ti / T1) - T2 * math.exp(-ti / T2)) / (T1 - T2))
+    sl2 = K * dq * (math.exp(-ti / T1) - math.exp(-ti / T2)) / (T1 - T2)
+    La = ti - (yi - 25) / sl2
+    tb = ti + (75 - yi) / sl2
+    o.append(W(c_.X(La), c_.Y(25), c_.X(tb), c_.Y(75), c=GLD, lw=1.6, dash="6 3"))
+    o.append(W(c_.X(0), c_.Y(25), c_.X(2000), c_.Y(25), c=MUT, lw=1, dash="4 3"))
+    o.append(W(c_.X(0), c_.Y(75), c_.X(2000), c_.Y(75), c=MUT, lw=1, dash="4 3"))
+    o.append(D(c_.X(ti), c_.Y(yi), GLD, 3.6))
+    o.append(D(c_.X(La), c_.Y(25), ALI, 3.8))
+    o.append(T(c_.X(La) + 6, c_.Y(25) + 10, "見かけの L = %.0f s" % La, "start", 9.5, ALI, True, halo=True))
+    lev2 = 25 + 0.632121 * 50
+    i2 = int(_f03_np.argmax(yc >= lev2))
+    t632 = float(tc[i2 - 1] + (lev2 - yc[i2 - 1]) / (yc[i2] - yc[i2 - 1]) * (tc[i2] - tc[i2 - 1]))
+    o.append(D(c_.X(t632), c_.Y(lev2), SIG, 3.8))
+    o.append(T(c_.X(1980), c_.Y(48), "接線から T = %.0f s" % (tb - La), "end", 9.5, GLD, True, halo=True))
+    o.append(T(c_.X(1980), c_.Y(48) + 14, "63.2 %% から T = %.0f s" % (t632 - La), "end", 9.5, SIG, True, halo=True))
+    o.append(T(c_.X(1980), c_.Y(48) + 28, "（食い違う）", "end", 9.5, MUT, halo=True))
+    return SVG(700, yb + 16 + 150 + 42, o, "ノイズ・記録の長さ・遅れの重なり（温度の板、40 W のステップ）。(a) ノイズのある記録では、落ち着いた値を平均で、63.2 % の時刻をならした曲線で、接線を直線の当てはめで読む。(b) 落ち着く前に記録を止めると、定常ゲインと時定数を小さく読み誤る。(c) 一次遅れが 2 つ重なった対象は S 字形に上がり、むだ時間が無くても、接線で読むと見かけのむだ時間が現れる。")
+F["e03_ident_noise"] = _f03_ident_noise_fig()
+
+
+# =====================================================================
+# 6 節: 比例制御（1 章と同じ計算: 刻み h の間は力を一定として、速度の式を厳密に解く）
+# =====================================================================
+def _f03_psim(Kp, L=0.0, m=1.0, c=2.0, r=1.0, tend=6.0, h=1e-3, slope_t=3.0, uff=True, rec=0.004):
+    n = int(round(tend / h)); nd = int(round(L / h)); kr = max(1, int(round(rec / h)))
+    a = math.exp(-c * h / m); u0 = c * r if uff else 0.0
+    d3 = m * 9.81 * math.sin(math.radians(3))
+    hist = [0.0] * (n + 1); y = 0.0; out = []
+    for k in range(n + 1):
+        t = k * h
+        hist[k] = y
+        ym = hist[k - nd] if k >= nd else 0.0
+        u = u0 + Kp * (r - ym)
+        d = d3 if (slope_t is not None and t >= slope_t - 1e-9) else 0.0
+        if k % kr == 0:
+            out.append((t, y, u))
+        yi = (u - d) / c
+        y = yi + (y - yi) * a
+    return out
+
+
+def _f03_pform(Kp, t, m=1.0, c=2.0, r=1.0, slope_t=3.0, uff=True):
+    """6 節の式（一次遅れの閉ループ）。坂は重ね合わせで足す。"""
+    K, Tc = 1.0 / c, m / c
+    g = 1 + K * Kp
+    Tcl = Tc / g
+    fin = r if uff else K * Kp * r / g
+    y = fin * (1 - math.exp(-t / Tcl))
+    if slope_t is not None and t >= slope_t:
+        d3 = m * 9.81 * math.sin(math.radians(3))
+        y -= K * d3 / g * (1 - math.exp(-(t - slope_t) / Tcl))
+    return y
+
+
+def _f03_pbd_fig():
+    o = []
+    R = 15
+    B = dict(r0=18, br=70, s1=108, kp=(176, 250), s2=300, sd=380, pl=(428, 548), bp=600, end=690)
+    y = 112
+    o.append(TX(14, 18, "(a) 一次遅れ（台車の速度）を比例制御する線図", "start", 11.5, INK, True))
+    o.append(ARR(B["r0"], y, B["s1"] - R, y, c=MUT, lw=1.8))
+    o.append(T(B["r0"] + 2, y - 9, "目標値 r", "start", 10, MUT, True))
+    o.append(SUMJ(B["s1"], y, {"l": "+", "b": "−"}))
+    o.append(ARR(B["s1"] + R, y, B["kp"][0], y, c=ALI, lw=1.8))
+    o.append(T((B["s1"] + R + B["kp"][0]) / 2, y - 9, "偏差 e", "middle", 10, ALI, True))
+    o.append(RECT(B["kp"][0], y - 20, B["kp"][1] - B["kp"][0], 40, 6, PAN, SIG, 1.4))
+    o.append(TX((B["kp"][0] + B["kp"][1]) / 2, y + 5, "× K_P", "middle", 12, INK, True))
+    o.append(ARR(B["kp"][1], y, B["s2"] - R, y, c=GLD, lw=1.8))
+    o.append(TX((B["kp"][1] + B["s2"] - R) / 2, y - 9, "K_P e", "middle", 10, GLD, True))
+    yu = y - 62
+    o.append(D(B["br"], y, MUT, 3.6))
+    o.append(W(B["br"], y, B["br"], yu, c=MUT, lw=1.6))
+    o.append(ARR(B["br"], yu, B["kp"][0], yu, c=MUT, lw=1.6))
+    o.append(RECT(B["kp"][0], yu - 19, B["kp"][1] - B["kp"][0], 38, 6, PAN, LIN, 1.4, dash="5 3"))
+    o.append(T((B["kp"][0] + B["kp"][1]) / 2, yu - 3, "決めた力", "middle", 10.5, INK, True))
+    o.append(TX((B["kp"][0] + B["kp"][1]) / 2, yu + 12, "u_0 = c r", "middle", 9.5, MUT))
+    o.append(W(B["kp"][1], yu, B["s2"], yu, c=GLD, lw=1.8, dash="5 3"))
+    o.append(ARR(B["s2"], yu, B["s2"], y - R, c=GLD, lw=1.8, dash="5 3"))
+    o.append(SUMJ(B["s2"], y, {"l": "+", "t": "+"}))
+    o.append(ARR(B["s2"] + R, y, B["sd"] - R, y, c=GLD, lw=1.8))
+    o.append(T((B["s2"] + B["sd"]) / 2, y + 26, "操作量 u", "middle", 10, GLD, True))
+    o.append(SUMJ(B["sd"], y, {"l": "+", "t": "−"}))
+    o.append(ARR(B["sd"], y - 46, B["sd"], y - R, c=PUR, lw=1.8))
+    o.append(T(B["sd"] + 8, y - 34, "坂の力 d", "start", 10, PUR, True))
+    o.append(ARR(B["sd"] + R, y, B["pl"][0], y, c=INK, lw=1.8))
+    o.append(RECT(B["pl"][0], y - 24, B["pl"][1] - B["pl"][0], 48, 6, PAN, SIG, 1.4))
+    o.append(T((B["pl"][0] + B["pl"][1]) / 2, y - 7, "一次遅れ（台車）", "middle", 10.5, INK, True))
+    o.append(TX((B["pl"][0] + B["pl"][1]) / 2, y + 9, "T ẏ + y = K (u − d)", "middle", 9.5, INK))
+    o.append(ARR(B["pl"][1], y, B["end"], y, c=SIG, lw=1.8))
+    o.append(T(B["end"] - 2, y - 9, "制御量 y", "end", 10, SIG, True))
+    yf = y + 64
+    o.append(D(B["bp"], y, SIG, 4))
+    o.append(W(B["bp"], y, B["bp"], yf, B["s1"], yf, c=SIG, lw=1.8))
+    o.append(ARR(B["s1"], yf, B["s1"], y + R, c=SIG, lw=1.8))
+    o.append(T((B["s1"] + B["bp"]) / 2, yf - 7, "測った速度（遅れなし）", "middle", 10, SIG, True))
+    o.append(TX((B["pl"][0] + B["pl"][1]) / 2, y + 40, "T = m/c = 0.5 s、K = 1/c = 0.5 (m/s)/N", "middle", 9.5, MUT))
+    # (b) まとめると
+    yb = yf + 40
+    o.append(W(12, yb - 12, 688, yb - 12, c=LIN, lw=0.8))
+    o.append(T(14, yb + 6, "(b) 決めた力と坂の力が無いとき、まとめると 1 つの一次遅れになる", "start", 11.5, INK, True))
+    yy = yb + 54
+    o.append(ARR(18, yy, 160, yy, c=MUT, lw=1.8))
+    o.append(T(20, yy - 9, "目標値 r", "start", 10, MUT, True))
+    o.append(RECT(160, yy - 30, 300, 60, 6, SSOFT, SIG, 1.6))
+    o.append(T(310, yy - 12, "一次遅れ（閉ループ）", "middle", 10.5, INK, True))
+    o.append(TX(310, yy + 6, "時定数 T_cl = T ÷ (1 + K K_P)", "middle", 10, INK))
+    o.append(TX(310, yy + 21, "定常ゲイン K_cl = K K_P ÷ (1 + K K_P)", "middle", 10, INK))
+    o.append(ARR(460, yy, 560, yy, c=SIG, lw=1.8))
+    o.append(T(552, yy - 9, "制御量 y", "end", 10, SIG, True))
+    o.append(TX(574, yy - 16, "K_P = 8 N/(m/s) なら", "start", 9.5, SIG, True))
+    o.append(TX(574, yy - 1, "K K_P = 4、", "start", 9.5, INK))
+    o.append(TX(574, yy + 14, "T_cl = 0.1 s、K_cl = 0.8", "start", 9.5, INK))
+    return SVG(700, yy + 40, o, "一次遅れの比例制御。(a) 1 章 4 節と同じ並びの線図（破線の決めた力は、1 章の形で足すもの）。速度を測って目標値から引き、その K<sub>P</sub> 倍を操作量にする。(b) 決めた力と坂の力が無いとき、目標値から速度までをまとめると、時定数 T/(1 + KK<sub>P</sub>)、定常ゲイン KK<sub>P</sub>/(1 + KK<sub>P</sub>) の一次遅れになる。")
+F["e03_pbd"] = _f03_pbd_fig()
+
+
+_F03_GAINS = [(0.0, MUT), (2.0, TEA), (8.0, SIG), (14.0, GLD), (20.0, ALI)]
+
+
+def _f03_pctl_fig():
+    o = []
+    o.append(T(14, 18, "(a) 速度: シミュレーション（線）と 6 節の式（○ と □）", "start", 11.5, INK, True))
+    p = Plot(62, 34, 340, 210, (0, 6), (0, 1.2))
+    o.append(RECT(p.X(3), p.y, p.X(6) - p.X(3), p.h, 0, PSOFT, "none", 0))
+    o.append(p.axes(xl="時間 t [s]", yl="速度 y [m/s]", xt=[0, 1, 2, 3, 4, 5, 6], yt=[0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2], yfmt=lambda v: "%.1f" % v))
+    o.append(p.line([(0, 1.0), (6, 1.0)], c=MUT, lw=1.2, dash="5 3"))
+    o.append(T(p.X(4.5), p.y + 13, "上り坂 3°", "middle", 9.5, PUR, True, halo=True))
+    K, Tc = 0.5, 0.5
+    d3 = 9.81 * math.sin(math.radians(3))
+    for Kp, c in _F03_GAINS:
+        r = _f03_psim(Kp, 0.0)
+        o.append(p.line([(t, y) for t, y, u in r], c=c, lw=2.0))
+        g = 1 + K * Kp
+        Tcl = Tc / g
+        o.append(CIRC(p.X(Tcl), p.Y(0.632), 4.2, c=c, lw=1.8, fill=SCR))
+        fin = 1 - K * d3 / g
+        o.append(RECT(p.X(5.8) - 4, p.Y(fin) - 4, 8, 8, 1, SCR, c, 1.8))
+    o.append(TX(p.X(0.62), p.Y(0.45), "○: 時刻 T_cl に 63.2 %（式）", "start", 9.5, INK, True, halo=True))
+    o.append(T(p.X(5.6), p.Y(0.66), "□: 坂の上で", "end", 9.5, INK, True, halo=True))
+    o.append(TX(p.X(5.6), p.Y(0.66) + 13, "落ち着く r − K d ÷ (1 + K K_P)", "end", 9.5, INK, True, halo=True))
+    o.append(LEGL(62, 290, [(c, None, "K_P = %g" % Kp) for Kp, c in _F03_GAINS], sz=9.5, gap=12))
+    # (b) 時定数と定常偏差
+    xb = 470
+    o.append(T(xb - 20, 18, "(b) 比例ゲインと時定数・定常偏差", "start", 11.5, INK, True))
+    a = Plot(xb + 30, 34, 190, 92, (0, 30), (0, 0.55))
+    o.append(a.axes(xl=None, yl="T_cl [s]" if False else None, xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 0.25, 0.5], xfmt=lambda v: "", yfmt=_f03_fmt))
+    o.append(TX(a.x - 34, a.y - 6, "時定数 T_cl [s]", "start", 9.5, SIG, True))
+    ks = _f03_np.linspace(0, 30, 301)
+    o.append(a.line([(k, Tc / (1 + K * k)) for k in ks], c=SIG, lw=2))
+    b = Plot(xb + 30, 166, 190, 86, (0, 30), (0, 0.3))
+    o.append(b.axes(xl="比例ゲイン K_P [N/(m/s)]" if False else None, yl=None, xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 0.1, 0.2, 0.3], xfmt=_f03_fmt, yfmt=_f03_fmt))
+    o.append(TX(b.x + b.w / 2, b.y + b.h + 31, "比例ゲイン K_P [N/(m/s)]", "middle", 10, MUT))
+    o.append(TX(b.x - 34, b.y - 12, "坂の上の定常偏差 e_∞ [m/s]", "start", 9.5, PUR, True))
+    o.append(b.line([(k, K * d3 / (1 + K * k)) for k in ks], c=PUR, lw=2))
+    for Kp, c in _F03_GAINS:
+        g = 1 + K * Kp
+        o.append(D(a.X(Kp), a.Y(Tc / g), c, 4))
+        o.append(D(b.X(Kp), b.Y(K * d3 / g), c, 4))
+    o.append(T(a.X(8) + 6, a.Y(0.1) - 6, "8 で 0.1 s", "start", 9.5, SIG, True, halo=True))
+    o.append(T(b.X(8) + 6, b.Y(K * d3 / 5) - 6, "8 で 0.051 m/s", "start", 9.5, PUR, True, halo=True))
+    o.append(T(a.X(0) + 8, a.Y(0.5) + 4, "0（開ループ）で 0.5 s", "start", 9.5, MUT, True, halo=True))
+    return SVG(700, 300, o, "1 章の台車（m = 1 kg、c = 2 N·s/m、決めた力あり、3 s から上り坂 3°）。(a) 線は 1 章と同じ数値計算、○ と □ は 6 節の式の値で、一致する。どの比例ゲインでも、速度は目標値を越えずに近づく。(b) 時定数と定常偏差は、どちらも 1/(1 + KK<sub>P</sub>) 倍になる。点は (a) の 5 つの比例ゲイン。")
+F["e03_pctl"] = _f03_pctl_fig()
+
+
+def _f03_stopline(p, pts, c, lw=2.0):
+    """範囲の外に出たところで線を止める（大きくなり続ける応答の描き方。1 章と同じ）。"""
+    lo, hi = min(p.yr), max(p.yr)
+    q = []
+    for a, b in pts:
+        if b > hi or b < lo:
+            q.append((p.X(a), p.Y(min(max(b, lo), hi))))
+            break
+        q.append((p.X(a), p.Y(b)))
+    return PL(q, c=c, lw=lw)
+
+
+def _f03_pdelay_fig():
+    o = []
+    o.append(T(14, 18, "測った速度が 0.1 s 遅れて届くとき（決めた力あり、3 s から上り坂 3°）", "start", 11.5, INK, True))
+    p = Plot(62, 34, 470, 230, (0, 6), (0, 2.0))
+    o.append(RECT(p.X(3), p.y, p.X(6) - p.X(3), p.h, 0, PSOFT, "none", 0))
+    o.append(p.axes(xl="時間 t [s]", yl="速度 y [m/s]", xt=[0, 1, 2, 3, 4, 5, 6], yt=[0, 0.5, 1.0, 1.5, 2.0], yfmt=lambda v: "%.1f" % v))
+    o.append(p.line([(0, 1.0), (6, 1.0)], c=MUT, lw=1.2, dash="5 3"))
+    o.append(T(p.X(4.5), p.y + 13, "上り坂 3°", "middle", 9.5, PUR, True, halo=True))
+    ts = _f03_np.linspace(0, 6, 1201)
+    for Kp, c in ((8.0, SIG), (14.0, GLD), (20.0, ALI)):
+        r = _f03_psim(Kp, 0.1)
+        o.append(_f03_stopline(p, [(t, y) for t, y, u in r], c, 2.2))
+        if Kp < 20:
+            o.append(p.line([(t, _f03_pform(Kp, t)) for t in ts], c=c, lw=1.5, dash="5 3"))
+            pk = max((y, t) for t, y, u in r if t < 3)
+            o.append(D(p.X(pk[1]), p.Y(pk[0]), c, 3.6))
+    o.append(TX(p.X(1.3), p.Y(1.9), "K_P = 8: 最大 1.30 m/s", "start", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(1.3), p.Y(1.9) + 15, "K_P = 14: 最大 1.82 m/s", "start", 9.5, GLD, True, halo=True))
+    o.append(TX(p.X(1.3), p.Y(1.9) + 30, "K_P = 20: 振れが大きくなり続ける（枠を出た所で止めた）", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(3.15), p.Y(0.5), "破線: 6 節の式（遅れを含まない）は", "start", 9.5, INK, True, halo=True))
+    o.append(T(p.X(3.15), p.Y(0.5) + 14, "目標値を越えずに近づくと答える", "start", 9.5, INK, halo=True))
+    o.append(TX(p.X(5.95), p.Y(0.949) - 26, "落ち着く値は式どおり", "end", 9.5, INK, True, halo=True))
+    o.append(TX(p.X(5.95), p.Y(0.949) - 12, "（K_P = 8 で 0.949 m/s、14 で 0.968 m/s）", "end", 9.5, INK, halo=True))
+    # 右: 説明
+    xr = 552
+    o.append(T(xr, 50, "制御器が使う値", "start", 10, INK, True))
+    o.append(BOX(xr, 62, 130, 34, "むだ時間 0.1 s", None, TEA, TSOFT, sz=10))
+    o.append(TX(xr, 118, "y(t − L) を使うので、", "start", 9.5, INK))
+    o.append(TX(xr, 133, "式の y(t) と", "start", 9.5, INK))
+    o.append(T(xr, 148, "まとめられない", "start", 9.5, INK))
+    o.append(T(xr, 176, "落ち着いた後は", "start", 9.5, INK))
+    o.append(TX(xr, 191, "y(t − L) = y(t) なので、", "start", 9.5, INK))
+    o.append(T(xr, 206, "落ち着く値は式で求まる", "start", 9.5, INK))
+    return SVG(700, 306, o, "むだ時間があるときの比例制御（1 章 5 節の (b) と同じ条件）。実線は数値計算、破線は 6 節の一次遅れの式。式は振動を表せず、行き過ぎの大きさも、振れが大きくなり続けることも分からない。一方、落ち着く場合の落ち着く値は、式と一致する。")
+F["e03_pdelay"] = _f03_pdelay_fig()
