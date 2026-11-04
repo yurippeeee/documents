@@ -273,7 +273,8 @@
         var tm,ex=function(v){return Math.abs(v)<1e-12?"":"e<sup>"+(Math.abs(v+1)<1e-12?"−":(Math.abs(v-1)<1e-12?"":_w05_sig(v,4)))+"t</sup>";};
         if(g.lam.im<-1e-9)tm="（上の組の共役）";
         else if(g.lam.im>1e-9){var A=g.A[0],B=2*A.re*sc,C=-2*A.im*sc,w=_w05_sig(g.lam.im,4);
-          tm=ex(g.lam.re)+"("+_w05_sig(B,4)+" cos "+w+"t "+(C>=0?"+ ":"− ")+_w05_sig(Math.abs(C),4)+" sin "+w+"t)";}
+          var c1=function(v){return Math.abs(Math.abs(v)-1)<1e-9?(v<0?"−":""):_w05_sig(v,4)+" ";};
+          tm=ex(g.lam.re)+"("+c1(B)+"cos "+w+"t "+(C>=0?"+ ":"− ")+(Math.abs(Math.abs(C)-1)<1e-9?"":_w05_sig(Math.abs(C),4)+" ")+"sin "+w+"t)";}
         else{tm="";g.A.forEach(function(A,k){var v=A.re*sc/(k===2?2:1),tp=k===0?"":(k===1?"t":"t²"),e1=ex(g.lam.re),body=(tp?tp:"")+(tp&&e1?"·":"")+e1;
           var mag=_w05_sig(Math.abs(v),4),piece=(body?(Math.abs(Math.abs(v)-1)<1e-12?"":mag+"·")+body:mag);
           tm+=(tm?(v<0?" − ":" + "):(v<0?"−":""))+piece;});}
@@ -386,11 +387,11 @@
     {nm:"台車の速度＋むだ時間 0.5 s",g:function(t){return t<0.5?0:Math.exp(-2*(t-0.5));},un:"m/s",sc:1,gu:"(m/s)/(N·s)",ode:"fo",L:0.5,Gs:"G(s) = e^{−0.5s}/(s + 2)"}
   ];
   var _W05_IN=[
-    {nm:"三角（0 → 2 N → 0、本文の例）",u:function(t){return t<0||t>=2?0:(t<1?2*t:2*(2-t));},Us:"U(s) = 2(1 − e^{−s})²/s²"},
-    {nm:"ステップ 1 N",u:function(t){return t<0?0:1;},Us:"U(s) = 1/s"},
-    {nm:"パルス 2 N を 1 s（3 章 3 節）",u:function(t){return t<0||t>=1?0:2;},Us:"U(s) = 2(1 − e^{−s})/s"},
-    {nm:"方形波（1 N と 0 を 1 s ごと）",u:function(t){return t<0?0:(Math.floor(t)%2===0?1:0);},Us:"U(s) = 1/(s(1 + e^{−s}))"},
-    {nm:"ランプ 0.5 N/s",u:function(t){return t<0?0:0.5*t;},Us:"U(s) = 0.5/s²"}
+    {nm:"三角（0 → 2 N → 0、本文の例）",u:function(t){return t<0||t>=2?0:(t<1?2*t:2*(2-t));},br:[0,1,2],Us:"U(s) = 2(1 − e^{−s})²/s²"},
+    {nm:"ステップ 1 N",u:function(t){return t<0?0:1;},br:[0],Us:"U(s) = 1/s"},
+    {nm:"パルス 2 N を 1 s（3 章 3 節）",u:function(t){return t<0||t>=1?0:2;},br:[0,1],Us:"U(s) = 2(1 − e^{−s})/s"},
+    {nm:"方形波（1 N と 0 を 1 s ごと）",u:function(t){return t<0?0:(Math.floor(t)%2===0?1:0);},br:[0,1,2,3,4,5,6],Us:"U(s) = 1/(s(1 + e^{−s}))"},
+    {nm:"ランプ 0.5 N/s",u:function(t){return t<0?0:0.5*t;},br:[0],Us:"U(s) = 0.5/s²"}
   ];
   REG.w05_conv=function(el,U){
     var S=U.S,TE=6;
@@ -409,13 +410,21 @@
     var box=U.svgbox(el),ro=U.readout(el),Y=null;
     /* 微分方程式を 4 次のルンゲ・クッタ法で解く（畳み込みの値と比べるため） */
     function sim(){
-      var s=_W05_SYS[sy.get()],u=_W05_IN[ip.get()].u,h=0.0005,n=Math.round(TE/h),out=[[0,0]],x=[0,0];
-      var f=s.ode==="fo"?function(t,q){return [(0.5*u(t-s.L)-q[0])/0.5,0];}:function(t,q){return [q[1],u(t)-2*q[1]-25*q[0]];};
-      for(var k=0;k<n;k++){x=U.ctl.rk4(f,k*h,x,h);if((k+1)%20===0)out.push([(k+1)*h,x[0]*s.sc]);}
+      var s=_W05_SYS[sy.get()],u0=_W05_IN[ip.get()].u,h=0.0005,n=Math.round(TE/h),out=[[0,0]],x=[0,0],t0=0;
+      /* 入力の段が刻みの境目に来ても、刻みの中の値を使うように、始めと終わりの点では内側から読む */
+      var u=function(tt){var te=tt;if(Math.abs(tt-t0)<1e-12)te=tt+1e-9;else if(Math.abs(tt-t0-h)<1e-12)te=tt-1e-9;return u0(te-s.L);};
+      var f=s.ode==="fo"?function(t,q){return [(0.5*u(t)-q[0])/0.5,0];}:function(t,q){return [q[1],u(t)-2*q[1]-25*q[0]];};
+      for(var k=0;k<n;k++){t0=k*h;x=U.ctl.rk4(f,t0,x,h);if((k+1)%20===0)out.push([(k+1)*h,x[0]*s.sc]);}
       Y=out;draw();
     }
-    function conv(s,u,t){var n=Math.max(400,Math.round(t*1000)),h=t/n,v=0;if(t<=0)return 0;
-      for(var k=0;k<=n;k++){var a=k*h,w=(k===0||k===n)?0.5:1;v+=w*s.g(a)*u(t-a);}return v*h*s.sc;}
+    /* 畳み込みの積分: 入力の段・折れ目と、g の始まりの時刻で区切り、区間ごとにシンプソンの公式で積分する */
+    function conv(s,inp,t){if(t<=0)return 0;var bp=[0,t];if(s.L>0&&s.L<t)bp.push(s.L);
+      (inp.br||[]).forEach(function(d){var a=t-d;if(a>0&&a<t)bp.push(a);});
+      bp.sort(function(a,b){return a-b;});var v=0;
+      for(var i=0;i+1<bp.length;i++){var a=bp[i],b=bp[i+1];if(b-a<1e-12)continue;var m=64,h=(b-a)/m,acc=0;
+        for(var k=0;k<=m;k++){var x=a+k*h;if(k===0)x+=1e-12;if(k===m)x-=1e-12;var w=(k===0||k===m)?1:(k%2?4:2);acc+=w*s.g(x)*inp.u(t-x);}
+        v+=acc*h/3;}
+      return v*s.sc;}
     function draw(){
       if(!Y)return;
       var s=_W05_SYS[sy.get()],inp=_W05_IN[ip.get()],u=inp.u,t=tt.get(),nar=_w05_nar(box),Wd=nar?400:700,o=[];
@@ -435,7 +444,7 @@
       var B=U.plot(x0,A.y+A.h+36,pw,nar?80:90,[0,TE],[pmin*1.15,pmax*1.15]);
       o.push(B.axes({xl:"τ [s]（何秒前か）",yl:null,xt:[0,1,2,3,4,5,6],yt:U.nice(pmin,pmax,2).filter(function(v){return v>=pmin*1.15&&v<=pmax*1.15;}),xfmt:function(v){return String(v);},yfmt:function(v){return _w05_sig(v,2);}}));
       if(pr.length>1){o.push(_w05_fill(B,pr,"signal",U,0.9));o.push(B.line(pr,"signal",2));}
-      var yc=conv(s,u,t);
+      var yc=conv(s,inp,t);
       o.push(S.T(B.x+B.w,B.y-6,"積 g(τ)u(t − τ) の面積 = "+_w05_f(yc,3)+" "+s.un,"end",10,"signal",true));
       /* 下: y(t) */
       var yv=Y.map(function(q){return q[1];}),ymx=Math.max.apply(null,yv),ymn=Math.min(0,Math.min.apply(null,yv)),pd=(ymx-ymn)*0.1||0.1;
@@ -450,7 +459,7 @@
       var h="時刻 t = "+_w05_f(t,2)+" s: 畳み込み ∫ g(τ)u(t − τ)dτ = <b>"+_w05_f(yc,3)+" "+s.un+"</b>、微分方程式を数値で解いた値 "+_w05_f(yo,3)+" "+s.un+"<br>";
       h+="変換すると掛け算: Y(s) = G(s)U(s)。"+s.Gs.replace("e^{−0.5s}","e<sup>−0.5s</sup>")+"、"+inp.Us.replace(/e\^\{(.*?)\}/g,"e<sup>$1</sup>")+"<br>";
       h+="インパルス応答 g(t) の単位は "+s.gu+(s.L?"。むだ時間の分だけ g(τ) が遅れて始まるので、"+s.L+" s より前の入力は、まだ出力に効かない":"");
-      ro.innerHTML=h+'<div class="wnote">τ は「何秒前か」を表す。τ 秒前の入力 u(t − τ) に、対象がそれを覚えている重み g(τ) を掛けて足し合わせたもの（積の面積）が、時刻 t の出力になる。初期値は 0。面積は台形の公式（1 ms ごとの点）で、微分方程式は 4 次のルンゲ・クッタ法（刻み 0.5 ms）で求めた。</div>';
+      ro.innerHTML=h+'<div class="wnote">τ は「何秒前か」を表す。τ 秒前の入力 u(t − τ) に、対象がそれを覚えている重み g(τ) を掛けて足し合わせたもの（積の面積）が、時刻 t の出力になる。初期値は 0。面積は、入力の段や折れ目で区切ったシンプソンの公式で、微分方程式は 4 次のルンゲ・クッタ法（刻み幅 0.5 ms）で求めた。</div>';
     }
     sim();
   };
