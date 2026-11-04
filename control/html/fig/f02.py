@@ -963,9 +963,9 @@ def _f02_euler_fig():
     m, c, u = 1.0, 2.0, 1.0
     f = lambda v: (u - c * v) / m
     exact = lambda t: 0.5 * (1 - math.exp(-2 * t))
-    o.append(T(14, 18, "(a) オイラー法: 刻みの始めの傾きで進む", "start", 11.5, INK, True))
+    o.append(T(14, 18, "(a) 刻みの始めの傾きのまま進む", "start", 11.5, INK, True))
     p = Plot(62, 34, 330, 190, (0, 1.5), (0, 0.6))
-    o.append(p.axes(xl="時間 t [s]", yl="速度 [m/s]", xt=[0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5], yt=[0, 0.2, 0.4, 0.6], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    o.append(p.axes(xl="時間 t [s]", yl="速度 y [m/s]", xt=[0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5], yt=[0, 0.2, 0.4, 0.6], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
     for t in _f02_np.arange(0.125, 1.5, 0.25):
         for v in _f02_np.arange(0.05, 0.6, 0.1):
             o.append(_f02_seg(p, t, v, f(v), L=11, c=FNT, lw=1.0))
@@ -983,11 +983,43 @@ def _f02_euler_fig():
     o.append(T(p.X(0.25) + 18, p.Y(exact(0.25)) + 14, "本当は 0.197", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(1.48), p.Y(0.12), "赤: Δt = 0.25 s　緑: Δt = 0.05 s", "end", 9.5, MUT, True, halo=True))
     o.append(T(p.X(1.48), p.Y(0.12) + 15, "青: 本当の解", "end", 9.5, SIG, True, halo=True))
-    # (b) 1 刻みの中の 4 つの傾き
-    o.append(T(430, 18, "(b) ルンゲ・クッタ法: 1 刻み（0.5 s）で 4 回", "start", 11.5, INK, True))
-    q = Plot(470, 34, 210, 160, (0, 0.56), (-0.03, 0.55))
-    o.append(q.axes(xl=None, yl=None, xt=[0, 0.25, 0.5], yt=[0, 0.1, 0.2, 0.3, 0.4, 0.5], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
-    o.append(T(q.x + q.w, q.y + q.h + 28, "時間 t [s]", "end", 9.5, MUT))
+    # (b) 計算の手順（筆算のように）
+    x0 = 418
+    o.append(T(x0, 18, "(b) Δt = 0.25 s の計算", "start", 11.5, INK, True))
+    o.append(_f02_m(x0, 40, [_f02_t("変わる速さ: "), ("ẏ", None, True), _f02_t(" = ("), _f02_v("u"), _f02_t(" − "), _f02_v("c"), _f02_v("y"), _f02_t(") ÷ "), _f02_v("m"), _f02_t(" = 1 − 2"), _f02_v("y")], "start", 10.5, INK))
+    cols = [x0 + 18, x0 + 74, x0 + 136, x0 + 210, x0 + 262]
+    heads = ["時刻 t", "今の y", "ẏ", "次の y", "本当"]
+    for xx, hh in zip(cols, heads):
+        o.append(T(xx, 66, hh, "middle", 10, INK if hh != "本当" else SIG, True))
+    o.append(W(x0, 72, x0 + 284, 72, c=LIN, lw=1))
+    y, t = 0.0, 0.0
+    for k in range(4):
+        yd = f(y); yn = y + 0.25 * yd
+        yy = 90 + k * 24
+        o.append(T(cols[0], yy, "%g" % t, "middle", 10.5, MUT))
+        o.append(T(cols[1], yy, "%g" % y, "middle", 10.5, INK))
+        o.append(T(cols[2], yy, "%g" % yd, "middle", 10.5, GLD, True))
+        o.append(T(cols[3], yy, "%g" % yn, "middle", 10.5, ALI, True))
+        o.append(T(cols[4], yy, "%.3f" % exact(t + 0.25), "middle", 10.5, SIG))
+        o.append(T((cols[2] + cols[3]) / 2, yy - 1, "→", "middle", 10, MUT))
+        y, t = yn, t + 0.25
+    o.append(W(x0, 186, x0 + 284, 186, c=LIN, lw=1))
+    o.append(T(x0, 204, "次の y ＝ 今の y ＋ Δt × ẏ", "start", 10, INK, True))
+    o.append(T(x0, 220, "（例: 0.25 + 0.25 × 0.5 = 0.375）", "start", 9.5, MUT))
+    o.append(T(x0, 238, "本当: 次の時刻（t + Δt）の本当の値", "start", 9.5, SIG))
+    o.append(T(x0, 255, "始めの傾きのまま進むので、大きめに外れる", "start", 9.5, MUT))
+    return SVG(700, 268, o, "ばねの無い台車の速度 y（1 N で押す、初期値 0）をオイラー法で求める。(a) 各刻みは、刻みの始めの点の傾き（灰色の短い線）のまま Δt だけ直線で進む。刻みが粗い（赤）と大きめに外れ、細かい（緑）と本当の解（青）に近い。(b) Δt = 0.25 s の計算の手順。今の y から式で変わる速さを求め、Δt を掛けて足す。")
+F["e02_euler"] = _f02_euler_fig()
+
+
+def _f02_rk4_fig():
+    o = []
+    m, c, u = 1.0, 2.0, 1.0
+    f = lambda v: (u - c * v) / m
+    exact = lambda t: 0.5 * (1 - math.exp(-2 * t))
+    o.append(T(14, 18, "(a) 1 刻み（Δt = 0.5 s）の中で傾きを 4 回求める", "start", 11.5, INK, True))
+    q = Plot(70, 34, 300, 190, (0, 0.56), (-0.03, 0.55))
+    o.append(q.axes(xl="時間 t [s]", yl="速度 y [m/s]", xt=[0, 0.25, 0.5], yt=[0, 0.1, 0.2, 0.3, 0.4, 0.5], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
     o.append(_f02_pl(q, [(t, exact(t)) for t in _f02_np.linspace(0, 0.5, 101)], c=SIG, lw=2.4))
     h = 0.5
     s1 = f(0.0); s2 = f(h / 2 * s1); s3 = f(h / 2 * s2); s4 = f(h * s3)
@@ -995,21 +1027,33 @@ def _f02_euler_fig():
     o.append(_f02_pl(q, [(0, 0), (h, h * s1)], c=ALI, lw=1.6, dash="4 3"))
     for t, v, sl, lab, (dx, dy) in pts:
         tt = 0.05
-        o.append(_f02_pl(q, [(t, v), (t + tt, v + sl * tt)], c=GLD, lw=2.4))
-        o.append(D(q.X(t), q.Y(v), GLD, 3.4))
-        o.append(T(q.X(t) + dx, q.Y(v) + dy, lab, "middle", 10.5, GLD, True, halo=True))
+        o.append(_f02_pl(q, [(t, v), (t + tt, v + sl * tt)], c=GLD, lw=2.6))
+        o.append(D(q.X(t), q.Y(v), GLD, 3.6))
+        o.append(T(q.X(t) + dx, q.Y(v) + dy, lab, "middle", 11, GLD, True, halo=True))
     yr = h / 6 * (s1 + 2 * s2 + 2 * s3 + s4)
-    o.append(D(q.X(h), q.Y(yr), GRN, 4.4))
-    o.append(D(q.X(h), q.Y(h * s1), ALI, 4.4))
+    o.append(D(q.X(h), q.Y(yr), GRN, 4.6))
+    o.append(D(q.X(h), q.Y(h * s1), ALI, 4.6))
     o.append(T(q.X(h) - 8, q.Y(h * s1) + 4, "オイラー法 0.5", "end", 9.5, ALI, True, halo=True))
     o.append(T(q.X(h) - 8, q.Y(yr) + 15, "0.3125", "end", 9.5, GRN, True, halo=True))
     o.append(T(q.X(h) - 8, q.Y(yr) + 29, "（本当は 0.316）", "end", 9.5, SIG, True, halo=True))
-    lines = [("① 始めの点: ẏ₁ = 1", GLD), ("② ①で Δt/2 進んだ点: ẏ₂ = 0.5", GLD), ("③ ②で Δt/2 進んだ点: ẏ₃ = 0.75", GLD),
-             ("④ ③で Δt 進んだ点: ẏ₄ = 0.25", GLD), ("(1 + 2×0.5 + 2×0.75 + 0.25) ÷ 6 = 0.625", INK), ("0.625 × 0.5 s = 0.3125 m/s", GRN)]
-    for k, (l, c_) in enumerate(lines):
-        o.append(T(430, 238 + k * 15, l, "start", 9.5, c_, k >= 4))
-    return SVG(700, 330, o, "ばねの無い台車の速度（1 N で押す、初期値 0）を数値で解く。(a) オイラー法は、刻みの始めの点の傾き（灰色の短い線）のまま Δt だけ進む。傾きは進むにつれて小さくなるので、刻みが粗いと大きめに外れる。(b) ルンゲ・クッタ法は、1 刻みの中の 4 か所で傾き（金色）を求め、1:2:2:1 の重みで平均して進む。刻みが本当の解の変化の時間と同じ程度に粗くても、誤差は 1 % ほどにとどまる。")
-F["e02_euler"] = _f02_euler_fig()
+    # (b) 計算
+    x0 = 400
+    o.append(T(x0, 18, "(b) 計算（ẏ = 1 − 2y）", "start", 11.5, INK, True))
+    lines = [("① 始めの点 (0, 0):", "ẏ₁ = 1 − 2 × 0 = 1", GLD),
+             ("② ①の傾きで Δt/2 進んだ点 (0.25, 0.25):", "ẏ₂ = 1 − 2 × 0.25 = 0.5", GLD),
+             ("③ ②の傾きで Δt/2 進んだ点 (0.25, 0.125):", "ẏ₃ = 1 − 2 × 0.125 = 0.75", GLD),
+             ("④ ③の傾きで Δt 進んだ点 (0.5, 0.375):", "ẏ₄ = 1 − 2 × 0.375 = 0.25", GLD)]
+    yy = 44
+    for a_, b_, c_ in lines:
+        o.append(T(x0, yy, a_, "start", 9.5, INK))
+        o.append(T(x0 + 18, yy + 15, b_, "start", 10, c_, True))
+        yy += 36
+    o.append(W(x0, yy - 8, x0 + 290, yy - 8, c=LIN, lw=1))
+    o.append(T(x0, yy + 8, "平均の傾き (1 + 2×0.5 + 2×0.75 + 0.25) ÷ 6 = 0.625", "start", 9.5, INK, True))
+    o.append(T(x0, yy + 26, "y(0.5) ≈ 0 + 0.5 × 0.625 = 0.3125", "start", 10, GRN, True))
+    o.append(T(x0, yy + 44, "オイラー法: 0 + 0.5 × 1 = 0.5（本当は 0.316）", "start", 9.5, ALI))
+    return SVG(700, 262, o, "ルンゲ・クッタ法の 1 刻み（ばねの無い台車の速度、初期値 0、Δt = 0.5 s）。(a) 1 刻みの中の 4 か所で傾き（金色）を求める。(b) 4 つの傾きを 1:2:2:1 の重みで平均した傾きで進むと 0.3125 m/s で、本当の 0.316 m/s に近い。始めの傾きのまま進むオイラー法は 0.5 m/s と答える。")
+F["e02_rk4"] = _f02_rk4_fig()
 
 
 def _f02_euler_dt_fig():

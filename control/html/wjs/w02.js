@@ -157,20 +157,20 @@
     U.head(el,"DC MOTOR","DC モータに電圧を加える — <i>L</i><sub>a</sub> を含む式と、無視した一次の式");
     var r1=U.ctrls(el);
     var sv=U.slider(r1,"電圧 v",{values:[3,6,9,12],value:12,fmt:function(v){return v+" V";},onInput:draw});
-    var sl=U.slider(r1,"インダクタンス La",{values:[0.1,0.2,0.5,1,2,5,10,20,50],value:1,fmt:function(v){return v+" mH";},onInput:draw});
-    var sr=U.slider(r1,"抵抗 Ra",{values:[0.5,1,2,4,8],value:2,fmt:function(v){return v+" Ω";},onInput:draw});
+    var sl=U.slider(r1,"インダクタンス L<sub>a</sub>",{values:[0.1,0.2,0.5,1,2,5,10,20,50],value:1,fmt:function(v){return v+" mH";},onInput:draw});
+    var sr=U.slider(r1,"抵抗 R<sub>a</sub>",{values:[0.5,1,2,4,8],value:2,fmt:function(v){return v+" Ω";},onInput:draw});
     var r2=U.ctrls(el);
     var sj=U.slider(r2,"慣性モーメント J",{values:[0.25,0.5,1,2,4],value:1,fmt:function(v){return v+" × 10⁻⁵ kg·m²";},onInput:draw});
-    var sk=U.slider(r2,"トルク定数 Kt",{values:[0.01,0.015,0.02,0.03,0.04],value:0.02,fmt:function(v){return v+" N·m/A";},onInput:draw});
-    var st=U.slider(r2,"途中で加える負荷トルク τL",{values:[0,0.005,0.01,0.02],value:0.01,fmt:function(v){return v+" N·m";},onInput:draw});
+    var sk=U.slider(r2,"トルク定数 K<sub>t</sub>",{values:[0.01,0.015,0.02,0.03,0.04],value:0.02,fmt:function(v){return v+" N·m/A";},onInput:draw});
+    var st=U.slider(r2,"途中で加える負荷トルク τ<sub>L</sub>",{values:[0,0.005,0.01,0.02],value:0.01,fmt:function(v){return v+" N·m";},onInput:draw});
     var r3=U.ctrls(el);
     var vw=U.select(r3,"表示する時間",["全体（負荷を加える前後）","始めの数 ms を拡大"],0,draw);
-    var ap=U.checkbox(r3,"La を無視した一次の式を重ねる（破線）",true,draw);
+    var ap=U.checkbox(r3,"L<sub>a</sub> を無視した一次の式を重ねる（破線）",true,draw);
     var br=U.btnrow(el);
     function set(La){sv.set(12);sl.set(La);sr.set(2);sj.set(1);sk.set(0.02);st.set(0.01);vw.set(0);ap.set(true);draw();}
-    U.button(br,"本文の例（La 1 mH）",function(){set(1);});
-    U.button(br,"La を 10 倍（10 mH）",function(){set(10);});
-    U.button(br,"La を 50 倍（50 mH）",function(){set(50);});
+    U.button(br,"本文の例（L<sub>a</sub> 1 mH）",function(){set(1);});
+    U.button(br,"L<sub>a</sub> を 10 倍（10 mH）",function(){set(10);});
+    U.button(br,"L<sub>a</sub> を 50 倍（50 mH）",function(){set(50);});
     var box=U.svgbox(el),ro=U.readout(el);
     function sim(p,tEnd,n,tL0){
       var A=[[-p.Ra/p.La,-p.Kt/p.La],[p.Kt/p.J,0]],B=[[1/p.La,0],[0,-1/p.J]],h=tEnd/n,d=MM.c2d(A,B,h);
@@ -192,7 +192,7 @@
       var wmax=0;R.W.concat(R.Wa).forEach(function(q){wmax=Math.max(wmax,q);});
       var imin=0,imax=0;D.I.concat(ap.get()?D.Ia:[]).forEach(function(q){imin=Math.min(imin,q);imax=Math.max(imax,q);});
       var Pw=U.plot(x0,22,w,nar?120:130,[0,te2*sx],[0,wmax*1.12]);
-      o.push(S.T(nar?8:14,14,"角速度 ωm","start",10.5,"ink",true));
+      o.push(_w02_m(U,nar?8:14,14,[["角速度 ",null,false],["ω","m",true]],"start",10.5,"ink",true));
       o.push(Pw.axes({xl:null,yl:"[rad/s]",xt:_w02_ticks(U,0,te2*sx,5),yt:_w02_ticks(U,0,wmax*1.12,4),xfmt:function(q){return _w02_sig(q,3);},ylOff:nar?36:44}));
       if(!zoom&&p.tl>0){o.push(S.L(Pw.X(tL0),Pw.y,Pw.X(tL0),Pw.y+Pw.h,"purple",1,"3 3"));o.push(S.T(Pw.X(tL0)+4,Pw.y+Pw.h-6,"負荷 "+p.tl+" N·m","start",9,"purple",true,false,null,true));}
       o.push(Pw.line(D.T.map(function(q,i){return [q*sx,D.W[i]];}),"signal",2.2));
@@ -202,7 +202,7 @@
       o.push(Pi.axes({xl:"時間 t ["+tu+"]",yl:"[A]",xt:_w02_ticks(U,0,te2*sx,5),yt:_w02_ticks(U,Pi.yr[0],Pi.yr[1],4),xfmt:function(q){return _w02_sig(q,3);},ylOff:nar?36:44}));
       o.push(Pi.line(D.T.map(function(q,i){return [q*sx,D.I[i]];}),"teal",2.2));
       if(ap.get())o.push(Pi.line(D.T.map(function(q,i){return [q*sx,D.Ia[i]];}),"muted",1.6,"6 4"));
-      o.push(S.T(Pi.x,Pi.y+Pi.h+46,"実線: La を含む式　破線: La を無視した一次の式","start",9.5,"muted"));
+      o.push(_w02_m(U,Pi.x,Pi.y+Pi.h+46,[["実線: ",null,false],["L","a",true],[" を含む式　破線: ",null,false],["L","a",true],[" を無視した一次の式",null,false]],"start",9.5,"muted"));
       box.set(S.svg(Wd,Pi.y+Pi.h+54,o));
       /* 読み出し */
       var k1=0;Z.I.forEach(function(q,i){if(q>Z.I[k1])k1=i;});
@@ -214,9 +214,9 @@
       h+="落ち着く角速度（一次の式 <i>Kv</i> − (<i>R</i><sub>a</sub>/<i>K</i><sub>t</sub>²)τ<sub>L</sub>）: 負荷なし <b>"+_w02_sig(wss0,4)+" rad/s</b>"+(p.tl>0?"、負荷 "+p.tl+" N·m で <b>"+_w02_sig(wss1,4)+" rad/s</b>（"+_w02_sig(tL0,3)+" s に加える。電流は τ<sub>L</sub>/<i>K</i><sub>t</sub> = "+_w02_sig(p.tl/p.Kt,3)+" A）":"")+"<br>";
       h+="時刻 <i>T</i>（"+_w02_sig(Tm,3)+" s）の角速度: <i>L</i><sub>a</sub> を含む式 "+_w02_sig(wT,4)+" rad/s、一次の式 "+_w02_sig(waT,4)+" rad/s。2 つの式の差は最大 <b>"+_w02_sig(dw,3)+" rad/s</b>（"+_w02_sig(dw/wss0*100,2)+" %）<br>";
       h+="電流の最大: <i>L</i><sub>a</sub> を含む式 <b>"+_w02_sig(Z.I[k1],3)+" A</b>（"+_w02_sig(Z.T[k1]*1e3,3)+" ms）、一次の式 "+_w02_sig(p.v/p.Ra,3)+" A（0 s。<i>v</i>/<i>R</i><sub>a</sub>）<br>";
-      if(te>Tm/10)h+='<span class="warn">電流の変わる時間 La/Ra が T の 1/10 を超え、一次の式は合わなくなる</span><br>';
-      if(ov>wss0*0.002)h+='<span class="warn">角速度が、落ち着く値を一度 '+_w02_sig(ov,3)+' rad/s 超えてから戻る（La が大きく、2 階の式の揺れが現れる）</span><br>';
-      ro.innerHTML=h+'<div class="wnote">La を含む式は 2 つの 1 階の式（電気と機械）、一次の式は La di/dt を 0 とみなした式。どちらも、入力が一定の間を厳密に進める方法で計算した。負荷トルクは、表示する時間の中ほどで加える。</div>';
+      if(te>Tm/10)h+='<span class="warn">電流の変わる時間 <i>L</i><sub>a</sub>/<i>R</i><sub>a</sub> が <i>T</i> の 1/10 を超え、一次の式は合わなくなる</span><br>';
+      if(ov>wss0*0.002)h+='<span class="warn">角速度が、落ち着く値を一度 '+_w02_sig(ov,3)+' rad/s 超えてから戻る（<i>L</i><sub>a</sub> が大きく、2 階の式の揺れが現れる）</span><br>';
+      ro.innerHTML=h+'<div class="wnote"><i>L</i><sub>a</sub> を含む式は 2 つの 1 階の式（電気と機械）、一次の式は <i>L</i><sub>a</sub> d<i>i</i>/d<i>t</i> を 0 とみなした式。どちらも、入力が一定の間を厳密に進める方法で計算した。負荷トルクは、表示する時間の中ほどで加える。</div>';
     }
     draw();
   };
@@ -325,7 +325,7 @@
       else{h+="10° に達する時刻: 元の式 "+(R.t10n!=null?_w02_sig(R.t10n,3)+" s":"—")+"、線形化した式 "+(R.t10l!=null?_w02_sig(R.t10l,3)+" s":"—")+"<br>";
         h+="30° に達する時刻: 元の式 <b>"+(R.t30n!=null?_w02_sig(R.t30n,3)+" s":"—")+"</b>、線形化した式 <b>"+(R.t30l!=null?_w02_sig(R.t30l,3)+" s":"—")+"</b><br>";
         if(R.k5!=null)h+="2 つの式の角度の差が 5 % を超えるのは "+_w02_sig(R.T[R.k5],3)+" s（線形化した式 "+_w02_sig(R.L[R.k5],3)+"°、元の式 "+_w02_sig(R.N[R.k5],3)+"°。赤い点）<br>";}
-      ro.innerHTML=h+'<div class="wnote">元の式（水槽 A<sub>t</sub>ḣ = u − a√h、振子 lφ̈ = g sin φ、台車の振子は 17 章で導く元の式）を 4 次のルンゲ・クッタ法で解いた。線形化した式は 5 節の式。振子の長さは 0.3 m。</div>';
+      ro.innerHTML=h+'<div class="wnote">元の式（水槽 <i>A</i><sub>t</sub>ḣ = <i>u</i> − <i>a</i>√<i>h</i>、振子 <i>l</i> d²φ/d<i>t</i>² = <i>g</i> sin φ、台車の振子は 17 章で導く元の式）を 4 次のルンゲ・クッタ法で解いた。線形化した式は 5 節の式。振子の長さは 0.3 m。</div>';
     }
     run();
   };
@@ -350,7 +350,7 @@
     U.button(br,"110 ms（2.2T）",function(){pick(0,0,d1,110);});
     U.button(br,"温度の板を 100 s で",function(){pick(1,0,d4,100);});
     U.button(br,"台車を 0.09 s で",function(){pick(2,2,d2,0.09);});
-    U.button(br,"La を含むモータを 1.02 ms で",function(){pick(3,0,d3,1.02);});
+    U.button(br,"L<sub>a</sub> を含むモータを 1.02 ms で",function(){pick(3,0,d3,1.02);});
     var box=U.svgbox(el),ro=U.readout(el);
     function rk4f(f,t,x,h){return U.ctl.rk4(f,t,x,h);}
     function euler(f,t,x,h){var d=f(t,x);return x.map(function(v,i){return v+h*d[i];});}
