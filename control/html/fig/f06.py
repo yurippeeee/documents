@@ -485,7 +485,7 @@ def _f06_pzmap_fig():
             o.append(T(p.X(0), p.Y(0) - 9, "2 つ", "middle", 8.5, SIG, True, halo=True))
         o.append(TX(x0 + 94, y0 + 150, gtxt, "middle", 9, MUT))
         o.append(TX(x0 + 94, y0 + 166, ptxt.replace("j", "j"), "middle", 9, SIG, True))
-    o.append(T(350, 404, "横軸は実部 σ [1/s]、縦軸は虚部 ω [rad/s]。目盛は図ごとに違う。右半平面（実部が正）を薄い赤で塗った。", "middle", 9.5, MUT))
+    o.append(T(350, 404, "横軸は実部 σ [1/s]、縦軸は虚部 ω [rad/s]。目盛は図ごとに違う。実部が正の側を薄い赤で塗った。", "middle", 9.5, MUT))
     return SVG(700, 414, o, "例の対象の伝達関数の極（×）と零点（○）（値はどれも例の値）。多くの極は実部が負の側にある。L<sub>a</sub> を含むモータの 2 つの極は 100 倍近く離れている。積分を含むモータの角度と倒立振子の台車の位置は原点に極をもち、倒立振子は実部が正の極をもつ。むだ時間 e<sup>−20s</sup> は多項式の根ではないので、配置図には現れない。")
 F["e06_pz_map"] = _f06_pzmap_fig()
 
@@ -624,9 +624,9 @@ def _f06_grid_fig():
     o.append(T(gx + 2.5 * cw, gy + 4 * ch + 32, "実部 σ₀ [1/s]（格子の間隔は等しくない）", "middle", 10, MUT))
     o.append(T(gx - 40, gy + 2 * ch, "虚部 ω₀ [rad/s]", "middle", 10, MUT, rot=-90))
     o.append(T(gx + 3.5 * cw, gy + 4 * ch + 46, "↑ 虚軸の上", "middle", 9.5, GLD, True))
-    o.append(T(gx + 4.5 * cw, gy + 4 * ch + 46, "↑ 右半平面", "middle", 9.5, ALI, True))
+    o.append(T(gx + 4.5 * cw, gy + 4 * ch + 46, "↑ 実部が正", "middle", 9.5, ALI, True))
     o.append(T(gx + 0.5 * cw, gy + 4 * ch + 46, "左ほど速く落ち着く", "start", 9.5, SIG, True))
-    return SVG(700, gy + 4 * ch + 56, o, "極の位置ごとのステップ応答の一覧（極の組 σ₀ ± jω₀ をもつ、最終値 1 の二次遅れ。いちばん下の段は、実軸の上の極 1 つの一次遅れで、原点では積分）。数字は行き過ぎ量。左ほど速く落ち着き、上ほど速く揺れる。同じ列（実部が同じ）では包絡線が同じで、行き過ぎ量は上ほど大きい。虚軸の上の極は揺れ続け（原点では増え続け）、右半平面の極の応答は最終値から離れていく。")
+    return SVG(700, gy + 4 * ch + 56, o, "極の位置ごとのステップ応答の一覧（極の組 σ₀ ± jω₀ をもつ、最終値 1 の二次遅れ。いちばん下の段は、実軸の上の極 1 つの一次遅れで、原点では積分）。数字は行き過ぎ量。左ほど速く落ち着き、上ほど速く揺れる。同じ列（実部が同じ）では包絡線が同じで、行き過ぎ量は上ほど大きい。虚軸の上の極は揺れ続け（原点では増え続け）、実部が正の極の応答は最終値から離れていく。")
 F["e06_grid"] = _f06_grid_fig()
 
 
@@ -898,20 +898,20 @@ def _f06_dominant_fig():
         y3 = 100 * _f06_step([a], list(_f06_np.polymul([1, a], [1, 2, 25])), t)
         ys[a] = y3
         o.append(p.line(list(zip(t, y3)), c=c, lw=1.8))
-    o.append(LEGL(334, 238, [(MUT, "5 3", "台車だけ（支配極だけの近似）"), (ALI, None, "a = 3")], sz=9.5, gap=10))
-    o.append(LEGL(334, 256, [(GLD, None, "a = 10"), (GRN, None, "a = 50 rad/s")], sz=9.5, gap=10))
+    o.append(LEGL(334, 238, [(MUT, "5 3", "台車だけ（支配極だけの近似）"), (ALI, None, "ω_a = 3")], sz=9.5, gap=10))
+    o.append(LEGL(334, 256, [(GLD, None, "ω_a = 10"), (GRN, None, "ω_a = 50 rad/s")], sz=9.5, gap=10))
     # (c) 動き始めの拡大
-    o.append(T(14, 284, "(c) 動き始めの拡大: 遠い極は、およそ 1/a の遅れになる", "start", 11.5, INK, True))
+    o.append(TX(14, 284, "(c) 動き始めの拡大: 遠い極は、およそ 1/ω_a の遅れになる", "start", 11.5, INK, True))
     r = Plot(56, 300, 624, 96, (0, 0.6), (0, 6.5))
     o.append(r.axes(xl="時間 t [s]", yl="[cm]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6], yt=[0, 2, 4, 6], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
     o.append(r.line([(a_, b_) for a_, b_ in zip(t, y2) if a_ <= 0.6], c=MUT, lw=1.8, dash="5 3"))
     for a, c in cases:
         o.append(r.line([(a_, b_) for a_, b_ in zip(t, ys[a]) if a_ <= 0.6], c=c, lw=1.8))
     # 同じ高さに届く時刻の差（細かい刻みの計算で求めた値）
-    for lev, ta, tb, c, lab in ((3.0, 0.2934, 0.3878, GLD, "0.094 s（1/a = 0.1 s）"), (4.5, 0.3992, 0.4198, GRN, "0.021 s（1/a = 0.02 s）")):
+    for lev, ta, tb, c, lab in ((3.0, 0.2934, 0.3878, GLD, "0.094 s（1/ω_a = 0.1 s）"), (4.5, 0.3992, 0.4198, GRN, "0.021 s（1/ω_a = 0.02 s）")):
         o.append(DIM(r.X(ta), r.Y(lev), r.X(tb), r.Y(lev), None, c=c))
-        o.append(T(r.X(ta) - 6, r.Y(lev) + 4, lab, "end", 9.5, c, True, halo=True))
-    return SVG(700, 440, o, "台車とばね・ダンパに、時定数 1/a の力の遅れ a/(s + a) を足した 3 次の伝達関数（最終値はどれも 4 cm）。(a) 極の組 −1 ± j4.90 は動かず、遠い極 −a だけが加わる。(b) a が極の組の原点からの距離 5 rad/s より大きいほど、台車だけの応答（破線）に近づく。a = 3 では行き過ぎが大きく減り、近似は成り立たない。(c) 同じ高さに届く時刻の差は、a = 10 で 0.094 s、a = 50 で 0.021 s で、どちらも 1/a に近い。a = 50 では、差は主にこの遅れである。")
+        o.append(TX(r.X(ta) - 6, r.Y(lev) + 4, lab, "end", 9.5, c, True, halo=True))
+    return SVG(700, 440, o, "台車とばね・ダンパに、時定数 1/ω<sub>a</sub> の力の遅れ ω<sub>a</sub>/(s + ω<sub>a</sub>) を足した 3 次の伝達関数（最終値はどれも 4 cm）。(a) 極の組 −1 ± j4.90 は動かず、遠い極 −ω<sub>a</sub> だけが加わる。(b) ω<sub>a</sub> が極の組の原点からの距離 5 rad/s より大きいほど、台車だけの応答（破線）に近づく。ω<sub>a</sub> = 3 では行き過ぎが大きく減り、近似は成り立たない。(c) 同じ高さに届く時刻の差は、ω<sub>a</sub> = 10 で 0.094 s、ω<sub>a</sub> = 50 で 0.021 s で、どちらも 1/ω<sub>a</sub> に近い。ω<sub>a</sub> = 50 では、差は主にこの遅れである。")
 F["e06_dominant"] = _f06_dominant_fig()
 
 

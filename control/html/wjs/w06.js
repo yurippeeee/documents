@@ -67,7 +67,7 @@
     U.button(br,"−2.5 ± j4.33（ζ 0.5）",function(){pre(-2.5,4.330);});
     U.button(br,"虚軸の上 ±j5",function(){pre(0,5);});
     U.button(br,"原点（積分）",function(){pre(0,0);});
-    U.button(br,"右半平面 0.3 ± j4",function(){pre(0.3,4);});
+    U.button(br,"実部が正 0.3 ± j4",function(){pre(0.3,4);});
     var br2=U.btnrow(el);
     U.button(br2,"この応答を残して比べる",function(){if(cur){refs.push(cur);if(refs.length>4)refs.shift();draw();}});
     U.button(br2,"残した応答を消す",function(){refs=[];draw();});
@@ -139,7 +139,7 @@
     var S=U.S,RC=["teal","purple","gold","green","alias","signal"];
     U.head(el,"POLES & ZEROS","極と零点を足す・動かす — 極ごとの項と安定");
     var r1=U.ctrls(el);
-    var inp=U.select(r1,"有界な入力",["単位ステップ","正弦波 sin ω_u t（振幅 1）"],0,function(){draw();});
+    var inp=U.select(r1,"有界な入力",["単位ステップ","正弦波（振幅 1）"],0,function(){draw();});
     var swu=U.slider(r1,"正弦波の角周波数 ω<sub>u</sub>",{min:0.2,max:8,step:0.1,value:2,fmt:function(v){return _w06_f(v,1)+" rad/s";},onInput:function(){draw();}});
     var tw=U.select(r1,"時間の範囲",["0〜5 s","0〜10 s","0〜20 s"],1,function(){draw();});
     var br=U.btnrow(el);
@@ -301,9 +301,9 @@
     var S=U.S,CT=U.ctl;
     U.head(el,"DOMINANT POLES","支配極だけの近似と、捨てた極・零点の影響");
     var r0=U.ctrls(el);
-    var md=U.select(r0,"例",["遠い極（台車 ＋ 力の遅れ a/(s + a)）","ループの中の遅れ（モータの位置の比例制御）","極零相殺（遅い極 −1 の近くの零点）","右半平面の極 +1 を零点で消そうとする"],0,function(){sel(true);});
+    var md=U.select(r0,"例",["遠い極（台車 ＋ 力の遅れ）","ループの中の遅れ（モータの位置の比例制御）","極零相殺（遅い極 −1 の近くの零点）","右半平面の極 +1 を零点で消そうとする"],0,function(){sel(true);});
     var rA=U.ctrls(el);
-    var sa=U.slider(rA,"遠い極 −a の a",{min:1,max:100,log:true,value:10,fmt:function(v){return _w06_sig(v,3)+" rad/s";},onInput:function(){draw();}});
+    var sa=U.slider(rA,"遠い極 −ω<sub>a</sub> の ω<sub>a</sub>",{min:1,max:100,log:true,value:10,fmt:function(v){return _w06_sig(v,3)+" rad/s";},onInput:function(){draw();}});
     var rB=U.ctrls(el);
     var sk=U.slider(rB,"比例ゲイン K<sub>P</sub>",{min:0.05,max:60,log:true,value:0.21,fmt:function(v){return _w06_sig(v,3)+" V/rad";},onInput:function(){draw();}});
     var rC=U.ctrls(el);
@@ -314,8 +314,8 @@
     var bA=[],bB=[],bC=[],bD=[];
     function bt(arr,t,f){arr.push(U.button(br,t,f));}
     var pair={sg:-1,w:4.899};
-    bt(bA,"本文の例（a = 10）",function(){pair={sg:-1,w:4.899};sa.set(10);draw();});
-    bt(bA,"a = 3",function(){sa.set(3);draw();});bt(bA,"a = 50",function(){sa.set(50);draw();});
+    bt(bA,"本文の例（ω<sub>a</sub> = 10）",function(){pair={sg:-1,w:4.899};sa.set(10);draw();});
+    bt(bA,"ω<sub>a</sub> = 3",function(){sa.set(3);draw();});bt(bA,"ω<sub>a</sub> = 50",function(){sa.set(50);draw();});
     bt(bA,"減衰比 0.7 の極の組",function(){pair={sg:-3.5,w:3.571};draw();});
     bt(bB,"0.21 V/rad",function(){sk.set(0.21);draw();});bt(bB,"10 V/rad",function(){sk.set(10);draw();});bt(bB,"40 V/rad",function(){sk.set(40);draw();});
     bt(bC,"z = 1（相殺）",function(){sz.set(1);draw();});bt(bC,"z = 1.1",function(){sz.set(1.1);draw();});bt(bC,"z = 2",function(){sz.set(2);draw();});
@@ -344,8 +344,8 @@
         P=U.plot(nar?52:56,20,nar?330:236,nar?150:190,[-60,5],[-8,8]);xt=[-60,-40,-20,0];yt=[-5,0,5];
         poles=[{re:sg,im:w},{re:sg,im:-w},{re:-a,im:0}];apoles=[];yl=[-1.0,1.8];
         var p={re:sg,im:w},f=_w06_div(_w06_c(a,0),_w06_add(p,_w06_c(a,0))),pm=Math.hypot(sg,w);
-        note="極の組 "+_w06_ptxt(sg,w,3)+"（原点から "+_w06_sig(pm,3)+" rad/s）、遠い極 −"+_w06_sig(a,3)+"（原点からの距離の比 "+_w06_sig(a/pm,3)+" 倍）<br>"+
-          "遠い極の項の大きさ −G<sub>0</sub>(−a) = <b>"+_w06_sig(-G0a*100,3)+" %</b>（最終値に対する割合）、極の組の留数に掛かる a/(p + a) = "+_w06_sig(_w06_abs(f),3)+" ∠ "+_w06_sig(Math.atan2(f.im,f.re)*180/Math.PI,3)+"°";}
+        note="極の組 "+_w06_ptxt(sg,w,3)+"（原点から "+_w06_sig(pm,3)+" rad/s）、遠い極 −ω<sub>a</sub> = −"+_w06_sig(a,3)+"（原点からの距離の比 "+_w06_sig(a/pm,3)+" 倍）<br>"+
+          "遠い極の項の大きさ −G<sub>0</sub>(−ω<sub>a</sub>) = <b>"+_w06_sig(-G0a*100,3)+" %</b>（最終値に対する割合）、極の組の留数に掛かる ω<sub>a</sub>/(p + ω<sub>a</sub>) = "+_w06_sig(_w06_abs(f),3)+" ∠ "+_w06_sig(Math.atan2(f.im,f.re)*180/Math.PI,3)+"°";}
       else if(m===1){var kp=sk.get(),d3=[1,2000,40000,2e6*kp],d2=[1,20,1000*kp];
         var r3=CT.poly.roots(d3),r2=CT.poly.roots(d2),dom=r3.filter(function(z){return z.re>-1000;}),far=r3.filter(function(z){return z.re<=-1000;})[0];
         var sgd=dom.length?Math.max.apply(null,dom.map(function(z){return z.re;})):-10;
@@ -372,7 +372,7 @@
       o.push(_w06_sp(U,S,P,xt,yt));
       if(apoles.length)o.push(CT.pz(P,apoles,[],"muted",5));
       o.push(CT.pz(P,poles,zeros,m===3?"alias":"signal",6));
-      if(m===0&&sa.get()>60)o.push(S.T(P.x+4,P.Y(0)-8,"← −a は左の外","start",9,"muted",false,false,null,true));
+      if(m===0&&sa.get()>60)o.push(S.TX(P.x+4,P.Y(0)-8,"← −ω_a は左の外","start",9,"muted",false,true));
       if(m===1)o.push(S.T(P.x+4,P.y+P.h-6,"捨てた極（約 −2000）は図の外","start",9,"muted",false,false,null,true));
       o.push(S.T(P.x+P.w,P.y-6,m===1?"青: 3 次の式　灰: 二次遅れ":(m===0?"× をドラッグ":"○ をドラッグ"),"end",9,"muted"));
       var qx=nar?52:350,qw=nar?330:330,qy=nar?20+P.h+58:24;
