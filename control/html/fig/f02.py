@@ -236,7 +236,7 @@ def _f02_model_fig():
     o = []
     # 上: 箱としてのモデル
     bx, by, bw, bh = 280, 44, 150, 54
-    o.append(BOX(bx, by, bw, bh, "モデル", "微分方程式", SIG, SSOFT, sz=12, ssz=10))
+    o.append(BOX(bx, by, bw, bh, "モデル", "出力を計算する式", SIG, SSOFT, sz=12, ssz=10))
     o.append(ARR(150, by + bh / 2, bx, by + bh / 2, c=GLD, lw=2))
     o.append(_f02_m(150, by + bh / 2 - 8, [_f02_t("入力 "), _f02_v("u"), _f02_t("（操作量）")], "start", 11, GLD, True))
     o.append(ARR(bx + bw / 2, 12, bx + bw / 2, by, c=PUR, lw=1.8))
@@ -267,7 +267,7 @@ def _f02_model_fig():
             yy = y0 + 108 + k * 17
             o.append(T(cx - 56, yy, lab, "start", 9.5, c, True))
             o.append(_f02_m(cx - 56 + _f02_tw(lab, 9.5) + 6, yy, [(p[0], p[1], p[2], INK if c != MUT else MUT) for p in parts], "start", 10, INK))
-    return SVG(700, y0 + 108 + 4 * 17 - 4, o, "制御対象のモデル。どの対象も、入力（操作量）と外乱を受けて出力（制御量）を返す箱として表せ、箱の中身が微分方程式である。下は、この章で式を作る 5 つの対象と、それぞれ何の釣り合いから式を作るか。")
+    return SVG(700, y0 + 108 + 4 * 17 - 4, o, "制御対象のモデル。どの対象も、入力（操作量）と外乱を受けて出力（制御量）を返す箱として表せる。箱の中身は、今の出力と入力から、出力の変わる速さを決める式である。下は、この章で式を作る 5 つの対象と、それぞれ何の釣り合いから式を作るか。")
 F["e02_model"] = _f02_model_fig()
 
 
@@ -1038,7 +1038,7 @@ def _f02_euler_dt_fig():
                 o.append(D(p.X(t), p.Y(w), col, 3.4))
         o.append(T(p.X(0.49), p.y + 13, note, "end", 9.5, col, True, halo=True))
     # (e) 刻み幅と誤差
-    o.append(T(14, 386, "(e) t = T での値の誤差と刻み幅（T ẏ + y = Ku）", "start", 11, INK, True))
+    o.append(T(14, 386, "(e) t = T でのずれの誤差と刻み幅（T ẏ + y = Ku）", "start", 11, INK, True))
     e = Plot(110, 400, 300, 130, (0.01, 1.0), (1e-12, 1.0), xlog=True, ylog=True)
     _sup = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
     o.append(e.axes(xl="刻み幅 Δt / T", yl=None, xt=[0.01, 0.1, 1.0], yt=[1e-12, 1e-9, 1e-6, 1e-3, 1.0], xfmt=lambda v: "%g" % v, yfmt=lambda v: ("10" + str(round(math.log10(v))).translate(_sup)) if v < 1 else "1"))
@@ -1056,7 +1056,7 @@ def _f02_euler_dt_fig():
     o.append(T(xt, 436, "オイラー法: 約 1/10（刻み幅に比例）", "start", 10, ALI, True))
     o.append(T(xt, 454, "ルンゲ・クッタ法: 約 1/10000", "start", 10, GRN, True))
     o.append(T(xt, 472, "（刻み幅の 4 乗に比例）", "start", 10, GRN))
-    o.append(T(xt, 500, "どちらも、刻み幅には安定の上限がある", "start", 10, INK))
+    o.append(T(xt, 500, "どちらも、発散しない刻み幅に上限がある", "start", 10, INK))
     o.append(T(xt, 518, "（1 階の式で 2T と 2.79T）", "start", 10, MUT))
-    return SVG(700, 572, o, "刻み幅を変えてオイラー法で解く（モータの一次の式、T = 0.05 s、12 V で 0 から 600 rad/s へ）。点は計算した値、青は本当の解。落ち着く値からのずれは、1 刻みごとに 1 − Δt/T 倍になる。(a) Δt < T では単調に近づき、(b) T < Δt < 2T では振動しながら近づき、(c) Δt = 2T では同じ幅で振れ続け、(d) Δt > 2T では発散する。(e) t = T での値の誤差。オイラー法は刻み幅に、ルンゲ・クッタ法は刻み幅の 4 乗にほぼ比例する。")
+    return SVG(700, 572, o, "刻み幅を変えてオイラー法で解く（モータの一次の式、T = 0.05 s、12 V で 0 から 600 rad/s へ）。点は計算した値、青は本当の解。落ち着く値からのずれは、1 刻みごとに 1 − Δt/T 倍になる。(a) Δt < T では単調に近づき、(b) T < Δt < 2T では振動しながら近づき、(c) Δt = 2T では同じ幅で振れ続け、(d) Δt > 2T では発散する。(e) t = T での、落ち着く値からのずれの誤差（本当のずれに対する割合）。オイラー法は刻み幅に、ルンゲ・クッタ法は刻み幅の 4 乗にほぼ比例する。")
 F["e02_euler_dt"] = _f02_euler_dt_fig()

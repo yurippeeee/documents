@@ -112,9 +112,10 @@
       var rows=[[u,"gold","押す力 u"],[fk,"teal","ばね −kp"],[fc,"purple","ダンパ −cṗ"],[fs,"signal","和 mp̈"]];
       rows.forEach(function(r,i){var y=cy-10-i*13,L=r[0]*fsc;
         if(Math.abs(L)>2)o.push(S.ARR(ax,y,ax+L,y,r[1],2,6));else o.push(S.D(ax,y,r[1],2));
-        var lab=r[2]+" "+_w02_f(r[0],2)+" N",right2=r[0]>=0;
-        o.push(S.T(right2?ax+Math.max(L,0)+6:ax+Math.min(L,0)-6,y+3.5,lab,right2?"start":"end",9,r[1],i===3,false,null,true));});
-      o.push(S.DARR?"":"");
+        var lab=r[2]+" "+_w02_f(r[0],2)+" N",right2=r[0]>=0,lw2=U.tw(lab,9);
+        var xr2=right2?ax+Math.max(L,0)+6:ax+Math.min(L,0)-6;
+        if(right2&&xr2+lw2>Wd-4){right2=false;xr2=ax-6;}else if(!right2&&xr2-lw2<4){right2=true;xr2=ax+6;}
+        o.push(S.T(xr2,y+3.5,lab,right2?"start":"end",9,r[1],i===3,false,null,true));});
       if(Math.abs(cx-x0)>14){o.push(S.DARR(x0,gy+14,cx,gy+14,"signal",1.1,5));}
       /* 波形 */
       var big=Math.max(Math.abs(pmax),Math.abs(pmin))>0.5,unit=big?1:100,un=big?"m":"cm";
@@ -180,7 +181,7 @@
         var wss=p.v/p.Kt-p.Ra/(p.Kt*p.Kt)*tau;wa=wss+(wa-wss)*ea;}
       return {T:T,I:I,W:Wf,Wa:Wa,Ia:Ia};
     }
-    function niceUp(v){var e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e;return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=3?3:m<=5?5:10)*e;}
+    function niceUp(v){var e=Math.pow(10,Math.floor(Math.log10(v)+1e-9)),m=v/e*(1-1e-9);return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=3?3:m<=5?5:10)*e;}
     function draw(){
       var p={v:sv.get(),La:sl.get()*1e-3,Ra:sr.get(),J:sj.get()*1e-5,Kt:sk.get(),tl:st.get()};
       var Tm=p.J*p.Ra/(p.Kt*p.Kt),K=1/p.Kt,KL=p.Ra/(p.Kt*p.Kt),te=p.La/p.Ra;
@@ -279,10 +280,10 @@
         o.push(S.W([tx0,tt2,tx0,tb,tx0+tw2,tb,tx0+tw2,tt2],"ink",2));
         o.push(S.L(tx0,tb-hn*sc,tx0+tw2,tb-hn*sc,"signal",1.6));
         var yl=tb-hl*sc;if(hl>=0)o.push(S.L(tx0-10,yl,tx0+tw2+10,yl,"muted",1.6,"6 4"));
-        else{o.push(S.L(tx0-10,tb+8,tx0+tw2+10,tb+8,"alias",1.6,"6 4"));o.push(S.T(tx0+tw2/2,tb+20,"線形化: "+_w02_f(hl,1)+" cm（負）","middle",9.5,"alias",true));}
+        else{o.push(S.L(tx0-10,tb+6,tx0+tw2+10,tb+6,"alias",1.6,"6 4"));o.push(S.T(tx0+tw2/2,tb-8,"線形化: "+_w02_f(hl,1)+" cm","middle",9.5,"alias",true,false,null,true));}
         o.push(S.T(tx0+tw2+14,tb-hn*sc+4,"元 "+_w02_f(hn,1)+" cm","start",9.5,"signal",true,false,null,true));
         if(hl>=0)o.push(S.T(tx0-14,yl+4,"線形化 "+_w02_f(hl,1),"end",9.5,"muted",true,false,null,true));
-        o.push(S.L(tx0-30,tb-25*sc,tx0,tb-25*sc,"gold",1,"2 2"));o.push(S.T(tx0-32,tb-25*sc+4,"25","end",9,"gold"));}
+        o.push(S.L(tx0+2,tb-25*sc,tx0+tw2-2,tb-25*sc,"gold",1.2,"2 3"));o.push(S.T(tx0+tw2/2,tt2-6,"金色の点線: 動作点 25 cm","middle",9,"gold"));}
       else if(R.kind===1){var cx=px0+pw/2,cy=py0+26,Lr=nar?110:120;
         o.push(S.L(cx-34,cy,cx+34,cy,"muted",2));o.push(S.L(cx,cy,cx,cy+Lr+14,"faint",1,"4 3"));
         [[R.L[k],"muted",true],[R.N[k],"signal",false]].forEach(function(q){var a=q[0]*Math.PI/180,bx=cx+Lr*Math.sin(a),by=cy+Lr*Math.cos(a);
@@ -334,10 +335,11 @@
     var S=U.S,MM=U.ctl.mat;
     U.head(el,"EULER","オイラー法とルンゲ・クッタ法 — 刻み幅を変える");
     var r1=U.ctrls(el);
-    var ob=U.select(r1,"対象",["モータの一次の式（T = 0.05 s、12 V）","台車とばね・ダンパ（1 N で押す）","La を含むモータ（電流）"],0,draw);
+    var ob=U.select(r1,"対象",["モータの一次の式（T = 0.05 s、12 V）","温度の板（T = 500 s、80 W）","台車とばね・ダンパ（1 N で押す）","La を含むモータ（電流）"],0,draw);
     var me=U.select(r1,"計算の方法",["オイラー法","ルンゲ・クッタ法（4 次）","両方を重ねる"],0,draw);
     var r2=U.ctrls(el);
     var d1=U.slider(r2,"刻み幅 Δt",{values:[1,2,5,10,20,25,40,50,60,75,90,100,105,110,125,140],value:10,fmt:function(v){return v+" ms（"+_w02_sig(v/50,3)+"T）";},onInput:draw});
+    var d4=U.slider(r2,"刻み幅 Δt",{values:[10,25,50,100,200,250,400,500,600,750,900,1000,1050,1100,1250],value:100,fmt:function(v){return v+" s（"+_w02_sig(v/500,3)+"T）";},onInput:draw});
     var d2=U.slider(r2,"刻み幅 Δt",{values:[0.005,0.01,0.02,0.04,0.05,0.07,0.08,0.09,0.1,0.15,0.2,0.3,0.4,0.5,0.6],value:0.05,fmt:function(v){return v+" s";},onInput:draw});
     var d3=U.slider(r2,"刻み幅 Δt",{values:[0.05,0.1,0.2,0.5,0.8,0.9,1.0,1.01,1.02,1.05,1.2,1.4,1.45,1.6],value:0.5,fmt:function(v){return v+" ms";},onInput:draw});
     var br=U.btnrow(el);
@@ -346,8 +348,9 @@
     U.button(br,"75 ms（1.5T）",function(){pick(0,0,d1,75);});
     U.button(br,"100 ms（2T）",function(){pick(0,0,d1,100);});
     U.button(br,"110 ms（2.2T）",function(){pick(0,0,d1,110);});
-    U.button(br,"台車を 0.09 s で",function(){pick(1,2,d2,0.09);});
-    U.button(br,"La を含むモータを 1.02 ms で",function(){pick(2,0,d3,1.02);});
+    U.button(br,"温度の板を 100 s で",function(){pick(1,0,d4,100);});
+    U.button(br,"台車を 0.09 s で",function(){pick(2,2,d2,0.09);});
+    U.button(br,"La を含むモータを 1.02 ms で",function(){pick(3,0,d3,1.02);});
     var box=U.svgbox(el),ro=U.readout(el);
     function rk4f(f,t,x,h){return U.ctl.rk4(f,t,x,h);}
     function euler(f,t,x,h){var d=f(t,x);return x.map(function(v,i){return v+h*d[i];});}
@@ -359,26 +362,29 @@
         for(var k=1;k<=4;k++){zz=C.mul(zz,z);f*=k;s=C.add(s,C.scale(zz,1/f));}return C.abs(s)<=1+1e-12;});}
       var lo=0,hi=10;while(ok(hi)&&hi<1e3)hi*=2;for(var i=0;i<60;i++){var m=(lo+hi)/2;if(ok(m))lo=m;else hi=m;}return lo;}
     function draw(){
-      var K=+ob.get(),M=+me.get();d1.el.style.display=K===0?"":"none";d2.el.style.display=K===1?"":"none";d3.el.style.display=K===2?"":"none";
-      var f,x0,tEnd,out,ex,h,yl,lams,unit;
-      if(K===0){var T=0.05;f=function(t,x){return [(600-x[0])/T];};x0=[0];tEnd=0.5;out=function(x){return x[0];};h=d1.get()/1000;yl="角速度 [rad/s]";unit=" rad/s";
-        ex=[];for(var i=0;i<=500;i++){var t=i*tEnd/500;ex.push([t,600*(1-Math.exp(-t/T))]);}lams=[{re:-1/T,im:0}];}
-      else if(K===1){var m=1,c=2,k=25;f=function(t,x){return [x[1],(1-c*x[1]-k*x[0])/m];};x0=[0,0];tEnd=5;out=function(x){return x[0]*100;};h=d2.get();yl="位置 p [cm]";unit=" cm";
+      var K=+ob.get(),M=+me.get();d1.el.style.display=K===0?"":"none";d4.el.style.display=K===1?"":"none";d2.el.style.display=K===2?"":"none";d3.el.style.display=K===3?"":"none";
+      var f,x0,tEnd,out,ex,h,yl,lams,unit,T1=null,y0=0,yf=0,ts=1000,tsu=" ms";
+      if(K===0){T1=0.05;y0=0;yf=600;tEnd=0.5;h=d1.get()/1000;yl="角速度 [rad/s]";unit=" rad/s";}
+      if(K===1){T1=500;y0=25;yf=125;tEnd=5000;h=d4.get();yl="板の温度 [°C]";unit=" K";ts=1;tsu=" s";}
+      if(T1!==null){(function(Tq,a0,af){f=function(t,x){return [(af-x[0])/Tq];};x0=[a0];out=function(x){return x[0];};
+        ex=[];for(var i=0;i<=500;i++){var t=i*tEnd/500;ex.push([t,af+(a0-af)*Math.exp(-t/Tq)]);}lams=[{re:-1/Tq,im:0}];})(T1,y0,yf);}
+      else if(K===2){var m=1,c=2,k=25;f=function(t,x){return [x[1],(1-c*x[1]-k*x[0])/m];};x0=[0,0];tEnd=5;out=function(x){return x[0]*100;};h=d2.get();yl="位置 p [cm]";unit=" cm";
         ex=[];var xe=[0,0],dte=0.0005;for(var j=0;j<=tEnd/dte;j++){if(j%10===0)ex.push([j*dte,xe[0]*100]);xe=rk4f(f,j*dte,xe,dte);}
         lams=MM.eig([[0,1],[-k/m,-c/m]]);}
       else{var Ra=2,La=1e-3,Kt=0.02,J=1e-5;f=function(t,x){return [(12-Ra*x[0]-Kt*x[1])/La,Kt*x[0]/J];};x0=[0,0];tEnd=0.3;out=function(x){return x[0];};h=d3.get()/1000;yl="電流 i [A]";unit=" A";
-        var A=[[-Ra/La,-Kt/La],[Kt/J,0]],B=[[1/La],[0]],dd=MM.c2d(A,B,tEnd/3000),xx=[[0],[0]];ex=[];
-        for(var q=0;q<=3000;q++){ex.push([q*tEnd/3000,xx[0][0]]);xx=MM.add(MM.mul(dd.A,xx),MM.scale(dd.B,12));}
+        var A=[[-Ra/La,-Kt/La],[Kt/J,0]],B=[[1/La],[0]],dd=MM.c2d(A,B,tEnd/30000),xx=[[0],[0]];ex=[];
+        for(var q=0;q<=30000;q++){ex.push([q*tEnd/30000,xx[0][0]]);var a0=xx[0][0],a1=xx[1][0];xx=[[dd.A[0][0]*a0+dd.A[0][1]*a1+dd.B[0][0]*12],[dd.A[1][0]*a0+dd.A[1][1]*a1+dd.B[1][0]*12]];}
         lams=MM.eig(A);}
       var eu=(M!==1)?steps(f,x0,h,tEnd,euler,out):null,rk=(M!==0)?steps(f,x0,h,tEnd,rk4f,out):null;
       /* 範囲 */
-      var lo=0,hi=0;ex.forEach(function(p){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1]);});
+      var lo=Infinity,hi=-Infinity;ex.forEach(function(p){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1]);});
       var span=hi-lo,cap=[lo-1.5*span,hi+1.5*span];
       [eu,rk].forEach(function(a){if(a)a.forEach(function(p){lo=Math.min(lo,Math.max(cap[0],p[1]));hi=Math.max(hi,Math.min(cap[1],p[1]));});});
       var rr=_w02_range(lo,hi,0.06),nar=_w02_nar(box),Wd=nar?400:700,o=[];
       var P=U.plot(nar?52:66,18,nar?332:604,nar?190:230,[0,tEnd],rr);
       o.push(P.axes({xl:"時間 t [s]",yl:yl,xt:_w02_ticks(U,0,tEnd,5),yt:_w02_ticks(U,rr[0],rr[1],5),xfmt:function(v){return _w02_sig(v,3);},yfmt:function(v){return _w02_sig(v,3);},ylOff:nar?36:44}));
-      o.push(P.line(ex,"signal",2.4));
+      var exd=ex.length>1200?ex.filter(function(_,i){return i%Math.ceil(ex.length/1200)===0||i===ex.length-1;}):ex;
+      o.push(P.line(exd,"signal",2.4));
       [[eu,"alias"],[rk,"green"]].forEach(function(a){if(!a[0])return;var pts=a[0];o.push(_w02_cl(P,pts,a[1],1.5));
         if(pts.length<=160)pts.forEach(function(p){if(p[1]>=rr[0]&&p[1]<=rr[1])o.push(S.D(P.X(p[0]),P.Y(p[1]),a[1],pts.length>60?2.2:3.2));});});
       o.push(S.T(P.x,P.y+P.h+46,"青: 本当の解"+(eu?"　赤: オイラー法":"")+(rk?"　緑: ルンゲ・クッタ法":""),"start",9.5,"muted"));
@@ -387,24 +393,24 @@
       var hdr="",lim=lams.map(function(l){return -2*l.re/(l.re*l.re+l.im*l.im);}).reduce(function(a,b){return Math.min(a,b);}),limR=rkLimit(lams);
       function maxErr(pts){var e=0;pts.forEach(function(p){var i2=Math.round(p[0]/tEnd*(ex.length-1));var ref=ex[Math.min(i2,ex.length-1)][1];
         var t2=ex[Math.min(i2,ex.length-1)][0];if(Math.abs(t2-p[0])<1e-9*tEnd+tEnd/(ex.length-1)/2)e=Math.max(e,Math.abs(p[1]-ref));});return e;}
-      function bad(pts){return pts.length<Math.round(tEnd/h+1e-9)+1||Math.abs(pts[pts.length-1][1])>Math.abs(cap[1])*1.0;}
-      hdr+="刻み幅 Δt = "+_w02_sig(h*(K===1?1:1000),3)+(K===1?" s":" ms")+"、"+Math.round(tEnd/h+1e-9)+" 刻みで "+tEnd+" s まで<br>";
-      if(K===0){var r=h/0.05,fe=1-r,fr=rkR(-r),cls;
+      var sc2=(K===2?1:(K===1?1:1000)),su2=(K===0||K===3)?" ms":" s";
+      hdr+="刻み幅 Δt = "+_w02_sig(h*sc2,3)+su2+"、"+Math.round(tEnd/h+1e-9)+" 刻みで "+tEnd+" s まで<br>";
+      if(T1!==null){var r=h/T1,fe=1-r,fr=rkR(-r),cls,dY=yf-y0;
         if(fe>0)cls='<span class="ok">ずれは符号を変えずに減る（0 &lt; Δt &lt; T）</span>';else if(fe===0)cls="1 刻みで落ち着く値に着く（Δt = T）";
         else if(fe>-1)cls='<span class="warn">刻みごとに符号を変えながら減る＝振動する（T &lt; Δt &lt; 2T）</span>';else if(Math.abs(fe+1)<1e-12)cls='<span class="warn">同じ大きさで振れ続ける（Δt = 2T）</span>';else cls='<span class="warn">刻みごとに大きくなる＝発散する（Δt &gt; 2T）</span>';
         hdr+="Δt/T = "+_w02_sig(r,3)+"。落ち着く値からのずれは 1 刻みごとに、オイラー法で <b>1 − Δt/T = "+_w02_f(fe,3)+"</b> 倍 → "+cls+"<br>";
         hdr+="ルンゲ・クッタ法の 1 刻みの倍率: 1 − r + r²/2 − r³/6 + r⁴/24 = "+_w02_f(fr,4)+"（r = Δt/T。発散しない上限は Δt = 2.79T）<br>";
         if(eu)hdr+="オイラー法の値: "+eu.slice(0,5).map(function(p){return _w02_sig(p[1],4);}).join(", ")+(eu.length>5?", …":"")+"（時刻 0, Δt, 2Δt, …）<br>";
-        var nT=0.05/h;if(Math.abs(nT-Math.round(nT))<1e-9&&nT>=1){var dex=600*Math.exp(-1);
-          if(eu){var de=600-eu[Math.round(nT)][1];hdr+="t = T（0.05 s）でのずれ: オイラー法 "+_w02_sig(de,4)+"、本当 "+_w02_sig(dex,4)+"（誤差 "+_w02_sig((de/dex-1)*100,3)+" %）<br>";}
-          if(rk){var dr=600-rk[Math.round(nT)][1];hdr+="t = T でのずれ: ルンゲ・クッタ法 "+_w02_sig(dr,6)+"（誤差 "+_w02_sig((dr/dex-1)*100,2)+" %）<br>";}}
+        var nT=T1/h;if(Math.abs(nT-Math.round(nT))<1e-9&&nT>=1){var dex=dY*Math.exp(-1);
+          if(eu){var de=yf-eu[Math.round(nT)][1];hdr+="t = T（"+_w02_sig(T1,3)+" s）での、落ち着く値からのずれ: オイラー法 "+_w02_sig(de,4)+unit+"、本当 "+_w02_sig(dex,4)+unit+"（誤差 "+_w02_sig((de/dex-1)*100,3)+" %）<br>";}
+          if(rk){var dr=yf-rk[Math.round(nT)][1];hdr+="t = T でのずれ: ルンゲ・クッタ法 "+_w02_sig(dr,6)+unit+"（誤差 "+_w02_sig((dr/dex-1)*100,2)+" %）<br>";}}
       }else{
-        hdr+=(K===1?"揺れる対象（固有値 −1 ± 4.9j）":"速い動き（約 "+_w02_sig(-1/lams.reduce(function(a,b){return a.re<b.re?a:b;}).re*1e3,3)+" ms）と遅い動き（約 "+_w02_sig(-1/lams.reduce(function(a,b){return a.re>b.re?a:b;}).re*1e3,3)+" ms）")+
-          "。発散しない刻み幅の上限: オイラー法 <b>"+_w02_sig(lim*(K===1?1:1000),3)+(K===1?" s":" ms")+"</b>、ルンゲ・クッタ法 <b>"+_w02_sig(limR*(K===1?1:1000),3)+(K===1?" s":" ms")+"</b><br>";
+        hdr+=(K===2?"揺れながら落ち着く対象":"速い動き（約 "+_w02_sig(-1/lams.reduce(function(a,b){return a.re<b.re?a:b;}).re*1e3,3)+" ms）と遅い動き（約 "+_w02_sig(-1/lams.reduce(function(a,b){return a.re>b.re?a:b;}).re*1e3,3)+" ms）")+
+          "。発散しない刻み幅の上限: オイラー法 <b>"+_w02_sig(lim*sc2,3)+su2+"</b>、ルンゲ・クッタ法 <b>"+_w02_sig(limR*sc2,3)+su2+"</b><br>";
         if(eu)hdr+="オイラー法: "+(h>lim*(1+1e-9)?'<span class="warn">発散する</span>':(Math.abs(h-lim)<lim*0.02?'<span class="warn">上限の近く（ゆっくりしか減らない）</span>':"最大の誤差 "+_w02_sig(maxErr(eu),3)+unit))+"<br>";
         if(rk)hdr+="ルンゲ・クッタ法: "+(h>limR*(1+1e-9)?'<span class="warn">発散する</span>':"最大の誤差 "+_w02_sig(maxErr(rk),3)+unit)+"<br>";
       }
-      ro.innerHTML=hdr+'<div class="wnote">本当の解は、一次の式は式の形の解、ほかは十分に細かい刻みで求めた。発散して範囲の外に出た所は描かない。'+(K===1?"揺れる対象では、ずれが複素数の倍率で回りながら縮むので、オイラー法の上限は −2Re(λ)/|λ|²（λ は固有値。17 章）で決まる。":"")+'</div>';
+      ro.innerHTML=hdr+'<div class="wnote">本当の解は、一次の式は式の形の解、ほかは十分に細かい刻みで求めた。発散して範囲の外に出た所は描かない。'+(K===2?"揺れながら落ち着く対象では、オイラー法は、ずれを少しずつ大きくする向きに誤るので、刻み幅の上限がとくに厳しい。":"")+'</div>';
     }
     draw();
   };
