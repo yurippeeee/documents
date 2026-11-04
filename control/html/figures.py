@@ -593,6 +593,58 @@ def TIMEBAR(x, y, w, t0, t1, segs, h=26, sz=9.5, axis=True, tfmt=None, ticks=Non
         hh += 20
     return "".join(o), hh
 
+# ---- 添字付きの文字・加え合わせ点・線の見本つきの凡例（全章で同じ見た目にする） ----
+import re as _re_tx
+def TX(x, y, s, a="start", sz=10, c=INK, b=False, halo=False):
+    """添字付きの文字。"K_P" "u_0" "e_∞" "ω_gc" のように、1 文字の後の _ に続く英数字を添字にする（例 "u = K_P e"）。"""
+    segs, pos = [], 0
+    for mm in _re_tx.finditer(r"([A-Za-zα-ωΑ-Ω])_([A-Za-z0-9∞]+)", s):
+        if mm.start() > pos:
+            segs.append((s[pos:mm.start()], None))
+        segs.append((mm.group(1), mm.group(2)))
+        pos = mm.end()
+    if pos < len(s):
+        segs.append((s[pos:], None))
+    ssz = sz * 0.72
+    w = sum(tw(t, sz) + (tw(u, ssz) if u else 0) for t, u in segs)
+    x0 = x - (w / 2 if a == "middle" else (w if a == "end" else 0))
+    if _CHECK:
+        _BOXES.append((x0, y - sz * 0.82, x0 + w, y + sz * 0.22 + 2, s))
+    hs = ' stroke="%s" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke"' % SCR if halo else ""
+    o = ['<text x="%g" y="%g" text-anchor="start" font-size="%g" fill="%s" font-family="var(--sans)" font-weight="%s"%s>'
+         % (round(x0, 2), round(y, 2), sz, c, "700" if b else "400", hs)]
+    pend = 0
+    for t, u in segs:
+        o.append('<tspan%s>%s</tspan>' % ((' dy="%g"' % pend) if pend else "", E(t)))
+        pend = 0
+        if u:
+            o.append('<tspan dy="3" font-size="%g">%s</tspan>' % (round(ssz, 2), E(u)))
+            pend = -3
+    o.append("</text>")
+    return "".join(o)
+
+def SUMJ(x, y, signs, c=INK, r=15):
+    """ブロック線図の加え合わせ点。signs = {"l": "+", "b": "−"}: 矢印が入ってくる側（l・r・t・b）と符号。
+    丸を斜めの線で 4 つに区切り、矢印が入る側の区画に符号を書く（01 章と同じ見た目）。"""
+    k = r * 0.7071; f = r / 15.0
+    o = [CIRC(x, y, r, c=c, lw=1.5, fill=SCR),
+         W(x - k, y - k, x + k, y + k, c=MUT, lw=0.9), W(x - k, y + k, x + k, y - k, c=MUT, lw=0.9)]
+    pos = {"l": (-8.2, 3.9), "r": (8.2, 3.9), "t": (0, -4.6), "b": (0, 12.4)}
+    for side, sg in signs.items():
+        dx, dy = pos[side]
+        o.append('<text x="%g" y="%g" text-anchor="middle" font-size="%g" fill="%s" font-family="var(--sans)" font-weight="700">%s</text>'
+                 % (round(x + dx * f, 2), round(y + (dy - 3.9) * f + 3.9 if side in "lr" else y + dy * f, 2), round(10.5 * f, 2), c, E(sg)))
+    return "".join(o)
+
+def LEGL(x, y, items, sz=10, gap=18):
+    """線の見本つきの凡例（横に並べる）。items = [(色, 破線 or None, 文字), ...]。文字には TX の添字が使える。"""
+    o, xx = [], x
+    for c, dash, t in items:
+        o.append(W(xx, y - 4, xx + 24, y - 4, c=c, lw=2.2, dash=dash))
+        o.append(TX(xx + 30, y, t, "start", sz, MUT))
+        xx += 30 + tw(_re_tx.sub(r"_", "", t), sz) + gap
+    return "".join(o)
+
 # ---- 制御の図の補助（s 平面・極と零点・ボード線図）。数値の計算は numpy・scipy を使ってよい（ビルドは python3.13） ----
 def SPLANE(p, rhp=True, zeta=None):
     """s 平面の地。p は Plot。右半平面を薄い赤で塗り、実軸・虚軸を引く。zeta=[0.5, 0.7] で減衰比の線（原点からの破線）。"""

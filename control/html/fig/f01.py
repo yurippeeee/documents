@@ -848,13 +848,13 @@ def _f01_objects_fig():
     x, y = cells[2]
     o.append(T(x + 12, y + 20, "温度の板（ヒータ）", "start", 11, SIG, True))
     py_ = y + 92
-    o.append(RECT(x + 24, py_ - 12, 120, 18, 3, MSOFT, MUT, 1.4)); o.append(RECT(x + 40, py_ + 6, 88, 7, 2, PSOFT, PUR, 1.2))
-    o.append(T(x + 84, py_ + 30, "ヒータ 0〜80 W", "middle", 9.5, PUR, True))
+    o.append(RECT(x + 24, py_ - 12, 120, 18, 3, MSOFT, MUT, 1.4)); o.append(RECT(x + 40, py_ + 6, 88, 7, 2, GOSOFT, GLD, 1.2))
+    o.append(T(x + 84, py_ + 30, "ヒータ 0〜80 W", "middle", 9.5, GLD, True))
     o.append(RECT(x + 112, py_ - 20, 16, 8, 2, TSOFT, TEA, 1.2)); o.append(T(x + 120, py_ - 26, "センサ", "middle", 9.5, TEA, True))
     for k in range(3):
         xx = x + 44 + k * 22
-        o.append(PATH("M%g,%g c-5,-6 5,-10 0,-16 c-5,-6 5,-10 0,-16" % (xx, py_ - 16), c=GLD, lw=1.3))
-    o.append(T(x + 64, py_ - 56, "逃げる熱", "middle", 9.5, GLD))
+        o.append(PATH("M%g,%g c-5,-6 5,-10 0,-16 c-5,-6 5,-10 0,-16" % (xx, py_ - 16), c=MUT, lw=1.3))
+    o.append(T(x + 64, py_ - 56, "逃げる熱", "middle", 9.5, MUT))
     for k, l in enumerate(["熱容量 400 J/K", "熱抵抗 1.25 K/W", "センサの遅れ 20 s", "周り 25 °C、目標 60 °C"]):
         o.append(T(x + 166, y + 46 + k * 16, l, "start", 10, INK))
     o.append(T(x + 12, y + H_ - 12, "使う章: 2・3・9〜11・14", "start", 10, SIG, True))
@@ -867,11 +867,11 @@ def _f01_objects_fig():
     o.append(CIRC(x + 64, gy - 6, 6, c=INK, lw=1.3, fill=PAN)); o.append(CIRC(x + 96, gy - 6, 6, c=INK, lw=1.3, fill=PAN))
     ax_, ay_ = x + 80, gy - 30
     tx_, ty_ = ax_ + 70 * math.sin(math.radians(12)), ay_ - 70 * math.cos(math.radians(12))
-    o.append(W(ax_, ay_, tx_, ty_, c=INK, lw=2.4)); o.append(D(tx_, ty_, ALI, 7))
+    o.append(W(ax_, ay_, tx_, ty_, c=INK, lw=2.4)); o.append(D(tx_, ty_, SIG, 7))
     o.append(W(ax_, ay_, ax_, ay_ - 76, c=FNT, lw=1, dash="3 3"))
     o.append(ARR(x + 22, gy - 20, x + 50, gy - 20, c=GLD, lw=2, head=6)); o.append(T(x + 30, gy - 28, "押す力", "middle", 9.5, GLD, True))
-    o.append(PATH("M%g,%g A34,34 0 0,1 %g,%g" % (ax_, ay_ - 34, ax_ + 34 * math.sin(math.radians(12)), ay_ - 34 * math.cos(math.radians(12))), c=ALI, lw=1.3))
-    o.append(T(ax_ + 14, ay_ - 30, "角度", "start", 9.5, ALI, True))
+    o.append(PATH("M%g,%g A34,34 0 0,1 %g,%g" % (ax_, ay_ - 34, ax_ + 34 * math.sin(math.radians(12)), ay_ - 34 * math.cos(math.radians(12))), c=SIG, lw=1.3))
+    o.append(T(ax_ + 14, ay_ - 30, "角度", "start", 9.5, SIG, True))
     for k, l in enumerate(["台車 0.5 kg", "振子 0.2 kg", "長さ 0.3 m", "真上で倒れないように", "台車を押して立てる"]):
         o.append(T(x + 166, y + 46 + k * 16, l, "start", 10, INK if k < 3 else MUT))
     o.append(T(x + 12, y + H_ - 12, "使う章: 2・17〜21", "start", 10, SIG, True))
