@@ -45,6 +45,10 @@ def tw(s, sz=11.5, mono=False):
             w += sz * 0.55
         elif o in (0xB2, 0xB3, 0xB9) or 0x2070 <= o <= 0x209F:   # 上付き・下付きの数字（10⁶ など）は幅が狭い
             w += sz * 0.4
+        elif 0x0300 <= o <= 0x036F:   # 結合文字（上の点など）は幅を持たない
+            pass
+        elif 0x0370 <= o <= 0x03FF:   # ギリシャ文字（ω・ζ・φ など）は半角と同じくらい
+            w += sz * 0.6
         else:
             w += sz * 1.0
     return w
