@@ -290,8 +290,8 @@ class Plot:
             o.append(W(self.x - 4, yy, self.x, yy, c=MUT, lw=1))
             o.append(T(self.x - 7, yy + sz * 0.35, (yfmt or fmt_num)(v), "end", sz, MUT))
         o.append(W(self.x, self.y, self.x, self.y + self.h, self.x + self.w, self.y + self.h, c=MUT, lw=1.2))
-        if xl: o.append(T(self.x + self.w / 2, self.y + self.h + 31, xl, "middle", sz + 0.5, MUT))
-        if yl: o.append(T(self.x - 38, self.y + self.h / 2, yl, "middle", sz + 0.5, MUT, rot=-90))
+        if xl: o.append(TX(self.x + self.w / 2, self.y + self.h + 31, xl, "middle", sz + 0.5, MUT))
+        if yl: o.append(TX(self.x - 38, self.y + self.h / 2, yl, "middle", sz + 0.5, MUT, rot=-90))
         return "".join(o)
     def _logticks(self, r):
         lo, hi = math.floor(math.log10(r[0]) + 1e-9), math.ceil(math.log10(r[1]) - 1e-9)
@@ -624,33 +624,70 @@ def TIMEBAR(x, y, w, t0, t1, segs, h=26, sz=9.5, axis=True, tfmt=None, ticks=Non
 
 # ---- 添字付きの文字・加え合わせ点・線の見本つきの凡例（全章で同じ見た目にする） ----
 import re as _re_tx
-def TX(x, y, s, a="start", sz=10, c=INK, b=False, halo=False):
-    """添字付きの文字。"K_P" "u_0" "e_∞" "ω_gc" のように、1 文字の後の _ に続く英数字を添字にする（例 "u = K_P e"）。"""
-    segs, pos = [], 0
-    for mm in _re_tx.finditer(r"([A-Za-zα-ωΑ-Ω])_([A-Za-z0-9∞]+)", s):
+_TX_RE = None
+def _tx_tokens(s):
+    """TX の文字列を (種類, 文字) の並びに分ける。種類は "n"（普通）・"sub"・"sup"・"dot1"・"dot2"（上に点 1 つ・2 つ）。"""
+    global _TX_RE
+    if _TX_RE is None:
+        _TX_RE = _re_tx.compile(r"\\(d?dot)\{(.)\}|([A-Za-zα-ωΑ-Ω\u0080-\u024F])_\{([^}]*)\}|([A-Za-zα-ωΑ-Ω])_([A-Za-z0-9∞%]+)|\^\{([^}]*)\}|\^([A-Za-z0-9∞]+)")
+    out, pos = [], 0
+    for mm in _TX_RE.finditer(s):
         if mm.start() > pos:
-            segs.append((s[pos:mm.start()], None))
-        segs.append((mm.group(1), mm.group(2)))
+            out.append(("n", s[pos:mm.start()]))
+        if mm.group(1):
+            out.append(("dot2" if mm.group(1) == "ddot" else "dot1", mm.group(2)))
+            m2 = _re_tx.match(r"_\{([^}]*)\}|_([A-Za-z0-9∞%]+)", s[mm.end():])   # 点の付いた文字の添字（\dot{θ}_m）
+            if m2:
+                out.append(("sub", m2.group(1) if m2.group(1) is not None else m2.group(2)))
+                pos = mm.end() + m2.end()
+                continue
+        elif mm.group(3) is not None:
+            out.append(("n", mm.group(3))); out.append(("sub", mm.group(4)))
+        elif mm.group(5) is not None:
+            out.append(("n", mm.group(5))); out.append(("sub", mm.group(6)))
+        elif mm.group(7) is not None:
+            out.append(("sup", mm.group(7)))
+        else:
+            out.append(("sup", mm.group(8)))
         pos = mm.end()
     if pos < len(s):
-        segs.append((s[pos:], None))
+        out.append(("n", s[pos:]))
+    return out
+
+def TX(x, y, s, a="start", sz=10, c=INK, b=False, halo=False, rot=None):
+    """添字・上付き・上の点を含む文字。
+    "K_P" "u_0" "ω_gc"（1 文字の後の _ に続く英数字）・"t_{2%}"（_{…} で何でも添字）・"e^{−Ls}" "x^2"（上付き）・
+    "\\dot{θ}" "\\ddot{p}"（上に点。結合文字はフォントで位置がずれるので、点を小さな円で描く）。rot は回転の角度（縦軸の題に）。"""
+    segs = _tx_tokens(s)
     ssz = sz * 0.72
-    w = sum(tw(t, sz) + (tw(u, ssz) if u else 0) for t, u in segs)
+    def wseg(kind, t):
+        return tw(t, ssz) if kind in ("sub", "sup") else tw(t, sz)
+    w = sum(wseg(k, t) for k, t in segs)
     x0 = x - (w / 2 if a == "middle" else (w if a == "end" else 0))
-    if _CHECK:
+    if _CHECK and rot is None:
         _BOXES.append((x0, y - sz * 0.82, x0 + w, y + sz * 0.22 + 2, s))
     hs = ' stroke="%s" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke"' % SCR if halo else ""
     o = ['<text x="%g" y="%g" text-anchor="start" font-size="%g" fill="%s" font-family="var(--sans)" font-weight="%s"%s>'
          % (round(x0, 2), round(y, 2), sz, c, "700" if b else "400", hs)]
-    pend = 0
-    for t, u in segs:
-        o.append('<tspan%s>%s</tspan>' % ((' dy="%g"' % pend) if pend else "", E(t)))
-        pend = 0
-        if u:
-            o.append('<tspan dy="3" font-size="%g">%s</tspan>' % (round(ssz, 2), E(u)))
-            pend = -3
+    dots, xx, cur = [], x0, 0.0   # cur: 今の基線からのずれ（下が正）
+    for kind, t in segs:
+        want = 3.0 if kind == "sub" else (-sz * 0.38 if kind == "sup" else 0.0)
+        dy = want - cur; cur = want
+        fs = ' font-size="%g"' % round(ssz, 2) if kind in ("sub", "sup") else ""
+        o.append('<tspan%s%s>%s</tspan>' % ((' dy="%g"' % round(dy, 2)) if abs(dy) > 1e-9 else "", fs, E(t)))
+        ww = wseg(kind, t)
+        if kind in ("dot1", "dot2"):
+            cx = xx + ww / 2; cy = y - sz * 0.86; r = max(0.9, sz * 0.085)
+            if kind == "dot1": dots.append((cx, cy, r))
+            else: dots += [(cx - sz * 0.13, cy, r), (cx + sz * 0.13, cy, r)]
+        xx += ww
     o.append("</text>")
-    return "".join(o)
+    for cx, cy, r in dots:
+        o.append('<circle cx="%g" cy="%g" r="%g" fill="%s"/>' % (round(cx, 2), round(cy, 2), round(r, 2), c))
+    body = "".join(o)
+    if rot is not None:
+        return '<g transform="rotate(%g %g %g)">%s</g>' % (rot, round(x, 2), round(y, 2), body)
+    return body
 
 def SUMJ(x, y, signs, c=INK, r=15):
     """ブロック線図の加え合わせ点。signs = {"l": "+", "b": "−"}: 矢印が入ってくる側（l・r・t・b）と符号。
