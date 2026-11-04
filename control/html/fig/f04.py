@@ -986,7 +986,7 @@ def _f04_motor_kp_fig():
     o.append(_f04_m(p.X(-21.5), p.Y(18.5), [_f04_g("ζ"), _f04_t(" = 0.69")], "start", 9.5, GRN, True))
     # (b) ステップ応答
     o.append(_f04_m(266, 18, [_f04_t("(b) 目標を 1 rad 変えたときの角度 "), _f04_g("θ", "m")], "start", 11.5, INK, True, False))
-    q = Plot(306, 34, 374, 150, (0, 1), (0, 1.6))
+    q = Plot(306, 34, 374, 250, (0, 1), (0, 1.6))
     o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.2, 0.4, 0.6, 0.8, 1.0], yt=[0, 0.5, 1.0, 1.5], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
     o.append(q.line([(0, 1), (1, 1)], c=MUT, lw=1.1, dash="4 3"))
     o.append(q.line([(0, 1.05), (1, 1.05)], c=ALI, lw=0.9, dash="2 3"))
@@ -996,36 +996,49 @@ def _f04_motor_kp_fig():
         y, v = _f04_step(z, wn, t)
         o.append(_f04_pl(q, list(zip(t, y)), c=c, lw=2.6 if kp == 0.21 else 1.8))
     o.append(T(q.X(0.995), q.Y(1.05) - 4, "5 %", "end", 9, ALI, halo=True))
-    o.append(LEGL(306, 228, [(TEA, None, "K_P 0.05"), (GLD, None, "0.1"), (GRN, None, "0.21"), (PUR, None, "0.5"), (ALI, None, "1 V/rad")], sz=9.5, gap=10))
-    # (c)(d) 行き過ぎ量と整定時間
+    o.append(LEGL(306, 340, [(TEA, None, "K_P 0.05"), (GLD, None, "0.1"), (GRN, None, "0.21"), (PUR, None, "0.5"), (ALI, None, "1 V/rad")], sz=9.5, gap=10))
+    return SVG(700, 386, o, "モータの位置の比例制御で、比例ゲイン K<sub>P</sub> を変える（L<sub>a</sub> を無視した二次遅れの式）。(a) K<sub>P</sub> = 0 の根 0 と −20 は、K<sub>P</sub> を上げると実軸の上で近づき（金の矢印）、0.1 V/rad で −10 に重なった後、実部 −10 のまま上下に分かれる。緑の破線は ζ = 0.69（行き過ぎ量 5 %）の線。(b) 目標を 1 rad 変えたときの角度。K<sub>P</sub> を上げると速く動き始めるが、0.1 V/rad を超えると行き過ぎ、その量が増える。")
+F["e04_motor_kp"] = _f04_motor_kp_fig()
+
+
+def _f04_motor_design_fig():
+    o = []
+    T_, K_ = _F04_TM, _F04_KM
     kgrid = [10 ** e for e in _f04_np.linspace(math.log10(0.02), math.log10(20), 241)]
     mp, t2s = [], []
     for kp in kgrid:
         wn = math.sqrt(K_ * kp / T_); z = 1 / (2 * math.sqrt(K_ * kp * T_))
         tr, tp, Mp, t2 = _f04_index(z)
         mp.append((kp, Mp * 100)); t2s.append((kp, t2 / wn))
-    o.append(_f04_m(266, 262, [_f04_t("(c) 行き過ぎ量 "), _f04_v("M", "p"), _f04_t(" [%]")], "start", 10.5, INK, True, False))
-    c1 = Plot(306, 274, 160, 84, (0.02, 20), (0, 80), xlog=True)
-    o.append(c1.axes(xl=None, yl=None, xt=[0.1, 1, 10], yt=[0, 20, 40, 60, 80], xfmt=lambda v: "%g" % v))
-    o.append(_f04_m(c1.x + c1.w / 2, c1.y + c1.h + 28, [_f04_v("K", "P"), _f04_t(" [V/rad]")], "middle", 9.5, MUT, False, False))
-    o.append(c1.line(mp, c=ALI, lw=2.2))
-    o.append(W(c1.X(0.02), c1.Y(5), c1.X(0.21), c1.Y(5), c1.X(0.21), c1.Y(0), c=GRN, lw=1.1, dash="4 3"))
-    o.append(D(c1.X(0.21), c1.Y(5), GRN, 3.4))
-    o.append(T(c1.X(0.24), c1.Y(5) - 6, "0.21 で 5 %", "start", 9, GRN, True, halo=True))
-    o.append(_f04_m(496, 262, [_f04_t("(d) 2 % 整定時間 "), _f04_v("t", "2%"), _f04_t(" [s]")], "start", 10.5, INK, True, False))
-    c2 = Plot(520, 274, 160, 84, (0.02, 20), (0, 1.5), xlog=True)
-    o.append(c2.axes(xl=None, yl=None, xt=[0.1, 1, 10], yt=[0, 0.5, 1.0, 1.5], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
-    o.append(_f04_m(c2.x + c2.w / 2, c2.y + c2.h + 28, [_f04_v("K", "P"), _f04_t(" [V/rad]")], "middle", 9.5, MUT, False, False))
+    o.append(_f04_m(14, 18, [_f04_t("(a) 行き過ぎ量 "), _f04_v("M", "p")], "start", 11.5, INK, True, False))
+    c1 = Plot(62, 34, 270, 170, (0.02, 20), (0, 80), xlog=True)
+    o.append(c1.axes(xl=None, yl="行き過ぎ量 [%]", xt=[0.1, 1, 10], yt=[0, 20, 40, 60, 80], xfmt=lambda v: "%g" % v))
+    o.append(_f04_m(c1.x + c1.w / 2, c1.y + c1.h + 31, [_f04_t("比例ゲイン "), _f04_v("K", "P"), _f04_t(" [V/rad]（対数の目盛）")], "middle", 10, MUT, False, False))
+    o.append(c1.line(mp, c=ALI, lw=2.4))
+    o.append(W(c1.X(0.02), c1.Y(5), c1.X(0.21), c1.Y(5), c1.X(0.21), c1.Y(0), c=GRN, lw=1.2, dash="4 3"))
+    o.append(D(c1.X(0.21), c1.Y(5), GRN, 3.8))
+    o.append(T(c1.X(0.25), c1.Y(5) - 7, "0.21 V/rad で 5 %", "start", 9.5, GRN, True, halo=True))
+    o.append(T(c1.X(0.05), c1.Y(30), "0.1 V/rad まで", "middle", 9.5, MUT, halo=True))
+    o.append(T(c1.X(0.05), c1.Y(30) + 14, "行き過ぎない", "middle", 9.5, MUT, halo=True))
+    o.append(T(c1.X(1.0) + 4, c1.Y(35.1) + 4, "1 V/rad で 35.1 %", "start", 9.5, ALI, True, halo=True))
+    o.append(D(c1.X(1.0), c1.Y(35.1), ALI, 3.2))
+    o.append(_f04_m(380, 18, [_f04_t("(b) 2 % 整定時間 "), _f04_v("t", "2%")], "start", 11.5, INK, True, False))
+    c2 = Plot(420, 34, 260, 170, (0.02, 20), (0, 1.5), xlog=True)
+    o.append(c2.axes(xl=None, yl="時間 [s]", xt=[0.1, 1, 10], yt=[0, 0.5, 1.0, 1.5], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    o.append(_f04_m(c2.x + c2.w / 2, c2.y + c2.h + 31, [_f04_t("比例ゲイン "), _f04_v("K", "P"), _f04_t(" [V/rad]（対数の目盛）")], "middle", 10, MUT, False, False))
     segs, cur = [], []
     for a, b in t2s:
         if cur and abs(b - cur[-1][1]) > 0.03:
             segs.append(cur); cur = []
         cur.append((a, b))
     segs.append(cur)
+    o.append(W(c2.X(0.02), c2.Y(0.4), c2.X(20), c2.Y(0.4), c=GLD, lw=1.2, dash="5 3"))
     for sgm in segs:
-        o.append(_f04_pl(c2, sgm, c=SIG, lw=2.2))
-    o.append(W(c2.X(0.02), c2.Y(0.4), c2.X(20), c2.Y(0.4), c=GLD, lw=1.1, dash="5 3"))
-    o.append(_f04_m(c2.X(18), c2.Y(0.4) - 6, [_f04_t("4/("), _f04_g("ζ"), _f04_g("ω", "n"), _f04_t(") = 0.4 s")], "end", 9, GLD, True))
-    o.append(D(c2.X(0.21), c2.Y(0.414), GRN, 3.4))
-    return SVG(700, 392, o, "モータの位置の比例制御で、比例ゲイン K<sub>P</sub> を変える（L<sub>a</sub> を無視した二次遅れの式）。(a) K<sub>P</sub> = 0 の根 0 と −20 は、K<sub>P</sub> を上げると実軸の上で近づき、0.1 V/rad で −10 に重なった後、実部 −10 のまま上下に分かれる。緑の破線は ζ = 0.69（行き過ぎ量 5 %）の線。(b) 角度のステップ応答。(c) 行き過ぎ量は 0.1 V/rad を超えると増え、0.21 V/rad で 5 % になる。(d) 整定時間は、根の実部が −10 で止まるので、0.4 s 付近より短くならない。")
-F["e04_motor_kp"] = _f04_motor_kp_fig()
+        o.append(_f04_pl(c2, sgm, c=SIG, lw=2.4))
+    o.append(_f04_m(c2.X(19), c2.Y(0.4) + 15, [_f04_t("目安 4/("), _f04_g("ζ"), _f04_g("ω", "n"), _f04_t(") = 0.4 s")], "end", 9.5, GLD, True))
+    o.append(D(c2.X(0.21), c2.Y(0.414), GRN, 3.8))
+    o.append(T(c2.X(0.23), c2.Y(0.414) - 9, "0.21 V/rad で 0.414 s", "start", 9.5, GRN, True, halo=True))
+    o.append(T(c2.X(0.105), c2.Y(1.3), "根が実軸の上（過減衰）", "start", 9.5, MUT, halo=True))
+    o.append(T(c2.X(0.105), c2.Y(1.3) + 14, "では遅い", "start", 9.5, MUT, halo=True))
+    return SVG(700, 250, o, "比例ゲインを変えたときの指標（モータの位置の比例制御、L<sub>a</sub> を無視した二次遅れの式）。(a) 行き過ぎ量は、根が重なる 0.1 V/rad を超えると増え、0.21 V/rad で 5 % になる。(b) 2 % 整定時間は、0.21 V/rad を超えても根の実部が −10 のままなので、0.35〜0.41 s から縮まない（段は、山や谷が ±2 % の幅に入るたびに起きる）。")
+F["e04_motor_design"] = _f04_motor_design_fig()
