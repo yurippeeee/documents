@@ -661,3 +661,402 @@ def _f02_motor_resp_fig():
     o.append(LEGEND(62, 370, [(SIG, "La を含む式（角速度）"), (TEA, "La を含む式（電流）"), (MUT, "La を無視した一次の式（破線）")]))
     return SVG(700, 380, o, "止まっているモータに 12 V を加え、0.15 s に負荷トルク 0.01 N·m を加えたとき（Ra 2 Ω・La 1 mH・Kt 0.02 N·m/A・J 1 × 10⁻⁵ kg·m²）。(a) 角速度は 2 つの式でほとんど重なる。(b)(c) 電流は、La を含む式では 2.34 ms かけて最大の 5.78 A まで上がるが、一次の式では 0 s で 6 A に跳ぶ。数 ms より後は 2 つの式がよく合う。")
 F["e02_motor_resp"] = _f02_motor_resp_fig()
+
+
+# =====================================================================
+# 4 節: 温度の板 — 熱の行き先
+# =====================================================================
+def _f02_heat_fig():
+    o = []
+    o.append(T(14, 18, "(a) 板の熱の出入り", "start", 11.5, INK, True))
+    o.append(_f02_m(30, 44, [_f02_t("周りの空気（"), ("θ", "a", True), _f02_t(" = 25 °C）")], "start", 10, MUT))
+    px, py, pw, ph = 50, 120, 210, 20
+    for xx in (80, 125, 170, 215):
+        o.append(PATH("M%g,%g c-6,-7 6,-13 0,-20 c-6,-7 6,-13 0,-20" % (xx, py - 4), c=MUT, lw=1.5))
+        o.append(_head(xx, py - 40, xx, py - 50, MUT, 6))
+    o.append(_f02_m(px + pw / 2, 64, [_f02_t("逃げる熱 ("), ("θ", None, True), _f02_t(" − "), ("θ", "a", True), _f02_t(") ÷ "), _f02_v("R", "th")], "middle", 10.5, MUT, True))
+    o.append(RECT(px, py, pw, ph, 3, MSOFT, MUT, 1.4))
+    o.append(_f02_m(px + pw / 2, py + 14, [_f02_t("板を温める "), _f02_v("C", "th"), _f02_t(" d"), ("θ", None, True), _f02_t("/d"), _f02_v("t")], "middle", 10.5, SIG, True))
+    o.append(RECT(px + 18, py + ph, pw - 36, 7, 1, soft(GLD), GLD, 1.1))
+    o.append(ARR(px + pw / 2, py + ph + 52, px + pw / 2, py + ph + 10, c=GLD, lw=2.2))
+    o.append(_f02_m(px + pw / 2 + 10, py + ph + 40, [_f02_t("ヒータ "), _f02_v("q"), _f02_t("（入る熱）")], "start", 10.5, GLD, True))
+    o.append(_f02_m(30, 236, [_f02_v("C", "th", SIG), (" d", None, False, SIG), ("θ", None, True, SIG), ("/d", None, False, SIG), ("t", None, True, SIG), _f02_t(" = "), ("q", None, True, GLD), _f02_t(" − ("), ("θ", None, True), _f02_t(" − "),
+                              ("θ", "a", True), _f02_t(") ÷ "), _f02_v("R", "th")], "start", 12.5, INK, True))
+    # (b) 80 W の行き先
+    o.append(T(330, 18, "(b) 80 W の行き先（25 °C から入れ続ける）", "start", 11.5, INK, True))
+    p = Plot(372, 34, 270, 170, (0, 2500), (0, 80))
+    ts = _f02_np.linspace(0, 2500, 251)
+    lost = 80 * (1 - _f02_np.exp(-ts / 500.0))
+    o.append(PL([(p.X(0), p.Y(0))] + [(p.X(t), p.Y(v)) for t, v in zip(ts, lost)] + [(p.X(2500), p.Y(0))], c="none", lw=0, fill=MSOFT))
+    o.append(PL([(p.X(t), p.Y(v)) for t, v in zip(ts, lost)] + [(p.X(2500), p.Y(80)), (p.X(0), p.Y(80))], c="none", lw=0, fill=SSOFT))
+    o.append(p.axes(xl="時間 t [s]", yl="電力 [W]", xt=[0, 500, 1000, 1500, 2000, 2500], yt=[0, 20, 40, 60, 80], grid=False))
+    o.append(_f02_pl(p, list(zip(ts, lost)), c=SIG, lw=2.4))
+    for v in (0, 20, 40, 60, 80):
+        yy = p.Y(v)
+        o.append(W(p.x + p.w, yy, p.x + p.w + 4, yy, c=SIG, lw=1))
+        o.append(T(p.x + p.w + 7, yy + 3.5, "%d" % (25 + 1.25 * v), "start", 9.5, SIG))
+    o.append(W(p.x + p.w, p.y, p.x + p.w, p.y + p.h, c=SIG, lw=1))
+    o.append(T(p.x + p.w + 44, p.y + p.h / 2, "板の温度 [°C]", "middle", 10, SIG, rot=90))
+    o.append(T(p.X(80), p.Y(70), "板を温める分", "start", 10, SIG, True, halo=True))
+    o.append(T(p.X(2450), p.Y(20), "逃げる分", "end", 10, MUT, True, halo=True))
+    o.append(W(p.X(500), p.y, p.X(500), p.y + p.h, c=GLD, lw=1, dash="3 3"))
+    o.append(D(p.X(500), p.Y(50.57), SIG, 3.6))
+    o.append(T(p.X(500) + 6, p.Y(50.57) + 15, "500 s: 逃げる 50.6 W", "start", 9.5, INK, True, halo=True))
+    o.append(T(p.X(500) + 6, p.Y(50.57) + 29, "（88.2 °C）", "start", 9.5, SIG, halo=True))
+    o.append(T(p.X(1490), p.Y(76.0) - 8, "1500 s: 76.0 W", "middle", 9.5, INK, True, halo=True))
+    return SVG(700, 248, o, "温度の板（熱容量 400 J/K、熱抵抗 1.25 K/W）。(a) ヒータの熱の一部は板を温め、残りは周りへ逃げる。逃げる速さは周りとの温度の差に比例する。(b) 80 W を入れ続けたときの内訳。始めはすべて板を温めるが、温度が上がるにつれて逃げる分が増える。逃げる分は温度の差に比例するので、境の線はそのまま板の温度を表す（右の目盛）。")
+F["e02_heat"] = _f02_heat_fig()
+
+
+# =====================================================================
+# 4 節: 水槽
+# =====================================================================
+def _f02_tank_fig():
+    o = []
+    o.append(T(14, 18, "(a) 水槽", "start", 11.5, INK, True))
+    xl, xr, yt, yb, yw = 76, 196, 60, 214, 150
+    o.append(RECT(xl, yw, xr - xl, yb - yw, 0, SSOFT, "none", 0))
+    o.append(W(xl, yw, xr, yw, c=SIG, lw=1.4))
+    o.append(W(xl, yt, xl, yb, xr, yb, xr, yt, c=INK, lw=2))
+    o.append(W(24, 42, 110, 42, 110, 62, c=GLD, lw=3))
+    o.append(_head(110, 52, 110, 74, GLD, 8))
+    o.append(_f02_m(24, 34, [_f02_t("流入 "), _f02_v("u"), _f02_t("（ポンプ）")], "start", 10.5, GLD, True))
+    o.append(PATH("M%g,%g q18,-2 26,26" % (xr, yb - 6), c=TEA, lw=2.4))
+    o.append(_head(xr + 24, yb + 12, xr + 26, yb + 22, TEA, 7))
+    o.append(_f02_m(xr + 10, yb - 18, [_f02_t("流出 "), _f02_v("a"), ("√", None, False), _f02_v("h")], "start", 10.5, TEA, True))
+    o.append(DIM(xl - 14, yw, xl - 14, yb, None, c=SIG))
+    o.append(_f02_m(xl - 22, (yw + yb) / 2 + 4, [_f02_v("h")], "end", 13, SIG, True))
+    o.append(_f02_m((xl + xr) / 2, 186, [_f02_t("断面積 "), _f02_v("A", "t")], "middle", 10.5, INK))
+    o.append(_f02_m(24, 254, [_f02_v("A", "t"), ("ḣ", None, True, SIG), _f02_t(" = "), ("u", None, True, GLD), _f02_t(" − "), ("a", None, True, TEA), ("√", None, False, TEA), ("h", None, True, TEA)], "start", 13, INK, True))
+    # (b) 流れ出る量と落ち着く水位
+    o.append(T(300, 18, "(b) 流れ出る量と、落ち着く水位", "start", 11.5, INK, True))
+    p = Plot(352, 34, 300, 176, (0, 1.1), (0, 0.45))
+    o.append(p.axes(xl="水位 h [m]", yl="流量 [L/s]", xt=[0, 0.25, 0.5, 0.75, 1.0], yt=[0, 0.1, 0.2, 0.3, 0.4], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    hs = _f02_np.linspace(0, 1.1, 221)
+    o.append(_f02_pl(p, [(h, 0.4 * math.sqrt(h)) for h in hs], c=TEA, lw=2.4))
+    o.append(_f02_m(p.X(0.98), p.Y(0.4 * math.sqrt(0.8)) + 4, [_f02_t("流れ出る量 "), _f02_v("a"), _f02_t("√"), _f02_v("h")], "end", 9.5, TEA, True))
+    for u in (0.1, 0.2, 0.3, 0.4):
+        he = (u / 0.4) ** 2
+        o.append(W(p.X(0), p.Y(u), p.X(he), p.Y(u), c=GLD, lw=1.3, dash="5 3"))
+        o.append(W(p.X(he), p.Y(u), p.X(he), p.Y(0), c=SIG, lw=1, dash="2 3"))
+        o.append(D(p.X(he), p.Y(u), SIG, 3.8))
+        o.append(T(p.X(he) + 6, p.Y(u) + 13, "%g cm" % (he * 100), "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(0.02), p.Y(0.4) - 6, "流入 0.4 L/s", "start", 9.5, GLD, halo=True))
+    o.append(T(p.X(0.02), p.Y(0.2) - 6, "0.2 L/s", "start", 9.5, GLD, halo=True))
+    o.append(T(p.X(0.5), p.Y(0.06), "流入を 2 倍（0.2 → 0.4 L/s）にすると", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(0.5), p.Y(0.06) + 14, "水位は 4 倍（25 → 100 cm）", "start", 9.5, ALI, True, halo=True))
+    return SVG(700, 264, o, "水槽（断面積 0.02 m²、穴の係数 a = 4 × 10⁻⁴ m^(5/2)/s）。(a) ポンプで入れた水が、底の穴から水位の平方根に比例する量だけ流れ出る。(b) 流れ出る量（青緑）と流入（金色の破線）が等しい水位で、水位は落ち着く。流れ出る量が水位に比例しないので、流入を 2 倍にしても水位は 2 倍にならない。")
+F["e02_tank"] = _f02_tank_fig()
+
+
+# =====================================================================
+# 5 節: 水槽の線形化
+# =====================================================================
+_F02_AT, _F02_A, _F02_H0, _F02_U0 = 0.02, 4e-4, 0.25, 0.2e-3
+
+
+def _f02_tank_resp(du, tend=200.0, n=801):
+    At, a, h0, u0 = _F02_AT, _F02_A, _F02_H0, _F02_U0
+    u = u0 + du
+    f = lambda t, x: [(u - a * math.sqrt(max(x[0], 0.0))) / At if (x[0] > 1e-12 or u > 0) else 0.0]
+    t, y = _f02_sim(f, [h0], tend, n=n, max_step=0.05)
+    hn = _f02_np.maximum(y[0], 0.0)
+    Tl, Kl = 2 * At * math.sqrt(h0) / a, 2 * math.sqrt(h0) / a
+    hl = h0 + Kl * du * (1 - _f02_np.exp(-t / Tl))
+    return t, hn, hl
+
+
+def _f02_tangent_fig():
+    o = []
+    o.append(T(14, 18, "(a) 流れ出る量を、動作点での接線で置き換える", "start", 11.5, INK, True))
+    p = Plot(62, 34, 262, 186, (0, 0.6), (0, 0.32))
+    o.append(RECT(p.X(0.15), p.y, p.X(0.35) - p.X(0.15), p.h, 0, GSOFT, "none", 0))
+    o.append(p.axes(xl="水位 h [m]", yl="流量 [L/s]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6], yt=[0, 0.1, 0.2, 0.3], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    hs = _f02_np.linspace(0, 0.6, 241)
+    o.append(_f02_pl(p, [(h, 0.4 * math.sqrt(h)) for h in hs], c=TEA, lw=2.4))
+    o.append(_f02_pl(p, [(h, 0.2 + 0.4 * (h - 0.25)) for h in hs], c=MUT, lw=1.8, dash="6 4"))
+    o.append(D(p.X(0.25), p.Y(0.2), INK, 4.2))
+    o.append(T(p.X(0.25) + 8, p.Y(0.2) + 16, "動作点（25 cm、0.2 L/s）", "start", 9.5, INK, True, halo=True))
+    o.append(T(p.X(0.25), p.y + p.h - 6, "誤差 3 % 以下", "middle", 9.5, GRN, True, halo=True))
+    o.append(_f02_m(p.X(0.59), p.Y(0.27), [_f02_t("元の "), _f02_v("a"), _f02_t("√"), _f02_v("h")], "end", 9.5, TEA, True))
+    o.append(T(p.X(0.40), p.Y(0.272), "接線（線形化）", "end", 9.5, MUT, True, halo=True))
+    o.append(DIM(p.X(0.012), p.Y(0.0), p.X(0.012), p.Y(0.1), None, c=ALI))
+    o.append(T(p.X(0.03), p.Y(0.05) + 4, "h = 0 で 0.1 L/s ずれる", "start", 9.5, ALI, True, halo=True))
+    # (b) 流入を変えたときの水位
+    o.append(T(370, 18, "(b) 流入を変えたときの水位", "start", 11.5, INK, True))
+    q = Plot(410, 34, 270, 186, (0, 200), (-30, 65))
+    o.append(RECT(q.x, q.Y(0), q.w, q.Y(-30) - q.Y(0), 0, ASOFT, "none", 0))
+    o.append(q.axes(xl="時間 t [s]", yl="水位 h [cm]", xt=[0, 50, 100, 150, 200], yt=[-25, 0, 25, 50], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    o.append(q.line([(0, 0), (200, 0)], c=MUT, lw=1.2))
+    o.append(T(q.X(4), q.Y(-30) - 5, "水位が負（あり得ない）", "start", 9.5, ALI, True, halo=True))
+    for frac, lab in ((0.5, "+50 %"), (0.1, "+10 %"), (-1.0, "ポンプを止める")):
+        t, hn, hl = _f02_tank_resp(frac * _F02_U0)
+        o.append(_f02_pl(q, list(zip(t, hn * 100)), c=SIG, lw=2.2))
+        o.append(_f02_pl(q, list(zip(t, hl * 100)), c=MUT, lw=1.8, dash="6 4"))
+    o.append(T(q.X(198), q.Y(56.25) - 5, "+50 %: 56.25 cm（線形化 50 cm）", "end", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(198), q.Y(30.25) - 5, "+10 %: 30.25 cm（30 cm）", "end", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(198), q.Y(0) - 6, "ポンプを止める: 0 cm（−25 cm）", "end", 9.5, SIG, True, halo=True))
+    o.append(D(q.X(50), q.Y(0), SIG, 3.4))
+    o.append(T(q.X(50) + 5, q.Y(0) + 13, "50 s で空", "start", 9.5, SIG, halo=True))
+    o.append(LEGEND(62, 274, [(TEA, "元の式の流れ出る量"), (SIG, "元の式の水位"), (MUT, "線形化した式（破線）"), (GRN, "接線の誤差が 3 % 以下の範囲")]))
+    return SVG(700, 284, o, "水槽の線形化（動作点 25 cm・0.2 L/s）。(a) 流れ出る量 a√h（青緑）を、動作点での接線（破線）で置き換える。動作点から離れるほど誤差が増える。(b) 動作点から流入を変えたときの水位。小さな変化では 2 つの式がよく合うが、大きな変化では合わなくなり、ポンプを止めると線形化した式は負の水位を答える。")
+F["e02_tangent"] = _f02_tangent_fig()
+
+
+# =====================================================================
+# 5 節: 振子
+# =====================================================================
+def _f02_pend_draw(o, px, py, ang, L, up, col, arrow_c, label, sub):
+    """ang は鉛直（up=True なら上、False なら下）からの傾き [度]。"""
+    a = math.radians(ang)
+    bx = px + L * math.sin(a)
+    by = py - L * math.cos(a) if up else py + L * math.cos(a)
+    o.append(W(px, py, px, py - L - 10 if up else py + L + 10, c=FNT, lw=1, dash="4 3"))
+    o.append(W(px, py, bx, by, c=INK, lw=2))
+    o.append(CIRC(bx, by, 9, c=col, lw=1.6, fill=soft(col)))
+    o.append(D(px, py, INK, 3.4))
+    # 重力のトルクの向き（曲がった矢印）
+    if up:
+        o.append(CARR(bx + 10, by + 6, bx + 30, by + 34, -0.3, c=arrow_c, lw=1.8, head=7))
+    else:
+        o.append(CARR(bx - 6, by + 12, px + 4, by + 22, -0.3, c=arrow_c, lw=1.8, head=7))
+    o.append(T(px, py + (34 if up else -20) if not up else py + 26, label, "middle", 10.5, arrow_c, True))
+    o.append(T(px, py + 40 if up else py - 6, sub, "middle", 9.5, MUT))
+
+
+def _f02_pend_fig():
+    o = []
+    o.append(T(14, 18, "(a) 2 つの平衡点", "start", 11.5, INK, True))
+    # 真下（ぶら下がり）
+    px, py, L = 96, 52, 80
+    a = math.radians(20)
+    bx, by = px + L * math.sin(a), py + L * math.cos(a)
+    o.append(W(px - 30, py, px + 30, py, c=MUT, lw=2))
+    o.append(W(px, py, px, py + L + 12, c=FNT, lw=1, dash="4 3"))
+    o.append(W(px, py, bx, by, c=INK, lw=2))
+    o.append(CIRC(bx, by, 9, c=SIG, lw=1.6, fill=SSOFT))
+    o.append(D(px, py, INK, 3.4))
+    o.append(CARR(bx + 4, by + 14, px + 8, py + L + 16, -0.35, c=GRN, lw=2, head=7))
+    o.append(T(px, py + L + 44, "真下（φ = π）", "middle", 10.5, INK, True))
+    o.append(T(px, py + L + 60, "ずれると戻される → 往復", "middle", 10, GRN, True))
+    # 真上
+    qx, qy = 262, 150
+    bx2, by2 = qx + L * math.sin(a), qy - L * math.cos(a)
+    o.append(W(qx - 30, qy, qx + 30, qy, c=MUT, lw=2))
+    o.append(W(qx, qy, qx, qy - L - 14, c=FNT, lw=1, dash="4 3"))
+    o.append(W(qx, qy, bx2, by2, c=INK, lw=2))
+    o.append(CIRC(bx2, by2, 9, c=SIG, lw=1.6, fill=SSOFT))
+    o.append(D(qx, qy, INK, 3.4))
+    o.append(PATH("M%g,%g A%g,%g 0 0 1 %g,%g" % (qx, qy - 40, 40, 40, qx + 40 * math.sin(a), qy - 40 * math.cos(a)), c=SIG, lw=1.3))
+    o.append(_f02_m(qx + 10, qy - 46, [("φ", None, True)], "start", 11, SIG, True))
+    o.append(CARR(bx2 + 12, by2 + 2, bx2 + 34, by2 + 30, -0.3, c=ALI, lw=2, head=7))
+    o.append(T(qx, qy + 18, "真上（φ = 0）", "middle", 10.5, INK, True))
+    o.append(T(qx, qy + 34, "ずれると離れていく → 倒れる", "middle", 10, ALI, True))
+    o.append(T(qx + 4, 30, "角度 φ は真上から測る", "middle", 9.5, MUT))
+    # (b) sin と接線
+    o.append(T(380, 18, "(b) sin φ と、2 つの点での接線", "start", 11.5, INK, True))
+    p = Plot(420, 34, 260, 150, (-30, 210), (-1.25, 1.25))
+    o.append(p.axes(xl="角度 φ [°]", yl="sin φ", xt=[0, 90, 180], yt=[-1, 0, 1], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%g" % v))
+    o.append(p.line([(-30, 0), (210, 0)], c=MUT, lw=1))
+    ds = _f02_np.linspace(-30, 210, 241)
+    o.append(_f02_pl(p, [(d, math.sin(math.radians(d))) for d in ds], c=SIG, lw=2.4))
+    o.append(_f02_pl(p, [(d, math.radians(d)) for d in _f02_np.linspace(-30, 70, 51)], c=MUT, lw=1.8, dash="6 4"))
+    o.append(_f02_pl(p, [(d, -math.radians(d - 180)) for d in _f02_np.linspace(110, 210, 51)], c=MUT, lw=1.8, dash="6 4"))
+    o.append(D(p.X(0), p.Y(0), ALI, 4)); o.append(D(p.X(180), p.Y(0), GRN, 4))
+    o.append(T(p.X(4), p.Y(-0.25) + 4, "真上: 傾き +1", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(176), p.Y(-0.25) + 4, "真下: 傾き −1", "end", 9.5, GRN, True, halo=True))
+    o.append(_f02_m(p.X(66), p.Y(1.1), [_f02_t("接線 "), ("φ", None, True)], "start", 9.5, MUT, True))
+    # (c) 振れ幅を変えた往復
+    o.append(T(14, 232, "(c) 真下のまわりの往復（静かに放す）: 実線は元の式、破線は線形化した式", "start", 11.5, INK, True))
+    g, l = 9.81, 0.3
+    w0 = math.sqrt(g / l)
+    rows = [(10, "1.101 s", "0.2 %"), (45, "1.143 s", "4.0 %"), (90, "1.297 s", "18 %")]
+    for k, (amp, per, dif) in enumerate(rows):
+        y0 = 246 + k * 76
+        q = Plot(110, y0, 470, 56, (0, 4), (-amp * 1.15, amp * 1.15))
+        o.append(q.axes(xl="時間 t [s]" if k == 2 else None, yl=None, xt=[0, 1, 2, 3, 4], yt=[-amp, 0, amp], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%d°" % v))
+        t, y = _f02_sim(lambda t, x: [x[1], g / l * math.sin(x[0])], [math.pi + math.radians(amp), 0.0], 4.0, n=801)
+        o.append(_f02_pl(q, [(a_, math.degrees(b_ - math.pi)) for a_, b_ in zip(t, y[0])], c=SIG, lw=2.2))
+        o.append(_f02_pl(q, [(a_, amp * math.cos(w0 * a_)) for a_ in t], c=MUT, lw=1.6, dash="6 4"))
+        o.append(T(14, y0 + 24, "振れ幅 %d°" % amp, "start", 10.5, INK, True))
+        o.append(T(596, y0 + 22, "周期 %s" % per, "start", 10, SIG, True))
+        o.append(T(596, y0 + 38, "線形化との差 %s" % dif, "start", 9.5, MUT))
+    return SVG(700, 246 + 2 * 76 + 56 + 40, o, "振子（長さ 0.3 m、角度は真上から測る）。(a) 平衡点は真上と真下の 2 つ。真下では、ずれると重力が戻す向きに働き、真上では、ずれを広げる向きに働く。(b) 式の sin φ を、それぞれの点での接線（破線）で置き換えたのが線形化した式で、傾きの符号が逆になる。(c) 真下のまわりで振れ幅を変えた往復。振れ幅が大きいほど元の式の周期が長くなり、線形化した式（周期 1.099 s）とずれていく。")
+F["e02_pend"] = _f02_pend_fig()
+
+
+# =====================================================================
+# 5 節: 台車に立てた振子
+# =====================================================================
+_F02_IPM, _F02_IPm, _F02_IPl, _F02_G = 0.5, 0.2, 0.3, 9.81
+
+
+def _f02_ip_nl(t, x, u=0.0):
+    M, m, l, g = _F02_IPM, _F02_IPm, _F02_IPl, _F02_G
+    p, pd, ph, phd = x
+    s, c = math.sin(ph), math.cos(ph)
+    a11, a12, a21, a22 = M + m, m * l * c, c, l
+    b1, b2 = u + m * l * s * phd * phd, g * s
+    det = a11 * a22 - a12 * a21
+    pdd = (b1 * a22 - a12 * b2) / det
+    phdd = (a11 * b2 - a21 * b1) / det
+    return [pd, pdd, phd, phdd]
+
+
+def _f02_ip_lin(t, x, u=0.0):
+    p, pd, ph, phd = x
+    return [pd, 2.0 * u - 3.924 * ph, phd, 45.78 * ph - 6.667 * u]
+
+
+def _f02_ipend_fig():
+    o = []
+    o.append(T(14, 18, "(a) 台車に立てた振子", "start", 11.5, INK, True))
+    gy = 214
+    o.append(_f02_ground(20, 300, gy))
+    cx, cy, cw, ch = 96, 172, 104, 34
+    o.append(_f02_cart(cx, cy, cw, ch, SIG))
+    o.append(_f02_m(cx + cw / 2, cy + 22, [_f02_v("M"), _f02_t(" 0.5 kg")], "middle", 10.5, SIG, True))
+    px, py, L = cx + cw / 2, cy, 112
+    a = math.radians(20)
+    bx, by = px + L * math.sin(a), py - L * math.cos(a)
+    o.append(W(px, py, px, py - L - 16, c=FNT, lw=1, dash="4 3"))
+    o.append(W(px, py, bx, by, c=INK, lw=2.4))
+    o.append(CIRC(bx, by, 10, c=SIG, lw=1.6, fill=SSOFT))
+    o.append(D(px, py, INK, 3.4))
+    o.append(PATH("M%g,%g A%g,%g 0 0 1 %g,%g" % (px, py - 46, 46, 46, px + 46 * math.sin(a), py - 46 * math.cos(a)), c=SIG, lw=1.3))
+    o.append(_f02_m(px + 9, py - 52, [("φ", None, True)], "start", 12, SIG, True))
+    o.append(_f02_m(bx + 14, by + 4, [_f02_v("m"), _f02_t(" 0.2 kg")], "start", 10.5, SIG, True))
+    o.append(_f02_m(px + 34, py - 70, [_f02_v("l"), _f02_t(" 0.3 m")], "start", 10.5, INK))
+    o.append(ARR(cx - 54, cy + 17, cx - 2, cy + 17, c=GLD, lw=2.4))
+    o.append(_f02_m(cx - 30, cy + 9, [_f02_v("u")], "middle", 12, GLD, True))
+    o.append(W(30, 160, 30, 236, c=MUT, lw=1, dash="3 3"))
+    o.append(DIM(30, 232, px, 232, None, c=SIG))
+    o.append(_f02_m((30 + px) / 2, 248, [_f02_v("p")], "middle", 12, SIG, True))
+    # (b) 傾きの増え方
+    o.append(T(330, 18, "(b) 力を加えずに放したときの傾き", "start", 11.5, INK, True))
+    q = Plot(380, 34, 296, 170, (0, 0.8), (0, 90))
+    o.append(q.axes(xl="時間 t [s]", yl="傾き φ [°]", xt=[0, 0.2, 0.4, 0.6, 0.8], yt=[0, 30, 60, 90], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%d" % v))
+    for ph0, lab in ((1.0, "1° から"), (5.0, "5° から")):
+        x0 = [0.0, 0.0, math.radians(ph0), 0.0]
+        t, yn = _f02_sim(_f02_ip_nl, x0, 0.8, n=801)
+        t, yl = _f02_sim(_f02_ip_lin, x0, 0.8, n=801)
+        o.append(_f02_pl(q, [(a_, math.degrees(b_)) for a_, b_ in zip(t, yn[2])], c=SIG, lw=2.2))
+        o.append(_f02_pl(q, [(a_, math.degrees(b_)) for a_, b_ in zip(t, yl[2])], c=MUT, lw=1.8, dash="6 4"))
+        rel = _f02_np.abs(yn[2] - yl[2]) / _f02_np.maximum(_f02_np.abs(yl[2]), 1e-12)
+        k = int(_f02_np.argmax(rel > 0.05))
+        o.append(D(q.X(t[k]), q.Y(math.degrees(yn[2][k])), ALI, 3.6))
+        kk = int(_f02_np.argmax(_f02_np.degrees(yn[2]) > 8))
+        o.append(T(q.X(t[kk]) + 6, q.Y(8) + 4, lab, "start", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(0.02), q.Y(80), "赤い点: 2 つの式の差が 5 % を超える所", "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(0.02), q.Y(80) + 15, "（約 40°。それより前はよく合う）", "start", 9.5, ALI, halo=True))
+    o.append(_f02_m(330, 258, [_f02_t("線形化した式: "), ("p̈", None, True), _f02_t(" = 2"), _f02_v("u"), _f02_t(" − 3.924"), ("φ", None, True), _f02_t("、d²"),
+                               ("φ", None, True), _f02_t("/d"), _f02_v("t"), _f02_t("² = 45.78"), ("φ", None, True), _f02_t(" − 6.667"), _f02_v("u")], "start", 11, INK))
+    return SVG(700, 270, o, "台車に立てた振子（例の値: 台車 0.5 kg、おもり 0.2 kg、長さ 0.3 m）。(a) 台車を押す力 u が入力、台車の位置 p と振子の傾き φ が出力。(b) 小さな傾きから力を加えずに放すと、傾きは増え続けて倒れる。実線は元の式、破線は真上で線形化した式。傾きが 40° 近くになるまでは、2 つの式はよく合う。")
+F["e02_ipend"] = _f02_ipend_fig()
+
+
+# =====================================================================
+# 6 節: オイラー法とルンゲ・クッタ法
+# =====================================================================
+def _f02_euler_fig():
+    o = []
+    m, c, u = 1.0, 2.0, 1.0
+    f = lambda v: (u - c * v) / m
+    exact = lambda t: 0.5 * (1 - math.exp(-2 * t))
+    o.append(T(14, 18, "(a) オイラー法: 刻みの始めの傾きで進む", "start", 11.5, INK, True))
+    p = Plot(62, 34, 330, 190, (0, 1.5), (0, 0.6))
+    o.append(p.axes(xl="時間 t [s]", yl="速度 [m/s]", xt=[0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5], yt=[0, 0.2, 0.4, 0.6], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    for t in _f02_np.arange(0.125, 1.5, 0.25):
+        for v in _f02_np.arange(0.05, 0.6, 0.1):
+            o.append(_f02_seg(p, t, v, f(v), L=11, c=FNT, lw=1.0))
+    o.append(_f02_pl(p, [(t, exact(t)) for t in _f02_np.linspace(0, 1.5, 151)], c=SIG, lw=2.4))
+    for dt, col, r in ((0.25, ALI, 3.8), (0.05, GRN, 2.4)):
+        pts = [(0.0, 0.0)]
+        while pts[-1][0] < 1.5 - 1e-9:
+            t, v = pts[-1]
+            pts.append((t + dt, v + dt * f(v)))
+        o.append(_f02_pl(p, pts, c=col, lw=1.6))
+        for t, v in pts:
+            o.append(D(p.X(t), p.Y(v), col, r))
+    o.append(DIM(p.X(0.25) + 9, p.Y(exact(0.25)), p.X(0.25) + 9, p.Y(0.25), None, c=ALI))
+    o.append(T(p.X(0.25) - 6, p.Y(0.25) - 14, "0.25 と計算", "end", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(0.25) + 18, p.Y(exact(0.25)) + 14, "本当は 0.197", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(1.48), p.Y(0.12), "赤: Δt = 0.25 s　緑: Δt = 0.05 s", "end", 9.5, MUT, True, halo=True))
+    o.append(T(p.X(1.48), p.Y(0.12) + 15, "青: 本当の解", "end", 9.5, SIG, True, halo=True))
+    # (b) 1 刻みの中の 4 つの傾き
+    o.append(T(430, 18, "(b) ルンゲ・クッタ法: 1 刻み（0.5 s）で 4 回", "start", 11.5, INK, True))
+    q = Plot(470, 34, 210, 160, (0, 0.56), (-0.03, 0.55))
+    o.append(q.axes(xl=None, yl=None, xt=[0, 0.25, 0.5], yt=[0, 0.1, 0.2, 0.3, 0.4, 0.5], xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    o.append(T(q.x + q.w, q.y + q.h + 28, "時間 t [s]", "end", 9.5, MUT))
+    o.append(_f02_pl(q, [(t, exact(t)) for t in _f02_np.linspace(0, 0.5, 101)], c=SIG, lw=2.4))
+    h = 0.5
+    s1 = f(0.0); s2 = f(h / 2 * s1); s3 = f(h / 2 * s2); s4 = f(h * s3)
+    pts = [(0.0, 0.0, s1, "①", (8, -2)), (h / 2, h / 2 * s1, s2, "②", (-12, -4)), (h / 2, h / 2 * s2, s3, "③", (-12, 10)), (h, h * s3, s4, "④", (-12, -4))]
+    o.append(_f02_pl(q, [(0, 0), (h, h * s1)], c=ALI, lw=1.6, dash="4 3"))
+    for t, v, sl, lab, (dx, dy) in pts:
+        tt = 0.05
+        o.append(_f02_pl(q, [(t, v), (t + tt, v + sl * tt)], c=GLD, lw=2.4))
+        o.append(D(q.X(t), q.Y(v), GLD, 3.4))
+        o.append(T(q.X(t) + dx, q.Y(v) + dy, lab, "middle", 10.5, GLD, True, halo=True))
+    yr = h / 6 * (s1 + 2 * s2 + 2 * s3 + s4)
+    o.append(D(q.X(h), q.Y(yr), GRN, 4.4))
+    o.append(D(q.X(h), q.Y(h * s1), ALI, 4.4))
+    o.append(T(q.X(h) - 8, q.Y(h * s1) + 4, "オイラー法 0.5", "end", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(h) - 8, q.Y(yr) + 15, "0.3125", "end", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(h) - 8, q.Y(yr) + 29, "（本当は 0.316）", "end", 9.5, SIG, True, halo=True))
+    lines = [("① 始めの点: ẏ₁ = 1", GLD), ("② ①で Δt/2 進んだ点: ẏ₂ = 0.5", GLD), ("③ ②で Δt/2 進んだ点: ẏ₃ = 0.75", GLD),
+             ("④ ③で Δt 進んだ点: ẏ₄ = 0.25", GLD), ("(1 + 2×0.5 + 2×0.75 + 0.25) ÷ 6 = 0.625", INK), ("0.625 × 0.5 s = 0.3125 m/s", GRN)]
+    for k, (l, c_) in enumerate(lines):
+        o.append(T(430, 238 + k * 15, l, "start", 9.5, c_, k >= 4))
+    return SVG(700, 330, o, "ばねの無い台車の速度（1 N で押す、初期値 0）を数値で解く。(a) オイラー法は、刻みの始めの点の傾き（灰色の短い線）のまま Δt だけ進む。傾きは進むにつれて小さくなるので、刻みが粗いと大きめに外れる。(b) ルンゲ・クッタ法は、1 刻みの中の 4 か所で傾き（金色）を求め、1:2:2:1 の重みで平均して進む。刻みが本当の解の変化の時間と同じ程度に粗くても、誤差は 1 % ほどにとどまる。")
+F["e02_euler"] = _f02_euler_fig()
+
+
+def _f02_euler_dt_fig():
+    o = []
+    T_, Kv = 0.05, 600.0
+    exact = lambda t: Kv * (1 - math.exp(-t / T_))
+    cases = [(0.010, "(a) Δt = 10 ms（0.2T）: 倍率 0.8", (0, 800), [0, 200, 400, 600], GRN, "単調に近づく"),
+             (0.075, "(b) Δt = 75 ms（1.5T）: 倍率 −0.5", (0, 1000), [0, 300, 600, 900], GLD, "振動しながら近づく"),
+             (0.100, "(c) Δt = 100 ms（2T）: 倍率 −1", (0, 1300), [0, 600, 1200], ALI, "同じ幅で振れ続ける"),
+             (0.110, "(d) Δt = 110 ms（2.2T）: 倍率 −1.2", (-800, 1800), [-600, 0, 600, 1200, 1800], ALI, "発散する")]
+    for k, (dt, title, yr, yt, col, note) in enumerate(cases):
+        x = 62 if k % 2 == 0 else 412
+        y = 34 if k < 2 else 210
+        o.append(T(x - 48, y - 14, title, "start", 11, INK, True))
+        p = Plot(x, y, 262, 120, (0, 0.5), yr)
+        o.append(p.axes(xl="時間 t [s]", yl="角速度 [rad/s]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5], yt=yt, xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+        o.append(p.line([(0, 600), (0.5, 600)], c=FNT, lw=1, dash="3 3"))
+        o.append(_f02_pl(p, [(t, exact(t)) for t in _f02_np.linspace(0, 0.5, 201)], c=SIG, lw=2.2))
+        pts = [(0.0, 0.0)]
+        while pts[-1][0] + dt <= 0.5 + 1e-9:
+            t, w = pts[-1]
+            pts.append((t + dt, w + dt * (Kv - w) / T_))
+        o.append(_f02_pl(p, pts, c=col, lw=1.5))
+        for t, w in pts:
+            if yr[0] <= w <= yr[1]:
+                o.append(D(p.X(t), p.Y(w), col, 3.4))
+        o.append(T(p.X(0.49), p.y + 13, note, "end", 9.5, col, True, halo=True))
+    # (e) 刻み幅と誤差
+    o.append(T(14, 386, "(e) t = T での値の誤差と刻み幅（T ẏ + y = Ku）", "start", 11, INK, True))
+    e = Plot(110, 400, 300, 130, (0.01, 1.0), (1e-12, 1.0), xlog=True, ylog=True)
+    _sup = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
+    o.append(e.axes(xl="刻み幅 Δt / T", yl=None, xt=[0.01, 0.1, 1.0], yt=[1e-12, 1e-9, 1e-6, 1e-3, 1.0], xfmt=lambda v: "%g" % v, yfmt=lambda v: ("10" + str(round(math.log10(v))).translate(_sup)) if v < 1 else "1"))
+    o.append(T(e.x - 54, e.y + e.h / 2 + 4, "誤差", "middle", 9.5, MUT))
+    rs = [1.0 / n for n in range(1, 101)]
+    eu = [(r, abs((1 - r) ** round(1 / r) - math.exp(-1)) / math.exp(-1)) for r in rs if r < 1]
+    rk = [(r, abs((1 - r + r * r / 2 - r ** 3 / 6 + r ** 4 / 24) ** round(1 / r) - math.exp(-1)) / math.exp(-1)) for r in rs]
+    o.append(_f02_pl(e, sorted(eu), c=ALI, lw=2.2))
+    o.append(_f02_pl(e, sorted(rk), c=GRN, lw=2.2))
+    o.append(D(e.X(0.1), e.Y(0.0522), ALI, 3.8)); o.append(D(e.X(0.1), e.Y(9.06e-7), GRN, 3.8))
+    o.append(T(e.X(0.1) - 8, e.Y(0.0522) - 6, "オイラー法 5.2 %", "end", 9.5, ALI, True, halo=True))
+    o.append(T(e.X(0.1) + 8, e.Y(9.06e-7) + 14, "ルンゲ・クッタ法 0.0001 %", "start", 9.5, GRN, True, halo=True))
+    xt = 450
+    o.append(T(xt, 418, "刻み幅を 1/10 にすると、誤差は", "start", 10, INK))
+    o.append(T(xt, 436, "オイラー法: 約 1/10（刻み幅に比例）", "start", 10, ALI, True))
+    o.append(T(xt, 454, "ルンゲ・クッタ法: 約 1/10000", "start", 10, GRN, True))
+    o.append(T(xt, 472, "（刻み幅の 4 乗に比例）", "start", 10, GRN))
+    o.append(T(xt, 500, "どちらも、刻み幅には安定の上限がある", "start", 10, INK))
+    o.append(T(xt, 518, "（1 階の式で 2T と 2.79T）", "start", 10, MUT))
+    return SVG(700, 572, o, "刻み幅を変えてオイラー法で解く（モータの一次の式、T = 0.05 s、12 V で 0 から 600 rad/s へ）。点は計算した値、青は本当の解。落ち着く値からのずれは、1 刻みごとに 1 − Δt/T 倍になる。(a) Δt < T では単調に近づき、(b) T < Δt < 2T では振動しながら近づき、(c) Δt = 2T では同じ幅で振れ続け、(d) Δt > 2T では発散する。(e) t = T での値の誤差。オイラー法は刻み幅に、ルンゲ・クッタ法は刻み幅の 4 乗にほぼ比例する。")
+F["e02_euler_dt"] = _f02_euler_dt_fig()
