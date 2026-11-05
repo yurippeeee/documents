@@ -106,7 +106,7 @@
       o.push(Q2.axes({xl:"時間 t [s]",yl:null,xt:U.nice(0,tend,4),yt:[0,0.5,1,1.5,2],xfmt:function(v){return String(v);},yfmt:function(v){return _w06_sig(v,2);}}));
       o.push(S.RECT(Q2.x,Q2.Y(1.02),Q2.w,Q2.Y(0.98)-Q2.Y(1.02),0,"var(--green-soft)","none",0));
       o.push(Q2.line([[0,1],[tend,1]],"muted",1,"4 3"));
-      o.push(S.T(Q2.x,Q2.y-6,"最終値 1 のステップ応答（緑の帯は ±2 %）","start",9.5,"ink",true));
+      o.push(S.T(Q2.x,Q2.y-6,"G(0) = 1 のステップ応答（緑の帯は 1 ± 2 %）","start",9.5,"ink",true));
       refs.forEach(function(rf,j){if(rf.tend===tend)o.push(_w06_cl(Q2,rf.T,rf.Y,RC[j%4],1.2,"5 3"));});
       o.push(_w06_cl(Q2,T,Y,c,2.2));
       var st=_w06_stats(T,Y,1);
@@ -124,7 +124,7 @@
       if(sg<0)h+='<span class="ok">実部が負: 項は減り、応答は最終値に落ち着く</span>';
       else if(sg===0)h+=w>0?'<span class="warn">虚軸の上: 項は同じ振幅で揺れ続ける（ステップ応答は 0 と 2 の間を往復）</span>':'<span class="warn">原点: 項は減らず、ステップ応答は一定の速さで増え続ける（積分）</span>';
       else h+='<span class="warn">実部が正: 項は '+_w06_sig(Math.LN2/sg,3)+' s ごとに 2 倍になり、応答は最終値から離れていく</span>';
-      ro.innerHTML=h+'<div class="wnote">極の組 σ<sub>0</sub> ± jω<sub>0</sub> をもち、最終値が 1 の二次遅れ ω<sub>n</sub>²/(s² − 2σ<sub>0</sub>s + ω<sub>n</sub>²)（ω<sub>n</sub>² = σ<sub>0</sub>² + ω<sub>0</sub>²）の応答。虚部が 0 のときは、実の極 1 つの一次遅れ（原点では積分 1/s）として描く。応答は本文 3 節の式で計算した。</div>';
+      ro.innerHTML=h+'<div class="wnote">極の組 σ<sub>0</sub> ± jω<sub>0</sub> をもち、G(0) = 1 の二次遅れ ω<sub>n</sub>²/(s² − 2σ<sub>0</sub>s + ω<sub>n</sub>²)（ω<sub>n</sub>² = σ<sub>0</sub>² + ω<sub>0</sub>²）の応答。虚部が 0 のときは、実の極 1 つの一次遅れ（原点では積分 1/s）として描く。応答は本文 3 節の式で計算した。</div>';
     }
     draw();
   };
@@ -223,7 +223,7 @@
       if(!ok){ro.innerHTML='<span class="warn">極がない。「実の極を足す」か「極の組を足す」で極を置く</span>'+(msg?"<br>"+msg:"");return;}
       var rhp=false,ax=0,axr=false;gs.forEach(function(g){if(g.p.re>1e-9)rhp=true;else if(Math.abs(g.p.re)<=1e-9){ax++;if(g.m>1)axr=true;}});
       var pl=[],zl=[];items.forEach(function(it){(it.k==="p"?pl:zl).push(_w06_ptxt(it.re,it.im,3,true));});
-      h+="極: "+pl.join("、")+(zl.length?"　零点: "+zl.join("、"):"　零点: なし")+"（"+ps.length+" 次。最終値 G(0) が 1 になるよう定数を選んだ）<br>";
+      h+="極: "+pl.join("、")+(zl.length?"　零点: "+zl.join("、"):"　零点: なし")+"（"+ps.length+" 次。G(0) が 1 になるよう定数を選んだ）<br>";
       var area=0;for(i=1;i<T.length;i++)area+=0.5*(Math.abs(tot[i])+Math.abs(tot[i-1]))*(T[i]-T[i-1]);
       var ymax=0;Y2.forEach(function(v){ymax=Math.max(ymax,Math.abs(v));});
       if(rhp)h+='<span class="warn">不安定: 右半平面に極がある。その項が限りなく大きくなる</span>';
@@ -307,7 +307,7 @@
     var rB=U.ctrls(el);
     var sk=U.slider(rB,"比例ゲイン K<sub>P</sub>",{min:0.05,max:60,log:true,value:0.21,fmt:function(v){return _w06_sig(v,3)+" V/rad";},onInput:function(){draw();}});
     var rC=U.ctrls(el);
-    var sz=U.slider(rC,"零点 −z の z",{min:0.5,max:3,step:0.01,value:1.1,fmt:function(v){return _w06_f(v,2);},onInput:function(){draw();}});
+    var sz=U.slider(rC,"零点 z",{min:-3,max:-0.5,step:0.01,value:-1.1,fmt:function(v){return _w06_f(v,2);},onInput:function(){draw();}});
     var rD=U.ctrls(el);
     var sr=U.slider(rD,"零点 z（右半平面）",{min:0.8,max:1.2,step:0.001,value:0.99,fmt:function(v){return _w06_f(v,3);},onInput:function(){draw();}});
     var br=U.btnrow(el);
@@ -318,7 +318,7 @@
     bt(bA,"ω<sub>a</sub> = 3",function(){sa.set(3);draw();});bt(bA,"ω<sub>a</sub> = 50",function(){sa.set(50);draw();});
     bt(bA,"減衰比 0.7 の極の組",function(){pair={sg:-3.5,w:3.571};draw();});
     bt(bB,"0.21 V/rad",function(){sk.set(0.21);draw();});bt(bB,"10 V/rad",function(){sk.set(10);draw();});bt(bB,"40 V/rad",function(){sk.set(40);draw();});
-    bt(bC,"z = 1（相殺）",function(){sz.set(1);draw();});bt(bC,"z = 1.1",function(){sz.set(1.1);draw();});bt(bC,"z = 2",function(){sz.set(2);draw();});
+    bt(bC,"z = −1（相殺）",function(){sz.set(-1);draw();});bt(bC,"z = −1.1",function(){sz.set(-1.1);draw();});bt(bC,"z = −2",function(){sz.set(-2);draw();});
     bt(bD,"z = 1（ぴったり）",function(){sr.set(1);draw();});bt(bD,"z = 0.99（1 % ずれ）",function(){sr.set(0.99);draw();});bt(bD,"z = 0.9",function(){sr.set(0.9);draw();});
     var box=U.svgbox(el),ro=U.readout(el),PP=null,dragK=null;
     function sel(re){var m=md.get();rA.style.display=m===0?"":"none";rB.style.display=m===1?"":"none";rC.style.display=m===2?"":"none";rD.style.display=m===3?"":"none";
@@ -330,7 +330,7 @@
       if(!dragK)return;var re=PP.ux(x);
       if(dragK==="p"){pair={sg:Math.max(-12,Math.min(-0.2,re)),w:Math.max(0.3,Math.min(PP.yr[1],Math.abs(PP.uy(y))))};}
       else if(dragK==="a"){sa.set(Math.max(1,Math.min(100,-re)));}
-      else if(m===2){sz.set(Math.max(0.5,Math.min(3,Math.round(-re*100)/100)));}
+      else if(m===2){sz.set(Math.max(-3,Math.min(-0.5,Math.round(re*100)/100)));}
       else{sr.set(Math.max(0.8,Math.min(1.2,Math.round(re*1000)/1000)));}
       draw();});
     function stepOf(num,den,tend,n){return CT.step(CT.tf(num,den),tend,n);}
@@ -357,11 +357,11 @@
         var md3=Math.hypot(dom[0].re,dom[0].im);
         note="3 次の式の支配極 <b>"+_w06_ptxt(dom[0].re,Math.abs(dom[0].im),4)+"</b>、二次遅れ（L<sub>a</sub> を無視）の極 "+_w06_ptxt(r2[0].re,Math.abs(r2[0].im),4)+"<br>捨てた極 "+_w06_sig(far.re,4)+"（支配極より原点から "+_w06_sig(Math.abs(far.re)/md3,3)+" 倍遠い）";}
       else if(m===2){var z=sz.get();tend=4;
-        full=stepOf([10/z,10],[1,11,10],tend,N);appr=stepOf([10],[1,10],tend,N);
-        var A=10*(z-1)/(z*9*(-1));term={t:full.t,y:full.t.map(function(t){return A*Math.exp(-t);})};
+        full=stepOf([-10/z,10],[1,11,10],tend,N);appr=stepOf([10],[1,10],tend,N);
+        var A=10*(-1-z)/(9*z);term={t:full.t,y:full.t.map(function(t){return A*Math.exp(-t);})};
         P=U.plot(nar?52:56,20,nar?330:236,nar?150:190,[-12,2],[-3,3]);xt=[-10,-5,0];yt=[-2,0,2];
-        poles=[{re:-1,im:0},{re:-10,im:0}];zeros=[{re:-z,im:0}];yl=[-0.15,1.15];
-        note="零点 −"+_w06_f(z,2)+"、遅い極 −1 の項の大きさ <b>"+_w06_sig(A*100,3)+" %</b>（最終値に対する割合。時定数 1 s で消える）";}
+        poles=[{re:-1,im:0},{re:-10,im:0}];zeros=[{re:z,im:0}];yl=[-0.15,1.15];
+        note="零点 "+_w06_f(z,2)+"、遅い極 −1 の項の大きさ <b>"+_w06_sig(A*100,3)+" %</b>（最終値に対する割合。時定数 1 s で消える）";}
       else{var z2=sr.get();tend=8;
         full=stepOf([1,-z2],[1,1,-2],tend,N);appr=stepOf([1],[1,2],tend,N);
         var A2=(1-z2)/3;term={t:full.t,y:full.t.map(function(t){return A2*Math.exp(t);})};
