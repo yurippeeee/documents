@@ -142,7 +142,7 @@ _F18_CW = {" ": 0.28, "(": 0.37, ")": 0.37, "[": 0.37, "]": 0.37, "−": 0.66, "
            ".": 0.29, ":": 0.29, "/": 0.36, "i": 0.24, "l": 0.24, "j": 0.24, "t": 0.34, "f": 0.37, "r": 0.39, "m": 0.88,
            "w": 0.82, "M": 0.9, "W": 0.99, "I": 0.27, "×": 0.66, "λ": 0.64, "x": 0.55, "k": 0.55, "s": 0.53, "c": 0.57,
            "a": 0.56, "e": 0.58, "u": 0.59, "n": 0.59, "y": 0.57, "1": 0.41, "ᵀ": 0.43, "°": 0.46, "φ": 0.72, "θ": 0.62,
-           "ω": 0.81, "ζ": 0.51, "σ": 0.63, "ṗ": 0.61, "ẋ": 0.55}
+           "ω": 0.81, "ζ": 0.51, "σ": 0.63}
 
 
 def _f18_aw(s, sz):
@@ -199,7 +199,7 @@ def _f18_row(x, yc, items, sz=11, c=INK):
         k = it[0]
         if k == "t":
             cc = it[2] if len(it) > 2 and it[2] else c
-            o.append(_f18_tx(x, yc + sz * 0.36, it[1], "start", sz, cc))
+            o.append(TX(x, yc + sz * 0.36, it[1], "start", sz, cc))
             x += _f18_aw(it[1], sz) + 5
         elif k == "m":
             cc = it[2] if len(it) > 2 and it[2] else c
@@ -211,27 +211,6 @@ def _f18_row(x, yc, items, sz=11, c=INK):
         elif k == "g":
             x += it[1]
     return "".join(o), x
-
-
-import re as _f18_re
-_F18_DOTRE = _f18_re.compile(r"(\\d?dot\{.\}(?:_\{[^}]*\}|_[A-Za-z0-9]+)?)")
-
-
-def _f18_tx(x, y, s, a="start", sz=10, c=INK, b=False, halo=False):
-    """TX と同じ書き方の文字。上の点の付いた文字（\\dot{p} など）を別に置き、点が前の文字の幅の見積もりでずれないようにする。"""
-    parts = [q for q in _F18_DOTRE.split(s) if q]
-    w = sum(_f18_aw(q, sz) for q in parts)
-    x0 = x - (w / 2 if a == "middle" else (w if a == "end" else 0))
-    xs0 = x0
-    n0 = len(_BOXES)
-    o = []
-    for q in parts:
-        o.append(TX(x0, y, q, "start", sz, c, b, halo))
-        x0 += _f18_aw(q, sz)
-    if _CHECK:   # 重なりの検査には、分けて描いた部品をまとめた 1 つの箱を使う
-        del _BOXES[n0:]
-        _BOXES.append((xs0, y - sz * 0.82, xs0 + w, y + sz * 0.22 + 2, s))
-    return "".join(o)
 
 
 def _f18_ground(x0, x1, y):
@@ -324,7 +303,7 @@ def _f18_bd_fig():
     o.append(s)
     o.append(FBPATH(pos["ty"], pos["s"], yc, 44, c=SIG))
     o.append(T((pos["ty"] + pos["s"]) / 2, yc + 38, "測るのは位置 p だけ", "middle", 9.5, SIG, True, halo=True))
-    o.append(T((pos["P"][0] + pos["P"][1]) / 2, yc - 30, "台車（状態は p と ṗ）", "middle", 9.5, MUT))
+    o.append(TX((pos["P"][0] + pos["P"][1]) / 2, yc - 30, "台車（状態は p と \\dot{p}）", "middle", 9.5, MUT))
     # (b) 状態フィードバック
     yb = 156
     o.append(T(14, yb, "(b) 状態フィードバック: 状態をすべて測って戻す（太い線は状態ベクトル）", "start", 11.5, INK, True))
@@ -336,7 +315,7 @@ def _f18_bd_fig():
     o.append(W(xe2, yc2, xe2 + 96, yc2, c=SIG, lw=4))
     o.append(_head(xe2 + 80, yc2, xe2 + 104, yc2, SIG, 10))
     o.append(D(xt, yc2, SIG, 4.6))
-    o.append(T(xe2 + 8, yc2 - 10, "x = [p, ṗ]ᵀ", "start", 10, SIG, True, halo=True))
+    o.append(TX(xe2 + 8, yc2 - 10, "x = [p, \\dot{p}]ᵀ", "start", 10, SIG, True, halo=True))
     yfb = yc2 + 52
     o.append(W(xt, yc2, xt, yfb, c=SIG, lw=4))
     wF = TFBW("F = [f_1  f_2]")
@@ -347,7 +326,7 @@ def _f18_bd_fig():
     o.append(W(xm - wF / 2, yfb, p2["s"], yfb, c=GLD, lw=1.5))
     o.append(ARR(p2["s"], yfb, p2["s"], yc2 + 15, c=GLD, lw=1.5, head=6))
     o.append(TX((xm - wF / 2 + p2["s"]) / 2, yfb - 6, "Fx", "middle", 10, GLD, True, halo=True))
-    o.append(TX(20, yfb + 34, "u = −Fx = −f_1p − f_2ṗ（目標値は 5 節で加える）", "start", 10.5, INK))
+    o.append(TX(20, yfb + 34, "u = −Fx = −f_{1}p − f_{2}\\dot{p}（目標値は 5 節で加える）", "start", 10.5, INK))
     # (c) ばねとダンパを足したのと同じ
     xc = 480
     o.append(T(xc, 18, "(c) ばねとダンパを足したのと同じ", "start", 11.5, INK, True))
@@ -373,7 +352,7 @@ def _f18_bd_fig():
     o.append(TX((cx0 + cw + xr) / 2, gy - 80, "ばね f_1・ダンパ f_2", "middle", 9.5, SIG))
     o.append(ARR(cx0 + cw / 2, gy + 18, cx0 + cw / 2 + 36, gy + 18, c=SIG, lw=1.3, head=6))
     o.append(TX(cx0 + cw / 2 + 40, gy + 22, "p", "start", 10.5, SIG, True))
-    o.append(_f18_tx(xc, gy + 50, "m \\ddot{p} + (c + f_2)ṗ + (k + f_1)p = 0", "start", 10.5, INK))
+    o.append(TX(xc, gy + 50, "m\\ddot{p} + (c + f_2)\\dot{p} + (k + f_1)p = 0", "start", 10.5, INK))
     o.append(T(xc, gy + 68, "制御器のばね・ダンパは負の値にもできる", "start", 9.5, MUT))
     return SVG(700, 300, o,
                "比例制御と状態フィードバック。(a) 位置の比例制御は、台車の状態（位置と速度）のうち位置だけを測って戻す。(b) 状態フィードバックは、状態ベクトルのすべての要素にゲインを掛けて足し、符号を変えて入力にする。この節では目標値を 0 とし、外乱などでずれた状態を 0 へ戻す。(c) 台車とばね・ダンパでは、u = −f₁p − f₂ṗ は、ばね定数 f₁ のばねと減衰係数 f₂ のダンパを台車に足したのと同じ働きをする。")
@@ -760,7 +739,7 @@ def _f18_acker_fig():
     s, xe = _f18_row(20, yb, [("t", "[B  AB] ="), ("m", [["0", "1"], ["1", "−2"]]), ("t", "→ 逆行列"), ("m", [["2", "1"], [("1", SIG), ("0", SIG)]])], 10.5)
     o.append(s)
     o.append(T(xe + 2, yb + 26, "の 2 行目", "start", 9.5, SIG))
-    s, xe2 = _f18_row(xe + 62, yb, [("t", ab + "(A) = A^2 + 10A + 50I ="), ("m", [[("25", GLD), ("8", GLD)], ["−200", "9"]])], 10.5)
+    s, xe2 = _f18_row(xe + 62, yb, [("t", ab + "(A) = A^2 + 10A + 50I ="), ("g", 10), ("m", [[("25", GLD), ("8", GLD)], ["−200", "9"]])], 10.5)
     o.append(s)
     o.append(TX(20, yb + 60, "F = [1  0] " + ab + "(A) = （" + ab + "(A) の 1 行目）= [25  8]", "start", 11, GLD, True))
     o.append(TX(20, yb + 82, "倒立振子（4 行 4 列）も同じ手順で、[B  AB  A^{2}B  A^{3}B] の逆行列の 4 行目に " + ab + "(A) を掛ける", "start", 10, MUT))
@@ -908,11 +887,11 @@ def _f18_pendF_fig():
     rows = [("φ", F[2], "N/rad", "振子が傾いた向きへ台車を押す", SIG),
             ("\\dot{φ}", F[3], "N/(rad/s)", "傾く速さの向きへ押す", SIG),
             ("p", F[0], "N/m", "台車が右にあると、さらに右へ押す", GLD),
-            ("ṗ", F[1], "N/(m/s)", "台車が右へ動いていると、さらに右へ", GLD)]
+            ("\\dot{p}", F[1], "N/(m/s)", "台車が右へ動いていると、さらに右へ", GLD)]
     for i, (nm, f, un, mean, c) in enumerate(rows):
         y = 48 + i * 26
-        o.append(_f18_tx(xb, y, "+" + _f18_fx(-f, 3 if abs(f) < 10 else 2) + " " + un + " × ", "start", 10.5, c, True))
-        o.append(_f18_tx(xb + 128, y, nm, "start", 11, c, True))
+        o.append(TX(xb, y, "+" + _f18_fx(-f, 3 if abs(f) < 10 else 2) + " " + un + " × ", "start", 10.5, c, True))
+        o.append(TX(xb + 128, y, nm, "start", 11, c, True))
         o.append(T(xb + 150, y, mean, "start", 10, INK))
     o.append(T(xb, 158, "位置と速度のゲインが負（u に正で効く）でなければならない理由:", "start", 10, INK, True))
     o.append(TX(xb, 178, "閉ループの特性多項式の定数の項 = −(g/(Ml))f_{1} = 65.4 × 3.914 = 256", "start", 10, INK))
@@ -1092,7 +1071,7 @@ def _f18_servo_bd_fig():
     o.append(W(xmC - wC / 2, y2, pos["s1"], y2, c=SIG, lw=1.5))
     o.append(ARR(pos["s1"], y2, pos["s1"], yc + 15, c=SIG, lw=1.5, head=6))
     o.append(TX((xmC - wC / 2 + pos["s1"]) / 2, y2 - 6, "y = Cx = p", "middle", 10, SIG, True, halo=True))
-    o.append(_f18_tx(14, y2 + 40, "u = −Fx − f_{I}w = −[F  f_{I}][x; w]（状態が 5 つの系の状態フィードバック）。落ち着くと \\dot{w} = r − y = 0 なので y = r", "start", 10.5, INK))
+    o.append(TX(14, y2 + 40, "u = −Fx − f_{I}w = −[F  f_{I}][x; w]（状態が 5 つの系の状態フィードバック）。落ち着くと \\dot{w} = r − y = 0 なので y = r", "start", 10.5, INK))
     return SVG(700, y2 + 54, o,
                "積分型サーボ系のブロック線図。偏差 e = r − y を積分した w を新しい状態にし、元の状態 x と合わせた 5 つの状態に状態フィードバックを掛ける。閉ループが安定なら、落ち着いたとき w の変わる速さ e が 0 なので、一定の外乱 d があっても制御量 y は目標値 r に一致する。外乱を打ち消す一定の力は、たまった積分 w が出す。")
 

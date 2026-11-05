@@ -241,7 +241,7 @@
       if(unst)h+='<span class="warn">閉ループが不安定（右半平面か虚軸の上に極がある）</span><br>';
       else h+=s.init+": ±2 % に <b>"+(t2!==null?_w18_g(t2,3)+" s":"—")+"</b>、最大の力 <b>"+_w18_g(umx.v,3)+" N</b>"+(ymn.v<0?"、反対側へ "+_w18_g(-ymn.v,3)+" "+(sy.get()===0?"cm":"°")+"（"+_w18_g(-ymn.v/Math.abs(y0)*100,2)+" %）":"")+"<br>";
       h+="可制御性行列の行列式 det [B AB] = "+_w18_g(dC,4)+"（0 でないので、どんな極にも F が 1 つ決まる）";
-      ro.innerHTML=h+'<div class="wnote">閉ループ ẋ = (A − BF)x を、行列指数関数で厳密に解いた。図の灰色の × は開ループの極、青の × は閉ループの極。「望む極から F を求める」では、極（点線の丸）をドラッグするか、ζ・ω<sub>n</sub> のつまみで動かす。実軸へ下ろすと 2 つの実数の極になり、実軸の上ではそれぞれを左右に動かせる。</div>';
+      ro.innerHTML=h+'<div class="wnote">閉ループ '+U.htx("\\dot{x}")+' = (A − BF)x を、行列指数関数で厳密に解いた。図の灰色の × は開ループの極、青の × は閉ループの極。「望む極から F を求める」では、極（点線の丸）をドラッグするか、ζ・ω<sub>n</sub> のつまみで動かす。実軸へ下ろすと 2 つの実数の極になり、実軸の上ではそれぞれを左右に動かせる。</div>';
     }
     setRanges();draw();
   };
@@ -307,7 +307,7 @@
       o.push(U.ctl.pz(SP,[{re:-R.a,im:0},{re:-R.b,im:0}],[],"signal",6));
       var fx=nar?sx+sw+20:sx+sw+16;
       o.push(S.T(fx,sy2+6,"F =","start",9.5,"ink",true));
-      ["p","ṗ","φ","dφ/dt"].forEach(function(nm,i){o.push(S.T(fx,sy2+22+i*14,_w18_s(R.F[i],4)+" ("+nm+")","start",9.5,"signal"));});
+      ["p","\\dot{p}","φ","\\dot{φ}"].forEach(function(nm,i){o.push(S.TX(fx,sy2+22+i*14,_w18_s(R.F[i],4)+" ("+nm+")","start",9.5,"signal"));});
       /* 波形 */
       var qx=nar?52:400,qy=nar?sy2+sw*0.6+50:22,qw=nar?330:290,specs=[["角度 φ [°]",function(x){return x[2]*180/Math.PI;},"signal"],["台車の位置 p [cm]",function(x){return x[0]*100;},"gold"],["力 u [N]",null,"gold"]];
       specs.forEach(function(sp,k){
