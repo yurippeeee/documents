@@ -70,15 +70,12 @@ _F08_CN, _F08_CD = [0.5], [0.5, 1.0]
 def _f08_sine3_fig():
     o = []
     # 線図
-    o.append(TX(150, 30, "力 u = sin ωt [N]", "end", 11, GLD, True))
-    o.append(ARR(156, 26, 214, 26, c=GLD, lw=1.8))
-    o.append(RECT(214, 10, 168, 32, 7, PAN, LIN, 1.3))
-    o.append(TX(298, 31, "台車の速度 0.5/(0.5s + 1)", "middle", 11, INK, True))
-    o.append(ARR(382, 26, 440, 26, c=SIG, lw=1.8))
-    o.append(TX(446, 30, "速度 y [m/s]", "start", 11, SIG, True))
-    o.append(LEGL(552, 30, [(GLD, None, "u [N]"), (SIG, None, "y [m/s]")], sz=10, gap=10))
+    s_, pos, xe = CHAIN(64, 42, [("a", 150, "力 u = sin ωt [N]", GLD), ("b", ("0.5", "0.5s + 1"), "g", SIG, SSOFT), ("a", 130, "速度 y [m/s]", SIG)])
+    o.append(s_)
+    o.append(T((pos["g"][0] + pos["g"][1]) / 2, 13, "台車の速度", "middle", 10, SIG, True))
+    o.append(LEGL(552, 46, [(GLD, None, "u [N]"), (SIG, None, "y [m/s]")], sz=10, gap=10))
     rows = [(0.5, [0, 10, 20, 30], "(a)"), (2.0, [0, 2, 4, 6, 8], "(b)"), (8.0, [0, 0.5, 1, 1.5, 2], "(c)")]
-    y0 = 62
+    y0 = 84
     for w, xt, lab in rows:
         per = 2 * math.pi / w
         tend = 3 * per
@@ -387,12 +384,25 @@ F["e08_axes"] = _f08_axes_fig()
 
 def _f08_sgyr_fig():
     o = []
-    p = Plot(64, 26, 600, 190, (0.1, 1000), (-40, 6), xlog=True)
+    # ループの線図（07 章 2 節と同じ並び）
+    yc = 52
+    s_, pos, xe = CHAIN(96, yc, [("a", 46, "R(s)", MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 40, "E(s)", INK), ("b", "C = 8", "c"),
+                                 ("a", 46, "U(s)", GLD), ("b", ("0.5", "0.5s + 1"), "p"), ("a", 30, None, SIG), ("s", {"l": "+", "t": "+"}, "s2"),
+                                 ("a", 50, None, SIG), ("t", "tap", SIG), ("a", 50, "Y(s)", SIG)])
+    o.append(s_)
+    o.append(TOPIN(pos["s2"], yc, 40, "D(s)（制御量に入る外乱）", PUR))
+    o.append(FBPATH(pos["tap"], pos["s1"], yc, 40, c=TEA, lab="測った値 Y(s) + N(s)（N は観測ノイズ）"))
+    o.append(T((pos["p"][0] + pos["p"][1]) / 2, yc - 30, "台車の速度", "middle", 9.5, MUT))
+    o.append(TX(xe + 14, yc - 18, "S: D → Y", "start", 10, PUR, True))
+    o.append(TX(xe + 14, yc, "G_{yr}: R → Y", "start", 10, TEA, True))
+    o.append(TX(xe + 14, yc + 18, "−G_{yr}: N → Y", "start", 10, TEA, True))
+    Gyr, _Gyd, Ss = CLOOP([0.5], [0.5, 1.0], [8.0], [1.0])
+    p = Plot(64, 128, 600, 190, (0.1, 1000), (-40, 6), xlog=True)
     o.append(p.axes(xl="角周波数 ω [rad/s]", yl="ゲイン [dB]", yt=[-40, -30, -20, -10, 0], yfmt=lambda v: ("%g" % v).replace("-", "−")))
     o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1.1))
     wl = _f08_lw(0.1, 1000)
-    dbS, _ = _f08_bd([0.5, 1], [0.5, 5], wl)
-    dbG, _ = _f08_bd([4], [0.5, 5], wl)
+    dbS, _ = _f08_bd(list(Ss[0]), list(Ss[1]), wl)
+    dbG, _ = _f08_bd(list(Gyr[0]), list(Gyr[1]), wl)
     o.append(p.line(_f08_pts(wl, dbS), c=PUR, lw=2.4))
     o.append(p.line(_f08_pts(wl, dbG), c=TEA, lw=2.4))
     for w, ys, yg in ((1, -13.05, -1.98), (10, -2.84, -4.95), (50, -0.16, -16.09)):
@@ -408,7 +418,7 @@ def _f08_sgyr_fig():
     o.append(T(p.X(0.4), p.Y(-28), "遅い外乱は 1/5 に縮む", "middle", 10, PUR, halo=True))
     o.append(T(p.X(0.4), p.Y(-34), "目標値は 0.8 倍が現れる", "middle", 10, TEA, halo=True))
     o.append(T(p.X(400), p.Y(-6), "速いノイズは通らない", "middle", 10, TEA, halo=True))
-    return SVG(700, 254, o, "台車の速度の比例制御（K<sub>P</sub> = 8 N/(m/s)）の感度関数 S と、目標値から制御量までの閉ループ伝達関数 G<sub>yr</sub> のゲイン。点は 1 rad/s・10 rad/s・50 rad/s の値（倍）。低い角周波数では S が小さく、遅い外乱を抑える。高い角周波数では G<sub>yr</sub> が小さく、速い観測ノイズを制御量に通さない。10 rad/s では両方が 1 に近く、ゲインの和は 1 を越える（S + G<sub>yr</sub> = 1 は複素数の和）。")
+    return SVG(700, 356, o, "台車の速度の比例制御（K<sub>P</sub> = 8 N/(m/s)）の感度関数 S と、目標値から制御量までの閉ループ伝達関数 G<sub>yr</sub> のゲイン。点は 1 rad/s・10 rad/s・50 rad/s の値（倍）。低い角周波数では S が小さく、遅い外乱を抑える。高い角周波数では G<sub>yr</sub> が小さく、速い観測ノイズを制御量に通さない。10 rad/s では両方が 1 に近く、ゲインの和は 1 を越える（S + G<sub>yr</sub> = 1 は複素数の和）。")
 
 
 F["e08_sgyr"] = _f08_sgyr_fig()
@@ -700,7 +710,8 @@ def _f08_bw_fig():
     wl = _f08_lw(1, 1000, 600)
     info = {0.21: (14.84, 0.1447, None), 1.0: (45.61, 0.0425, (28.28, 4.44)), 10.0: (154.3, 0.0110, (98.99, 14.02))}
     for kp, c in cases:
-        db, _ = _f08_bd([1000 * kp], [1, 20, 1000 * kp], wl)
+        Gyr, _Gyd, _S = CLOOP([50.0], [0.05, 1.0, 0.0], [kp], [1.0])
+        db, _ = _f08_bd(list(Gyr[0]), list(Gyr[1]), wl)
         o.append(p.clip(_f08_pts(wl, db), c=c, lw=2.2))
         wb, tr, pk = info[kp]
         o.append(D(p.X(wb), p.Y(-3.01), c, 3.6))
@@ -720,7 +731,8 @@ def _f08_bw_fig():
     o.append(W(q.x, q.Y(1), q.x + q.w, q.Y(1), c=MUT, lw=1, dash="4 3"))
     t = _f08_np.linspace(0, 0.4, 1601)
     for j, (kp, c) in enumerate(cases):
-        _, y = _f08_sg.step(([1000 * kp], [1, 20, 1000 * kp]), T=t)
+        Gyr, _Gyd, _S = CLOOP([50.0], [0.05, 1.0, 0.0], [kp], [1.0])
+        _, y = _f08_sg.step((Gyr[0], Gyr[1]), T=t)
         o.append(q.line(_f08_pts(t, y), c=c, lw=2.2))
         i10 = int(_f08_np.argmax(y >= 0.1)); i90 = int(_f08_np.argmax(y >= 0.9))
         yy = 0.44 + 0.08 * j
