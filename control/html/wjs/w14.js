@@ -88,6 +88,7 @@
       R=_w14_mff(tr,ff,fb,jr.get(),kr.get(),fr.get(),tEnd);R.tEnd=tEnd;R.tr=tr;R.ff=ff;R.fb=fb;
       /* フィードバックだけの場合も、比べるために計算しておく */
       R.ref=(ff===0&&fb===2)?null:_w14_mff(tr,0,2,jr.get(),kr.get(),fr.get(),tEnd);
+      st.set(st.get());                 /* 時刻の表示を、新しい長さで書き直す */
       draw();}
     function draw(){
       if(!R)return;var nar=_w14_nar(box),Wd=nar?400:700,o=[],t=R.t,n=t.length,tc=st.get()*R.tEnd,ix=Math.max(0,Math.min(n-1,Math.round(tc/(t[1]-t[0]))));
@@ -121,7 +122,7 @@
       o.push(S.L(P2.x,P2.Y(0),P2.x+P2.w,P2.Y(0),"line",1));
       o.push(S.RECT(P2.X(0),P2.y,P2.X(R.tr.tf)-P2.X(0),P2.h,0,"var(--muted-soft)","none",0,null,' fill-opacity="0.45"'));
       if(R.ref)o.push(P2.line(R.ref.t.map(function(x,i){return [x,R.ref.e[i]];}),"muted",1.4));
-      o.push(P2.line(t.map(function(x,i){return [x,R.e[i]];}),Math.abs(em)>0.3?"alias":"green",2));
+      o.push(P2.line(t.map(function(x,i){return [x,R.e[i]];}),"signal",2));
       var vmx=2;R.v.forEach(function(v){vmx=Math.max(vmx,Math.abs(v));});vmx=Math.min(13,vmx*1.15);
       var P3=U.plot(px,py+2*gap,pw,ph,[0,R.tEnd],[-vmx,vmx]);
       o.push(S.T(px-(nar?42:44),py+2*gap-8,"電圧 v [V]（破線はフィードフォワードの分）","start",9.5,"ink",true));
@@ -136,7 +137,7 @@
       var mx=0,ix0=0;R.e.forEach(function(v,i){if(Math.abs(v)>mx){mx=Math.abs(v);ix0=i;}});
       var ts=_w14_settle(t,R.e,0,0.01,R.tr.tf),eEnd=R.e[R.e.length-1],vm2=0;R.v.forEach(function(v){vm2=Math.max(vm2,Math.abs(v));});
       var hs="目標値: "+_w14_g(mv.get(),3)+" rad を "+_w14_g(R.tr.tf,3)+" s で（最高の角速度 "+_w14_g(R.tr.v,3)+" rad/s、角加速度 "+_w14_g(R.tr.a,3)+" rad/s²）。モデルの逆の電圧は最大 "+_w14_g((R.tr.v+0.05*R.tr.a)/50,3)+" V<br>";
-      hs+="偏差の最大 <b>"+_w14_g(mx,3)+" rad</b>（"+_w14_g(t[ix0],3)+" s）"+(R.ref?"、フィードバックだけなら "+_w14_g(Math.max.apply(null,R.ref.e.map(Math.abs)),3)+" rad":"")+"<br>";
+      hs+="偏差の最大 "+(mx<1e-4?"<b>0.0001 rad 未満</b>":"<b>"+_w14_g(mx,3)+" rad</b>（"+_w14_g(t[ix0],3)+" s）")+(R.ref?"、フィードバックだけなら "+_w14_g(Math.max.apply(null,R.ref.e.map(Math.abs)),3)+" rad":"")+"<br>";
       hs+="目標値が止まった後: "+(ts!=null?(ts<=R.tr.tf+1e-9?'<span class="ok">止まった時点で 0.01 rad 以内</span>':"0.01 rad 以内に入るのは止まってから "+_w14_g(ts-R.tr.tf,3)+" s 後"):'<span class="warn">表示した時間の中で 0.01 rad 以内に入らない</span>')+"、最後の偏差 "+_w14_f(eEnd,3)+" rad<br>";
       hs+="電圧の最大 "+_w14_g(vm2,3)+" V"+(R.sat?' <span class="warn">12 V に張り付いた（フィードフォワードどおりの電圧を出せない）</span>':"");
       ro.innerHTML=hs+'<div class="wnote">モータは電圧から角度までの K/{s(Ts + 1)}（巻線のインダクタンスを無視。モデルは K = 50 (rad/s)/V、T = 0.05 s）。フィードフォワードはモデルの値で計算し、本当の対象の慣性モーメント・電圧の効き・摩擦（回る向きと逆の一定のトルク）だけをずらした。目標値に段差が無いので、D 動作は偏差に掛けた。刻み 0.1 ms で厳密に離散化して計算した。</div>';
@@ -162,9 +163,9 @@
     function lab(i){return ob.get()===0?"本当の坂 "+CART.d[i]+"°":"周りの温度 "+(PLATE.d[i]>0?"+":"")+PLATE.d[i]+" K";}
     function elab(i){return ob.get()===0?"センサの読み "+(CART.e[i]>0?"+":"")+CART.e[i]+"°（"+_w14_g(CART.d[dz.get()]+CART.e[i],3)+"°と読む）":"熱抵抗のモデル: 本当の "+PLATE.e[i]+" 倍";}
     var br=U.btnrow(el);
-    function def(){if(ob.get()===0){dz.set(3);er.set(2);}else{dz.set(2);er.set(3);}fbs.set(ob.get()===0?0:1);}
+    function def(){if(ob.get()===0){dz.set(3);er.set(1);}else{dz.set(2);er.set(5);}fbs.set(ob.get()===0?0:1);}
     U.button(br,"本文の例",function(){def();run();});
-    U.button(br,"測った値が正しい",function(){er.set(ob.get()===0?3:3);run();});
+    U.button(br,"測った値が正しい",function(){er.set(3);run();});
     U.button(br,"誤差が大きい",function(){er.set(ob.get()===0?0:6);run();});
     var box=U.svgbox(el),ro=U.readout(el);
     function run(){
@@ -202,7 +203,7 @@
       o.push(S.T(lx,ly,cart?"坂の上の速度":"温度のずれ","start",10,"ink",true));
       res.forEach(function(R,i){var yy=ly+20+i*(nar?16:42),fin=R.y[R.y.length-1],ext=cart?Math.min.apply(null,R.y.filter(function(v,j){return R.t[j]>=tD;})):(PLATE.d[dz.get()]<0?Math.min.apply(null,R.y):Math.max.apply(null,R.y));
         o.push(S.L(lx,yy-4,lx+22,yy-4,cs[i][1],2.4,cs[i][2]));
-        var txt=cart?(cs[i][0]+": 最後 "+_w14_f(fin,3)+" m/s、最低 "+_w14_f(ext,3)):(cs[i][0]+": 最大 "+_w14_f(Math.abs(ext),2)+" K、最後 "+_w14_f(fin,2)+" K");
+        var txt=cart?(cs[i][0]+": 最後 "+_w14_f(fin,3)+" m/s、最低 "+_w14_f(ext,3)+" m/s"):(cs[i][0]+": 最大 "+_w14_f(Math.abs(ext),2)+" K、最後 "+_w14_f(fin,2)+" K");
         if(nar)o.push(S.T(lx+28,yy,txt,"start",9.5,cs[i][1]==="muted"?"ink":cs[i][1],true));
         else{o.push(S.T(lx+28,yy,cs[i][0],"start",10,"ink"));o.push(S.T(lx+28,yy+15,txt.split(": ")[1],"start",9.5,cs[i][1]==="muted"?"ink":cs[i][1],true));}});
       box.set(S.svg(Wd,nar?404:340,o));
@@ -212,7 +213,7 @@
         hs+="坂の力 "+_w14_g(dT2,3)+" N、測った角度から足す力 "+_w14_g(dM,3)+" N、足りない分 <b>"+_w14_g(rem,3)+" N</b><br>";
         hs+="フィードフォワードだけ: 1 − "+_w14_g(rem,3)+" ÷ 2 = "+_w14_f(1-rem/2,3)+" m/s。両方（比例）: 1 − "+_w14_g(rem,3)+" ÷ (2 + 8) = "+_w14_f(1-rem/10,3)+" m/s（1 章 4 節の式で、足りない分だけを比例制御が受け持つ）"+(PI?"。PI なら、どれも最後は 1 m/s":"")+"<br>";}
       else{var dT3=PLATE.d[dz.get()],Re3=PLATE.e[er.get()],need=-dT3/1.25,give=-dT3/(1.25*Re3);
-        hs+="逃げる熱の変化 "+_w14_g(-need,3)+" W、フィードフォワードで足す電力 "+_w14_g(give,3)+" W、足りない分 <b>"+_w14_g(need-give,3)+" W</b><br>";
+        hs+="逃げる熱が "+_w14_g(Math.abs(need),3)+" W "+(need>=0?"増える":"減る")+"、フィードフォワードで足す電力 "+_w14_g(give,3)+" W、足りない分 <b>"+_w14_g(need-give,3)+" W</b><br>";
         hs+="フィードフォワードだけ: "+_w14_f((give-need)*1.25,2)+" K の所へ向かう（時定数 500 s）"+(PI?"。PI なら最後は 0":"。比例（10 W/K）だけなら最後は "+_w14_f((give-need)*1.25/(1+12.5),3)+" K")+"<br>";}
       ro.innerHTML=hs+'<div class="wnote">'+(cart?"1 章の台車（1 kg、2 N·s/m、目標 1 m/s）が 1 s に坂に入る。比例は 8 N/(m/s)、PI は 8 N/(m/s)・25 N/m。決めた力 2 N はいつも足す。":"温度の板（1.25 K/W・500 s・むだ時間 20 s）を 60 °C に保っている所で、100 s に周りの温度が変わる。PI は 10 W/K・160 s、比例は 10 W/K。周りの温度のセンサは遅れないとした。")+"</div>";
     }
@@ -243,26 +244,30 @@
     U.head(el,"CASCADE","カスケード制御 — 内側のループで、外乱を外側に届く前に止める");
     var r1=U.ctrls(el);
     var md=U.select(r1,"構成",["角度の PID だけ（10 章）","2 段: 角度 → 角速度","3 段: 角度 → 角速度 → 電流"],2,run);
-    var ts=U.select(r1,"試すこと",["0.02 s に負荷トルク 0.01 N·m","目標の角度を 1 rad 変える","軸を止められる（目標は 1 rad 先）","負荷トルクをかけて、0.1 s に電源が 12 V → 9 V"],0,run);
+    var ts=U.select(r1,"試すこと",["0.02 s に負荷トルク 0.01 N·m","目標の角度を 1 rad 変える","軸を止められる（目標は 1 rad 先）","1 s に電源が 12 V → 9 V（負荷トルクあり）"],0,run);
     var r2=U.ctrls(el);
     var rt=U.slider(r2,"内側の速さ ÷ 外側の比例ゲイン",{values:[0.5,1,2,4,5,10,20],value:5,fmt:function(v){return v+" 倍";},onInput:run});
     var il=U.slider(r2,"電流の上限（3 段）",{values:[0.5,1,2,3,6],value:3,fmt:function(v){return v+" A";},onInput:run});
     var br=U.btnrow(el);
     U.button(br,"本文の例（3 段・負荷トルク）",function(){md.set(2);ts.set(0);rt.set(5);il.set(3);run();});
-    U.button(br,"角度の PID だけ",function(){md.set(0);ts.set(0);run();});
+    U.button(br,"角度の PID だけ",function(){md.set(0);ts.set(0);rt.set(5);il.set(3);run();});
     U.button(br,"2 段で、内側が外側の 1 倍しか速くない",function(){md.set(1);ts.set(1);rt.set(1);run();});
-    U.button(br,"軸を止められる・上限 1 A",function(){md.set(2);ts.set(2);il.set(1);run();});
+    U.button(br,"軸を止められる・上限 1 A",function(){md.set(2);ts.set(2);rt.set(5);il.set(1);run();});
     var box=U.svgbox(el),ro=U.readout(el);
     function run(){
       var M=+md.get(),T=+ts.get(),ratio=rt.get(),inner=M===1?100:1000,Kth=inner/ratio,ilim=il.get(),nar=_w14_nar(box),Wd=nar?400:700,o=[];
       rt.el.style.display=M>0?"":"none";il.el.style.display=M===2?"":"none";
-      var tw0=[0,0,0,0.9][T],tEnd=[0.4,0.4,2.5,1.4][T],h=M===2?(T===2?2e-5:1e-5):(T===2?1e-4:2e-5);
-      var opt={tEnd:tEnd,h:h,Kth:Kth,ilim:M===2?ilim:null,every:Math.max(1,Math.round((tEnd-tw0)/h/800))};
-      if(T===0)opt.tau=function(t){return t>=0.02?0.01:0;};
-      if(T===1)opt.r=function(){return 1;};
-      if(T===2){opt.r=function(){return 1;};opt.J=1e3;}
-      if(T===3){opt.tau=function(){return 0.01;};opt.vs=function(t){return t>=1.0?9:12;};}
-      var R=_w14_casc(U,M,opt),sel=[];R.t.forEach(function(x,i){if(x>=tw0-1e-12)sel.push(i);});
+      var tw0=[0,0,0,0.9][T],tEnd=[0.4,0.4,2.5,1.4][T];
+      /* 構成 m の計算条件（比べるため、ほかの構成も同じ条件で計算する） */
+      function mk(m){var h=m===2?(T===2?2e-5:1e-5):(T===2?1e-4:2e-5),o2={tEnd:tEnd,h:h,Kth:(m===1?100:1000)/ratio,ilim:m===2?ilim:null,every:Math.max(1,Math.round((tEnd-tw0)/h/800))};
+        if(T===0)o2.tau=function(t){return t>=0.02?0.01:0;};
+        if(T===1)o2.r=function(){return 1;};
+        if(T===2){o2.r=function(){return 1;};o2.J=1e3;}
+        if(T===3){o2.tau=function(){return 0.01;};o2.vs=function(t){return t>=1.0?9:12;};}
+        return o2;}
+      /* 電源が下がる直前（1.0 s）の角度 */
+      function thAt(Rx,t0){var k=0;while(k<Rx.t.length-1&&Rx.t[k]<t0-1e-12)k++;return Rx.th[k];}
+      var R=_w14_casc(U,M,mk(M)),sel=[];R.t.forEach(function(x,i){if(x>=tw0-1e-12)sel.push(i);});
       /* 線図 */
       var yc=44,items=[["a",nar?12:20,null,"muted"],["s",{l:"+",b:"−"},"s1"],["a",nar?8:14,null,"alias"]];
       if(M===0){items.push(["b","PID","c0",true]);items.push(["a",nar?24:40,"v","gold"]);}
@@ -278,7 +283,7 @@
       if(T===0||T===3){var xm=(m0+m1)/2;o.push(S.ARR(xm,yc-34,xm,yc-18,"purple",1.6));o.push(S.TX(xm+5,yc-24,"τ_L","start",10,"purple",true,true));}
       if(T===3)o.push(S.T(m1+4,yc-24,"電源 12 V → 9 V","start",9.5,"purple",true,false,null,true));
       /* 波形 */
-      var x0=nar?54:64,pw=nar?330:290,py=124,ph=110,base=T===3?R.th[sel[0]]:0;
+      var x0=nar?54:64,pw=nar?330:290,py=124,ph=110,base=T===3?thAt(R,1.0):0;
       var tt=sel.map(function(i){return R.t[i];}),th=sel.map(function(i){return R.th[i]-((T===1||T===2)?0:base);}),ii=sel.map(function(i){return R.i[i];});
       var a0=Math.min.apply(null,th),a1=Math.max.apply(null,th);
       if(T===1||T===2){a0=Math.min(0,a0);a1=Math.max(1.2,a1*1.08);}
@@ -292,7 +297,7 @@
       var bx=nar?54:420,by=nar?290:py,bw=nar?330:250;
       var imx=Math.max(1,Math.max.apply(null,ii.map(Math.abs))*1.15),i0=Math.min(0,Math.min.apply(null,ii)*1.15);
       var Q=U.plot(bx,by,bw,ph,[tw0,tEnd],[i0,imx]);
-      o.push(S.T(bx-(nar?44:50),by-8,"電流 i [A]（点線は拘束電流 6 A）","start",9.5,"ink",true));
+      o.push(S.T(bx-(nar?44:50),by-8,"電流 i [A]"+(imx>=6?"（点線は拘束電流 6 A）":""),"start",9.5,"ink",true));
       o.push(Q.axes({xl:"時間 t [s]",xt:U.nice(tw0,tEnd,4),yt:U.nice(i0,imx,4).filter(function(v){return v>=i0&&v<=imx;}),xfmt:function(v){return _w14_g(v,3);},yfmt:function(v){return _w14_g(v,2);}}));
       if(M===2&&ilim<=imx)o.push(Q.line([[tw0,ilim],[tEnd,ilim]],"alias",1,"4 3"));
       if(imx>=6)o.push(Q.line([[tw0,6],[tEnd,6]],"muted",1,"2 3"));
@@ -300,8 +305,18 @@
       box.set(S.svg(Wd,(nar?by:py)+ph+40,o));
       /* 読み出し */
       var hs="",dev=0;th.forEach(function(v){dev=Math.max(dev,Math.abs(v));});
-      if(T===0)hs+="負荷トルクによる角度のずれの最大: <b>"+_w14_g(dev,3)+" rad</b>、0.4 s のずれ "+_w14_g(th[th.length-1],3)+" rad<br>";
+      var eEnd=th[th.length-1];
+      if(T===0)hs+="負荷トルクによる角度のずれの最大: <b>"+_w14_g(dev,3)+" rad</b>、0.4 s のずれ "+(Math.abs(eEnd)<1e-5?"0.00001 rad 未満":_w14_g(eEnd,3)+" rad")+"<br>";
       if(T===3)hs+="電源が下がった後の角度の変化の最大: <b>"+_w14_g(dev,3)+" rad</b><br>";
+      if(T===2){var names2=["角度の PID だけ","2 段","3 段（上限 "+ilim+" A）"],cmp2=[];
+        for(var m2=0;m2<3;m2++){var Rm2=m2===M?R:_w14_casc(U,m2,mk(m2)),im2=0;for(var q2=0;q2<Rm2.i.length;q2++)im2=Math.max(im2,Math.abs(Rm2.i[q2]));
+          cmp2.push((m2===M?"<b>":"")+names2[m2]+" "+_w14_g(im2,3)+" A"+(m2===M?"</b>":""));}
+        hs+="同じ条件で 3 つの構成を比べると（電流の最大）: "+cmp2.join("、")+"<br>";}
+      if(T===0||T===3){var names=["角度の PID だけ","2 段","3 段"],cmp=[];
+        for(var m=0;m<3;m++){var Rm=m===M?R:_w14_casc(U,m,mk(m)),bm=T===3?thAt(Rm,1.0):0,dm=0;
+          for(var q=0;q<Rm.t.length;q++)if(Rm.t[q]>=tw0-1e-12)dm=Math.max(dm,Math.abs(Rm.th[q]-bm));
+          cmp.push((m===M?"<b>":"")+names[m]+" "+_w14_g(dm,3)+" rad"+(m===M?"</b>":""));}
+        hs+="同じ条件で 3 つの構成を比べると: "+cmp.join("、")+"<br>";}
       if(T===1){var mp=(Math.max.apply(null,th)-1)*100,t2=_w14_settle(tt,th,1,0.02,0);hs+="目標の角度 1 rad: 行き過ぎ量 <b>"+_w14_f(Math.max(0,mp),1)+" %</b>、2 % 整定時間 "+(t2!=null?_w14_g(t2,3)+" s":"表示した時間の中で入らない")+"<br>";}
       var imax=Math.max.apply(null,ii.map(Math.abs));hs+="電流の最大 <b>"+_w14_g(imax,3)+" A</b>"+(imax>5.5?' <span class="warn">拘束電流に近い</span>':"")+(T===2&&M===2?' <span class="ok">電流の指令を '+ilim+' A で切っている</span>':"")+"<br>";
       if(M>0){var z=0.5*Math.sqrt(ratio);hs+="外側の比例ゲイン "+_w14_g(Kth,3)+" /s（内側の速さ 約 "+inner+" /s の 1/"+ratio+"）。内側を一次遅れとみなした外側の減衰比 ζ = (1/2)√"+ratio+" = <b>"+_w14_f(z,2)+"</b>"+(z>=1?"（振動しない）":"（行き過ぎ量の目安 "+_w14_f(100*Math.exp(-Math.PI*z/Math.sqrt(1-z*z)),1)+" %）")+"<br>";}
@@ -355,6 +370,7 @@
       if(C===0){KP=10;TI=160;}else if(C===1){KP=T/(K*(lam+L));TI=T;}else{KP=T/(K*lam);TI=T;}
       var tD=700,tEnd=1400;
       var R=_w14_plate({KP:KP,TI:TI,smith:smith,Lt:Lt,Kt:K*Kr,r:function(){return 1;},d:function(t){return t>=tD?-10:0;},tEnd:tEnd,h:0.1,every:5,umin:-28,umax:52});
+      var unstable=R.blow||_w14_unst(U,C,KP,TI,lam,Lt,Kr);
       var nar=_w14_nar(box),Wd=nar?400:700,o=[];
       var x0=nar?54:62,pw=nar?330:380;
       var ys=R.y.concat(smith?R.yp:[]),y0=Math.min(-0.2,Math.min.apply(null,ys)),y1=Math.max(1.4,Math.max.apply(null,ys));y0=Math.max(y0,-3);y1=Math.min(y1,4);
@@ -363,7 +379,7 @@
       o.push(P.line([[0,1],[tEnd,1]],"muted",1,"5 3"));
       o.push(S.L(P.X(tD),P.y,P.X(tD),P.y+P.h,"purple",1.2,"3 3"));o.push(S.T(P.X(tD)+4,P.y+11,"外乱 −10 W","start",9.5,"purple",true,false,null,true));
       if(smith)o.push(P.clip(R.t.map(function(x,i){return [x,R.yp[i]];}),"gold",1.5,"5 3"));
-      o.push(P.clip(R.t.map(function(x,i){return [x,R.y[i]];}),R.blow?"alias":"signal",2));
+      o.push(P.clip(R.t.map(function(x,i){return [x,R.y[i]];}),unstable?"alias":"signal",2));
       var Q=U.plot(x0,200,pw,80,[0,tEnd],[-30,55]);
       o.push(Q.axes({xl:"時間 t [s]",yl:"電力 [W]",xt:U.nice(0,tEnd,5),yt:[-28,0,26,52],xfmt:function(v){return _w14_g(v,4);},yfmt:function(v){return _w14_g(v,3);},ylOff:nar?40:44}));
       o.push(Q.line([[0,52],[tEnd,52]],"alias",1,"4 3"));o.push(Q.line([[0,-28],[tEnd,-28]],"alias",1,"4 3"));
@@ -380,19 +396,18 @@
       o.push(MPl.line(ln1,"green",1.6));o.push(MPl.line(ln2,"green",1.6));
       o.push(S.T(mx0+mw/2,my0-6,"スミス予測器が安定な組（赤は不安定）","middle",9.5,"ink",true));
       var lamPt=C===0?null:lam;
-      if(smith){o.push(S.CIRC(MPl.X(Lt),MPl.Y(lam),6,"ink",2,"screen"));o.push(S.D(MPl.X(Lt),MPl.Y(lam),R.blow?"alias":"signal",3.4));}
+      if(smith){o.push(S.CIRC(MPl.X(Lt),MPl.Y(lam),6,"ink",2,"screen"));o.push(S.D(MPl.X(Lt),MPl.Y(lam),unstable?"alias":"signal",3.4));}
       box.set(S.svg(Wd,nar?my0+mh+40:Math.max(my0+mh+40,322),o));
       /* 読み出し */
       var hs="制御器: "+(smith?"スミス予測器の中の PI ":"PI ")+_w14_g(KP,3)+" W/K・"+_w14_g(TI,3)+" s（"+U.htx("K_I")+" = "+_w14_g(KP/TI,3)+" W/(K·s)）<br>";
-      var unstable=R.blow||_w14_unst(U,C,KP,TI,lam,Lt,Kr);
-      if(unstable)hs+='<span class="warn">閉ループは不安定（振れが大きくなり続ける）</span><br>';
+      if(unstable)hs+='<span class="warn">閉ループは不安定</span>（電力の上限と下限が無ければ、振れが大きくなり続ける）<br>';
       else{var tg=R.t.filter(function(x){return x<tD;}),yg=R.y.slice(0,tg.length),mp=(Math.max.apply(null,yg)-1)*100,t2=_w14_settle(tg,yg,1,0.02,0);
-        hs+="目標値 +1 K: 行き過ぎ量 <b>"+_w14_f(Math.max(0,mp),1)+" %</b>、2 % 整定時間 <b>"+(t2!=null?_w14_g(t2,3)+" s":"700 s までに入らない")+"</b>"+(smith&&Lt===20&&Kr===1?"（式 e^{−20s}/(λs + 1) なら "+_w14_g(20+lam*Math.log(50),3)+" s）":"")+"<br>";
+        hs+="目標値 +1 K: 行き過ぎ量 <b>"+_w14_f(Math.max(0,mp),1)+" %</b>、2 % 整定時間 <b>"+(t2!=null?_w14_g(t2,3)+" s":"700 s までに入らない")+"</b>"+(smith&&Lt===20&&Kr===1?U.htx("（式 e^{−20s}/(λs + 1) なら ")+_w14_g(20+lam*Math.log(50),3)+" s）":"")+"<br>";
         var td=R.t.map(function(x){return x;}),dev=R.y.map(function(v){return v-1;}),iae=_w14_trapz(td,dev.map(Math.abs),tD,tEnd),mn=0;R.y.forEach(function(v,i){if(R.t[i]>=tD)mn=Math.min(mn,v-1);});
-        hs+="外乱 −10 W（700〜1400 s）: 最大 <b>"+_w14_f(-mn,2)+" K</b>、IAE "+_w14_g(iae,3)+" K·s（式の面積: "+(smith?"d/"+U.htx("K_I")+" + KLd = "+_w14_g(10/(KP/TI)+1.25*20*10,3):"d/"+U.htx("K_I")+" = "+_w14_g(10/(KP/TI),3))+" K·s。式は十分に長い時間の値）<br>";}
+        hs+="外乱 −10 W: 最大 <b>"+_w14_f(-mn,2)+" K</b>、700〜1400 s の IAE "+_w14_g(iae,3)+" K·s（十分に長い時間の面積は、式 "+(smith?"d/"+U.htx("K_I")+" + KLd = "+_w14_g(10/(KP/TI)+1.25*20*10,3):"d/"+U.htx("K_I")+" = "+_w14_g(10/(KP/TI),3))+" K·s）<br>";}
       if(smith){var ok=Math.abs(Lt-20)<=lam;hs+="十分な条件 |L − L̃| ≤ λ: |"+Lt+" − 20| = "+Math.abs(Lt-20)+" s "+(ok?"≤":">")+" λ = "+_w14_g(lam,3)+" s"+(ok?' <span class="ok">満たす（必ず安定）</span>':"（満たさないので、地図で確かめる）")+"<br>";}
       if(Kr!==1&&smith)hs+="地図は、定常ゲインがモデルどおりのときの判定である<br>";
-      ro.innerHTML=hs+'<div class="wnote">温度の板（モデル 1.25 K/W・500 s・むだ時間 20 s）を 60 °C で保つ所から、0 s に目標値を 1 K 上げ、700 s にヒータの電力に −10 W の外乱を入れる。ヒータの電力は 0〜80 W（28 W からのずれで −28〜+52 W）で切り、積分はクランプで止める。スミス予測器のモデルには、実際に出た電力を入れる。右の地図の上をドラッグすると、λ と本当のむだ時間を選べる。</div>';
+      ro.innerHTML=hs+'<div class="wnote">温度の板（モデル 1.25 K/W・500 s・むだ時間 20 s）を 60 °C で保つ所から、0 s に目標値を 1 K 上げ、700 s にヒータの電力に −10 W の外乱を入れる。ヒータの電力は 0〜80 W（28 W からのずれで −28〜+52 W）で切り、積分はクランプで止める。スミス予測器のモデルには、実際に出た電力を入れる。地図の上をドラッグすると、λ と本当のむだ時間を選べる。</div>';
     }
     run();
   };

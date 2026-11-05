@@ -168,7 +168,7 @@ def _f14_mff(f, KP=0.84, KD=0.02, ff=2, fb=True, K=50.0, T=0.05, Km=50.0, Tm=0.0
 
 
 # =====================================================================
-# 台車の速度（1 章）: m v' + c v = u + d、d = −m g sin φ
+# 台車の速度（1 章）: m v' + c v = u + d、d = −m g sin（坂の角度）
 # =====================================================================
 def _f14_cart(KP=8.0, KI=0.0, ff=False, fb=True, ang=4.0, angm=3.0, tS=1.0, tEnd=4.0, h=1e-3, m=1.0, c=2.0):
     np = _f14_np
@@ -772,16 +772,17 @@ def _f14_casc_bd_fig():
     s, P, xe = CHAIN(14, yb, [("a", 20, None, MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 14, None, ALI), ("b", "C_{θ}", "ct", SIG, SSOFT),
                               ("a", 20, None, GLD), ("s", {"l": "+", "b": "−"}, "s2"), ("a", 14, None, ALI), ("b", "C_{ω}", "cw", SIG, SSOFT),
                               ("a", 20, None, GLD), ("s", {"l": "+", "b": "−"}, "s3"), ("a", 14, None, ALI), ("b", "C_i", "ci", SIG, SSOFT),
-                              ("a", 22, None, GLD), ("b", ("1", "L_a s + R_a"), "el"), ("a", 18, None, SIG), ("t", "oi", SIG),
-                              ("a", 18, None, SIG), ("b", ("K_t", "Js"), "me"), ("a", 18, None, SIG), ("t", "ow", SIG), ("a", 18, None, SIG),
-                              ("b", ("1", "s"), "in"), ("a", 18, None, SIG), ("t", "ot", SIG), ("a", 18, None, SIG)])
+                              ("a", 18, None, GLD), ("b", ("1", "L_a s + R_a"), "el"), ("a", 14, None, SIG), ("t", "oi", SIG),
+                              ("a", 14, None, SIG), ("b", "K_t", "kt"), ("a", 14, None, SIG), ("s", {"l": "+", "t": "−"}, "sl"),
+                              ("a", 14, None, SIG), ("b", ("1", "Js"), "me"), ("a", 14, None, SIG), ("t", "ow", SIG), ("a", 14, None, SIG),
+                              ("b", ("1", "s"), "in"), ("a", 14, None, SIG), ("t", "ot", SIG), ("a", 18, None, SIG)])
     o.append(s)
     o.append(FBPATH(P["oi"], P["s3"], yb, 32, SIG))
     o.append(FBPATH(P["ow"], P["s2"], yb, 52, SIG))
     o.append(FBPATH(P["ot"], P["s1"], yb, 72, SIG))
-    xm = (P["me"][0] + P["me"][1]) / 2
-    o.append(ARR(xm, yb - 44, xm, yb - 23, c=PUR, lw=1.6))
-    o.append(TX(xm + 6, yb - 34, "τ_L", "start", 10, PUR, True, halo=True))
+    # 負荷トルクは、トルク K_t i から引く（電流と角速度の間に入る）
+    o.append(ARR(P["sl"], yb - 40, P["sl"], yb - 16, c=PUR, lw=1.6))
+    o.append(TX(P["sl"] + 6, yb - 30, "τ_L", "start", 10, PUR, True, halo=True))
     o.append(TX(16, yb - 9, "θ_r", "start", 10, MUT, True))
     o.append(TX((P["el"][1] + P["oi"]) / 2, yb - 9, "i", "middle", 10, SIG, True, halo=True))
     o.append(TX((P["ow"] + P["in"][0]) / 2, yb - 9, "ω_m", "middle", 10, SIG, True, halo=True))
@@ -901,7 +902,7 @@ def _f14_casc_sep_fig():
         o.append(D(q.X(x), q.Y(0.5 * math.sqrt(x)), c, 4))
     o.append(RECT(q.X(3), q.y, q.X(10) - q.X(3), q.h, 0, GSOFT, "none", 0, op=0.6))
     o.append(T(q.X(5.5), q.y + q.h - 6, "目安 3〜10 倍", "middle", 9, GRN, True, halo=True))
-    return SVG(700, 226, o, "内側のループの速さと外側の応答。(a) モータの 2 段のカスケードで、角速度のループ（閉ループの時定数 T_2 = 0.01 s）はそのままにして、外側の角度の比例ゲイン K_P1 を変える。内側が外側の 1 倍・2 倍しか速くないと行き過ぎ、4 倍以上なら行き過ぎない。(b) 内側を一次遅れとみなした式の減衰比。点は (a) の 4 つの場合で、(a) の行き過ぎ量は、この減衰比の二次遅れの値（16.3・4.3・0・0 %）とほぼ一致する。")
+    return SVG(700, 226, o, "内側のループの速さと外側の応答。(a) モータの 2 段のカスケードで、角速度のループ（閉ループの時定数 T<sub>2</sub> = 0.01 s）はそのままにして、外側の角度の比例ゲイン K<sub>P1</sub> を変える。内側が外側の 1 倍・2 倍しか速くないと行き過ぎ、4 倍以上なら行き過ぎない。(b) 内側を一次遅れとみなした式の減衰比。点は (a) の 4 つの場合で、(a) の行き過ぎ量は、この減衰比の二次遅れの値（16.3・4.3・0・0 %）とほぼ一致する。")
 
 
 F["e14_casc_sep"] = _f14_casc_sep_fig()
@@ -1058,7 +1059,7 @@ def _f14_smith_robust_fig():
         o.append(LEGL(14, 222 + k * 15, [(c, dash, lab)], 9.5, 10))
     o.append(T(p.X(200), p.Y(1.75), "振れが大きくなり続ける", "start", 9.5, ALI, True, halo=True))
     # (b) 地図
-    o.append(T(380, 18, "(b) 安定な組（白）と不安定な組（赤）", "start", 11, INK, True))
+    o.append(T(380, 18, "(b) 閉ループが不安定になる組（赤く塗った所）", "start", 11, INK, True))
     lams = list(_f14_np.exp(_f14_np.linspace(math.log(2), math.log(40), 34)))
     Ls = list(range(0, 71))
     M = _f14_smith_map(lams, Ls)
