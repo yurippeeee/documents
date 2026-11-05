@@ -398,7 +398,7 @@ def _f13_lag_time_fig():
     o.append(W(p.X(0.4), p.Y(0.8555), p.X(0.62), p.Y(0.66), c=SIG, lw=1))
     o.append(T(p.X(0.64), p.Y(0.66) + 4, "遅れ補償: 0.4 s で 0.856 m/s", "start", 9.5, SIG, True, halo=True))
     o.append(D(p.X(2.74), p.Y(0.9756 * 0.98), SIG, 3.6))
-    o.append(TX(p.X(2.74), p.Y(0.9756 * 0.98) + 15, "2.74 s で 2 % の幅（緑）に入る: 尾 −0.133e^{−0.699t}", "middle", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(2.74), p.Y(0.9756 * 0.98) + 15, "2.74 s で 2 % の幅に入る: 尾 −0.133e^{−0.699t}", "middle", 9.5, SIG, True, halo=True))
     # (b) 観測ノイズによる揺れ
     o.append(T(14, 222, "(b) 観測ノイズ（0.01 s ごとに変わる、標準偏差 0.02 m/s）による速度の揺れ", "start", 11, INK, True))
     rng = _f13_np.random.default_rng(3)   # 1 章 4 節の図と同じ seed（比例 8 の標準偏差が 1 章の本文の 0.0035 m/s にそろう）
@@ -533,7 +533,8 @@ def _f13_lead_design_fig():
         g, _ = _f13_cl(_F13_PM[0], _F13_PM[1], Cn, Cd)
         y = _f13_step(g[0], g[1], t)
         o.append(q.clip(list(zip(t, y)), c=c, lw=2.2 if dash is None else 1.8, dash=dash))
-        mp, ts = _f13_metrics(t, y, 1.0)
+        tt = _f13_np.linspace(0, 0.6, 60001)   # 指標は 10 µs 刻みで求める
+        mp, ts = _f13_metrics(tt, _f13_step(g[0], g[1], tt), 1.0)
         labs.append((c, dash, lab + ": M_p " + _f13_f(mp, 1) + " %・t_{2%} " + _f13_f(ts, 3) + " s"))
     o.append(LEGL(70, hh + 208, labs[:2], 9.5, 16))
     o.append(LEGL(70, hh + 226, labs[2:], 9.5, 16))
@@ -593,7 +594,7 @@ def _f13_pid_split_fig():
     o.append(T(pm.X(9500), pm.Y(23.5) - 6, "進み補償器の部分（折れ点 %s・%s rad/s、α = %s）" % (_f13_f(z2, 1), _f13_f(wp, 0), _f13_f(wp / z2, 1)), "end", 9.5, TEA, True, halo=True))
     o.append(T(pm.X(9500), pm.Y(19.3) + 15, "PID 全体（2 つの和）", "end", 9.5, INK, True, halo=True))
     o.append(LEGL(70, hh + 8, [(INK, None, "PID 全体"), (GRN, "5 3", "遅れ補償器の部分"), (TEA, "5 3", "進み補償器の部分"), (TEA, "1 3", "中心を交差に合わせた進み補償器")], 9.5))
-    return _f13_svg(700, hh + 18, o, "不完全微分の PID を、原点に極を置いた遅れ補償器（緑）と、進み補償器（青緑）の積に分けたもの。dB と位相は 2 つの和が PID 全体（黒）になる。一巡伝達関数の交差 %s rad/s での位相は、進み補償器の部分が +%s°、遅れ補償器の部分が %s° で、位相余裕は %s° である。進みの山の中心 %s rad/s は交差の約 4 倍上にあり、山の頂の %s° のうち一部しか使っていない。中心を交差に合わせれば、同じ進みを α = %s で得られる（点線）。" % (_f13_f(wgc, 1), _f13_f(phd_gc, 1), _f13_f(phg_gc, 1), _f13_f(pmv, 1), _f13_f(wc, 0), _f13_f(phmax, 1), _f13_f(a2, 1)))
+    return _f13_svg(700, hh + 18, o, "不完全微分の PID を、原点に極を置いた遅れ補償器（緑）と、進み補償器（青緑）の積に分けたもの。dB と位相は 2 つの和が PID 全体（実線）になる。一巡伝達関数の交差 %s rad/s での位相は、進み補償器の部分が +%s°、遅れ補償器の部分が %s° で、位相余裕は %s° である。進みの山の中心 %s rad/s は交差の約 4 倍上にあり、山の頂の %s° のうち一部しか使っていない。中心を交差に合わせれば、同じ進みを α = %s で得られる（点線）。" % (_f13_f(wgc, 1), _f13_f(phd_gc, 1), _f13_f(phg_gc, 1), _f13_f(pmv, 1), _f13_f(wc, 0), _f13_f(phmax, 1), _f13_f(a2, 1)))
 
 
 F["e13_pid_split"] = _f13_pid_split_fig()
@@ -914,7 +915,7 @@ def _f13_design_time_fig():
             (num, den), _ = _f13_cl(_F13_PMLA[0], _F13_PMLA[1], C[0], C[1])
         y = _f13_step(num, den, t)
         o.append(p.clip(list(zip(t, y)), c=c, lw=2.2 if dash is None else 1.8, dash=dash))
-        tt = _f13_np.linspace(0, 3.0, 30001)
+        tt = _f13_np.linspace(0, 3.0, 300001)   # 指標は 10 µs 刻みで求める
         mp, ts = _f13_metrics(tt, _f13_step(num, den, tt), 1.0)
         labs.append((c, dash, lab + ": M_p " + _f13_f(mp, 1) + " %・t_{2%} " + _f13_f(ts, 3) + " s"))
     o.append(LEGL(70, 222, labs[:2], 9.5, 16))
