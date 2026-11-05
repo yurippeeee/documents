@@ -55,13 +55,6 @@ def _f09_lw(a, b, n=600):
     return _f09_np.logspace(math.log10(a), math.log10(b), n)
 
 
-def _f09_phase(Lf, ws, start=0.0):
-    """位相 [°]（連続につなぐ。最も低い角周波数の値を start の近くにそろえる）。"""
-    g = _f09_jw(Lf, ws)
-    ph = _f09_np.degrees(_f09_np.unwrap(_f09_np.angle(g)))
-    return ph + 360.0 * round((start - ph[0]) / 360.0)
-
-
 def _f09_wpc_cart(L):
     """台車の位相が −180° になる角周波数。"""
     return _f09_brentq(lambda w: math.atan(w / 2.0) + w * L - math.pi, 1e-6, math.pi / L)
@@ -238,10 +231,10 @@ def _f09_phase180_fig():
     svg, pm, pp, hh = _f09_bode(62, 34, 300, (0.3, 100), (-20, 30), (-360, 0), hm=110, hp=120, gap=28,
                                 dbt=[-20, -10, 0, 10, 20, 30], pht=[-360, -270, -180, -90, 0])
     o.append(svg)
-    for Lf, c, d in ((L0, MUT, "5 3"), (Ld, SIG, None)):
-        g = _f09_jw(Lf, ws)
-        o.append(pm.clip(list(zip(ws, 20 * _f09_np.log10(_f09_np.abs(g)))), c=c, lw=2.0, dash=d))
-        o.append(pp.clip(list(zip(ws, _f09_phase(Lf, ws, 0.0))), c=c, lw=2.0, dash=d))
+    for Ldl, c, d in ((0.0, MUT, "5 3"), (0.1, SIG, None)):
+        db, ph = BODEPH([K], [1.0, 2.0], ws, Ldl)
+        o.append(pm.clip(list(zip(ws, db)), c=c, lw=2.0, dash=d))
+        o.append(pp.clip(list(zip(ws, ph)), c=c, lw=2.0, dash=d))
     w0 = _F09_WPC
     o.append(W(pm.X(w0), pm.y, pm.X(w0), pp.y + pp.h, c=ALI, lw=1.1, dash="3 3"))
     o.append(D(pm.X(w0), pm.Y(0), ALI, 3.6)); o.append(D(pp.X(w0), pp.Y(-180), ALI, 3.6))
@@ -541,8 +534,8 @@ def _f09_nyq_bode_fig():
     svg, pm, pp, hh = _f09_bode(62, 34, 270, (0.3, 60), (-20, 20), (-360, 0), hm=110, hp=120, gap=28,
                                 dbt=[-20, -10, 0, 10, 20], pht=[-360, -270, -180, -90, 0])
     o.append(svg)
-    g = _f09_jw(Lf, ws); ph = _f09_phase(Lf, ws, 0.0)
-    o.append(pm.clip(list(zip(ws, 20 * _f09_np.log10(_f09_np.abs(g)))), c=SIG, lw=2.0))
+    db, ph = BODEPH([K], [1.0, 2.0], ws, 0.1)
+    o.append(pm.clip(list(zip(ws, db)), c=SIG, lw=2.0))
     o.append(pp.clip(list(zip(ws, ph)), c=SIG, lw=2.0))
     o.append(W(pm.x, pm.Y(0), pm.x + pm.w, pm.Y(0), c=GRN, lw=1.6))
     o.append(W(pp.x, pp.Y(-180), pp.x + pp.w, pp.Y(-180), c=ALI, lw=1.6))
@@ -840,8 +833,8 @@ def _f09_margin_def_fig():
     svg, pm_, pp, hh = _f09_bode(374, 34, 300, (0.5, 80), (-20, 20), (-360, 0), hm=110, hp=120, gap=28,
                                  dbt=[-20, -10, 0, 10, 20], pht=[-360, -270, -180, -90, 0])
     o.append(svg)
-    g = _f09_jw(Lf, ws); ph = _f09_phase(Lf, ws, 0.0)
-    o.append(pm_.clip(list(zip(ws, 20 * _f09_np.log10(_f09_np.abs(g)))), c=SIG, lw=2.0))
+    db, ph = BODEPH([K], [1.0, 2.0], ws, 0.1)
+    o.append(pm_.clip(list(zip(ws, db)), c=SIG, lw=2.0))
     o.append(pp.clip(list(zip(ws, ph)), c=SIG, lw=2.0))
     o.append(W(pm_.X(wgc), pm_.y, pm_.X(wgc), pp.y + pp.h, c=GRN, lw=1.1, dash="3 3"))
     o.append(W(pm_.X(wpc), pm_.y, pm_.X(wpc), pp.y + pp.h, c=ALI, lw=1.1, dash="3 3"))
@@ -940,8 +933,8 @@ def _f09_delay_rot_fig():
     q = Plot(410, 36, 270, 200, (0.5, 60), (-300, 0), xlog=True)
     o.append(q.axes(xl="角周波数 ω [rad/s]", yl="位相 [°]", yt=[-270, -180, -90, 0], sz=9))
     o.append(W(q.x, q.Y(-180), q.x + q.w, q.Y(-180), c=MUT, lw=1.1, dash="5 3"))
-    o.append(q.clip(list(zip(ws2, _f09_phase(lambda s: _f09_Lcart(s, K, 0.0), ws2, 0.0))), c=MUT, lw=1.8, dash="5 3"))
-    o.append(q.clip(list(zip(ws2, _f09_phase(lambda s: _f09_Lcart(s, K, 0.1), ws2, 0.0))), c=SIG, lw=2.2))
+    o.append(q.clip(list(zip(ws2, BODEPH([K], [1.0, 2.0], ws2, 0.0)[1])), c=MUT, lw=1.8, dash="5 3"))
+    o.append(q.clip(list(zip(ws2, BODEPH([K], [1.0, 2.0], ws2, 0.1)[1])), c=SIG, lw=2.2))
     p0 = -math.degrees(math.atan(wgc / 2)); p1 = p0 - math.degrees(wgc * 0.1)
     o.append(W(q.X(wgc), q.y, q.X(wgc), q.y + q.h, c=GRN, lw=1.1, dash="3 3"))
     o.append(ARR(q.X(wgc) + 8, q.Y(p0), q.X(wgc) + 8, q.Y(p1), c=GRN, lw=1.8, head=6))
@@ -970,8 +963,8 @@ def _f09_delay_map_fig():
     for keep, dash in ((30.0, "5 3"), (60.0, "2 3")):
         o.append(p.clip([(k, Lmax(k, keep)) for k in Ks if Lmax(k, keep) > 0], c=GRN, lw=1.5, dash=dash))
     o.append(T(p.X(31), p.Y(0.15), "位相余裕 0°（安定限界）", "middle", 9, ALI, True, halo=True))
-    o.append(T(p.X(31), p.Y(0.052), "30°", "start", 9, GRN, True, halo=True))
-    o.append(T(p.X(23), p.Y(0.022), "60°", "start", 9, GRN, True, halo=True))
+    o.append(T(p.X(36.5), p.Y(0.041), "30°", "start", 9, GRN, True, halo=True))
+    o.append(T(p.X(14.5), p.Y(0.030), "60°", "start", 9, GRN, True, halo=True))
     o.append(T(p.X(5.5), p.Y(0.27), "不安定", "start", 10, ALI, True, halo=True))
     o.append(T(p.X(3), p.Y(0.03), "安定", "start", 10, GRN, True, halo=True))
     for K, L in ((9.17, 0.2), (_F09_KB, 0.1), (32.7, 0.05)):
