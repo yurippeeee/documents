@@ -111,6 +111,19 @@ def _f10_band(p, t0, t1, c=PUR):
     return RECT(p.X(t0), p.y, p.X(t1) - p.X(t0), p.h, 0, soft(c), "none", 0)
 
 
+import re as _f10_re
+
+
+def _f10_cap(s):
+    """図の説明文（HTML）で K_P・T_{2%} などを添字のタグにする。"""
+    s = _f10_re.sub(r"([A-Za-zωζθτ])_\{([^}]*)\}", r"\1<sub>\2</sub>", s)
+    return _f10_re.sub(r"([A-Za-zωζθτ])_([A-Za-z0-9]+)", r"\1<sub>\2</sub>", s)
+
+
+def _f10_svg(w, h, o, cap):
+    return SVG(w, h, o, _f10_cap(cap))
+
+
 # =====================================================================
 # 1 節: 偏差のどこを見るか
 # =====================================================================
@@ -158,7 +171,7 @@ def _f10_views_fig():
     o.append(T(355, yb + 18, "今の偏差", "middle", 10, _F10_CP, True))
     o.append(T(520, yb + 18, "少し先: 傾きから予想した偏差", "middle", 10, _F10_CD, True))
     o.append(T(655, yb + 4, "時間", "start", 9.5, MUT))
-    return SVG(700, yb + 30, o, "同じ偏差の波形から、3 つの量を取り出せる。(a) 今の値は、比例制御（P 動作）が使う量である。(b) 時刻 0 からの面積（積分）は、過去の偏差がどれだけたまったかを表す。(c) 今の傾き（微分）は、偏差がこの先どちらへ動くかを表す。2 節と 3 節で、面積と傾きに比例した操作量を足していく。")
+    return _f10_svg(700, yb + 30, o, "同じ偏差の波形から、3 つの量を取り出せる。(a) 今の値は、比例制御（P 動作）が使う量である。(b) 時刻 0 からの面積（積分）は、過去の偏差がどれだけたまったかを表す。(c) 今の傾き（微分）は、偏差がこの先どちらへ動くかを表す。2 節と 3 節で、面積と傾きに比例した操作量を足していく。")
 F["e10_views"] = _f10_views_fig()
 
 
@@ -175,51 +188,215 @@ def _f10_cart_delay(K, L=0.1, tend=3.0, h=2e-4, u0=2.0, r=1.0):
 
 def _f10_p_limits_fig():
     o = []
-    cols = [70, 418]; rows = [44, 236]; pw, ph = 250, 118
+    cols = [60, 402]; rows = [44, 240]; pw, ph = 180, 122
+    lx = [cols[0] + pw + 8, cols[1] + pw + 8]
     # (a) 台車の速度: 偏差が残る
     p = Plot(cols[0], rows[0], pw, ph, (0, 1.0), (0, 1.15))
-    o.append(T(14, rows[0] - 22, "(a) 台車の速度（目標 1 m/s。決めた力は足さない）", "start", 11, INK, True))
-    o.append(p.axes(xl="時間 t [s]", yl="速度 [m/s]", xt=[0, 0.25, 0.5, 0.75, 1.0], yt=[0, 0.5, 1.0], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(T(14, rows[0] - 22, "(a) 台車の速度（目標 1 m/s、決めた力なし）", "start", 11, INK, True))
+    o.append(p.axes(xl="時間 t [s]", yl="速度 [m/s]", xt=[0, 0.5, 1.0], yt=[0, 0.5, 1.0], xfmt=_f10_n, yfmt=_f10_n, sz=9))
     o.append(W(p.x, p.Y(1), p.x + p.w, p.Y(1), c=MUT, lw=1.2, dash="5 3"))
     t = _f10_np.linspace(0, 1.0, 1001)
-    for KP, c in ((2, TEA), (8, SIG), (20, PUR)):
+    o.append(TX(lx[0], p.y + 12, "K_P [N/(m/s)]: 落ち着く速度", "start", 9, MUT))
+    for k, (KP, c) in enumerate(((20, PUR), (8, SIG), (2, TEA))):
         kk = 0.5 * KP
         y = kk / (1 + kk) * (1 - _f10_np.exp(-(1 + kk) / 0.5 * t))
         o.append(p.line(list(zip(t, y)), c=c, lw=2))
-        o.append(TX(p.x + p.w + 6, p.Y(y[-1]) + 4, "K_P = %d: %s" % (KP, _f10_f(y[-1], 3)), "start", 9.5, c, True))
-    o.append(T(p.x + 6, p.Y(0.12), "上げても 1 m/s に届かない", "start", 9.5, ALI, True, halo=True))
-    # (b) モータの位置: 揺れが増え、速くならない
+        o.append(T(lx[0], p.y + 30 + k * 15, "%d: %s m/s" % (KP, _f10_f(kk / (1 + kk), 3)), "start", 9.5, c, True))
+    o.append(T(lx[0], p.y + 84, "上げても", "start", 9.5, ALI, True))
+    o.append(T(lx[0], p.y + 98, "1 m/s に届かない", "start", 9.5, ALI, True))
+    # (b) モータの角度: 揺れが増え、速くならない
     q = Plot(cols[1], rows[0], pw, ph, (0, 0.5), (0, 1.8))
-    o.append(T(cols[1] - 46, rows[0] - 22, "(b) モータの角度（目標 1 rad）", "start", 11, INK, True))
-    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5], yt=[0, 0.5, 1.0, 1.5], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(T(cols[1] - 54, rows[0] - 22, "(b) モータの角度（目標 1 rad）", "start", 11, INK, True))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.25, 0.5], yt=[0, 0.5, 1.0, 1.5], xfmt=_f10_n, yfmt=_f10_n, sz=9))
     o.append(RECT(q.x, q.Y(1.02), q.w, q.Y(0.98) - q.Y(1.02), 0, GSOFT, "none", 0))
     t = _f10_np.linspace(0, 0.5, 5001)
-    labs = {0.21: ("0.21: 5.0 %、0.41 s", TEA), 0.84: ("0.84: 31.5 %、0.38 s", SIG), 10: ("10: 72.9 %、0.38 s", PUR)}
-    for k, KP in enumerate((0.21, 0.84, 10)):
+    o.append(TX(lx[1], q.y + 12, "K_P [V/rad]: 行き過ぎ量", "start", 9, MUT))
+    o.append(T(lx[1], q.y + 24, "・2 % 整定時間", "start", 9, MUT))
+    for k, (KP, c, lab) in enumerate(((0.21, TEA, "0.21: 5.0 %・0.41 s"), (0.84, SIG, "0.84: 31.5 %・0.38 s"), (10, PUR, "10: 72.9 %・0.38 s"))):
         y = _f10_cl_step([1000.0 * KP], [1.0, 20.0, 1000.0 * KP], t)
-        lab, c = labs[KP]
-        o.append(q.line(list(zip(t, y)), c=c, lw=1.8 if KP == 10 else 2))
-        o.append(TX(q.x + q.w - 2, q.y + 12 + k * 14, "K_P = " + lab, "end", 9.5, c, True, halo=True))
-    o.append(T(q.x + q.w - 2, q.y + q.h - 8, "行き過ぎ量・2 % 整定時間", "end", 9, MUT, halo=True))
+        o.append(q.line(list(zip(t, y)), c=c, lw=1.6 if KP == 10 else 2))
+        o.append(T(lx[1], q.y + 42 + k * 15, lab, "start", 9, c, True))
+    o.append(T(lx[1], q.y + 96, "速くならず、", "start", 9.5, ALI, True))
+    o.append(T(lx[1], q.y + 110, "揺れが増える", "start", 9.5, ALI, True))
     # (c) 台車 + 測った値の遅れ
-    p = Plot(cols[0], rows[1], pw, ph, (0, 3.0), (0, 2.2))
-    o.append(T(14, rows[1] - 22, "(c) 台車の速度（測った速度が 0.1 s 遅れる）", "start", 11, INK, True))
-    o.append(p.axes(xl="時間 t [s]", yl="速度 [m/s]", xt=[0, 1, 2, 3], yt=[0, 1, 2], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    p = Plot(cols[0], rows[1], pw, ph, (0, 1.2), (-1.0, 3.0))
+    o.append(T(14, rows[1] - 22, "(c) 台車の速度（測った値が 0.1 s 遅れる）", "start", 11, INK, True))
+    o.append(p.axes(xl="時間 t [s]", yl="速度 [m/s]", xt=[0, 0.4, 0.8, 1.2], yt=[-1, 0, 1, 2, 3], xfmt=_f10_n, yfmt=_f10_n, sz=9))
     o.append(W(p.x, p.Y(1), p.x + p.w, p.Y(1), c=MUT, lw=1.2, dash="5 3"))
-    for KP, c, lab in ((8, TEA, "8: 最大 %s m/s"), (14, SIG, "14: 最大 %s m/s"), (20, ALI, "20: 振れが大きくなり続ける")):
-        tt, v = _f10_cart_delay(KP)
-        o.append(p.clip(list(zip(tt[::5], v[::5])), c=c, lw=1.6 if KP == 20 else 1.9))
-        txt = ("K_P = " + lab % _f10_f(v.max(), 2)) if KP < 20 else "K_P = " + lab
-        o.append(TX(p.x + p.w + 6, p.y + 14 + [8, 14, 20].index(KP) * 15, txt, "start", 9.5, c, True))
-    # (d) モータの位置 + 負荷トルク
+    o.append(TX(lx[0], p.y + 12, "K_P [N/(m/s)]: 最大", "start", 9, MUT))
+    for k, (KP, c) in enumerate(((8, TEA), (14, SIG), (20, ALI))):
+        tt, v = _f10_cart_delay(KP, tend=1.2)
+        o.append(p.clip(list(zip(tt[::4], v[::4])), c=c, lw=1.5 if KP == 20 else 1.9))
+        txt = ("%d: %s m/s" % (KP, _f10_f(v.max(), 2))) if KP < 20 else "20: 大きくなり続ける"
+        o.append(T(lx[0], p.y + 30 + k * 15, txt, "start", 9.5, c, True))
+    o.append(T(lx[0], p.y + 84, "上げるほど揺れ、", "start", 9.5, ALI, True))
+    o.append(T(lx[0], p.y + 98, "ついに不安定", "start", 9.5, ALI, True))
+    # (d) モータの角度 + 負荷トルク
     q = Plot(cols[1], rows[1], pw, ph, (0, 0.6), (-5.5, 0.5))
-    o.append(T(cols[1] - 46, rows[1] - 22, "(d) モータの角度（目標 0、負荷トルク 0.01 N·m）", "start", 11, INK, True))
-    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.2, 0.4, 0.6], yt=[-5, -4, -3, -2, -1, 0], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(T(cols[1] - 54, rows[1] - 22, "(d) モータの角度（目標 0、負荷トルク）", "start", 11, INK, True))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.3, 0.6], yt=[-5, -4, -3, -2, -1, 0], xfmt=_f10_n, yfmt=_f10_n, sz=9))
     o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1.2, dash="5 3"))
     t = _f10_np.linspace(0, 0.6, 3001)
-    for KP, c in ((0.21, TEA), (0.84, SIG)):
+    o.append(TX(lx[1], q.y + 12, "K_P [V/rad]: ずれ", "start", 9, MUT))
+    for k, (KP, c) in enumerate(((0.84, SIG), (0.21, TEA))):
         y = -_f10_cl_step([1000.0], [1.0, 20.0, 1000.0 * KP], t)
         o.append(q.line(list(zip(t, y)), c=c, lw=2))
-        o.append(TX(q.x + q.w - 4, q.Y(-1.0 / KP) + (-6 if KP == 0.21 else 15), "K_P = %s: −1 V ÷ K_P = %s rad" % (_f10_n(KP), _f10_f(-1.0 / KP, 2)), "end", 9.5, c, True, halo=True))
-    return SVG(700, rows[1] + ph + 44, o, "比例制御（P 動作だけ）の限界を、前の章の例で数値に並べた。(a) 一次遅れの台車の速度は、比例ゲインを上げても目標値に届かない（3 章 6 節）。(b) モータの角度は、比例ゲインを上げると行き過ぎが増え、2 % 整定時間は 0.4 s 前後から縮まない（4 章 6 節）。(c) 測った値が遅れて届くと、比例ゲインを上げるほど揺れ、20 N/(m/s) で振れが大きくなり続ける（1 章 5 節）。(d) 操作量に加わる負荷トルク（電圧に換算して −1 V）を支える電圧を偏差から作るので、角度がずれたまま止まる（7 章 4 節）。")
+        o.append(T(lx[1], q.y + 30 + k * 15, "%s: %s rad" % (_f10_n(KP), _f10_f(-1.0 / KP, 2)), "start", 9.5, c, True))
+    o.append(TX(lx[1], q.y + 70, "−1 V ÷ K_P の", "start", 9.5, ALI, True))
+    o.append(T(lx[1], q.y + 84, "ずれが残る", "start", 9.5, ALI, True))
+    return _f10_svg(700, rows[1] + ph + 44, o, "比例制御（P 動作だけ）の限界を、前の章の例で数値に並べた。(a) 一次遅れの台車の速度は、比例ゲインを上げても目標値に届かない（3 章 6 節）。(b) モータの角度は、比例ゲインを上げると行き過ぎが増え、2 % 整定時間は 0.4 s 前後から縮まない（4 章 6 節）。(c) 測った値が遅れて届くと、比例ゲインを上げるほど揺れ、20 N/(m/s) で振れが大きくなり続ける（1 章 5 節）。(d) モータの軸に負荷トルク 0.01 N·m（電圧に換算して −1 V）がかかると、それを支える電圧を偏差から作るので、角度がずれたまま止まる（7 章 4 節）。")
 F["e10_p_limits"] = _f10_p_limits_fig()
+
+
+# =====================================================================
+# 2 節: I 動作
+# =====================================================================
+_F10_D3 = -9.81 * math.sin(math.radians(3))     # 3° の上り坂の力（前向きを正）−0.513 N
+
+
+def _f10_i_hold_fig():
+    o = []
+    rP = _f10_sim("cart", 8.0, 0.0, 0.0, 4.0, 1e-3, d=lambda t: _F10_D3 if t >= 1.5 else 0.0)
+    rI = _f10_sim("cart", 8.0, 25.0, 0.0, 4.0, 1e-3, d=lambda t: _F10_D3 if t >= 1.5 else 0.0)
+    t = rI["t"]
+    kc = int(_f10_np.argmax(rI["y"] >= 1.0))
+    tc = t[kc]
+    o.append(T(14, 18, "(a) 台車の速度（目標 1 m/s。1.5 s から 3° の上り坂）", "start", 11.5, INK, True))
+    p = Plot(70, 32, 600, 130, (0, 4.0), (0, 1.15))
+    o.append(_f10_band(p, 1.5, 4.0))
+    o.append(p.axes(xl=None, yl="速度 [m/s]", xt=[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4], yt=[0, 0.5, 1.0], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
+    o.append(W(p.x, p.Y(1), p.x + p.w, p.Y(1), c=MUT, lw=1.2, dash="5 3"))
+    o.append(p.line(list(zip(rP["t"], rP["y"])), c=TEA, lw=2))
+    o.append(p.line(list(zip(t, rI["y"])), c=SIG, lw=2.2))
+    o.append(W(p.X(tc), p.y, p.X(tc), p.y + p.h, c=ALI, lw=1, dash="3 3"))
+    o.append(TX(p.X(0.45), p.Y(0.8) + 15, "比例だけ（K_P = 8 N/(m/s)）: 0.80 m/s", "start", 9.5, TEA, True, halo=True))
+    o.append(T(p.X(3.95), p.Y(0.749) + 15, "坂で 0.75 m/s", "end", 9.5, TEA, True, halo=True))
+    o.append(TX(p.X(0.45), p.Y(0.9) + 3, "PI（K_I = 25 N/m を足す）: 最大 1.042 m/s", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(2.05), p.Y(0.963) + 15, "坂でいったん 0.963 m/s、1 m/s に戻る", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(1.55), p.Y(0.12), "1.5 s から上り坂", "start", 9.5, PUR, True, halo=True))
+    o.append(T(14, 196, "(b) PI の押す力の内訳", "start", 11.5, INK, True))
+    q = Plot(70, 210, 600, 150, (0, 4.0), (-0.5, 4.0))
+    o.append(_f10_band(q, 1.5, 4.0))
+    o.append(q.axes(xl="時間 t [s]", yl="力 [N]", xt=[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4], yt=[0, 1, 2, 3, 4], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
+    o.append(W(q.X(0), q.Y(2.0), q.X(1.5), q.Y(2.0), c=PUR, lw=1, dash="3 3"))
+    o.append(W(q.X(1.5), q.Y(2.513), q.X(4.0), q.Y(2.513), c=PUR, lw=1, dash="3 3"))
+    o.append(q.clip(list(zip(t, rI["uP"])), c=_F10_CP, lw=1.8))
+    o.append(q.clip(list(zip(t, rI["uI"])), c=_F10_CI, lw=2.2))
+    o.append(q.clip(list(zip(t, rI["u"])), c=INK, lw=1.4))
+    o.append(W(q.X(tc), q.y, q.X(tc), q.y + q.h, c=ALI, lw=1, dash="3 3"))
+    o.append(D(q.X(tc), q.Y(rI["uI"][kc]), ALI, 3.6))
+    o.append(W(q.X(tc), q.Y(rI["uI"][kc]), q.X(0.6), q.Y(3.05), c=ALI, lw=1))
+    o.append(T(q.X(0.62), q.Y(3.0), "0.33 s: 偏差が 0 になる。I の分は 2.57 N で、要る 2 N を越えている", "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(0.62), q.Y(3.0) + 14, "→ 台車はまだ加速し、目標を行き過ぎる", "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(1.45), q.Y(2.0) + 14, "平らな道で要る力 2 N", "end", 9.5, PUR, True, halo=True))
+    o.append(T(q.X(3.95), q.Y(2.513) - 6, "坂で要る力 2.51 N", "end", 9.5, PUR, True, halo=True))
+    o.append(T(q.X(0.13), q.y + 10, "合計は 8 N から（枠の外）", "start", 9, INK, halo=True))
+    o.append(T(q.X(3.95), q.Y(0.0) - 6, "P の分は 0 へ", "end", 9.5, _F10_CP, True, halo=True))
+    o.append(LEGL(70, 404, [(INK, None, "押す力の合計"), (_F10_CP, None, "P の分 K_P e"), (_F10_CI, None, "I の分 K_I ∫e dt"), (PUR, "3 3", "要る力（抵抗 + 坂）")], 9.5))
+    return _f10_svg(700, 414, o, "台車の速度を、決めた力を足さずに制御する（K_P = 8 N/(m/s)）。(a) 比例だけでは、平らな道で 0.2 m/s、坂で 0.25 m/s の偏差が残る。K_I = 25 N/m の I 動作を足すと、どちらでも 1 m/s に戻る。(b) PI の力の内訳。偏差が残っている間 I の分が増え、要る力（平らな道 2 N、坂 2.51 N）に届くと、P の分が 0 のまま、I の分だけで台車を押し続ける。偏差が初めて 0 になる 0.33 s には、I の分がすでに要る力を越えているので、速度は行き過ぎる。")
+F["e10_i_hold"] = _f10_i_hold_fig()
+
+
+def _f10_i_more_fig():
+    o = []
+    t = _f10_np.linspace(0, 2.0, 4001)
+    # (a) 台車の速度: K_P = 8 のまま K_I を上げる
+    o.append(TX(14, 18, "(a) 台車の速度（K_P = 8 N/(m/s) のまま K_I を上げる）", "start", 11.5, INK, True))
+    sp = Plot(70, 36, 170, 150, (-14, 2), (-22, 22))
+    o.append(_f10_sp(sp, [-10, -5, 0], [-20, -10, 0, 10, 20], xl="実部", yl="虚部"))
+    cases = [(0, MUT, None, "比例だけ"), (25, GRN, "5 3", "K_I = 25 N/m"), (100, GLD, None, "K_I = 100 N/m"), (400, ALI, None, "K_I = 400 N/m")]
+    q = Plot(330, 36, 250, 150, (0, 2.0), (0, 1.6))
+    o.append(q.axes(xl="時間 t [s]", yl="速度 [m/s]", xt=[0, 0.5, 1, 1.5, 2], yt=[0, 0.5, 1, 1.5], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(q.x, q.Y(1), q.x + q.w, q.Y(1), c=MUT, lw=1.2, dash="5 3"))
+    o.append(W(sp.X(-5), sp.y, sp.X(-5), sp.y + sp.h, c=FNT, lw=1, dash="2 3"))
+    for k, (KI, c, dash, lab) in enumerate(cases):
+        if KI == 0:
+            num, den = [4.0], [0.5, 5.0]
+        else:
+            num, den = [4.0, 0.5 * KI], [0.5, 5.0, 0.5 * KI]
+        y = _f10_cl_step(num, den, t)
+        o.append(q.line(list(zip(t, y)), c=c, lw=2, dash=None))
+        rts = _f10_np.roots(den)
+        o.append(PZ(sp, [complex(z) for z in rts], [complex(-KI / 8.0)] if 0 < KI < 112 else [], c=c, r=4.6))
+        mp, ts = _f10_metrics(t, y, float(_f10_np.polyval(num, 0) / _f10_np.polyval(den, 0)))
+        info = "0.8 m/s に 0.39 s" if KI == 0 else "%s %%・%s s" % (_f10_f(mp, 1), _f10_f(ts, 2))
+        o.append(TX(q.x + q.w + 8, q.y + 14 + k * 30, lab, "start", 9.5, c, True))
+        o.append(T(q.x + q.w + 8, q.y + 27 + k * 30, info, "start", 9, c))
+    o.append(T(sp.X(-5) - 3, sp.y + 12, "実部 −5", "end", 9, MUT, halo=True))
+    o.append(TX(sp.X(-13.5), sp.Y(-17), "○: 零点 −K_I/K_P", "start", 9, MUT, halo=True))
+    o.append(T(q.x + q.w + 8, q.y + 134, "行き過ぎ量・", "start", 9, MUT))
+    o.append(T(q.x + q.w + 8, q.y + 146, "2 % 整定時間", "start", 9, MUT))
+    # (b) モータの角度: K_P = 0.21 のまま K_I を上げる
+    yb = 232
+    o.append(TX(14, yb, "(b) モータの角度（K_P = 0.21 V/rad のまま K_I を上げる）", "start", 11.5, INK, True))
+    sp = Plot(70, yb + 18, 170, 150, (-24, 4), (-18, 18))
+    o.append(_f10_sp(sp, [-20, -10, 0], [-15, 0, 15], xl="実部", yl="虚部"))
+    q = Plot(330, yb + 18, 250, 150, (0, 2.0), (0, 1.8))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.5, 1, 1.5, 2], yt=[0, 0.5, 1, 1.5], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(q.x, q.Y(1), q.x + q.w, q.Y(1), c=MUT, lw=1.2, dash="5 3"))
+    mc = [(0, MUT, "比例だけ"), (0.5, GRN, "K_I = 0.5 V/(rad·s)"), (2, GLD, "K_I = 2 V/(rad·s)"), (4.2, ALI, "K_I = 4.2 V/(rad·s)")]
+    for k, (KI, c, lab) in enumerate(mc):
+        if KI == 0:
+            num, den = [210.0], [1.0, 20.0, 210.0]
+        else:
+            num, den = [210.0, 1000.0 * KI], [1.0, 20.0, 210.0, 1000.0 * KI]
+        y = _f10_cl_step(num, den, t)
+        o.append(q.clip(list(zip(t, y)), c=c, lw=1.6 if KI == 4.2 else 2))
+        rts = _f10_np.roots(den)
+        o.append(PZ(sp, [complex(z) for z in rts], [] if KI == 0 else [complex(-KI / 0.21)], c=c, r=4.6))
+        if KI < 4.2:
+            mp, ts = _f10_metrics(t, y, 1.0)
+            info = "%s %%・%s s" % (_f10_f(mp, 1), _f10_f(ts, 2))
+        else:
+            info = "揺れ続ける（安定限界）"
+        o.append(TX(q.x + q.w + 8, q.y + 14 + k * 30, lab, "start", 9.5, c, True))
+        o.append(T(q.x + q.w + 8, q.y + 27 + k * 30, info, "start", 9, c))
+
+    return _f10_svg(700, yb + 214, o, "比例ゲインはそのままで、I 動作の積分ゲイン K_I を上げる（左: 閉ループの極 × と零点 ○、右: 目標値のステップ応答）。K_I = 400 N/m の零点 −50 は枠の外にある。(a) 台車の速度では、極は実部 −5 の縦の線の上を上下に離れ、行き過ぎ量が増える。K_I = 25 N/m では極は −5 に重なるが、零点 −3.125 のために 4.2 % 行き過ぎる。比例だけのときの極 −10 より虚軸に近いので、落ち着くのも遅い。(b) モータの角度では、原点の近くに遅い極が加わり、残りの組が虚軸へ近づいて、K_I = 4.2 V/(rad·s) で虚軸の上に乗る。")
+F["e10_i_more"] = _f10_i_more_fig()
+
+
+def _f10_pi_bode_fig():
+    o = []
+    w = _f10_np.logspace(-1, 3, 800)
+    o.append(TX(14, 18, "(a) PI の制御器 C(s) = K_P + K_I/s", "start", 11.5, INK, True))
+    o.append(TX(14, 33, "（K_P = 8 N/(m/s)、K_I = 25 N/m）", "start", 9.5, MUT))
+    dbC, phC = BODEPH([8.0, 25.0], [1.0, 0.0], w)
+    dbP, phP = BODEPH([8.0], [1.0], w)
+    svg, pm, pp, hh = BODE(70, 44, 250, [(w, dbP, phP, MUT, "5 3"), (w, dbC, phC, _F10_CI, None)], (0.1, 1000), (0, 50), (-100, 10),
+                           hm=120, hp=96, dbt=[0, 10, 20, 30, 40, 50], pht=[-90, -45, 0])
+    o.append(svg)
+    wi = 25.0 / 8.0
+    o.append(W(pm.X(0.1), pm.Y(20 * math.log10(25 / 0.1)), pm.X(wi), pm.Y(20 * math.log10(8)), c=_F10_CI, lw=1, dash="2 3"))
+    o.append(W(pm.X(wi), pm.y, pm.X(wi), pm.y + pm.h, c=FNT, lw=1, dash="3 3"))
+    o.append(W(pp.X(wi), pp.y, pp.X(wi), pp.y + pp.h, c=FNT, lw=1, dash="3 3"))
+    o.append(TX(pm.X(wi) + 4, pm.y + 12, "K_I/K_P = 3.1 rad/s", "start", 9, MUT, halo=True))
+    o.append(T(pm.X(0.13), pm.Y(44), "−20 dB/dec（積分）", "start", 9, _F10_CI, True, halo=True))
+    o.append(TX(pm.X(900), pm.Y(18.06) - 6, "K_P = 18.1 dB", "end", 9, MUT, halo=True))
+    o.append(T(pp.X(0.13), pp.Y(-80), "低い角周波数で −90°", "start", 9, _F10_CI, True, halo=True))
+    o.append(T(pp.X(900), pp.Y(-12), "0° へ", "end", 9, _F10_CI, True, halo=True))
+    # (b) 一巡伝達関数
+    o.append(T(370, 18, "(b) 一巡伝達関数 P(s)C(s) と位相余裕", "start", 11.5, INK, True))
+    curves = []
+    infos = []
+    for KI, c, dash in ((0, MUT, "5 3"), (25, _F10_CI, None), (100, GLD, None)):
+        num = _f10_np.polymul([0.5], [8.0, KI]) if KI else [4.0]
+        den = _f10_np.polymul([0.5, 1.0], [1.0, 0.0]) if KI else [0.5, 1.0]
+        db, ph = BODEPH(num, den, w)
+        curves.append((w, db, ph, c, dash))
+        k = int(_f10_np.where(_f10_np.diff(_f10_np.sign(db)))[0][-1])
+        wg = w[k] - db[k] * (w[k + 1] - w[k]) / (db[k + 1] - db[k])
+        phg = float(_f10_np.interp(wg, w, ph))
+        infos.append((KI, c, wg, phg))
+    svg, pm, pp, hh = BODE(430, 44, 250, curves, (0.1, 1000), (-40, 50), (-180, 0), hm=120, hp=96, dbt=[-40, -20, 0, 20, 40], pht=[-180, -90, 0])
+    o.append(svg)
+    for j, (KI, c, wg, phg) in enumerate(infos):
+        o.append(D(pp.X(wg), pp.Y(phg), c, 3.6))
+        o.append(D(pm.X(wg), pm.Y(0), c, 3.2))
+        lab = ("比例だけ" if KI == 0 else "K_I = %d" % KI) + ": 位相余裕 %s°" % _f10_f(180 + phg, 1)
+        o.append(TX(pp.x + 4, pp.y + pp.h + 54 + j * 14, lab, "start", 9.5, c, True))
+    o.append(T(pm.X(0.13), pm.Y(40), "低い角周波数で限りなく大きい", "start", 9, _F10_CI, True, halo=True))
+    o.append(T(pp.X(0.13), pp.Y(-160) + 4, "−180°", "start", 9, MUT, halo=True))
+    return _f10_svg(700, hh + 46, o, "I 動作を周波数で見る。(a) PI の制御器のゲインは、K_I/K_P = 3.1 rad/s より低い角周波数で −20 dB/dec で大きくなり、位相は −90° に近づく（8 章 4 節の積分）。(b) 台車の速度の一巡伝達関数。I 動作で低い角周波数のゲインが限りなく大きくなる（偏差が残らない）。代わりに、ゲインが 1 になる角周波数（点）での位相が下がり、位相余裕（9 章 5 節）は比例だけの 104.5° から 82.9°（K_I = 25）、52.6°（K_I = 100）に減る。")
+F["e10_pi_bode"] = _f10_pi_bode_fig()
