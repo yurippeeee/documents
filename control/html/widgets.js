@@ -146,7 +146,7 @@
         (halo?' stroke="var(--screen)" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke"':'')+'>';
       segs.forEach(function(g){var want=g[0]==="sub"?3:(g[0]==="sup"?-sz*0.38:0),dy=want-cur;cur=want;
         h+='<tspan'+(Math.abs(dy)>1e-9?' dy="'+r2(dy)+'"':'')+((g[0]==="sub"||g[0]==="sup")?' font-size="'+r2(ss)+'"':'')+'>'+esc(g[1])+'</tspan>';
-        var gw=ws(g);if(g[0]==="dot1"||g[0]==="dot2"){var cx=xx+gw/2,cy=y-sz*0.86,rr=Math.max(0.9,sz*0.085);if(g[0]==="dot1")dots.push([cx,cy,rr]);else{dots.push([cx-sz*0.13,cy,rr]);dots.push([cx+sz*0.13,cy,rr]);}}xx+=gw;});
+        var gw=ws(g),nsp=(g[1].match(/ /g)||[]).length;if(nsp)gw-=nsp*((g[0]==="sub"||g[0]==="sup")?ss:sz)*0.28;if(g[0]==="dot1"||g[0]==="dot2"){var cx=xx+gw/2,cy=y-sz*0.86,rr=Math.max(1.1,sz*0.11);if(g[0]==="dot1")dots.push([cx,cy,rr]);else{dots.push([cx-sz*0.13,cy,rr]);dots.push([cx+sz*0.13,cy,rr]);}}xx+=gw;});
       h+='</text>';dots.forEach(function(d){h+='<circle cx="'+r2(d[0])+'" cy="'+r2(d[1])+'" r="'+r2(d[2])+'" fill="'+col(c||"ink")+'"/>';});
       return rot!=null?'<g transform="rotate('+rot+' '+r2(x)+' '+r2(y)+')">'+h+'</g>':h;},
     /* ブロック線図の加え合わせ点。signs = {l:"+", b:"−"}（矢印が入る側と符号） */

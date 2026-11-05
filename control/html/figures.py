@@ -676,8 +676,10 @@ def TX(x, y, s, a="start", sz=10, c=INK, b=False, halo=False, rot=None):
         fs = ' font-size="%g"' % round(ssz, 2) if kind in ("sub", "sup") else ""
         o.append('<tspan%s%s>%s</tspan>' % ((' dy="%g"' % round(dy, 2)) if abs(dy) > 1e-9 else "", fs, E(t)))
         ww = wseg(kind, t)
+        if t.count(" "):   # 点の位置だけは、空白を実際の幅（0.28 字ほど）で数える（文字の配置と重なり検査は今までどおり）
+            ww -= t.count(" ") * (ssz if kind in ("sub", "sup") else sz) * (0.56 - 0.28)
         if kind in ("dot1", "dot2"):
-            cx = xx + ww / 2; cy = y - sz * 0.86; r = max(0.9, sz * 0.085)
+            cx = xx + ww / 2; cy = y - sz * 0.86; r = max(1.1, sz * 0.11)
             if kind == "dot1": dots.append((cx, cy, r))
             else: dots += [(cx - sz * 0.13, cy, r), (cx + sz * 0.13, cy, r)]
         xx += ww

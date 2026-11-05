@@ -166,6 +166,33 @@ def render_list(items):
         out.append("</li></%s>" % stack.pop()[1])
     return "".join(out)
 
+def _cells(line):
+    """表の 1 行をセルに分ける。数式 $`…`$ とコード `…` の中の | では分けない（|G(jω)| などを書けるように）。
+    それ以外の場所の \\| は、区切りではない文字の | とする。"""
+    s = line.strip()
+    if s.startswith("|"):
+        s = s[1:]
+    if s.endswith("|") and not s.endswith("\\|"):
+        s = s[:-1]
+    cells, cur, inb, i = [], "", False, 0
+    while i < len(s):
+        ch = s[i]
+        if inb:
+            cur += ch
+            if ch == "`":
+                inb = False
+        elif ch == "`":
+            cur += ch; inb = True
+        elif ch == "\\" and i + 1 < len(s) and s[i + 1] == "|":
+            cur += "|"; i += 1
+        elif ch == "|":
+            cells.append(cur.strip()); cur = ""
+        else:
+            cur += ch
+        i += 1
+    cells.append(cur.strip())
+    return cells
+
 def convert_blocks(lines):
     out = []
     i, n = 0, len(lines)
@@ -236,11 +263,11 @@ def convert_blocks(lines):
             continue
         # table
         if st.startswith("|") and i+1 < n and re.match(r"^\s*\|[\s:\-|]+\|\s*$", lines[i+1]):
-            header = [c.strip() for c in st.strip().strip("|").split("|")]
+            header = _cells(st)
             i += 2
             rows = []
             while i < n and lines[i].strip().startswith("|"):
-                rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")])
+                rows.append(_cells(lines[i]))
                 i += 1
             th = "".join("<th>%s</th>" % convert_inline(c) for c in header)
             trs = []
