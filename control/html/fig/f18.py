@@ -196,7 +196,7 @@ def _f18_row(x, yc, items, sz=11, c=INK):
         k = it[0]
         if k == "t":
             cc = it[2] if len(it) > 2 and it[2] else c
-            o.append(TX(x, yc + sz * 0.36, it[1], "start", sz, cc))
+            o.append(_f18_tx(x, yc + sz * 0.36, it[1], "start", sz, cc))
             x += _f18_aw(it[1], sz) + 5
         elif k == "m":
             cc = it[2] if len(it) > 2 and it[2] else c
@@ -678,3 +678,368 @@ def _f18_twopend_fig():
 
 
 F["e18_twopend"] = _f18_twopend_fig()
+
+
+# =====================================================================
+# 3 節: 2 次の対象で係数を比べる計算
+# =====================================================================
+_F18_AB = "ā"     # 望む特性多項式の係数の記号（a の上に横線）
+
+
+def _f18_num(x, y, k, c=SIG):
+    return CIRC(x, y, 10, c=c, lw=1.3, fill=soft(c)) + T(x, y + 4, str(k), "middle", 11, c, True)
+
+
+def _f18_coef_fig():
+    o = []
+    sz = 11
+    ab = _F18_AB
+    x0 = 48
+    ys = [40, 102, 174, 238, 290]
+    for k, y in enumerate(ys):
+        o.append(_f18_num(26, y, k + 1))
+    s1, xe = _f18_row(x0, ys[0], [("t", "A − BF ="), ("m", [["a_{11} − b_{1}f_{1}", "a_{12} − b_{1}f_{2}"], ["a_{21} − b_{2}f_{1}", "a_{22} − b_{2}f_{2}"]])], sz)
+    o.append(s1)
+    o.append(TX(xe + 14, ys[0] - 4, "BF の i 行 j 列は b_{i}f_{j}（B は 2 行 1 列、F は 1 行 2 列）", "start", 10, MUT))
+    o.append(TX(xe + 14, ys[0] + 12, "A = [a_{ij}]、B = [b_1, b_2]ᵀ、F = [f_1, f_2]", "start", 10, MUT))
+    o.append(TX(x0, ys[1] - 6, "det(λI − A + BF) = λ^2 + (b_{1}f_{1} + b_{2}f_{2} − a_{11} − a_{22})λ", "start", sz, INK))
+    o.append(TX(x0 + 112, ys[1] + 14, "+ det A + (a_{12}b_{2} − a_{22}b_{1})f_{1} + (a_{21}b_{1} − a_{11}b_{2})f_{2}", "start", sz, INK))
+    o.append(T(690, ys[1] + 30, "（f₁f₂ の項は打ち消し合う）", "end", 9.5, MUT))
+    o.append(TX(x0, ys[2] - 26, ab + "(λ) = λ^2 + " + ab + "_{1}λ + " + ab + "_{0} と係数を比べる:", "start", 10.5, INK))
+    s3, xe = _f18_row(x0, ys[2] + 6, [("m", [[("b_1", SIG), ("b_2", SIG)], [("a_{12}b_{2} − a_{22}b_{1}", SIG), ("a_{21}b_{1} − a_{11}b_{2}", SIG)]]),
+                                      ("m", [["f_1"], ["f_2"]], GLD), ("t", "="),
+                                      ("m", [[ab + "_1 + a_{11} + a_{22}"], [ab + "_0 − det A"]])], sz)
+    o.append(s3)
+    o.append(TX(x0, ys[3], "左の行列の行列式 = a_{21}b_{1}^2 + (a_{22} − a_{11})b_{1}b_{2} − a_{12}b_{2}^2 = det [B  AB]", "start", sz, SIG, True))
+    o.append(TX(x0, ys[3] + 18, "→ 可制御（det [B  AB] ≠ 0）なら、どんな " + ab + "_1・" + ab + "_0 にも、f_1・f_2 がただ 1 つ決まる", "start", 10, INK))
+    o.append(TX(x0, ys[4], "台車（a_{11} = 0、a_{12} = 1、a_{21} = −25、a_{22} = −2、b_1 = 0、b_2 = 1）: f_2 = " + ab + "_1 − 2、f_1 = " + ab + "_0 − 25", "start", 10.5, INK))
+    o.append(TX(x0, ys[4] + 20, "極 −5 ± j5 なら " + ab + "(λ) = (λ + 5)^2 + 25 = λ^2 + 10λ + 50 なので F = [25  8]", "start", 10.5, GLD, True))
+    return SVG(700, 322, o,
+               "2 次の対象で、閉ループの特性多項式の係数を望む多項式の係数と比べて F を求める手順。① A − BF を作り、② その特性多項式を f₁・f₂ で表すと、係数は f₁・f₂ の 1 次式になる。③ 望む多項式 ā(λ) と係数を等しいとおくと、f₁・f₂ の連立 1 次方程式になる。④ その行列の行列式は、可制御性行列 [B AB] の行列式と同じ式である。⑤ 台車とばね・ダンパに当てはめた例。")
+
+
+F["e18_coef"] = _f18_coef_fig()
+
+
+# =====================================================================
+# 3 節: 可制御正準形の引き算、ケーリー・ハミルトンの定理、アッカーマンの式の手順（台車）
+# =====================================================================
+def _f18_acker_fig():
+    o = []
+    ab = _F18_AB
+    o.append(T(14, 18, "(a) 可制御正準形: ゲインが係数を 1 つずつずらす（台車）", "start", 11.5, INK, True))
+    rows = [("定数の項", "a_0 = 25", ab + "_0 = 50", 25.0, 50.0, "f_1 = 25"), ("λ の係数", "a_1 = 2", ab + "_1 = 10", 2.0, 10.0, "f_2 = 8")]
+    X = lambda v: 110 + v * 3.6
+    for i, (nm, a_, b_, va, vb, fl) in enumerate(rows):
+        y = 52 + i * 46
+        o.append(T(20, y + 4, nm, "start", 10, INK, True))
+        o.append(RECT(X(0), y - 8, X(va) - X(0), 14, 2, MSOFT, MUT, 1.1))
+        o.append(TX(X(0) + 4, y + 22, a_, "start", 9.5, MUT))
+        o.append(ARR(X(va), y - 1, X(vb), y - 1, c=GLD, lw=2.2))
+        o.append(TX((X(va) + X(vb)) / 2, y - 12, "+" + fl, "middle", 10, GLD, True, halo=True))
+        o.append(D(X(vb), y - 1, SIG, 4))
+        o.append(TX(X(vb) + 8, y + 3, b_, "start", 10, SIG, True))
+    o.append(TX(20, 150, "最後の行: [−a_{0} − f_{1}, −a_{1} − f_{2}] = [−50, −10]", "start", 10, INK))
+    # (b) ケーリー・ハミルトンの定理
+    xb = 380
+    o.append(T(xb, 18, "(b) ケーリー・ハミルトンの定理（台車）", "start", 11.5, INK, True))
+    o.append(TX(xb, 44, "a(λ) = λ^2 + 2λ + 25 の λ に A を入れる:", "start", 10, INK))
+    s, xe = _f18_row(xb, 82, [("t", "A^2 + 2A + 25I ="), ("m", [["−25", "−2"], ["50", "−21"]]), ("t", "+"),
+                              ("m", [["0", "2"], ["−50", "−4"]]), ("t", "+"), ("m", [["25", "0"], ["0", "25"]])], 10.5)
+    o.append(s)
+    s, xe = _f18_row(xb + 70, 130, [("t", "="), ("m", [["0", "0"], ["0", "0"]], SIG)], 10.5)
+    o.append(s)
+    o.append(T(xb + 130, 134, "（どの行列も自分の特性多項式を満たす）", "start", 9.5, MUT))
+    # (c) アッカーマンの式の手順
+    yc = 186
+    o.append(T(14, yc, "(c) アッカーマンの式 F = [0 … 0 1][B  AB …]⁻¹ ā(A) の手順（台車、極 −5 ± j5）", "start", 11.5, INK, True))
+    yb = yc + 54
+    s, xe = _f18_row(20, yb, [("t", "[B  AB] ="), ("m", [["0", "1"], ["1", "−2"]]), ("t", "→ 逆行列"), ("m", [["2", "1"], [("1", SIG), ("0", SIG)]])], 10.5)
+    o.append(s)
+    o.append(T(xe + 2, yb + 26, "の 2 行目", "start", 9.5, SIG))
+    s, xe2 = _f18_row(xe + 62, yb, [("t", ab + "(A) = A^2 + 10A + 50I ="), ("m", [[("25", GLD), ("8", GLD)], ["−200", "9"]])], 10.5)
+    o.append(s)
+    o.append(TX(20, yb + 60, "F = [1  0] " + ab + "(A) = （" + ab + "(A) の 1 行目）= [25  8]", "start", 11, GLD, True))
+    o.append(TX(20, yb + 82, "倒立振子（4 行 4 列）も同じ手順で、[B  AB  A^{2}B  A^{3}B] の逆行列の 4 行目に " + ab + "(A) を掛ける", "start", 10, MUT))
+    return SVG(700, yb + 96, o,
+               "極配置の 2 つの道具（台車とばね・ダンパ、望む極 −5 ± j5、ā(λ) = λ² + 10λ + 50）。(a) 可制御正準形では、f₁ が定数の項を、f₂ が λ の係数を、それぞれ望む値へずらす。台車の A と B はもともとこの形で、引き算だけで F が求まる。(b) 行列 A を自分の特性多項式に入れると 0 の行列になる。(c) アッカーマンの式は、可制御性行列の逆行列の最後の行に、望む多項式に A を入れた行列を掛ける。係数の比較と同じ F = [25 8] になる。")
+
+
+F["e18_acker"] = _f18_acker_fig()
+
+
+# =====================================================================
+# 3 節: 比例だけのカスケード制御と状態フィードバック（モータ）
+# =====================================================================
+def _f18_cascade_fig():
+    o = []
+    o.append(T(14, 18, "(a) 比例だけの 3 段のカスケード制御（14 章 4 節の構成）", "start", 11.5, INK, True))
+    yc = 64
+    s, pos, xe = CHAIN(16, yc, [("a", 30, "r", MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 18, None, INK), ("b", "K_θ", "k1"),
+                                ("a", 50, None, INK), ("s", {"l": "+", "b": "−"}, "s2"), ("a", 18, None, INK), ("b", "K_ω", "k2"),
+                                ("a", 50, None, INK), ("s", {"l": "+", "b": "−"}, "s3"), ("a", 18, None, INK), ("b", "K_i", "k3"),
+                                ("a", 40, "v", GLD), ("b", "モータ", "P", SIG, SSOFT)])
+    o.append(s)
+    o.append(T((pos["k1"][1] + pos["s2"] - 15) / 2, yc - 9, "角速度の目標", "middle", 9, MUT, halo=True))
+    o.append(T((pos["k2"][1] + pos["s3"] - 15) / 2, yc - 9, "電流の目標", "middle", 9, MUT, halo=True))
+    xo = xe
+    outs = [("i", -11, 26, "s3", TEA), ("ω_m", 0, 46, "s2", PUR), ("θ_m", 11, 66, "s1", SIG)]
+    for k, (nm, dy, dep, sn, c) in enumerate(outs):
+        x2 = xo + 26 + k * 22
+        o.append(W(xo, yc + dy, x2, yc + dy, c=c, lw=1.5))
+        o.append(W(x2, yc + dy, x2, yc + dep, c=c, lw=1.5))
+        o.append(W(x2, yc + dep, pos[sn], yc + dep, c=c, lw=1.5))
+        o.append(ARR(pos[sn], yc + dep, pos[sn], yc + 15, c=c, lw=1.5, head=6))
+        o.append(TX(x2 + 4, yc + dy - 3 if k < 2 else yc + dy + 12, nm, "start", 10, c, True, halo=True))
+    o.append(TX(16, yc + 92, "v = K_{i}{K_{ω}(K_{θ}(r − θ_{m}) − ω_{m}) − i} = −K_{i}i − K_{i}K_{ω}ω_{m} − K_{i}K_{ω}K_{θ}θ_{m} + K_{i}K_{ω}K_{θ}r", "start", 10.5, INK))
+    # (b) 状態フィードバック
+    yb = 196
+    o.append(TX(14, yb, "(b) 状態フィードバック（x = [i, ω_{m}, θ_{m}]ᵀ）", "start", 11.5, INK, True))
+    yc2 = yb + 44
+    s, p2, xe2 = CHAIN(16, yc2, [("a", 30, "r", MUT), ("b", "f_3", "g"), ("a", 30, None, INK), ("s", {"l": "+", "b": "−"}, "s"),
+                                  ("a", 54, "v", GLD), ("b", "モータ", "P", SIG, SSOFT)])
+    o.append(s)
+    xt = xe2 + 56
+    o.append(W(xe2, yc2, xt + 30, yc2, c=SIG, lw=4))
+    o.append(_head(xt + 20, yc2, xt + 40, yc2, SIG, 10))
+    o.append(D(xt, yc2, SIG, 4.6))
+    o.append(T(xe2 + 6, yc2 - 9, "x", "start", 11, SIG, True, halo=True))
+    yfb = yc2 + 44
+    wF = TFBW("F = [f_1  f_2  f_3]")
+    xm = (xt + p2["s"]) / 2 + 30
+    o.append(W(xt, yc2, xt, yfb, c=SIG, lw=4))
+    o.append(W(xt, yfb, xm + wF / 2 + 4, yfb, c=SIG, lw=4))
+    o.append(_head(xm + wF / 2 + 22, yfb, xm + wF / 2, yfb, SIG, 10))
+    o.append(TFBOX(xm - wF / 2, yfb, "F = [f_1  f_2  f_3]", wF, SIG, PAN)[0])
+    o.append(W(xm - wF / 2, yfb, p2["s"], yfb, c=GLD, lw=1.5))
+    o.append(ARR(p2["s"], yfb, p2["s"], yc2 + 15, c=GLD, lw=1.5, head=6))
+    # (c) 対応
+    xc = 440
+    o.append(T(xc, yb, "(c) 2 つは同じ形", "start", 11.5, INK, True))
+    lines = [("f_{1} = K_{i} = 0.5 V/A", INK), ("f_{2} = K_{i}K_{ω} = 0.5 V/(rad/s)", INK), ("f_{3} = K_{i}K_{ω}K_{θ} = 40 V/rad", INK),
+             ("極 −100・−400・−2000 に置く F は", SIG), ("K_{i} = 0.5、K_{ω} = 1.0、K_{θ} = 80 /s の 3 段と同じ", SIG)]
+    for i, (l, c) in enumerate(lines):
+        o.append(TX(xc, yb + 26 + i * 19, l, "start", 10, c, i >= 3))
+    return SVG(700, yfb + 32, o,
+               "DC モータの角度の制御。(a) 3 つのループを比例だけにしたカスケード制御は、外側から順に、角度の偏差から角速度の目標、角速度の偏差から電流の目標、電流の偏差から電圧を作る。(b) 展開すると、電流・角速度・角度にゲインを掛けて足す状態フィードバックに、目標値の項を足したものになる。(c) 極配置で求めた F は、ゲインを内側から順に掛け合わせた形に書き直せる。")
+
+
+F["e18_cascade"] = _f18_cascade_fig()
+
+
+# =====================================================================
+# 4 節: 倒立振子の極配置（極 −4 × 4）
+# =====================================================================
+_F18_F4 = _f18_acker(_F18_AP, _F18_BP, [-4.0] * 4)          # [−3.914, −3.914, −22.44, −3.574]
+
+
+def _f18_fast(F, x0, T, h=0.002, umax=None, nl=True):
+    """倒立振子の閉ループ（u = −F x、飽和つき）を、numpy を使わない 4 次のルンゲ・クッタ法で解く（限界を二分法で探すため）。
+    返り値 (最後の状態, 倒れたか)。"""
+    M, m, l, g = _F18_M, _F18_m, _F18_l, _F18_g
+    f1, f2, f3, f4 = (float(v) for v in F)
+
+    def f(p, pd, ph, phd):
+        u = -(f1 * p + f2 * pd + f3 * ph + f4 * phd)
+        if umax is not None:
+            u = umax if u > umax else (-umax if u < -umax else u)
+        if nl:
+            s, c = math.sin(ph), math.cos(ph)
+            pdd = (u - m * g * s * c + m * l * phd * phd * s) / (M + m * s * s)
+            phdd = (g * s - pdd * c) / l
+        else:
+            pdd = (u - m * g * ph) / M
+            phdd = ((M + m) * g * ph - u) / (M * l)
+        return pd, pdd, phd, phdd
+
+    p, pd, ph, phd = x0
+    for _ in range(int(round(T / h))):
+        a = f(p, pd, ph, phd)
+        b = f(p + h / 2 * a[0], pd + h / 2 * a[1], ph + h / 2 * a[2], phd + h / 2 * a[3])
+        c = f(p + h / 2 * b[0], pd + h / 2 * b[1], ph + h / 2 * b[2], phd + h / 2 * b[3])
+        d = f(p + h * c[0], pd + h * c[1], ph + h * c[2], phd + h * c[3])
+        p += h / 6 * (a[0] + 2 * b[0] + 2 * c[0] + d[0]); pd += h / 6 * (a[1] + 2 * b[1] + 2 * c[1] + d[1])
+        ph += h / 6 * (a[2] + 2 * b[2] + 2 * c[2] + d[2]); phd += h / 6 * (a[3] + 2 * b[3] + 2 * c[3] + d[3])
+        if abs(ph) > math.pi / 2:
+            return (p, pd, ph, phd), True
+    return (p, pd, ph, phd), False
+
+
+def _f18_maxtilt(F, umax, h=0.002, T=8.0):
+    """立て直せる初めの傾きの上限 [°]（二分法。8 s 後に角度 0.5° 以内・台車 5 cm 以内に戻れば立て直せたとする）。"""
+    def ok(d):
+        x, fell = _f18_fast(F, (0.0, 0.0, math.radians(d), 0.0), T, h, umax)
+        return (not fell) and abs(x[2]) < math.radians(0.5) and abs(x[0]) < 0.05
+    lo, hi = 0.0, 89.0
+    if not ok(0.5):
+        return 0.0
+    for _ in range(14):
+        mid = (lo + hi) / 2
+        if ok(mid):
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def _f18_pendF_fig():
+    o = []
+    F = _F18_F4
+    o.append(T(14, 18, "(a) 極を −4 に 4 つ置く", "start", 11.5, INK, True))
+    P = Plot(50, 34, 220, 160, (-9, 9), (-6.5, 6.5))
+    o.append(_f18_box(P)); o.append(SPLANE(P))
+    o.append(P.axes(xl="実部 [1/s]", yl="虚部 [rad/s]", xt=[-8, -4, 0, 4, 8], yt=[-5, 0, 5], grid=False))
+    for z, dy in ((6.766, 0), (0.0, 0), (-6.766, 0)):
+        o.append(CARR(P.X(z), P.Y(0) - 8, P.X(-4) + (8 if z > -4 else -8), P.Y(0) - 8, 0.35 if z > -4 else -0.35, MUT, 1.2, 6))
+    for z in (6.766, 0.0, -6.766):
+        o.append(_f18_X(P, complex(z, 0), MUT, 5.5, 2.0))
+    o.append(_f18_X(P, complex(-4, 0), SIG, 7, 2.8))
+    o.append(T(P.X(0) + 4, P.Y(0) + 18, "0（2 つ）", "start", 9.5, MUT, halo=True))
+    o.append(T(P.X(6.766), P.Y(0) + 18, "+6.77", "middle", 9.5, MUT, halo=True))
+    o.append(T(P.X(-6.766), P.Y(0) + 18, "−6.77", "middle", 9.5, MUT, halo=True))
+    o.append(T(P.X(-4), P.Y(0) + 34, "−4（4 つ）", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(P.X(0), P.Y(-5.3), "灰色: 開ループの極", "middle", 9, MUT, halo=True))
+    # (b) ゲインと意味
+    xb = 312
+    o.append(T(xb, 18, "(b) 入力 u = −Fx の 4 つの項", "start", 11.5, INK, True))
+    rows = [("φ", F[2], "N/rad", "振子が傾いた向きへ台車を押す", SIG),
+            ("\\dot{φ}", F[3], "N/(rad/s)", "傾く速さの向きへ押す", SIG),
+            ("p", F[0], "N/m", "台車が右にあると、さらに右へ押す", GLD),
+            ("ṗ", F[1], "N/(m/s)", "台車が右へ動いていると、さらに右へ", GLD)]
+    for i, (nm, f, un, mean, c) in enumerate(rows):
+        y = 48 + i * 26
+        o.append(_f18_tx(xb, y, "+" + _f18_fx(-f, 3 if abs(f) < 10 else 2) + " " + un + " × ", "start", 10.5, c, True))
+        o.append(_f18_tx(xb + 128, y, nm, "start", 11, c, True))
+        o.append(T(xb + 150, y, mean, "start", 10, INK))
+    o.append(T(xb, 158, "位置と速度のゲインが負（u に正で効く）でなければならない理由:", "start", 10, INK, True))
+    o.append(TX(xb, 178, "閉ループの特性多項式の定数の項 = −(g/(Ml))f_{1} = 65.4 × 3.914 = 256", "start", 10, INK))
+    o.append(T(xb, 196, "安定な多項式の係数はすべて正（9 章 2 節）なので f₁ < 0", "start", 10, ALI, True))
+    # (c) 台車を 10 cm ずらして放す
+    yc = 258
+    o.append(T(14, yc, "(c) 台車を 10 cm 右にずらして放す（線形でない式）: 台車はまず、さらに右へ進む", "start", 11.5, INK, True))
+    ts, xs, us, fell = _f18_run(F, [0.1, 0, 0, 0], 3.0, h=0.001)
+    specs = [("台車の位置 p [cm]", xs[:, 0] * 100, (-2, 12), [0, 5, 10], GLD), ("振子の角度 φ [°]", _f18_np.degrees(xs[:, 2]), (-1.5, 1.0), [-1, 0, 1], SIG),
+             ("力 u [N]", us, (-0.3, 0.45), [-0.2, 0, 0.2, 0.4], GLD)]
+    for k, (yl, ys, yr, yt, c) in enumerate(specs):
+        q = Plot(58 + k * 228, yc + 30, 180, 100, (0, 3), yr)
+        o.append(q.axes(xl="時間 t [s]", yl=None, xt=[0, 1, 2, 3], yt=yt, xfmt=lambda v: "%g" % v, yfmt=lambda v: _f18_ff(v)))
+        o.append(TX(q.x - 4, q.y - 8, yl, "start", 10, c, True))
+        o.append(W(q.X(0), q.Y(0), q.X(3), q.Y(0), c=FNT, lw=1))
+        o.append(q.clip(list(zip(ts, ys)), c=c if k != 1 else SIG, lw=2.0))
+        if k == 0:
+            i = int(_f18_np.argmax(xs[:, 0]))
+            o.append(D(q.X(ts[i]), q.Y(xs[i, 0] * 100), ALI, 3.6))
+            o.append(T(q.X(ts[i]) + 6, q.Y(xs[i, 0] * 100) + 14, "0.22 s に 10.43 cm", "start", 9.5, ALI, True, halo=True))
+        if k == 1:
+            i = int(_f18_np.argmin(xs[:, 2]))
+            o.append(D(q.X(ts[i]), q.Y(math.degrees(xs[i, 2])), ALI, 3.6))
+            o.append(T(q.X(ts[i]) + 6, q.Y(math.degrees(xs[i, 2])) + 4, "左へ 1.22°", "start", 9.5, ALI, True, halo=True))
+        if k == 2:
+            o.append(T(q.X(0.08), q.Y(0.39) + 4, "初めは右へ 0.39 N", "start", 9.5, GLD, True, halo=True))
+    return SVG(700, yc + 30 + 100 + 44, o,
+               "倒立振子の 4 つの極を −4 に置いた状態フィードバック F = [−3.914 −3.914 −22.44 −3.574]。(a) 開ループの極 0・0・±6.77 が −4 へ移る。(b) 角度と角速度の項は、振子が傾いた向きへ台車を押す。位置と速度の項も正の向きに効き、台車が右にあると、さらに右へ押す。(c) 台車を 10 cm ずらして放すと、台車はいったん右へ進んで振子を左へ傾け、それから左へ戻る。台車を左へ動かすには、振子を先に左へ傾けておかなければならないからである。")
+
+
+F["e18_pendF"] = _f18_pendF_fig()
+
+
+def _f18_pend_resp_fig():
+    o = []
+    F = _F18_F4
+    # (a) 押したときの連続した絵
+    o.append(T(14, 18, "(a) 振子のおもりを右へ 1 N で 0.1 s 押す（線形でない式。位置と長さは同じ縮尺）", "start", 11.5, INK, True))
+    tp, xp, up, fp = _f18_run(F, [0, 0, 0, 0], 4.0, h=0.001, push=(0.0, 0.1, 1.0))
+    frames = [0.0, 0.12, 0.3, 0.49, 0.8, 1.5, 3.0]
+    sc = 170.0
+    gy = 132
+    for k, t0 in enumerate(frames):
+        x0 = 54 + k * 98
+        i = int(round(t0 / 0.001))
+        p, ph, u = xp[i, 0], xp[i, 2], up[i]
+        o.append(_f18_ground(x0 - 44, x0 + 50, gy))
+        o.append(W(x0, gy + 2, x0, gy + 10, c=MUT, lw=1.2))
+        o.append(_f18_pendcart(x0 + p * sc, gy, ph, L=_F18_l * sc, cw=34, ch=14, c=SIG, lw=2.0, bob=6))
+        if abs(u) > 0.05:
+            cx = x0 + p * sc
+            L = 10 + 8 * abs(u)
+            if u > 0:
+                o.append(ARR(cx - 17 - L, gy - 19, cx - 17, gy - 19, c=GLD, lw=2))
+            else:
+                o.append(ARR(cx + 17 + L, gy - 19, cx + 17, gy - 19, c=GLD, lw=2))
+        if t0 == 0.0:
+            bx = x0 + _F18_l * sc * math.sin(ph); by = gy - 26 - _F18_l * sc * math.cos(ph)
+            o.append(ARR(bx - 30, by, bx - 8, by, c=PUR, lw=2.2))
+        o.append(T(x0, gy + 22, "%g s" % t0, "middle", 10, INK, True))
+        o.append(T(x0, gy + 36, "%s°・%s cm" % (_f18_fx(math.degrees(ph), 1), _f18_fx(p * 100, 1)), "middle", 9, MUT))
+    o.append(T(14, gy + 54, "紫の矢印: 押す力　金の矢印: 制御器が台車を押す力（長さは力の大きさ）　縦の線: 台車の初めの位置", "start", 9.5, MUT))
+    # (b)(c) 波形
+    tt, xt, ut, ft = _f18_run(F, [0, 0, math.radians(10), 0], 4.0, h=0.001)
+    tl, xl, ul, fl = _f18_run(F, [0, 0, math.radians(10), 0], 4.0, h=0.001, nl=False)
+    yb = gy + 82
+    cols = [("(b) 10° 傾けて放す", tt, xt, ut, tl, xl, ul, 58), ("(c) (a) の押す場合", tp, xp, up, None, None, None, 400)]
+    specs = [("角度 φ [°]", 2, (-10, 12), [-10, 0, 10], SIG, 180 / math.pi), ("台車の位置 p [cm]", 0, (-5, 30), [0, 10, 20, 30], GLD, 100.0),
+             ("力 u [N]", None, (-2, 4.5), [-2, 0, 2, 4], GLD, 1.0)]
+    for title, t1, x1, u1, t2, x2, u2, xq in cols:
+        o.append(T(xq - 44, yb, title, "start", 11.5, INK, True))
+        for k, (yl, idx, yr, yt, c, scl) in enumerate(specs):
+            q = Plot(xq, yb + 22 + k * 78, 250, 52, (0, 4), yr)
+            o.append(q.axes(xl="時間 t [s]" if k == 2 else None, yl=None, xt=[0, 1, 2, 3, 4], yt=yt, xfmt=(lambda v: "%g" % v) if k == 2 else (lambda v: ""), yfmt=lambda v: _f18_ff(v), sz=9))
+            o.append(TX(q.x + 6, q.y + 11, yl, "start", 9.5, c, True, halo=True))
+            o.append(W(q.X(0), q.Y(0), q.X(4), q.Y(0), c=FNT, lw=1))
+            ys1 = (u1 if idx is None else x1[:, idx]) * scl
+            o.append(q.clip(list(zip(t1, ys1)), c=c, lw=2.0))
+            if t2 is not None:
+                ys2 = (u2 if idx is None else x2[:, idx]) * scl
+                o.append(q.clip(list(zip(t2, ys2)), c=MUT, lw=1.4, dash="5 3"))
+    o.append(LEGL(58, yb + 22 + 3 * 78 + 20, [(SIG, None, "線形でない式"), (MUT, "5 3", "線形化した式（(b) だけ）")], 9.5, 16))
+    return SVG(700, yb + 22 + 3 * 78 + 30, o,
+               "線形化した式で決めた F（4 つの極を −4）を、線形でない式の倒立振子につないだ応答。(a) おもりを右へ押すと、台車がすぐに下へ回り込むので、振子は右へ 2.0° しか傾かない。台車を元の位置へ戻すために振子を左へ傾け（0.49 s に −8.7°）、3 s ほどで元に戻る。(b) 10° から放すと、力は初めの 3.92 N が最大で、2.37 s で ±0.2° に収まる。線形化した式との差は小さい。(c) (a) の角度・台車の位置・力。")
+
+
+F["e18_pend_resp"] = _f18_pend_resp_fig()
+
+
+def _f18_pend_limit_fig():
+    o = []
+    F = _F18_F4
+    o.append(T(14, 18, "(a) 立て直せる初めの傾きと、力の上限", "start", 11.5, INK, True))
+    P = Plot(60, 36, 260, 200, (0, 20), (0, 90))
+    o.append(P.axes(xl="力の上限 [N]", yl="初めの傾きの上限 [°]", xt=[0, 5, 10, 15, 20], yt=[0, 30, 60, 90]))
+    um = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20]
+    ys = [_f18_maxtilt(F, u) for u in um]
+    st = [(u, math.degrees(math.atan(u / ((_F18_M + _F18_m) * _F18_g)))) for u in _f18_np.linspace(0, 20, 81)]
+    o.append(P.line(st, c=ALI, lw=1.8, dash="6 4"))
+    o.append(P.line(list(zip(um, ys)), c=SIG, lw=2.2))
+    for u, y in zip(um, ys):
+        o.append(D(P.X(u), P.Y(y), SIG, 2.6))
+    ynl = _f18_maxtilt(F, None)
+    o.append(W(P.X(0), P.Y(ynl), P.X(20), P.Y(ynl), c=MUT, lw=1.2, dash="3 3"))
+    o.append(T(P.X(19.6), P.Y(ynl) + 14, "上限なし: %s°（線形化の範囲の限界）" % _f18_fx(ynl, 1), "end", 9.5, MUT, halo=True))
+    o.append(T(P.X(1.0), P.Y(84), "どんな制御器でも越えられない", "start", 9.5, ALI, True, halo=True))
+    o.append(T(P.X(1.0), P.Y(84) + 13, "tan φ = 上限 ÷ ((M + m)g)（赤の破線）", "start", 9.5, ALI, True, halo=True))
+    y5 = _f18_maxtilt(F, 5.0)
+    o.append(D(P.X(5), P.Y(y5), SIG, 4.2)); o.append(D(P.X(5), P.Y(36.06), ALI, 4.2))
+    o.append(T(P.X(5) + 6, P.Y(y5) + 15, "5 N: %s°" % _f18_fx(y5, 1), "start", 9.5, SIG, True, halo=True))
+    o.append(T(P.X(5) - 6, P.Y(36.06) - 6, "36.1°", "end", 9.5, ALI, True, halo=True))
+    o.append(T(P.X(10), P.Y(10), "極 −4 × 4 の F", "start", 9.5, SIG, True, halo=True))
+    # (b) 上限 5 N で 25° と 32°
+    xb = 410
+    o.append(T(xb - 40, 18, "(b) 力の上限 5 N で、25° と 32° から", "start", 11.5, INK, True))
+    q = Plot(xb, 36, 270, 96, (0, 3), (-40, 90))
+    o.append(q.axes(xl=None, yl=None, xt=[0, 1, 2, 3], yt=[-30, 0, 30, 60, 90], xfmt=lambda v: "", yfmt=lambda v: _f18_ff(v), sz=9))
+    o.append(TX(q.x - 34, q.y + q.h / 2, "角度 φ [°]", "middle", 9.5, MUT, rot=-90))
+    r = Plot(xb, 160, 270, 76, (0, 3), (-6, 6))
+    o.append(r.axes(xl="時間 t [s]", yl=None, xt=[0, 1, 2, 3], yt=[-5, 0, 5], xfmt=lambda v: "%g" % v, yfmt=lambda v: _f18_ff(v), sz=9))
+    o.append(TX(r.x - 34, r.y + r.h / 2, "力 u [N]", "middle", 9.5, MUT, rot=-90))
+    for d0, c in ((25.0, GRN), (32.0, ALI)):
+        ts, xs, us, fell = _f18_run(F, [0, 0, math.radians(d0), 0], 3.0, h=0.001, umax=5.0)
+        o.append(q.clip(list(zip(ts, _f18_np.degrees(xs[:, 2]))), c=c, lw=2.0))
+        o.append(r.clip(list(zip(ts, us)), c=c, lw=2.0))
+    o.append(W(r.X(0), r.Y(5), r.X(3), r.Y(5), c=FNT, lw=1, dash="3 3")); o.append(W(r.X(0), r.Y(-5), r.X(3), r.Y(-5), c=FNT, lw=1, dash="3 3"))
+    o.append(T(q.X(1.2), q.Y(-12), "25°: 上限に張り付いた後に立つ", "start", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(0.66), q.Y(62), "32°: 倒れる", "start", 9.5, ALI, True, halo=True))
+    return SVG(700, 276, o,
+               "倒立振子を立て直せる初めの傾き（線形でない式、振子は静かに放す）。(a) 力に上限が無くても、線形化した式で決めた F で立て直せるのは 55.9° まで。上限があると、(M + m)g tan φ を超える力は出せないので、その角度（赤の破線）より傾くと、どんな制御器でも傾きが増えるのを止められない。極を −4 に置いた F は、その少し手前まで立て直せる（5 N で 30.2°）。(b) 上限 5 N のとき、25° からは力が張り付いた後に立ち、32° からは倒れる。")
+
+
+F["e18_pend_limit"] = _f18_pend_limit_fig()
