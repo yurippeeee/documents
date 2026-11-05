@@ -37,7 +37,7 @@ def _f11_disc(num, den, h):
 def _f11_sim(P, KP=0.0, TI=None, TD=0.0, N=10.0, b=1.0, dmode="y", tEnd=1.0, n=20000, r=0.0, d=None, noise=None,
              umin=None, umax=None, aw="none", Tt=None, u0=0.0, I0=None, manual=None, track="none",
              gains=None, gin=True, gbump=False, relay=None, every=None):
-    """フィードバック系を刻み h = tEnd/n で数値計算する（共通部品 SIMLOOP と同じ約束: 対象は零次ホールドで離散化し、
+    """フィードバック系を刻み h = tEnd/n（むだ時間が 1 s 以上なら tEnd/(8n)）で数値計算する（共通部品 SIMLOOP と同じ約束: 対象は零次ホールドで離散化し、
     むだ時間は操作量（外乱を足したもの）を刻みの数だけ遅らせる。Y = P(U + D)）。SIMLOOP に無い次のものを扱う。
     制御器は標準形の PID: P の分 K_P(b r − y_m)、I の分 I（積分の中にゲインを入れて足す）、D の分は不完全微分
     T_D s/(1 + (T_D/N)s) を後退差分で（dmode="y" なら測定値の微分、"e" なら偏差の微分）。y_m は制御量に観測ノイズを足したもの。
@@ -51,8 +51,12 @@ def _f11_sim(P, KP=0.0, TI=None, TD=0.0, N=10.0, b=1.0, dmode="y", tEnd=1.0, n=2
     返り値: 辞書（t, y, ym, u（実際の操作量）, uc（制御器が計算した値）, P, I, D, e）。"""
     np = _f11_np
     num, den, L = P
+    # むだ時間が 1 s 以上の対象（温度の板）は、刻みを 8 分割する。h = 0.1 s のままでは、零次ホールドの平均 h/2 の遅れなどで
+    # 行き過ぎ量や面積の最後の桁がずれる（例: 28 W ÷ K_I = 448 K·s が 446 K·s になる）。n と every は分割する前の刻みで数える
+    sub = 8 if L >= 1.0 else 1
+    n = n * sub
     h = tEnd / n
-    ev = every or max(1, int(round(n / 1000)))
+    ev = every * sub if every else max(1, int(round(n / 1000)))
     Ad, Bd, Cp, Dp = _f11_disc(num, den, h)
     nd = int(round(L / h))
     xp = _f11_np.zeros(Ad.shape[0])
@@ -395,7 +399,7 @@ def _f11_tradeoff_fig():
         o.append(W(p.X(0), p.Y(1), p.X(1000), p.Y(1), c=MUT, lw=1.1, dash="5 3"))
         o.append(p.line(list(zip(ar["t"], ar["y"] - 35)), c=c, lw=1.9))
         ov = (float(ar["y"].max()) - 36.0) * 100
-        o.append(T(p.X(990), p.Y(1.6), "行き過ぎ %s %%" % _f11_f(ov, 1), "end", 9.5, c, True, halo=True))
+        o.append(T(p.X(990), p.Y(1.6), "行き過ぎ %s %%" % _f11_f(ov, 1 if ov < 50 else 0), "end", 9.5, c, True, halo=True))   # 65.5 % 前後は刻みで丸めが変わるので、50 % を越えたら整数で
         q = Plot(xs[j], 150, 160, 80, (0, 1500), (-1.6, 0.3))
         o.append(q.axes(xl=None, yl=None, xt=[0, 500, 1000, 1500], yt=[-1.5, -1, -0.5, 0], sz=9, yfmt=_f11_g))
         md = ad["t"] <= 1500
@@ -414,7 +418,7 @@ def _f11_tradeoff_fig():
         o.append(T(14, y0 + 30, lab, "start", 10, INK, True))
         o.append(TLINES(14, y0 + 46, yl.split("の", 1) if False else [yl[:yl.index(" [")], yl[yl.index(" ["):].strip()], "start", 9, MUT, lh=12))
     o.append(T(14, 392, "→ 強くするほど外乱は小さく抑えられ、目標値にも速く近づくが、行き過ぎが増え、ノイズで操作量が大きく揺れる。", "start", 10, INK, True))
-    return SVG(700, 400, o, "温度の板を、強さの違う 3 つの PI で制御する（60 °C・28 W で落ち着いた所から）。上: 目標値を 1 K 上げたときの温度の変化。中: 逃げる熱が 10 W 増えたときの温度の変化（塗った部分の面積が IAE）。下: 観測ノイズ（標準偏差 0.3 K、1 s ごとに変わる）だけがあるときの操作量。(a) から (c) へ強くするほど、外乱の IAE は 640・160・50.8 K·s と小さくなるが、目標値への行き過ぎは 4.7・19.3・65.8 % に増え、操作量の揺れも大きくなる。")
+    return SVG(700, 400, o, "温度の板を、強さの違う 3 つの PI で制御する（60 °C・28 W で落ち着いた所から）。上: 目標値を 1 K 上げたときの温度の変化。中: 逃げる熱が 10 W 増えたときの温度の変化（塗った部分の面積が IAE）。下: 観測ノイズ（標準偏差 0.3 K、1 s ごとに変わる）だけがあるときの操作量。(a) から (c) へ強くするほど、外乱の IAE は 640・160・50.6 K·s と小さくなるが、目標値への行き過ぎは 4.7・19.2・66 % に増え、操作量の揺れも大きくなる。")
 
 
 F["e11_tradeoff"] = _f11_tradeoff_fig()
@@ -453,7 +457,7 @@ def _f11_zn_ult_fig():
     rd = {}
     for i, (f, c) in enumerate(cases):
         K = f * Ku
-        r = SIMLOOP([1.25], [500.0, 1.0], [K], [1.0], 900, L=20.0, n=18000, r=1.0, every=1)
+        r = SIMLOOP([1.25], [500.0, 1.0], [K], [1.0], 900, L=20.0, n=576000, r=1.0, every=32)   # 周期を 0.1 s の桁まで正しく読むため（零次ホールドの遅れ h/2 で長く出る）
         t, y = r["t"], r["y"]
         yf = 1.25 * K / (1 + 1.25 * K)
         pk = _f11_peaks(t, y, yf)
@@ -560,8 +564,8 @@ F["e11_zn_nyq"] = _f11_zn_nyq_fig()
 
 def _f11_zn_resp_fig():
     o, back, front = [], [], []
-    cols = [("plate", "温度の板", 600.0, 6000, -10.0, "K", "W"), ("cart", "台車（遅れ 0.1 s）", 2.0, 20000, -1.0, "m/s", "N"),
-            ("mpos", "モータの位置", 0.2, 20000, -1.0, "rad", "V")]
+    cols = [("plate", "温度の板", 600.0, 6000, -10.0, "K", "W"), ("cart", "台車（遅れ 0.1 s）", 2.0, 80000, -1.0, "m/s", "N"),
+            ("mpos", "モータの位置", 0.2, 80000, -1.0, "rad", "V")]     # 刻み 20000 では PID の行き過ぎが 80.5 % と出て、丸めが変わる
     cc = {"P": TEA, "PI": SIG, "PID": GRN}
     o.append(T(14, 46, "目標値を 1 上げる（縦軸は、目標値の変化を 1 とした制御量）", "start", 10.5, INK, True))
     o.append(T(14, 258, "操作量に入る外乱のステップ（縦軸は制御量）", "start", 10.5, PUR, True))
@@ -821,7 +825,7 @@ def _f11_imc_dist_fig():
         o.append(T(q.X(790), q.Y(0.45) - k * 14, "行き過ぎ %s %%" % _f11_f(ov, 1), "end", 9.5, c, True, halo=True))
     o.append(LEGL(62, 226, [(TEA, None, cases[0][0]), (SIG, None, cases[1][0])], 9.5, 14))
     o.append(LEGL(62, 246, [(GRN, "5 3", cases[2][0] + "（外乱への応答は (a) の 160 s と同じ）")], 9.5, 14))
-    return SVG(700, 256, o, "温度の板の λ = 20 s の PI で、積分時間の決め方を比べる。(a) T<sub>I</sub> = T では、打ち消した板の極（時定数 500 s）が外乱への応答に残り、戻るのが遅い。T<sub>I</sub> = 4(λ + L) に短くすると、積分ゲインが 3.1 倍になり、IAE は 500 から 160 K·s に減る。(b) 代わりに、目標値への行き過ぎが 4.1 % から 19.3 % に増えるが、目標値の重みを 0.5 にすると、外乱への応答を変えずに 0 % にできる。")
+    return SVG(700, 256, o, "温度の板の λ = 20 s の PI で、積分時間の決め方を比べる。(a) T<sub>I</sub> = T では、打ち消した板の極（時定数 500 s）が外乱への応答に残り、戻るのが遅い。T<sub>I</sub> = 4(λ + L) に短くすると、積分ゲインが 3.1 倍になり、IAE は 500 から 160 K·s に減る。(b) 代わりに、目標値への行き過ぎが 4.1 % から 19.2 % に増えるが、目標値の重みを 0.5 にすると、外乱への応答を変えずに 0 % にできる。")
 
 
 F["e11_imc_dist"] = _f11_imc_dist_fig()
@@ -836,8 +840,16 @@ def _f11_heat(KP=10.0, TI=160.0, aw="none", Tt=None, tE=1500.0, n=15000, **k):
 
 
 def _f11_settle(t, y, yf, band):
-    out = _f11_np.where(_f11_np.abs(_f11_np.asarray(y) - yf) > band)[0]
-    return float(t[out[-1] + 1]) if len(out) and out[-1] + 1 < len(t) else None
+    """最後に帯の外にいた記録の点と次の点の間で、帯の端を横切る時刻を線形補間で求める（記録の間隔に丸めない）。"""
+    y = _f11_np.asarray(y)
+    out = _f11_np.where(_f11_np.abs(y - yf) > band)[0]
+    if not len(out):
+        return 0.0
+    i = int(out[-1])
+    if i + 1 >= len(t):
+        return None
+    lv = yf + band if y[i] > yf else yf - band
+    return float(t[i] + (lv - y[i]) / (y[i + 1] - y[i]) * (t[i + 1] - t[i])) if y[i + 1] != y[i] else float(t[i + 1])
 
 
 def _f11_windup_fig():

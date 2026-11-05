@@ -12,7 +12,11 @@
   /* 一巡伝達関数 P C（むだ時間つき）の tf */
   function _w11_loop(U,P,KP,TI,TD,N){var c=_w11_pidtf(KP,TI,TD,N);return U.ctl.tf(U.ctl.poly.mul(P.num,c[0]),U.ctl.poly.mul(P.den,c[1]),P.L||0);}
 
-  /* フィードバック系を刻み h = tEnd/n で計算する（図の _f11_sim と同じ計算。共通部品 simLoop と同じ約束で、
+  /* 配列の最大・最小（Math.max.apply は要素が数十万あると呼び出しの上限を越えるので、ループで求める） */
+  function _w11_amax(a){var m=-Infinity;for(var i=0;i<a.length;i++)if(a[i]>m)m=a[i];return m;}
+  function _w11_amin(a){var m=Infinity;for(var i=0;i<a.length;i++)if(a[i]<m)m=a[i];return m;}
+  /* 温度の板の刻みは、図（_f11_sim の 8 分割）と同じ細かさにした（h = 0.1 s では零次ホールドの遅れ h/2 で、行き過ぎ量や面積の最後の桁がずれる）。
+     フィードバック系を刻み h = tEnd/n で計算する（図の _f11_sim と同じ計算。共通部品 simLoop と同じ約束で、
      対象は零次ホールドで離散化し、むだ時間は操作量（外乱を足したもの）を刻みの数だけ遅らせる）。simLoop に無い次のものを扱う:
      標準形の PID（P の分 K_P(b r − y)、I の分は積分の中にゲインを入れて足す、D の分は測った値の不完全微分を後退差分で）、
      飽和（umin・umax）、アンチワインドアップ（aw: "clamp"・"back"、時定数 Tt）、リレー（relay: [Δu, ε, u_0]）、
@@ -48,7 +52,9 @@
   /* lev より上の山の番号 */
   function _w11_peaks(y,lev){var o=[];for(var i=1;i<y.length-1;i++)if(y[i]>y[i-1]&&y[i]>=y[i+1]&&y[i]>lev)o.push(i);return o;}
   /* ±band の外に最後にいた次の時刻（入った後は出ない時刻） */
-  function _w11_settle(t,y,yf,band){var last=-1;for(var i=0;i<y.length;i++)if(Math.abs(y[i]-yf)>band)last=i;return last<0?0:(last+1<t.length?t[last+1]:null);}
+  /* 2 % 整定時間など: 最後に帯の外にいた記録の点と次の点の間で、帯の端を横切る時刻を線形補間で求める（記録の間隔に丸めない） */
+  function _w11_settle(t,y,yf,band){var last=-1;for(var i=0;i<y.length;i++)if(Math.abs(y[i]-yf)>band)last=i;if(last<0)return 0;if(last+1>=t.length)return null;
+    var y0=y[last],y1=y[last+1],lv=y0>yf?yf+band:yf-band;return y1===y0?t[last+1]:t[last]+(lv-y0)/(y1-y0)*(t[last+1]-t[last]);}
   function _w11_trapz(t,f){var s=0;for(var i=1;i<t.length;i++)s+=0.5*(f[i]+f[i-1])*(t[i]-t[i-1]);return s;}
   /* 複素平面の枠（目盛つき）。返り値 {svg, P} */
   function _w11_cplane(U,x,y,w,h,xr,yr,xt,yt){var S=U.S,P=U.plot(x,y,w,h,xr,yr),s=[S.RECT(x,y,w,h,0,"var(--screen)","line",0.8)];
@@ -64,7 +70,7 @@
 
   /* ---- 2 節: 限界感度法 — 持続振動を起こして表を当てる ---- */
   var _W11_ZN={
-    plate:{nm:"温度の板",P:{num:[1.25],den:[500,1],L:20},Ku:31.93,Tu:78.74,ku:"W/K",kr:[5,60],tT:900,nT:18000,tC:800,nC:8000,d:-10,du:"W",yu:"K",xr:[-2.4,0.6],yr:[-1.8,0.6],wr:[1e-4,3],wd:[1e-4,0.25]},
+    plate:{nm:"温度の板",P:{num:[1.25],den:[500,1],L:20},Ku:31.93,Tu:78.74,ku:"W/K",kr:[5,60],tT:900,nT:576000,tC:800,nC:64000,d:-10,du:"W",yu:"K",xr:[-2.4,0.6],yr:[-1.8,0.6],wr:[1e-4,3],wd:[1e-4,0.25]},
     cart:{nm:"台車（遅れ 0.1 s）",P:{num:[1],den:[1,2],L:0.1},Ku:17.0,Tu:0.3721,ku:"N/(m/s)",kr:[2,30],tT:4,nT:20000,tC:3,nC:15000,d:-1,du:"N",yu:"m/s",xr:[-2.4,0.6],yr:[-1.8,0.6],wr:[0.1,1000],wd:[0.1,50]},
     mpos:{nm:"モータの位置",P:{num:[2e6],den:[1,2000,40000,0],L:0},Ku:40,Tu:0.0314159,ku:"V/rad",kr:[2,80],tT:0.3,nT:30000,tC:0.3,nC:30000,d:-1,du:"V",yu:"rad",xr:[-2.4,0.6],yr:[-1.8,0.6],wr:[0.5,1e5],wd:[0.5,1e4]}
   };
@@ -122,7 +128,7 @@
       o.push(q.axes({xl:"時間 t [s]",yl:"制御量",xt:U.nice(0,z.tC,4),yt:[0,1,2],xfmt:function(v){return _w11_g(v,3);},ylOff:34}));
       o.push(q.line([[0,1],[z.tC,1]],"muted",1,"5 3"));
       if(g){cres=_w11_sim(U,z.P,{KP:g[0],TI:g[1],TD:g[2],N:10,tEnd:z.tC,n:z.nC,r:1,d:function(t){return t>=z.tC/2?z.d:0;},every:Math.max(1,Math.round(z.nC/800))});
-        var bad=cres.blow||Math.max.apply(null,cres.y.map(Math.abs))>4;
+        var bad=cres.blow||_w11_amax(cres.y.map(Math.abs))>4;
         o.push(q.clip(cres.t.map(function(t,i){return [t,cres.y[i]];}),bad?"alias":"green",1.9));}
       box.set(S.svg(Wd,cy+14+110+44,o));
       /* 読み出し */
@@ -133,7 +139,7 @@
         (Math.abs(A.ratio-1)<0.02?" — "+ok+"持続振動</span>":(A.ratio<1?" — まだ減っている（限界はもっと上）":" — "+wr+"増えている（限界を越えた）</span>"))+"<br>";
       if(g){hh+="読んだ値 "+U.htx("K_u")+" = "+_w11_g(Kr,3)+" "+z.ku+"、"+U.htx("T_u")+" = "+_w11_g(Tr,4)+" s → 表の "+["P","PI","PID"][kind]+": "+U.htx("K_P")+" = "+_w11_g(g[0],3)+(g[1]?"、"+U.htx("T_I")+" = "+_w11_g(g[1],3)+" s":"")+(g[2]?"、"+U.htx("T_D")+" = "+_w11_g(g[2],3)+" s":"")+"<br>";
         var Lg2=_w11_loop(U,z.P,g[0],g[1],g[2],10),mg=U.ctl.margins(Lg2,z.wr[0],z.wr[1]),sm=U.ctl.smax(Lg2,z.wr[0],z.wr[1]);
-        var unst=cres&&(cres.blow||Math.max.apply(null,cres.y.map(Math.abs))>4);
+        var unst=cres&&(cres.blow||_w11_amax(cres.y.map(Math.abs))>4);
         if(unst)hh+=wr+"表の値で制御すると不安定になる</span><br>";
         else{var mx=-1e9,nh=Math.floor(cres.t.length/2);for(var k2=0;k2<nh;k2++)mx=Math.max(mx,cres.y[k2]);
           var P0=z.P.den[z.P.den.length-1]===0?null:z.P.num[z.P.num.length-1]/z.P.den[z.P.den.length-1],yf=(g[1]||P0==null)?1:g[0]*P0/(1+g[0]*P0);
@@ -147,7 +153,7 @@
 
   /* ---- 2 節: リレーの試験 ---- */
   var _W11_RL={
-    plate:{nm:"温度の板",P:{num:[1.25],den:[500,1],L:20},r:35,u0:28,du:[2,28,20],eps:[0,1.5,0],nz:[0,0.1,0.3,0.5],nzDt:1,tEnd:1000,n:10000,tskip:300,Ku:31.93,Tu:78.74,ku:"W/K",uu:"W",yu:"K",off:25,yname:"温度 [°C]",xr:[-0.06,0.01],yr:[-0.035,0.02],ws:[-1.8,-0.5]},
+    plate:{nm:"温度の板",P:{num:[1.25],den:[500,1],L:20},r:35,u0:28,du:[2,28,20],eps:[0,1.5,0],nz:[0,0.1,0.3,0.5],nzDt:1,tEnd:1000,n:80000,tskip:300,Ku:31.93,Tu:78.74,ku:"W/K",uu:"W",yu:"K",off:25,yname:"温度 [°C]",xr:[-0.06,0.01],yr:[-0.035,0.02],ws:[-1.8,-0.5]},
     cart:{nm:"台車（遅れ 0.1 s）",P:{num:[1],den:[1,2],L:0.1},r:1,u0:2,du:[0.2,2,1],eps:[0,0.1,0],nz:[0,0.005,0.01,0.02],nzDt:0.01,tEnd:8,n:80000,tskip:2,Ku:17.0,Tu:0.3721,ku:"N/(m/s)",uu:"N",yu:"m/s",off:0,yname:"速度 [m/s]",xr:[-0.12,0.02],yr:[-0.07,0.04],ws:[0.6,1.8]}
   };
   REG.w11_relay=function(el,U){
@@ -176,7 +182,7 @@
       var nar=_w11_nar(box),Wd=nar?400:700,o=[],res=null;
       if(up.length>=3){var T=(t[up[up.length-1]]-t[up[0]])/(up.length-1),ys=[],ts=[];
         for(i=up[0];i<up[up.length-1];i++){ys.push(y[i]);ts.push(t[i]);}
-        var ym=ys.reduce(function(s,v){return s+v;},0)/ys.length,amp=(Math.max.apply(null,ys)-Math.min.apply(null,ys))/2,w=2*Math.PI/T,cs=0,sn=0;
+        var ym=ys.reduce(function(s,v){return s+v;},0)/ys.length,amp=(_w11_amax(ys)-_w11_amin(ys))/2,w=2*Math.PI/T,cs=0,sn=0;
         for(i=1;i<ts.length;i++){var dt=ts[i]-ts[i-1];cs+=0.5*dt*((ys[i]-ym)*Math.cos(w*ts[i])+(ys[i-1]-ym)*Math.cos(w*ts[i-1]));sn+=0.5*dt*((ys[i]-ym)*Math.sin(w*ts[i])+(ys[i-1]-ym)*Math.sin(w*ts[i-1]));}
         cs*=2/(ts[ts.length-1]-ts[0]);sn*=2/(ts[ts.length-1]-ts[0]);var a1=Math.hypot(cs,sn);
         var sw=0;for(i=up[0]+1;i<up[up.length-1];i++)if(u[i]!==u[i-1])sw++;
@@ -191,7 +197,7 @@
       var stp=Math.max(1,Math.round(m.length/900));for(i=0;i<m.length;i+=stp)pts.push([t[m[i]],u[m[i]]]);
       o.push(pu.line(pts,"gold",1.6));
       if(res){var fu=[];for(var k=0;k<=300;k++){var tt=t0+(t1-t0)*k/300;fu.push([tt,z.u0+4*D/Math.PI*Math.sin(res.w*(tt-res.t0))]);}o.push(pu.line(fu,"gold",1.1,"4 3"));}
-      var lo=Math.min.apply(null,m.map(function(j){return y[j];})),hi=Math.max.apply(null,m.map(function(j){return y[j];})),pad=Math.max(0.05*(hi-lo),1e-6);
+      var lo=_w11_amin(m.map(function(j){return y[j];})),hi=_w11_amax(m.map(function(j){return y[j];})),pad=Math.max(0.05*(hi-lo),1e-6);
       var py=U.plot(x0,114,w1,90,[t0,t1],[z.off+lo-pad,z.off+hi+pad]);
       o.push(py.axes({xl:"時間 t [s]",yl:z.yname,xt:U.nice(t0,t1,4).filter(function(v){return v>=t0&&v<=t1;}),yt:U.nice(z.off+lo,z.off+hi,3),xfmt:function(v){return _w11_g(v,4);},yfmt:function(v){return _w11_g(v,4);},ylOff:40}));
       o.push(py.line([[t0,z.off+z.r],[t1,z.off+z.r]],"muted",1,"5 3"));
@@ -224,7 +230,7 @@
 
   /* ---- 3 節: IMC の λ ---- */
   var _W11_IM={
-    plate:{nm:"温度の板",K:1.25,T:500,L:20,lam:[2,200],l0:20,tR:800,nR:8000,tD:5000,nD:50000,tDs:2000,d:-10,ku:"W/K",du:"W",yu:"K",wr:[1e-4,3]},
+    plate:{nm:"温度の板",K:1.25,T:500,L:20,lam:[2,200],l0:20,tR:800,nR:64000,tD:5000,nD:400000,tDs:2000,d:-10,ku:"W/K",du:"W",yu:"K",wr:[1e-4,3]},
     cart:{nm:"台車（遅れ 0.1 s）",K:0.5,T:0.5,L:0.1,lam:[0.01,2],l0:0.1,tR:3,nR:15000,tD:8,nD:40000,tDs:4,d:-1,ku:"N/(m/s)",du:"N",yu:"m/s",wr:[0.03,3000]},
     mspd:{nm:"モータの速度",K:50,T:0.05,L:0,lam:[0.001,0.1],l0:0.01,tR:0.15,nR:15000,tD:0.6,nD:30000,tDs:0.3,d:-1,ku:"V/(rad/s)",du:"V",yu:"rad/s",wr:[1,3e4]}
   };
@@ -259,15 +265,15 @@
       o.push(S.T(nar?10:14,14,"(a) 目標値を 1 上げる","start",10.5,"ink",true));
       o.push(p.axes({xl:null,yl:"制御量",xt:U.nice(0,z.tR,4),yt:[0,1],xfmt:function(){return "";},ylOff:34}));
       o.push(p.line([[0,1],[z.tR,1]],"muted",1,"5 3"));
-      var blow=a.blow||Math.max.apply(null,a.y.map(Math.abs))>5;
+      var blow=a.blow||_w11_amax(a.y.map(Math.abs))>5;
       o.push(p.clip(a.t.map(function(t,i){return [t,a.y[i]];}),blow?"alias":"signal",1.9));
-      var umx=Math.max(KP*b*1.2,KP*0.6,Math.max.apply(null,a.u)*1.1),umn=Math.min(0,Math.min.apply(null,a.u)*1.1);
+      var umx=Math.max(KP*b*1.2,KP*0.6,_w11_amax(a.u)*1.1),umn=Math.min(0,_w11_amin(a.u)*1.1);
       var q=U.plot(x0,140,w1,64,[0,z.tR],[umn,umx]);
       o.push(q.axes({xl:"時間 t [s]",yl:"u",xt:U.nice(0,z.tR,4),yt:U.nice(umn,umx,2),xfmt:function(v){return _w11_g(v,3);},yfmt:function(v){return _w11_g(v,3);},ylOff:34}));
       o.push(q.clip(a.t.map(function(t,i){return [t,a.u[i]];}),"gold",1.5));
       /* (b) 外乱 */
       var bx=nar?54:420,by=nar?262:26,bw2=nar?326:260;
-      var mn=Math.min.apply(null,dr.y),dmax=Math.max(Math.abs(mn)*1.15,1e-9),bl2=dr.blow||Math.abs(mn)>1e6;
+      var mn=_w11_amin(dr.y),dmax=Math.max(Math.abs(mn)*1.15,1e-9),bl2=dr.blow||Math.abs(mn)>1e6;
       var pd=U.plot(bx,by,bw2,96,[0,z.tDs],[-dmax,0.35*dmax]);
       o.push(S.T(bx-(nar?44:6),by-12,"(b) 外乱 "+_w11_g(z.d,3)+" "+z.du+" への応答","start",10.5,"ink",true));
       o.push(pd.axes({xl:"時間 t [s]",yl:null,xt:U.nice(0,z.tDs,4),yt:U.nice(-dmax,0,2),xfmt:function(v){return _w11_g(v,3);},yfmt:function(v){return _w11_g(v,2);}}));
@@ -291,7 +297,7 @@
       else hh+="式（モデルどおり、"+U.htx("T_I")+" = T）: 一巡伝達関数は 1/(λs)、位相余裕 90°、ゲイン余裕 ∞<br>";
       hh+="本当の対象で: 位相余裕 <b>"+(mg.pm!=null?_w11_f(mg.pm,1)+"°":"—")+"</b>、ゲイン余裕 "+(mg.gmDb!=null?_w11_f(mg.gmDb,2)+" dB（"+_w11_g(mg.gm,3)+" 倍）":"∞")+"、−1 の点との最短距離 "+_w11_f(sm.dist,2)+"<br>";
       if(unst)hh+='<span class="warn">閉ループは不安定</span><br>';
-      else{var mx=Math.max.apply(null,a.y),ts=_w11_settle(a.t,a.y,1,0.02);
+      else{var mx=_w11_amax(a.y),ts=_w11_settle(a.t,a.y,1,0.02);
         hh+="目標値 +1: 行き過ぎ量 <b>"+_w11_f(Math.max(0,mx-1)*100,1)+" %</b>、2 % 整定時間 "+(ts!=null?_w11_g(ts,3)+" s":"記録の中で入らない")+"、始めの操作量 "+U.htx("bK_P")+" = "+_w11_g(b*KP,3)+"<br>";
         var iae=_w11_trapz(dr.t,dr.y.map(Math.abs));
         hh+="外乱 "+_w11_g(z.d,3)+" "+z.du+": 最大のずれ <b>"+_w11_g(-mn,3)+" "+z.yu+"</b>、IAE <b>"+_w11_g(iae,4)+"</b>（振れなければ式の |d|/"+U.htx("K_I")+" = "+_w11_g(Math.abs(z.d)*TI/KP,4)+"）";}
@@ -302,7 +308,7 @@
 
   /* ---- 4 節: 飽和とワインドアップ ---- */
   var _W11_WU={
-    plate:{nm:"温度の板",P:{num:[1.25],den:[500,1],L:20},KP:10,TI:160,lim:[40,200],l0:80,sym:false,rr:[5,50],r0:35,tEnd:3000,tShow:1000,n:30000,Tt:[5,1000],t0:80,band:0.5,ru:"K",uu:"W",off:25,yname:"温度 [°C]",ku:"W/K"},
+    plate:{nm:"温度の板",P:{num:[1.25],den:[500,1],L:20},KP:10,TI:160,lim:[40,200],l0:80,sym:false,rr:[5,50],r0:35,tEnd:3000,tShow:1000,n:240000,Tt:[5,1000],t0:80,band:0.5,ru:"K",uu:"W",off:25,yname:"温度 [°C]",ku:"W/K"},
     mspd:{nm:"モータの速度",P:{num:[50],den:[0.05,1],L:0},KP:0.1,TI:0.05,lim:[6,24],l0:12,sym:true,rr:[100,600],r0:500,tEnd:0.5,tShow:0.5,n:25000,Tt:[0.002,0.2],t0:0.025,band:null,ru:"rad/s",uu:"V",off:0,yname:"角速度 [rad/s]",ku:"V/(rad/s)"},
     cart:{nm:"台車の速度",P:{num:[1],den:[1,2],L:0.1},KP:5,TI:0.5,lim:[2.5,10],l0:4,sym:true,rr:[0.5,2],r0:1,tEnd:4,tShow:3,n:40000,Tt:[0.02,2],t0:0.25,band:null,ru:"m/s",uu:"N",off:0,yname:"速度 [m/s]",ku:"N/(m/s)"}
   };
@@ -332,7 +338,7 @@
       var t=a.t,y=a.y,u=a.u,uc=a.uc,I=a.I,e=a.e,nar=_w11_nar(box),Wd=nar?400:700,o=[],i;
       var tS=z.tShow,stp=Math.max(1,Math.round(t.length*tS/z.tEnd/700)),sel=[];for(i=0;i<t.length&&t[i]<=tS+1e-9;i+=stp)sel.push(i);
       var x0=nar?56:62,w1=nar?324:610;
-      var ymx=Math.max(R*1.05,Math.max.apply(null,y)*1.05),p=U.plot(x0,26,w1,nar?110:120,[0,tS],[z.off,z.off+ymx]);
+      var ymx=Math.max(R*1.05,_w11_amax(y)*1.05),p=U.plot(x0,26,w1,nar?110:120,[0,tS],[z.off,z.off+ymx]);
       o.push(S.T(nar?10:14,14,"(a) 制御量（塗った部分: 正と負の偏差の面積）","start",10.5,"ink",true));
       o.push(p.axes({xl:null,yl:z.yname,xt:U.nice(0,tS,5),yt:U.nice(z.off,z.off+ymx,4),xfmt:function(){return "";},yfmt:function(v){return _w11_g(v,4);},ylOff:40}));
       var ts=sel.map(function(j){return t[j];}),yy=sel.map(function(j){return z.off+y[j];});
@@ -340,7 +346,7 @@
       o.push(p.line([[0,z.off+R],[tS,z.off+R]],"muted",1,"5 3"));
       o.push(p.line(sel.map(function(j){return [t[j],z.off+y[j]];}),"signal",2));
       /* (b) 操作量 */
-      var ucm=Math.max.apply(null,uc),ucn=Math.min.apply(null,uc),q0=Math.min(umin,ucn,0),q1=Math.max(umax*1.3,Math.min(ucm,umax*5));
+      var ucm=_w11_amax(uc),ucn=_w11_amin(uc),q0=Math.min(umin,ucn,0),q1=Math.max(umax*1.3,Math.min(ucm,umax*5));
       var q=U.plot(x0,nar?168:178,w1,nar?90:100,[0,tS],[q0,q1]);
       o.push(S.T(nar?10:14,nar?158:168,"(b) 計算した操作量（破線）・実際の操作量（実線）・I の分（緑）","start",10.5,"ink",true));
       o.push(q.axes({xl:"時間 t [s]",yl:"["+z.uu+"]",xt:U.nice(0,tS,5),yt:U.nice(q0,q1,4),xfmt:function(v){return _w11_g(v,3);},yfmt:function(v){return _w11_g(v,3);},ylOff:40}));
@@ -350,11 +356,11 @@
       o.push(q.clip(sel.map(function(j){return [t[j],I[j]];}),"green",1.6));
       box.set(S.svg(Wd,(nar?168:178)+(nar?90:100)+44,o));
       /* 読み出し */
-      var mx=Math.max.apply(null,y),ep=0,en=0;for(i=1;i<t.length;i++){var h2=t[i]-t[i-1],e0=e[i-1],e1=e[i];ep+=0.5*h2*(Math.max(e0,0)+Math.max(e1,0));en+=0.5*h2*(Math.max(-e0,0)+Math.max(-e1,0));}
+      var mx=_w11_amax(y),ep=0,en=0;for(i=1;i<t.length;i++){var h2=t[i]-t[i-1],e0=e[i-1],e1=e[i];ep+=0.5*h2*(Math.max(e0,0)+Math.max(e1,0));en+=0.5*h2*(Math.max(-e0,0)+Math.max(-e1,0));}
       var band=z.band||0.02*R,st=_w11_settle(t,y,R,band),satHi=-1,satLo=-1;for(i=0;i<u.length;i++){if(u[i]>=umax-1e-9)satHi=t[i];if(u[i]<=umin+1e-9&&t[i]>0)satLo=t[i];}
       var KI=z.KP/z.TI,need=I[I.length-1]-I[0],hh="";
       hh+="最高 <b>"+_w11_g(z.off+mx,4)+" "+(z.off?"°C":z.ru)+"</b>"+(mx>R+band?'（<span class="warn">行き過ぎ '+_w11_g(mx-R,3)+" "+z.ru+"</span>）":"（行き過ぎなし）")+"、±"+_w11_g(band,3)+" "+z.ru+" に入るのは <b>"+(st!=null?_w11_g(st,4)+" s":"記録の中で入らない")+"</b><br>";
-      hh+="上限に張り付くのは "+(satHi>=0?"<b>"+_w11_g(satHi,4)+" s まで</b>":"なし")+(satLo>=0?"（下限には "+_w11_g(satLo,4)+" s まで）":"")+"、I の分の最大 "+_w11_g(Math.max.apply(null,I),4)+" "+z.uu+"<br>";
+      hh+="上限に張り付くのは "+(satHi>=0?"<b>"+_w11_g(satHi,4)+" s まで</b>":"なし")+(satLo>=0?"（下限には "+_w11_g(satLo,4)+" s まで）":"")+"、I の分の最大 "+_w11_g(_w11_amax(I),4)+" "+z.uu+"<br>";
       hh+="偏差の面積: 正 "+_w11_g(ep,4)+"、負 "+_w11_g(en,4)+"、差 <b>"+_w11_g(ep-en,4)+"</b> "+z.ru+"·s"+(A===0?"（対策なしでは、I の分の始めと終わりの差 ÷ "+U.htx("K_I")+" = "+_w11_g(need/KI,4)+" と一致する）":"（対策ありでは、張り付いている間の面積は積分されないので一致しない）");
       ro.innerHTML=hh+'<div class="wnote">PI は本文の値（温度の板は 3 節の λ = 20 s、モータの速度は 10 章 5 節、台車は λ = 0.1 s の IMC）。微分は使わない。クランプは、計算した操作量が範囲の外で、積分するとさらに外へ向かう間は積分を止める。バックカリキュレーションは (u − u<sub>c</sub>)/T<sub>t</sub> を積分に足す。どれも始めは止まった状態（I の分 0）から目標値を変える。</div>';
     }
