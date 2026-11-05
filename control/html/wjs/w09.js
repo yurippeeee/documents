@@ -10,7 +10,8 @@
   function _w09_ph(U,pl,K,L,w){var ws=U.ctl.logspace(Math.log10(Math.min(pl.wr[0],w/2)),Math.log10(w),800);var B=U.ctl.bode(_w09_tf(U,pl,K,L),ws);return B.ph[B.ph.length-1];}
   /* 大きい数・小さい数は a×10^{n}（S.TX の書き方）で */
   function _w09_e(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);
-    if(a>=1e5||a<1e-3){var ex=Math.floor(Math.log10(a)+1e-12),mt=v/Math.pow(10,ex),ms=(+mt.toPrecision(d)).toString().replace("-","−");return (ms==="1"?"":(ms==="−1"?"−":ms+"×"))+"10^{"+ex+"}";}
+    if(a>=1e5||a<1e-3){var ex=Math.floor(Math.log10(a)+1e-12),mt=+(v/Math.pow(10,ex)).toPrecision(d);if(Math.abs(mt)>=10){mt=+(mt/10).toPrecision(d);ex++;}
+      var ms=mt.toString().replace("-","−");return (ms==="1"?"":(ms==="−1"?"−":ms+"×"))+"10^{"+ex+"}";}
     return _w09_g(v,d+1);}
 
   /* ---- 例の対象（P(s) = num/den、測った値の遅れ L） ---- */
@@ -246,7 +247,7 @@
       h+=(nr===0&&ni===0)?'<span class="ok">根はすべて左半平面にある（安定）</span>':(nr>0?'<span class="warn">右半平面に根がある（不安定）</span>':'虚軸の上に根がある（安定限界）');
       if(e===0)h+="<br>安定な範囲: 0 < "+U.htx("K_P")+" < 40 V/rad（s"+"<sup>1</sup> の行 40000 − 1000"+U.htx("K_P")+" > 0）";
       if(e===1){var K=kp.get();h+="<br>"+(K<40?U.htx("K_I")+" の上限 "+U.htx("K_P")+"(40 − "+U.htx("K_P")+")/2 = "+_w09_p(K*(40-K)/2,3)+" V/(rad·s)":U.htx("K_P")+" ≥ 40 では、どの "+U.htx("K_I")+" でも不安定");}
-      ro.innerHTML=h+'<div class="wnote">モータの式は 6 章 4 節と同じ Δ(s) = s³ + 2000s² + 40000s + 2×10⁶K<sub>P</sub>（PI 制御では 4 次）。根はアバース法で数値的に求めた（共通部品 U.ctl.poly.roots）。</div>';
+      ro.innerHTML=h+'<div class="wnote">'+(e<=1?'モータの式は 6 章 4 節と同じ Δ(s) = s³ + 2000s² + 40000s + 2×10⁶K<sub>P</sub>（PI 制御では 4 次）。':'')+'根は数値的に求めた（共通部品 U.ctl.poly.roots）。1 列目に 0 が出たときは小さな正の数 ε に、行がすべて 0 になったときは 1 つ上の行の式を微分した係数に置き換えて表を続ける。</div>';
     }
     draw();
   };
