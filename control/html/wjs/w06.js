@@ -350,7 +350,7 @@
         poles=[{re:sg,im:w},{re:sg,im:-w},{re:-a,im:0}];apoles=[];yl=[-1.0,1.8];
         var p={re:sg,im:w},f=_w06_div(_w06_c(a,0),_w06_add(p,_w06_c(a,0))),pm=Math.hypot(sg,w);
         note="極の組 "+_w06_ptxt(sg,w,3)+"（原点から "+_w06_sig(pm,3)+" rad/s）、遠い極 −ω<sub>a</sub> = −"+_w06_sig(a,3)+"（原点からの距離の比 "+_w06_sig(a/pm,3)+" 倍）<br>"+
-          "遠い極の項の大きさ −G<sub>0</sub>(−ω<sub>a</sub>) = <b>"+_w06_sig(-G0a*100,3)+" %</b>（最終値に対する割合）、極の組の留数に掛かる ω<sub>a</sub>/(p + ω<sub>a</sub>) = "+_w06_sig(_w06_abs(f),3)+" ∠ "+_w06_sig(Math.atan2(f.im,f.re)*180/Math.PI,3)+"°";}
+          "遠い極の項の大きさ −ω<sub>n</sub>²/(ω<sub>a</sub>² − 2ζω<sub>n</sub>ω<sub>a</sub> + ω<sub>n</sub>²) = <b>"+_w06_sig(-G0a*100,3)+" %</b>（最終値に対する割合）、極の組の留数に掛かる ω<sub>a</sub>/(p + ω<sub>a</sub>) = "+_w06_sig(_w06_abs(f),3)+" ∠ "+_w06_sig(Math.atan2(f.im,f.re)*180/Math.PI,3)+"°";}
       else if(m===1){var kp=sk.get(),d3=[1,2000,40000,2e6*kp],d2=[1,20,1000*kp];
         var r3=CT.poly.roots(d3),r2=CT.poly.roots(d2),dom=r3.filter(function(z){return z.re>-1000;}),far=r3.filter(function(z){return z.re<=-1000;})[0];
         var sgd=dom.length?Math.max.apply(null,dom.map(function(z){return z.re;})):-10;

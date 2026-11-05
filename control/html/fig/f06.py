@@ -688,7 +688,7 @@ def _f06_bibo_fig():
             o.append(W(r.x, r.Y(-57.3), r.x + r.w, r.Y(-57.3), c=MUT, lw=0.9, dash="3 3"))
             o.append(r.clip(list(zip(t2, ang)), c=c, lw=1.6))
             o.append(T(r.x - 6, r.y - 6, "角度 [°]　一定の力 0.01 N", "start", 8.5, MUT))
-            o.append(T(r.x + 4, r.Y(-57.3) + 13, "1.07 s で 1 rad（57°）", "start", 9.5, c, True, halo=True))
+            o.append(T(r.x + 4, r.Y(-57.3) + 13, "1.07 s で −1 rad（−57°）", "start", 9.5, c, True, halo=True))
         if k < 2:
             o.append(W(14, y0 + 138, 690, y0 + 138, c=LIN, lw=0.8))
         y0 += 146
