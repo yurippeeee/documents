@@ -104,10 +104,10 @@ def _f08_sine3_fig():
         o.append(TX(xr, y0 + 12, "%s ω = %g rad/s（周期 %s s）" % (lab, w, ("%.3g" % per)), "start", 10.5, INK, True))
         o.append(TX(xr, y0 + 32, "速度の振幅 %.3f m/s" % gain, "start", 10, SIG))
         o.append(TX(xr, y0 + 48, "山の遅れ %.3f s" % (-math.radians(ph) / w), "start", 10, SIG))
-        o.append(TX(xr, y0 + 68, "ゲイン %.3f (m/s)/N" % gain, "start", 10, INK, True))
-        o.append(TX(xr, y0 + 84, "位相 %s°" % _f08_f(ph, 1), "start", 10, INK, True))
+        o.append(TX(xr, y0 + 68, "振幅の比 %.3f (m/s)/N" % gain, "start", 10, INK, True))
+        o.append(TX(xr, y0 + 84, "遅れ ÷ 周期 %.3f" % (-ph / 360.0), "start", 10, INK, True))
         y0 += 134
-    return SVG(700, y0 - 4, o, "止まっている台車（ばねなし。伝達関数 0.5/(0.5s + 1) (m/s)/N）を、振幅 1 N の正弦波の力で押し引きしたときの速度（細かい刻み幅の数値計算）。初めの短い間を過ぎると、速度は力と同じ角周波数の正弦波になる（破線は定常状態の振幅）。角周波数が高いほど振幅は小さく、山（点）は力の山より遅れ、その遅れの 1 周期に対する割合（位相）は大きくなる。")
+    return SVG(700, y0 - 4, o, "止まっている台車（ばねなし。伝達関数 0.5/(0.5s + 1) (m/s)/N）を、振幅 1 N の正弦波の力で押し引きしたときの速度（細かい刻み幅の数値計算）。初めの短い間を過ぎると、速度は力と同じ角周波数の正弦波になる（破線は、落ち着いた後の速度の振幅）。角周波数が高いほど振幅は小さく、山（点）は力の山より遅れ、その遅れの 1 周期に対する割合は大きくなる。")
 
 
 F["e08_sine3"] = _f08_sine3_fig()
@@ -329,7 +329,7 @@ def _f08_db_fig():
     o.append(T(Xw(10000) + 4, yw + 34, "ω [rad/s]", "end", 9.5, MUT))
     o.append(DIM(Xw(1), yw + 34, Xw(10), yw + 34, "1 dec", c=MUT, sz=9.5, above=False))
     objs = [(0.002, "温度の板 0.002", 222, "start", TEA), (2, "台車の速度 2", 222, "end", SIG), (5, "台車とばね 5", 208, "end", PUR),
-            (10, "RC 回路 10", 208, "start", GLD), (20, "モータ 20", 222, "start", GRN), (1980, "モータの巻線 1980", 222, "middle", ALI)]
+            (10, "RC 回路 10", 208, "start", GLD), (20, "モータ 20", 222, "start", GRN), (2000, "モータの巻線 2000", 222, "middle", ALI)]
     for w, s_, yl, a, c in objs:
         x = Xw(w)
         o.append(D(x, yw, c, 4))

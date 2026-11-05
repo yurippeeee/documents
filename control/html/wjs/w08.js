@@ -39,7 +39,7 @@
     U.button(br,"本文の例（台車の速度・2 rad/s）",function(){pre(0,2);});
     U.button(br,"0.5 rad/s",function(){pre(0,0.5);});
     U.button(br,"8 rad/s",function(){pre(0,8);});
-    U.button(br,"台車とばね: 共振 4.80 rad/s",function(){pre(1,4.796);});
+    U.button(br,"台車とばね: ゲインの山 4.80 rad/s",function(){pre(1,4.796);});
     U.button(br,"温度の板 0.05 rad/s",function(){pre(3,0.05);});
     var br2=U.btnrow(el);
     var th=0,tk=U.ticker(function(){th+=2*Math.PI*0.02;drawAnim();},40);
@@ -297,7 +297,10 @@
       var Mr=1,wr=null;if(z<1/Math.SQRT2){Mr=1/(2*z*Math.sqrt(1-z*z));wr=w*Math.sqrt(1-2*z*z);}
       var q=1-2*z*z,wb=w*Math.sqrt(q+Math.sqrt(q*q+1));
       /* 数値（細かい格子で）の山とバンド幅 */
-      var gm=-1e9,gw=0;B.db.forEach(function(v,i){if(v>gm){gm=v;gw=ws[i];}});
+      var gi=0;B.db.forEach(function(v,i){if(v>B.db[gi])gi=i;});
+      var mag=function(x){var v=U.ctl.freq(G,x);return Math.sqrt(v.re*v.re+v.im*v.im);},glo=ws[Math.max(0,gi-1)],ghi=ws[Math.min(ws.length-1,gi+1)];
+      for(var it=0;it<80;it++){var m1=glo+(ghi-glo)/3,m2=ghi-(ghi-glo)/3;if(mag(m1)<mag(m2))glo=m1;else ghi=m2;}
+      var gw=(glo+ghi)/2,gm=20*Math.log10(mag(gw));
       var wbn=null;for(var i=1;i<ws.length;i++)if(B.db[i-1]>=-3.0103&&B.db[i]<-3.0103){wbn=ws[i-1]*Math.pow(ws[i]/ws[i-1],(B.db[i-1]+3.0103)/(B.db[i-1]-B.db[i]));break;}
       if(wr){O.push(S.D(bs.Pm.X(wr),bs.Pm.Y(20*Math.log10(Mr)),"alias",4));O.push(S.TX(bs.Pm.X(wr)-6,bs.Pm.Y(20*Math.log10(Mr))-6,"M_r "+_w08_f(20*Math.log10(Mr),2)+" dB","end",9.5,"alias",true,true));}
       O.push(S.D(bs.Pm.X(wb),bs.Pm.Y(-3.01),"green",4));O.push(S.TX(bs.Pm.X(wb)+6,bs.Pm.Y(-3.01)-6,"ω_b "+_w08_p3(wb,3),"start",9.5,"green",true,true));
@@ -328,7 +331,7 @@
       box.set(S.svg(Wd,nar?cy+100+44:Hh,O));
       /* 読み出し */
       var h="ζ = "+_w08_f(z,3)+"、ω<sub>n</sub> = "+_w08_sig(w,3)+" rad/s<br>";
-      h+="共振ピーク: "+(wr?"式 1/(2ζ√(1 − ζ²)) = <b>"+_w08_sig(Mr,3)+"（"+_w08_f(20*Math.log10(Mr),2)+" dB）</b>、共振角周波数 ω<sub>n</sub>√(1 − 2ζ²) = "+_w08_p3(wr,3)+" rad/s（格子で探した値 "+_w08_f(gm,2)+" dB・"+_w08_p3(gw,3)+" rad/s）":"ζ ≥ 0.707 なので山は無い（0 dB）")+"<br>";
+      h+="共振ピーク: "+(wr?"式 1/(2ζ√(1 − ζ²)) = <b>"+_w08_p3(Mr,3)+"（"+_w08_f(20*Math.log10(Mr),2)+" dB）</b>、共振角周波数 ω<sub>n</sub>√(1 − 2ζ²) = "+_w08_p3(wr,3)+" rad/s（数値で探した値 "+_w08_f(gm,2)+" dB・"+_w08_p3(gw,3)+" rad/s）":"ζ ≥ 0.707 なので山は無い（0 dB）")+"<br>";
       h+="バンド幅: 式 <b>"+_w08_p3(wb,3)+" rad/s</b>（数値 "+(wbn?_w08_p3(wbn,3):"—")+" rad/s）、ω<sub>b</sub>/ω<sub>n</sub> = "+_w08_f(wb/w,3)+"<br>";
       h+="行き過ぎ量: 式 e^(−πζ/√(1 − ζ²)) = <b>"+(z<1?_w08_f(mpF,1)+" %":"0 %")+"</b>（数値 "+_w08_f(Mp*100,1)+" %）、立ち上がり時間 "+(tr!==null?"<b>"+_w08_p3(tr,3)+" s</b>、ω<sub>b</sub> × t<sub>r</sub> = "+_w08_f(wb*tr,2):"—");
       ro.innerHTML=h+'<div class="wnote">G(s) = ω<sub>n</sub><sup>2</sup>/(s<sup>2</sup> + 2ζω<sub>n</sub>s + ω<sub>n</sub><sup>2</sup>)。ボード線図の横軸は ω<sub>n</sub>/30 から 30ω<sub>n</sub> なので、ω<sub>n</sub> を変えても線の形は変わらず、目盛の数字だけが変わる（時間の目盛も同じ）。</div>';
