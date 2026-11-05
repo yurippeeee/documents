@@ -56,7 +56,7 @@
     var r2=U.ctrls(el);
     var ts=U.slider(r2,"制御周期 T<sub>s</sub>",{values:[1,2,5,10,20],value:1,fmt:function(v){return v+" ms";},onInput:draw});
     var cp=U.slider(r2,"計算の時間（平均）",{values:[0.05,0.1,0.2,0.3,0.5,0.8],value:0.3,fmt:function(v){return v+" ms";},onInput:draw});
-    var jj=U.slider(r2,"始まりの遅れの最大（揺らぎ）",{values:[0,5,10,20,40,60],value:10,fmt:function(v){return v+" %（周期に対して）";},onInput:draw});
+    var jj=U.slider(r2,"揺らぎ（T<sub>s</sub> に対する割合）",{values:[0,5,10,20,40,60],value:10,fmt:function(v){return v+" %";},onInput:draw});
     var seed=1,br=U.btnrow(el);
     function set(w,o,t,c,j,b){way.set(w);out.set(o);ts.set(t);cp.set(c);jj.set(j);bw.set(b);draw();}
     U.button(br,"本文の例（(b)・(B)・1 ms）",function(){set(1,1,1,0.3,10,0);});
@@ -72,7 +72,7 @@
       var r=_w16_jrun(U,{way:W_,out:O,Ts:Ts,comp:cp.get()/1000,J:jj.get()/100,b:b,seed:seed}),ref=_w16_ref(U,b);
       var nar=_w16_nar(box),Wd=nar?400:700,o=[];
       /* タイミング図（始めの 6 周期） */
-      var x0=nar?52:62,x1=Wd-14,n=6,tmax=n*Ts,X=function(tt){return x0+tt/tmax*(x1-x0);},yt=34;
+      var x0=nar?52:62,x1=Wd-14,n=6,tmax=n*Ts,X=function(tt){return x0+tt/tmax*(x1-x0);},yt=44;
       o.push(S.T(nar?8:14,16,"始めの 6 周期のタイミング（▲ 測る、▼ 出す、帯は計算）","start",10.5,"ink",true));
       o.push(S.L(x0,yt+10,x1,yt+10,"line",1));
       for(var k=0;k<=n;k++){o.push(S.L(X(k*Ts),yt-14,X(k*Ts),yt+16,"faint",1,"3 3"));o.push(S.T(X(k*Ts),yt+30,_w16_g(k*Ts*1000,3),"middle",9.5,"muted"));}
@@ -83,15 +83,16 @@
         if(e.to!=null&&e.to<=tmax)o.push(S.PL([[X(e.to)-3.6,yt-18],[X(e.to)+3.6,yt-18],[X(e.to),yt-12]],"gold",1,"gold"));});
       /* 応答 */
       var py=yt+62,ph=nar?120:150,pw=x1-x0;
-      var P=U.plot(x0,py,pw,ph,[0,2],[0,1.4]);
-      o.push(P.axes({xl:null,yl:"角度 [rad]",xt:[0,0.5,1,1.5,2],yt:[0,0.5,1],xfmt:function(){return "";},yfmt:function(v){return _w16_f(v,1);},ylOff:nar?36:40}));
+      var P=U.plot(x0,py,pw,ph,[0,2],[-0.5,1.5]);
+      o.push(P.axes({xl:null,yl:"角度 [rad]",xt:[0,0.5,1,1.5,2],yt:[-0.5,0,0.5,1,1.5],xfmt:function(){return "";},yfmt:function(v){return _w16_f(v,1);},ylOff:nar?36:40}));
       o.push(P.line([[0,1],[2,1]],"muted",1,"5 3"));
       o.push(P.line(ref.rec.map(function(p){return [p[0],p[1]];}),"muted",1.4,"4 3"));
       o.push(P.clip(r.rec.map(function(p){return [p[0],p[1]];}),"signal",2));
       o.push(S.L(P.X(1),py,P.X(1),py+ph,"purple",1,"3 3"));
       o.push(S.T(P.X(1)+4,py+12,"負荷トルク","start",9.5,"purple",false,false,null,true));
-      var qy=py+ph+16,qh=nar?70:80,Q=U.plot(x0,qy,pw,qh,[0,2],[-12,12]);
-      o.push(Q.axes({xl:"時間 t [s]",yl:"電圧 [V]",xt:[0,0.5,1,1.5,2],yt:[-12,0,12],xfmt:function(v){return _w16_g(v,2);},yfmt:function(v){return String(v).replace("-","−");},ylOff:nar?36:40}));
+      var um=0;r.rec.forEach(function(p){um=Math.max(um,Math.abs(p[2]));});var UL=[1.5,3,6,12].filter(function(v){return v>=um-1e-9;})[0]||12;
+      var qy=py+ph+16,qh=nar?70:80,Q=U.plot(x0,qy,pw,qh,[0,2],[-UL,UL]);
+      o.push(Q.axes({xl:"時間 t [s]",yl:"電圧 [V]",xt:[0,0.5,1,1.5,2],yt:[-UL,0,UL],xfmt:function(v){return _w16_g(v,2);},yfmt:function(v){return String(v).replace("-","−");},ylOff:nar?36:40}));
       o.push(Q.clip(r.rec.map(function(p){return [p[0],p[2]];}),"gold",1.4));
       o.push(S.LEGL(x0,qy+qh+46,[["signal",null,"この設定"],["muted","4 3","連続時間に近い計算（0.1 ms）"]],9.5,14));
       box.set(S.svg(Wd,qy+qh+56,o));
@@ -195,8 +196,8 @@
       h+="ADC の 1 LSB: "+(la?"<b>"+_w16_g(la,3)+" K</b>":"段なし")+"、PWM の 1 段: "+(lp?"<b>"+_w16_g(lp,3)+" W</b>（行き着く温度の差 KΔu = "+_w16_g(kdu,3)+" K）":"段なし")+"<br>";
       if(lp)h+="偏差の読みが 0 になる範囲（幅 "+(la?_w16_g(la,3)+" K":"0")+"）に入る出力の段: "+(stop?'<span class="ok">ある</span>':'<span class="warn">無い（I の分は止まれない）</span>')+"<br>";
       h+="1500 s 以降の温度の揺れの幅: <b>"+(pp<0.01?_w16_g(pp,2):_w16_f(pp,3))+" K</b>、ヒータの電力のとる値: "+(nl>20?"多数":nl+" 通り")+"<br>";
-      if(lp&&!o.carry&&nl===2&&!A&&!o.noise){var vv=Object.keys(lev).map(Number).sort(function(a,b){return a-b;}),hiN=0,sw=[];for(i=1500;i<r.v.length;i++){if(Math.abs(r.v[i]-vv[1])<1e-9)hiN++;if(i>1500&&r.v[i]!==r.v[i-1])sw.push(i);}
-        var D=hiN/(r.v.length-1500),Tw=sw.length>2?(sw[sw.length-1]-sw[0])/((sw.length-1)/2):0;
+      if(lp&&!o.carry&&nl===2&&!A&&!o.noise){var vv=Object.keys(lev).map(Number).sort(function(a,b){return a-b;}),sw=[];for(i=1501;i<r.v.length;i++)if(r.v[i]!==r.v[i-1])sw.push(i);
+        var m2c=Math.floor((sw.length-1)/2),D=0,Tw=0;if(m2c>=1){var a0=sw[0],a1=sw[2*m2c],hc=0;for(i=a0;i<a1;i++)if(Math.abs(r.v[i]-vv[1])<1e-9)hc++;D=hc/(a1-a0);Tw=(a1-a0)/m2c;}
         if(Tw>0)h+="2 つの段を往復: 上の段の割合 D = "+_w16_f(D,2)+"、周期 "+_w16_g(Tw,3)+" s。式 D(1 − D)KΔu T<sub>w</sub>/T = "+_w16_g(D*(1-D)*kdu*Tw/500,2)+" K<br>";}
       ro.innerHTML=h+'<div class="wnote">本文 3 節の場面。温度は 0〜102.4 °C を ADC の値に比例するように、ヒータは 0〜80 W を PWM の段で出すとした（例の値）。読みは 20 s 遅れ、1 s ごとに制御する。右の図の点は、出力をその段にとどめたときに板が行き着く温度で、緑の帯（偏差の読みが 0 になる範囲）に入る点があれば、I の分はそこで止まれる。</div>';
     }
@@ -210,6 +211,7 @@
     var f=o.f,F=BigInt(f),MAX=2147483647n,MIN=-2147483648n,nO=0;
     function L(v){if(o.ovf==="sat"){if(v>MAX){nO++;return MAX;}if(v<MIN){nO++;return MIN;}return v;}var w=BigInt.asIntN(32,v);if(w!==v)nO++;return w;}
     function rq(v,s){if(o.rnd==="floor")return v>>s;var h=1n<<(s-1n);return v>=0n?(v+h)>>s:-((h-v)>>s);}
+    function qm(x,y){return L(rq(x*y,F));}   /* 本文の qmul（積を 64 ビットで求め、四捨五入して戻し、範囲に収める） */
     function toq(x){var v=x*Math.pow(2,f),a=Math.floor(Math.abs(v)+0.5);return L(BigInt(v>=0?a:-a));}
     var Ts=0.001,a=0.0238/(0.0238+10*Ts),cf={kp:0.84,b:0.5,a:a,akn:a*0.84*10,ki:0.84*Ts/0.168};
     var KP=toq(cf.kp),B=toq(cf.b),A=toq(cf.a),AKN=toq(cf.akn),KI=toq(cf.ki),UMIN=toq(-12),UMAX=toq(12),R=toq(o.r);
@@ -217,14 +219,14 @@
     pf.start(0);var out={t:[0],y:[0],yf:[0],u:[0],uf:[0],nO:0};
     for(var k=0;k<N;k++){
       var Y=toq(x[0]),E=L(R-Y);
-      D=L(rq(A*D,F)-rq(AKN*L(Y-Y1),F));Y1=Y;
-      var PD=L(rq(KP*L(rq(B*R,F)-Y),F)+D),UC=PD+(o.wide?rq(I,F):I),Uq=UC>UMAX?UMAX:(UC<UMIN?UMIN:UC);Uq=L(Uq);
+      D=L(qm(A,D)-qm(AKN,L(Y-Y1)));Y1=Y;
+      var PD=L(qm(KP,L(qm(B,R)-Y))+D),UC=PD+(o.wide?rq(I,F):I),Uq=UC>UMAX?UMAX:(UC<UMIN?UMIN:UC);Uq=L(Uq);
       if(!((UC>UMAX&&E>0n)||(UC<UMIN&&E<0n)))I=o.wide?I+KI*E:L(I+rq(KI*E,F));
       var u=Number(Uq)/Math.pow(2,f),uf=pf.step(o.r,xf[0]),d=(o.load&&k*Ts>=1-1e-12)?1:0;
       x=_w16_madv(x,u-d,Ts);xf=_w16_madv(xf,uf-d,Ts);
       out.t.push((k+1)*Ts);out.y.push(x[0]);out.yf.push(xf[0]);out.u.push(u);out.uf.push(uf);
     }
-    out.nO=nO;out.coef=[["K_P",cf.kp,KP],["b",cf.b,B],["a",cf.a,A],["aK_PN",cf.akn,AKN],["K_PT_s/T_I",cf.ki,KI]];out.f=f;
+    out.nO=nO;out.coef=[["K_P",cf.kp,KP],["b",cf.b,B],["a",cf.a,A],["a·K_P·N",cf.akn,AKN],["K_P·T_s/T_I",cf.ki,KI]];out.f=f;
     return out;
   }
   REG.w16_fixed=function(el,U){
@@ -234,13 +236,13 @@
     var ff=U.slider(r1,"小数部のビット数 f",{values:[8,10,12,14,16,18,20,24,26,27,28],value:16,fmt:function(v){return v+"（Q"+(32-v)+"."+v+"）";},onInput:draw});
     var sc=U.select(r1,"動かし方",["目標 1 rad、1 s に負荷トルク","目標 20 rad"],0,draw);
     var r2=U.ctrls(el);
-    var wd=U.select(r2,"I の分のため方",["64 ビットでためる（本文のコード）","Qf のまま丸めてためる"],0,draw);
-    var rn=U.select(r2,"丸め方",["四捨五入（本文のコード）","切り捨て（右へずらすだけ）"],0,draw);
-    var ov=U.select(r2,"桁あふれのとき",["飽和演算（本文のコード）","一周する（2 の補数）"],0,draw);
+    var wd=U.select(r2,"I の分のため方",["64 ビットでためる（本文）","Q 形式のまま丸めてためる"],0,draw);
+    var rn=U.select(r2,"丸め方",["四捨五入（本文）","切り捨て（ずらすだけ）"],0,draw);
+    var ov=U.select(r2,"桁あふれのとき",["飽和演算（本文）","一周する（2 の補数）"],0,draw);
     var br=U.btnrow(el);
     function set(f,s,w,r,o){ff.set(f);sc.set(s);wd.set(w);rn.set(r);ov.set(o);draw();}
     U.button(br,"本文のコード（Q16.16）",function(){set(16,0,0,0,0);});
-    U.button(br,"Qf のまま丸める（f = 12）",function(){set(12,0,1,0,0);});
+    U.button(br,"Q 形式のまま丸めてためる（f = 12）",function(){set(12,0,1,0,0);});
     U.button(br,"f = 8",function(){set(8,0,0,0,0);});
     U.button(br,"Q5.27 で 20 rad（一周する）",function(){set(27,1,0,0,1);});
     U.button(br,"Q5.27 で 20 rad（飽和演算）",function(){set(27,1,0,0,0);});
@@ -273,8 +275,8 @@
       /* 読み出し */
       var h="",tb=r.coef.map(function(c){var back=Number(c[2])/Math.pow(2,f);return [U.htx(c[0]),_w16_g(c[1],6),String(c[2]),_w16_g(back,7),(c[1]?_w16_g((back-c[1])/c[1]*100,2)+" %":"—")];});
       h+=U.tbl(["係数","値","整数","戻した値","差"],tb,["left","right","right","right","right"]);
-      var e1=Math.abs(r.r-r.y[r.y.length-1]),thr=Math.pow(2,-f)/(2*0.005);
-      h+="終わりの偏差: 整数 <b>"+_w16_g(e1*1000,3)+" mrad</b>、float "+_w16_g(Math.abs(r.r-r.yf[r.yf.length-1])*1000,3)+" mrad。差の最大 "+_w16_g(dm,3)+" mrad<br>";
+      var e1=Math.abs(o.r-r.y[r.y.length-1]),thr=Math.pow(2,-f)/(2*0.005);
+      h+="終わりの偏差: 整数 <b>"+_w16_g(e1*1000,3)+" mrad</b>、float "+_w16_g(Math.abs(o.r-r.yf[r.yf.length-1])*1000,3)+" mrad。差の最大 "+_w16_g(dm,3)+" mrad<br>";
       if(!o.wide)h+="I の分が動かなくなる偏差（4 節の式 2<sup>−f</sup>/(2k<sub>I</sub>)）: "+_w16_g(thr*1000,3)+" mrad<br>";
       h+=r.nO?'<span class="warn">範囲を越えた計算: '+r.nO+" 回（"+(o.ovf==="sat"?"端の値にした":"一周した")+"）</span><br>":'<span class="ok">範囲を越えた計算なし</span><br>';
       ro.innerHTML=h+'<div class="wnote">本文 4 節の pid_q16_step と同じ整数の計算（64 ビットの積、四捨五入、飽和演算）を、ブラウザの BigInt で行う。f = 16・64 ビットでためる・四捨五入・飽和演算のとき、本文のコードと同じ値になる。測った角度も小数部 f ビットに丸める。</div>';
@@ -311,8 +313,9 @@
     var r2=U.ctrls(el);
     var mm=U.slider(r2,"平均する周期の数",{values:[1,2,3,5,10],value:3,fmt:function(v){return v+" 周期";},onInput:measure});
     var nn=U.slider(r2,"観測ノイズ（標準偏差）",{values:[0,0.5,1,2,5],value:0,fmt:function(v){return v+" mrad";},onInput:measure});
-    var dd=U.select(r2,"出す時刻",["(B) 次の割り込み（1 節のコード）","(A) すぐ出す"],0,function(){pts=[];measure();});
+    var dd=U.select(r2,"出す時刻",["(B) 次の割り込みの始め","遅れ 0（理想）"],0,function(){pts=[];measure();});
     var pts=[],seed=1,last=null,br=U.btnrow(el);
+    U.button(br,"本文の例（28 rad/s）",function(){ww.set(28);aa.set(0.2);mm.set(3);nn.set(0);dd.set(0);pts=[];measure();});
     U.button(br,"この ω の点を残す",function(){if(last)pts.push(last);draw();});
     U.button(br,"掃引（9 点を順に測る）",function(){pts=[];[3,5,10,20,28,40,60,100,200].forEach(function(w){pts.push(one(w));});draw();});
     U.button(br,"点を消す",function(){pts=[];draw();});
@@ -349,7 +352,7 @@
       h+="ω = "+_w16_g(last.w,3)+" rad/s: 測った "+U.htx("|PC|")+" = <b>"+_w16_g(cx.abs(last.L),4)+"</b>、位相 <b>"+_w16_f(cx.arg(last.L)*180/Math.PI,1)+"°</b>（厳密な値 "+_w16_g(cx.abs(Lt),4)+"、"+_w16_f(cx.arg(Lt)*180/Math.PI,1)+"°）<br>";
       var ps=pts.slice().sort(function(a,b){return a.w-b.w;}),est=null;
       for(i=1;i<ps.length;i++){var g0=20*Math.log10(cx.abs(ps[i-1].L)),g1=20*Math.log10(cx.abs(ps[i].L));if(g0>=0&&g1<0){var fr=g0/(g0-g1),lw=Math.log10(ps[i-1].w)+fr*(Math.log10(ps[i].w)-Math.log10(ps[i-1].w)),a0=cx.arg(ps[i-1].L)*180/Math.PI,a1=cx.arg(ps[i].L)*180/Math.PI;est={w:Math.pow(10,lw),pm:180+a0+fr*(a1-a0)};}}
-      var mg=U.ctl.margins?null:null,wgc=null;for(i=1;i<ws.length;i++)if(db[i-1]>=0&&db[i]<0){wgc=ws[i-1]+(ws[i]-ws[i-1])*db[i-1]/(db[i-1]-db[i]);break;}
+      var wgc=null;for(i=1;i<ws.length;i++)if(db[i-1]>=0&&db[i]<0){wgc=ws[i-1]+(ws[i]-ws[i-1])*db[i-1]/(db[i-1]-db[i]);break;}
       var Lg=wgc?_w16_Lz(U,wgc,d):null;
       h+="残した点から読んだゲイン交差角周波数と位相余裕: "+(est?"<b>"+_w16_g(est.w,3)+" rad/s、"+_w16_f(est.pm,1)+"°</b>":"（0 dB をはさむ 2 点が要る。「掃引」を押す）")+(Lg?"（厳密な値 "+_w16_g(wgc,3)+" rad/s、"+_w16_f(180+cx.arg(Lg)*180/Math.PI,1)+"°）":"")+"<br>";
       ro.innerHTML=h+'<div class="wnote">モータの角度の PID（10 章 6 節の値、1 ms ごと）を目標 1 rad で落ち着かせ、制御器の出す u<sub>c</sub> に A sin ωt を足して出す。1 s 待ってから、決めた周期の数だけ記録し、u<sub>c</sub> と u の ω の成分の比から −U<sub>c</sub>/U を求める。線は 15 章 5 節の方法の厳密な値。赤い ○ が今の点、金色の ○ が残した点。</div>';
