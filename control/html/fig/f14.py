@@ -61,6 +61,7 @@ def _f14_plate(KP=10.0, TI=160.0, b=1.0, r=None, d=None, tEnd=1500.0, h=0.1, Lt=
     xm = 0.0; bufm = [0.0] * max(ndm, 1); bim = 0
     z = 0.0; zb = [0.0] * max(ndm, 1); zi = 0
     al = math.exp(-h / ref) if ref else 0.0
+    alh = math.exp(-h / (2 * ref)) if ref else 0.0
     rf = r or (lambda t: 0.0); df = d or (lambda t: 0.0)
     out = {k: [] for k in ("t", "y", "u", "yp", "y0", "rm", "uff")}
     for k in range(n + 1):
@@ -69,7 +70,8 @@ def _f14_plate(KP=10.0, TI=160.0, b=1.0, r=None, d=None, tEnd=1500.0, h=0.1, Lt=
         rr = rf(t)
         if ref:
             rm = zb[zi] if ndm else z
-            uff = (Tm * (rr - z) / ref + z) / Km
+            zh = rr + (z - rr) * alh          # 刻みの中ほどの値で、零次ホールドの遅れを小さくする
+            uff = (Tm * (rr - zh) / ref + zh) / Km
         else:
             rm = rr; uff = 0.0
         if smith:
@@ -288,6 +290,62 @@ def _f14_heater(inner=False, KP=10.0, TI=160.0, Vd=90.0, tD=200.0, tEnd=1200.0, 
 
 
 # =====================================================================
+# 波線（モデルの印 ~）付きの文字。"P~_0(s)" は P の上に波線を描き、_0 を添字にする
+# （共通部品 TX は、結合文字の波線の後の添字を扱えないため）
+# =====================================================================
+_F14_TXRE = None
+
+
+def _f14_tt(x, y, s, a="start", sz=10, c=INK, b=False, halo=False):
+    """TX と同じ書き方に加えて、「文字~」でその文字に結合文字の波線（U+0303、モデルの印）を付ける。
+    共通部品 TX の分け方は、波線の付いた文字の後の添字を扱えないので、波線の付いた文字も添字の土台にできる分け方で書く。"""
+    import re as _re
+    global _F14_TXRE
+    if _F14_TXRE is None:
+        _F14_TXRE = _re.compile(r"\\(d?dot)\{(.)\}|([A-Za-zα-ωΑ-Ω\u0080-\u024F]\u0303?)_\{([^}]*)\}|([A-Za-zα-ωΑ-Ω]\u0303?)_([A-Za-z0-9∞%]+)|\^\{([^}]*)\}|\^([A-Za-z0-9∞]+)")
+    s = _re.sub(r"(.)~", lambda m: m.group(1) + "\u0303", s)
+    segs, pos = [], 0
+    for mm in _F14_TXRE.finditer(s):
+        if mm.start() > pos:
+            segs.append(("n", s[pos:mm.start()]))
+        if mm.group(1):
+            segs.append(("n", mm.group(2)))
+        elif mm.group(3) is not None:
+            segs.append(("n", mm.group(3))); segs.append(("sub", mm.group(4)))
+        elif mm.group(5) is not None:
+            segs.append(("n", mm.group(5))); segs.append(("sub", mm.group(6)))
+        else:
+            segs.append(("sup", mm.group(7) if mm.group(7) is not None else mm.group(8)))
+        pos = mm.end()
+    if pos < len(s):
+        segs.append(("n", s[pos:]))
+    ssz = sz * 0.72
+    w = sum(tw(t, ssz) if k in ("sub", "sup") else tw(t, sz) for k, t in segs)
+    x0 = x - (w / 2 if a == "middle" else (w if a == "end" else 0))
+    if _CHECK:
+        _BOXES.append((x0, y - sz * 0.82, x0 + w, y + sz * 0.22 + 2, s))
+    hs = ' stroke="%s" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke"' % SCR if halo else ""
+    o = ['<text x="%g" y="%g" text-anchor="start" font-size="%g" fill="%s" font-family="var(--sans)" font-weight="%s"%s>'
+         % (round(x0, 2), round(y, 2), sz, c, "700" if b else "400", hs)]
+    cur = 0.0
+    for kind, t in segs:
+        want = 3.0 if kind == "sub" else (-sz * 0.38 if kind == "sup" else 0.0)
+        dy = want - cur; cur = want
+        fs = ' font-size="%g"' % round(ssz, 2) if kind in ("sub", "sup") else ""
+        o.append('<tspan%s%s>%s</tspan>' % ((' dy="%g"' % round(dy, 2)) if abs(dy) > 1e-9 else "", fs, E(t)))
+    o.append("</text>")
+    return "".join(o)
+
+
+def _f14_tbox(x, yc, s, w=None, c=LIN, fill=PAN, sz=11.5, h=34):
+    """波線付きの文字を 1 行で書いた箱。返り値 (svg, 幅)。"""
+    clean = s.replace("~", "")
+    w = w or max(40, TXW(clean, sz) + 18)
+
+    return RECT(x, yc - h / 2, w, h, 6, fill, c, 1.4) + _f14_tt(x + w / 2, yc + sz * 0.36, s, "middle", sz, INK), w
+
+
+# =====================================================================
 # 図の小さな部品
 # =====================================================================
 def _f14_plot(x, y, w, h, xr, yr, xt, yt, xl=None, yl=None, xf=None, yf=None, sz=9):
@@ -359,7 +417,7 @@ def _f14_2dof_bd_fig():
     o.append(TX(20, y - 9, "r", "start", 10, MUT, True))
     o.append(TX(xe - 2, y - 9, "y", "end", 10, SIG, True))
     note(430, y - 14, [("C_r = C + C_ff、C_y = C", INK, True), ("偏差を待たずに操作量を出す", MUT, False)])
-    return SVG(700, y + 46, o, "制御器の 4 つの形。(a) 1 自由度の制御器は偏差だけを見るので、目標値への応答と外乱への応答が同じ C(s) で決まる。(b) 2 自由度の制御器は、目標値に C_r(s)、測った値に C_y(s) を掛ける。閉ループの極・外乱・観測ノイズは C_y(s) だけで決まる。(c)・(d) は C_r(s) の作り方で、目標値の形を整える前置フィルタと、目標値から輪の外の道で操作量を足すフィードフォワードである。")
+    return SVG(700, y + 46, o, "制御器の 4 つの形。(a) 1 自由度の制御器は偏差だけを見るので、目標値への応答と外乱への応答が同じ C(s) で決まる。(b) 2 自由度の制御器は、目標値に C<sub>r</sub>(s)、測った値に C<sub>y</sub>(s) を掛ける。閉ループの極・外乱・観測ノイズは C<sub>y</sub>(s) だけで決まる。(c)・(d) は C<sub>r</sub>(s) の作り方で、目標値の形を整える前置フィルタと、目標値から輪の外の道で操作量を足すフィードフォワードである。")
 
 
 F["e14_2dof_bd"] = _f14_2dof_bd_fig()
@@ -370,15 +428,15 @@ F["e14_2dof_bd"] = _f14_2dof_bd_fig()
 # =====================================================================
 def _f14_2dof_cmp_fig():
     o = []
-    cases = [("(a) 1 自由度: PI 10 W/K・T_I = 500 s", 10.0, 500.0, 1.0, MUT),
+    cases = [("(a) 1 自由度: PI 10 W/K・T_I = 500 s", 10.0, 500.0, 1.0, SIG),
              ("(b) 1 自由度: PI 10 W/K・T_I = 160 s", 10.0, 160.0, 1.0, ALI),
              ("(c) 2 自由度: (b) の PI ＋ 前置フィルタ (128s + 1)/(160s + 1)（b = 0.8）", 10.0, 160.0, 0.8, GRN)]
     o.append(T(200, 16, "目標値を 1 K 上げる", "middle", 11, INK, True))
-    o.append(T(540, 16, "ヒータの電力に −10 W の外乱", "middle", 11, INK, True))
+    o.append(T(550, 16, "ヒータの電力に −10 W の外乱", "middle", 11, INK, True))
     y0 = 30
     for k, (lab, KP, TI, b, c) in enumerate(cases):
         yy = y0 + k * 124
-        o.append(TX(14, yy + 14, lab, "start", 10.5, c if c != MUT else INK, True))
+        o.append(TX(14, yy + 14, lab, "start", 10.5, c, True))
         A = _f14_plate(KP, TI, b, r=lambda t: 1.0, tEnd=700.0, every=10)
         B = _f14_plate(KP, TI, 1.0, d=lambda t: -10.0, tEnd=1800.0, every=10)
         mp, ts = _f14_stepm(A)
@@ -386,23 +444,22 @@ def _f14_2dof_cmp_fig():
         mn = float(B["y"].min())
         last = k == 2
         p, ax = _f14_plot(70, yy + 26, 260, 74, (0, 700), (0, 1.3), [0, 100, 200, 300, 400, 500, 600, 700], [0, 0.5, 1],
-                          xl="時間 t [s]" if last else None, xf=None if last else (lambda v: ""))
+                          yl="ずれ [K]", xl="時間 t [s]" if last else None, xf=None if last else (lambda v: ""))
         o.append(ax)
         o.append(W(p.X(0), p.Y(1), p.X(700), p.Y(1), c=MUT, lw=1, dash="5 3"))
-        o.append(p.line(_f14_pts(A["t"], A["y"]), c=SIG if c == MUT else c, lw=2))
-        o.append(T(p.X(690), p.Y(0.33), "行き過ぎ %s %%" % _f14_f(mp, 1), "end", 9.5, SIG if c == MUT else c, True, halo=True))
-        o.append(T(p.X(690), p.Y(0.12), "2 %% 整定 %s s" % _f14_g(ts, 3), "end", 9.5, SIG if c == MUT else c, True, halo=True))
-        q, ax = _f14_plot(420, yy + 26, 260, 74, (0, 1800), (-1.1, 0.25), [0, 300, 600, 900, 1200, 1500, 1800], [-1, -0.5, 0],
-                          xl="時間 t [s]" if last else None, xf=None if last else (lambda v: ""))
+        o.append(p.line(_f14_pts(A["t"], A["y"]), c=c, lw=2))
+        o.append(T(p.X(690), p.Y(0.33), "行き過ぎ %s %%" % _f14_f(mp, 1), "end", 9.5, c, True, halo=True))
+        o.append(T(p.X(690), p.Y(0.12), "2 %% 整定 %s s" % _f14_g(ts, 3), "end", 9.5, c, True, halo=True))
+        q, ax = _f14_plot(430, yy + 26, 250, 74, (0, 1800), (-1.1, 0.25), [0, 300, 600, 900, 1200, 1500, 1800], [-1, -0.5, 0],
+                          yl="ずれ [K]", xl="時間 t [s]" if last else None, xf=None if last else (lambda v: ""))
         o.append(ax)
         pts = _f14_pts(B["t"], B["y"])
         o.append(PL([(q.X(pts[0][0]), q.Y(0))] + [(q.X(a_), q.Y(b_)) for a_, b_ in pts] + [(q.X(pts[-1][0]), q.Y(0))],
-                    c="none", lw=0, fill=soft(SIG if c == MUT else c), op=0.8))
-        o.append(q.line(pts, c=SIG if c == MUT else c, lw=2))
-        o.append(T(q.X(1780), q.Y(-0.62), "最大 %s K" % _f14_f(-mn, 2), "end", 9.5, SIG if c == MUT else c, True, halo=True))
-        o.append(T(q.X(1780), q.Y(-0.88), "IAE %s K·s" % _f14_g(iae, 3), "end", 9.5, SIG if c == MUT else c, True, halo=True))
-        o.append(T(30, yy + 66, "K", "middle", 9.5, MUT))
-    return SVG(700, y0 + 3 * 124 + 26, o, "温度の板（60 °C で落ち着いた所から）を 3 つの制御器で比べる。左は目標値を 1 K 上げたときの温度のずれ、右はヒータの電力に −10 W の外乱が入ったときの温度のずれ（塗った面積が IAE）。(a) は目標値によいが外乱に弱く、(b) は外乱に強いが目標値に 19.3 % 行き過ぎる。(c) は (b) と同じ C_y なので外乱への応答は (b) と同じで、目標値への応答だけが前置フィルタで (a) と同じくらいに整う。")
+                    c="none", lw=0, fill=soft(c), op=0.8))
+        o.append(q.line(pts, c=c, lw=2))
+        o.append(T(q.X(1780), q.Y(-0.62), "最大 %s K" % _f14_f(-mn, 2), "end", 9.5, c, True, halo=True))
+        o.append(T(q.X(1780), q.Y(-0.88), "IAE %s K·s" % _f14_g(iae, 3), "end", 9.5, c, True, halo=True))
+    return SVG(700, y0 + 3 * 124 + 26, o, "温度の板（60 °C で落ち着いた所から）を 3 つの制御器で比べる。左は目標値を 1 K 上げたときの温度のずれ、右はヒータの電力に −10 W の外乱が入ったときの温度のずれ（塗った面積が IAE）。(a) は目標値によいが外乱に弱く、(b) は外乱に強いが目標値に 19.3 % 行き過ぎる。(c) は (b) と同じ C<sub>y</sub> なので外乱への応答は (b) と同じで、目標値への応答だけが前置フィルタで (a) と同じくらいに整う。")
 
 
 F["e14_2dof_cmp"] = _f14_2dof_cmp_fig()
@@ -425,7 +482,8 @@ def _f14_ff_inv_fig():
     o.append(p.line(_f14_pts(t, rr), c=MUT, lw=3.2))
     o.append(p.line(_f14_pts(t, R["th"]), c=SIG, lw=1.6, dash="5 3"))
     o.append(LEGL(p.X(0.012), p.Y(10.2), [(MUT, None, "r"), (SIG, "5 3", "θ_m")], 9.5, 12))
-    o.append(T(p.X(0.39), p.Y(1.8), "重なる（差 %s rad 以下）" % _f14_g(float(_f14_np.abs(R["th"] - rr).max()) * 1.05 + 1e-5, 1), "end", 9.5, SIG, True, halo=True))
+    dmax = float(_f14_np.abs(R["th"] - rr).max())
+    o.append(T(p.X(0.39), p.Y(1.8), "2 つは重なる（差は %s rad 未満）" % ("0.001" if dmax < 1e-3 else _f14_g(dmax * 1.5, 1)), "end", 9.5, SIG, True, halo=True))
     # (b) 角速度
     o.append(TX(390, 18, "(b) 角速度の目標 \\dot{r}（台形）", "start", 11, INK, True))
     q, ax = _f14_plot(438, 30, 250, 96, (0, 0.4), (0, 60), xt, [0, 25, 50], yl="[rad/s]", xf=lambda v: "")
@@ -452,7 +510,7 @@ def _f14_ff_inv_fig():
     o.append(TX(q2.X(0.205), q2.Y(1.35), "\\dot{r}/K", "start", 9.5, MUT, True, halo=True))
     o.append(TX(q2.X(0.205), q2.Y(-0.62), "T\\ddot{r}/K", "start", 9.5, MUT, True, halo=True))
     o.append(T(q2.X(0.1) + 4, q2.Y(1.5) + 2, "1.5 V", "start", 9.5, GLD, True, halo=True))
-    return SVG(700, 316, o, "モデルの逆で電圧を決める。(a) 10 rad を 0.3 s で回す目標値 r（太い灰色）と、(d) の電圧 v_ff だけを加えたモータの角度（青の破線）。モデルが正しければ、フィードバックが無くても 2 つは重なる。(b)・(c) 目標値の角速度は台形、角加速度は ±500 rad/s² の段差になる。(d) 要る電圧は、逆起電力と釣り合う角速度の分（破線）と、慣性を加速する角加速度の分（点線）の和で、最大 1.5 V である。")
+    return SVG(700, 316, o, "モデルの逆で電圧を決める。(a) 10 rad を 0.3 s で回す目標値 r（太い灰色）と、(d) の電圧 v<sub>ff</sub> だけを加えたモータの角度（青の破線）。モデルが正しければ、フィードバックが無くても 2 つは重なる。(b)・(c) 目標値の角速度は台形、角加速度は ±500 rad/s² の段差になる。(d) 要る電圧は、逆起電力と釣り合う角速度の分（破線）と、慣性を加速する角加速度の分（点線）の和で、最大 1.5 V である。")
 
 
 F["e14_ff_inv"] = _f14_ff_inv_fig()
@@ -530,12 +588,13 @@ def _f14_ff_plate_fig():
     o.append(p.line(_f14_pts(Bb["t"], Bb["y"]), c=SIG, lw=1.6, dash="5 3"))
     o.append(p.line(_f14_pts(C20["t"], C20["y"]), c=GRN, lw=2.2))
     o.append(p.line(_f14_pts(C10["t"], C10["y"]), c=GRN, lw=1.6, dash="2 2"))
-    rows = [(ALI, None, "1 自由度 (b): %s %%・%s s" % (_f14_f(_f14_stepm(A)[0], 1), _f14_g(_f14_stepm(A)[1], 3))),
-            (SIG, "5 3", "前置フィルタ b = 0.8: %s %%・%s s" % (_f14_f(_f14_stepm(Bb)[0], 1), _f14_g(_f14_stepm(Bb)[1], 3))),
-            (GRN, None, "フィードフォワード λ = 20 s: 0 %%・%s s" % _f14_g(20 + 20 * math.log(50), 3)),
-            (GRN, "2 2", "フィードフォワード λ = 10 s: 0 %%・%s s" % _f14_g(20 + 10 * math.log(50), 3))]
-    for k, (c, dash, s) in enumerate(rows):
-        o.append(LEGL(p.X(130), p.Y(0.6) + k * 14, [(c, dash, s)], 9.5, 10))
+    rows = []
+    for c, dash, lab, R_ in [(ALI, None, "1 自由度 (b)", A), (SIG, "5 3", "前置フィルタ b = 0.8", Bb),
+                             (GRN, None, "フィードフォワード λ = 20 s", C20), (GRN, "2 2", "フィードフォワード λ = 10 s", C10)]:
+        mp, ts = _f14_stepm(R_)
+        rows.append((c, dash, "%s: %s %%・%s s" % (lab, _f14_f(mp, 1), _f14_g(ts, 3))))
+    for k, (c, dash, s_) in enumerate(rows):
+        o.append(LEGL(p.X(130), p.Y(0.6) + k * 14, [(c, dash, s_)], 9.5, 10))
     # (b) モデルの誤差
     o.append(T(380, 18, "(b) λ = 20 s で、本当の対象がモデルと違うとき", "start", 11, INK, True))
     q, ax = _f14_plot(418, 32, 270, 120, (0, 500), (0, 1.3), xt, [0, 0.5, 1], xl="時間 t [s]")
@@ -558,7 +617,7 @@ def _f14_ff_plate_fig():
     o.append(T(z.X(495), z.Y(3.5), "0.8 W に落ち着く（35 K を保つ 28 W からの増し分）", "end", 9.5, GLD, True, halo=True))
     o.append(T(z.X(200), z.Y(13), "1 自由度 (b) の電力", "start", 9.5, ALI, True, halo=True))
     o.append(LEGL(z.X(250), z.Y(20), [(GLD, None, "合計"), (GLD, "5 3", "フィードフォワードの分 Q(s)r")], 9.5, 16))
-    return SVG(700, 334, o, "温度の板の目標値を段差で 1 K 上げる。目標値を前置フィルタ e^(−20s)/(λs + 1) に通し、それにモデルの逆を掛けたもの（11 章の Q(s)）をフィードフォワードとして足す。フィードバックは (b) の PI のまま。(a) モデルどおりなら、制御量は前置フィルタの出力と一致し、行き過ぎない。(b) むだ時間や定常ゲインが違っても、フィードバックが残りを直す。(c) ヒータの電力は、始めに 20 W 増やして、落ち着く値まで減っていく。")
+    return SVG(700, 334, o, "温度の板の目標値を段差で 1 K 上げる。目標値を前置フィルタ e<sup>−20s</sup>/(λs + 1) に通し、それにモデルの逆を掛けたもの（11 章の Q(s)）をフィードフォワードとして足す。フィードバックは (b) の PI のまま。(a) モデルどおりなら、制御量は前置フィルタの出力と一致し、行き過ぎない。(b) むだ時間や定常ゲインが違っても、フィードバックが残りを直す。(c) ヒータの電力は、始めに 20 W 増やして、落ち着く値まで減っていく。")
 
 
 F["e14_ff_plate"] = _f14_ff_plate_fig()
@@ -587,20 +646,21 @@ def _f14_dff_cart_fig():
     xpd = (P["p"][0] + P["p"][1]) / 2 + 60
     o.append(TFBOX(xpd - 30, yd, "P_d(s)", 60, PUR, PSOFT, h=26)[0])
     o.append(ARR(P["s3"], yd, P["s3"], y - R, c=PUR, lw=1.6))
-    # 測る → −P̃d/P̃ → s2
+    # 測る → モデルで −P_d/P → s2
     xm = xd + 30
     o.append(D(xm, yd, PUR, 3.6))
     o.append(W(xm, yd, xm, yd + 26, c=TEA, lw=1.6))
     o.append(T(xm + 6, yd + 22, "測る", "start", 9.5, TEA, True))
-    fw = TFBW(("−P̃_d(s)", "P̃(s)"))
+    fw = TFBW(("−P_d(s)", "P(s)"))
     xb = P["s2"] - fw / 2 - 40
     o.append(W(xm, yd + 26, xm, yd + 44, xb, yd + 44, c=TEA, lw=1.6))
-    o.append(TFBOX(xb, yd + 44, ("−P̃_d(s)", "P̃(s)"), fw, SIG, SSOFT, h=40)[0])
+    o.append(TFBOX(xb, yd + 44, ("−P_d(s)", "P(s)"), fw, SIG, SSOFT, h=40)[0])
+    o.append(T(xb - 6, yd + 30, "モデルで", "end", 9.5, SIG, True, halo=True))
     o.append(W(xb + fw, yd + 44, P["s2"], yd + 44, c=GLD, lw=1.6))
     o.append(ARR(P["s2"], yd + 44, P["s2"], y - R, c=GLD, lw=1.6))
-    o.append(TX(538, 64, "残り: Y = S(P_d − P P̃_d/P̃)D", "start", 10, INK, True))
-    o.append(TX(538, 80, "モデルどおりなら 0", "start", 10, GRN, True))
-    o.append(TX(538, 96, "輪の外なので極は変わらない", "start", 10, MUT))
+    o.append(T(540, 66, "モデルどおりなら打ち消し合う", "start", 10, GRN, True))
+    o.append(T(540, 82, "ずれた分は感度関数 S 倍に縮む", "start", 10, INK))
+    o.append(T(540, 98, "輪の外なので極は変わらない", "start", 10, MUT))
     # (b) 台車
     yb = 196
     o.append(T(14, yb, "(b) 台車の坂（本当は 4°、センサは 3° と読む）", "start", 11.5, INK, True))
@@ -620,7 +680,6 @@ def _f14_dff_cart_fig():
         Rr = _f14_cart(**kw)
         o.append(p.line(_f14_pts(Rr["t"], Rr["v"], 4), c=c, lw=2 if dash is None else 1.6, dash=dash))
         res.append((lab, c, dash, float(Rr["v"][-1]), float(Rr["v"][Rr["t"] >= 1].min())))
-    # 右に一覧
     xr = 500
     o.append(T(xr, yb + 26, "坂の上の速度", "start", 10, INK, True))
     for k, (lab, c, dash, vf, vmin) in enumerate(res):
@@ -629,7 +688,7 @@ def _f14_dff_cart_fig():
         o.append(T(xr + 28, yy, lab, "start", 10, INK))
         txt = ("%.3f m/s" % vf) if "PI" not in lab else ("1 m/s（最低 %.3f）" % vmin)
         o.append(T(xr + 28, yy + 13, txt, "start", 9.5, c if c != MUT else INK, True))
-    return SVG(700, yb + 206, o, "(a) 外乱 d が対象の中の P_d(s) を通って制御量に現れるとき、d を測って −P̃_d/P̃ を掛けたものを操作量に足す。モデルが正しければ外乱は打ち消され、残りは感度関数 S 倍に縮む。(b) 1 章の台車が 1 s に 4° の坂に入る。傾きのセンサが 3° と読むので、坂の力 0.684 N のうち 0.513 N だけを足す。フィードフォワードだけでは 0.171 N 足りずに遅くなるが、比例制御と合わせると、フィードバックはその 0.171 N だけを受け持つ。")
+    return SVG(700, yb + 206, o, "(a) 外乱 d が対象の中の P<sub>d</sub>(s) を通って制御量に現れるとき、d を測り、モデルの P<sub>d</sub>/P の符号を変えたものを掛けて操作量に足す。モデルが正しければ外乱は打ち消され、ずれた分は感度関数 S 倍に縮む。(b) 1 章の台車が 1 s に 4° の坂に入る。傾きのセンサが 3° と読むので、坂の力 0.684 N のうち 0.513 N だけを足す。フィードフォワードだけでは 0.171 N 足りずに遅くなるが、比例制御と合わせると、フィードバックはその 0.171 N だけを受け持つ。")
 
 
 F["e14_dff_cart"] = _f14_dff_cart_fig()
@@ -642,19 +701,20 @@ def _f14_dff_plate_fig():
     o = []
     xt = [0, 100, 200, 300, 400, 500, 600, 700, 800]
     o.append(T(14, 18, "(a) 温度のずれ（100 s に周りの温度が 25 °C → 15 °C）", "start", 11, INK, True))
-    p, ax = _f14_plot(62, 32, 626, 150, (0, 800), (-2.6, 0.4), xt, [-2.5, -2, -1.5, -1, -0.5, 0], yl="温度のずれ [K]", xl=None, xf=lambda v: "")
+    p, ax = _f14_plot(62, 32, 626, 136, (0, 800), (-2.0, 0.3), xt, [-2, -1.5, -1, -0.5, 0], yl="温度のずれ [K]", xl=None, xf=lambda v: "")
     o.append(ax)
-    q, ax2 = _f14_plot(62, 214, 626, 96, (0, 800), (-2, 12), xt, [0, 4, 8, 12], yl="電力 [W]", xl="時間 t [s]")
-    o.append(T(14, 204, "(b) ヒータの電力のずれ（28 W から）", "start", 11, INK, True))
+    yb = 278
+    q, ax2 = _f14_plot(62, yb, 626, 90, (0, 800), (-2, 12), xt, [0, 4, 8, 12], yl="電力 [W]", xl="時間 t [s]")
+    o.append(T(14, yb - 12, "(b) ヒータの電力のずれ（28 W から）", "start", 11, INK, True))
     o.append(ax2)
     for P_ in (p, q):
         o.append(W(P_.X(100), P_.y, P_.X(100), P_.y + P_.h, c=PUR, lw=1.2, dash="3 3"))
         o.append(RECT(P_.X(100), P_.y, P_.X(120) - P_.X(100), P_.h, 0, PSOFT, "none", 0, op=0.7))
     o.append(T(p.X(122), p.y + 12, "むだ時間 20 s: この間フィードバックは気づかない", "start", 9.5, PUR, True, halo=True))
-    cs = [("PI だけ", dict(), ALI, None), ("PI ＋フィードフォワード（モデルどおり）", dict(ff=1.0), GRN, None),
-          ("PI ＋フィードフォワード（熱抵抗のモデルが 1.3 倍）", dict(ff=1.3), SIG, None),
+    cs = [("PI だけ", dict(), ALI, None), ("PI ＋ フィードフォワード（モデルどおり）", dict(ff=1.0), GRN, None),
+          ("PI ＋ フィードフォワード（熱抵抗のモデルが 1.3 倍）", dict(ff=1.3), SIG, None),
           ("フィードフォワードだけ（熱抵抗のモデルが 1.3 倍）", dict(ff=1.3, fb=False), ALI, "5 3")]
-    yl_ = 0
+    leg = []
     for lab, kw, c, dash in cs:
         Rerr = kw.get("ff"); fb = kw.get("fb", True)
         dff = (lambda t, _e=Rerr: (10.0 / (1.25 * _e)) if t >= 100 else 0.0) if Rerr else None
@@ -664,11 +724,16 @@ def _f14_dff_plate_fig():
             Rr = _f14_plate(0.0, None, 1.0, d=lambda t: -8.0 if t >= 100 else 0.0, dff=dff, tEnd=800, every=5)
         o.append(p.line(_f14_pts(Rr["t"], Rr["y"]), c=c, lw=2 if dash is None else 1.7, dash=dash))
         o.append(q.line(_f14_pts(Rr["t"], Rr["u"]), c=c, lw=1.8 if dash is None else 1.5, dash=dash))
-        o.append(LEGL(p.X(300), p.Y(-1.25) + yl_ * 14, [(c, dash, "%s: 最大 %s K" % (lab, _f14_f(-float(Rr["y"].min()), 2)))], 9.5, 10))
-        yl_ += 1
+        mn = -float(Rr["y"].min())
+        if fb:
+            leg.append((c, dash, "%s: 最大 %s K" % (lab, _f14_f(mn, 2))))
+        else:
+            leg.append((c, dash, "%s: %s K 低い所へ向かう" % (lab, _f14_f(1.85 * 1.25, 2))))
+    for k, it in enumerate(leg):
+        o.append(LEGL(62, 194 + k * 14, [it], 9.5, 10))
     o.append(T(q.X(790), q.Y(8) - 5, "8 W（10 K ÷ 1.25 K/W）", "end", 9.5, GRN, True, halo=True))
     o.append(T(q.X(790), q.Y(6.15) + 13, "6.15 W", "end", 9.5, ALI, True, halo=True))
-    return SVG(700, 354, o, "温度の板（60 °C、PI は 10 W/K・160 s）の周りの温度が 100 s に 10 K 下がる。逃げる熱が 8 W 増える。PI だけでは、むだ時間 20 s の後に温度の読みが下がってから電力を増やすので、0.74 K 下がる。周りの温度を測ってフィードフォワードで 8 W 足すと、同じ時刻に電力が増えるので温度は動かない。熱抵抗のモデルがずれて 6.15 W しか足さなくても、残りを PI が直す。PI が無いと、足りない分だけ低い所で落ち着く。")
+    return SVG(700, yb + 134, o, "温度の板（60 °C、PI は 10 W/K・160 s）の周りの温度が 100 s に 10 K 下がり、逃げる熱が 8 W 増える。PI だけでは、むだ時間 20 s の後に温度の読みが下がってから電力を増やすので、0.74 K 下がる。周りの温度を測ってフィードフォワードで 8 W 足すと、同じ時刻に電力が増えるので温度は動かない。熱抵抗のモデルがずれて 6.15 W しか足さなくても、残りを PI が直す。PI が無いと、足りない 1.85 W の分だけ低い所（2.31 K 下）へ、板の時定数 500 s でゆっくり向かう。")
 
 
 F["e14_dff_plate"] = _f14_dff_plate_fig()
@@ -682,30 +747,30 @@ def _f14_casc_bd_fig():
     R = 15
     # (a) 一般の形
     o.append(T(14, 18, "(a) カスケード制御: 外側の制御器の出力を、内側のループの目標値にする", "start", 11.5, INK, True))
-    y = 84
+    y = 92
     s, P, xe = CHAIN(18, y, [("a", 30, None, MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 26, None, ALI), ("b", "C_1(s)", "c1", SIG, SSOFT),
                              ("a", 40, None, GLD), ("s", {"l": "+", "b": "−"}, "s2"), ("a", 26, None, ALI), ("b", "C_2(s)", "c2", SIG, SSOFT),
                              ("a", 34, None, GLD), ("s", {"l": "+", "t": "+"}, "sd"), ("a", 26, None, GLD), ("b", "P_2(s)", "p2"),
                              ("a", 34, None, SIG), ("t", "o2", SIG), ("a", 26, None, SIG), ("b", "P_1(s)", "p1"), ("a", 34, None, SIG),
                              ("t", "o1", SIG), ("a", 26, None, SIG)])
     o.append(s)
-    o.append(TOPIN(P["sd"], y, 40, "d_2", PUR))
-    o.append(FBPATH(P["o2"], P["s2"], y, 30, SIG))
-    o.append(FBPATH(P["o1"], P["s1"], y, 56, SIG))
+    o.append(TOPIN(P["sd"], y, 36, "d_2", PUR))
+    o.append(FBPATH(P["o2"], P["s2"], y, 28, SIG))
+    o.append(FBPATH(P["o1"], P["s1"], y, 52, SIG))
     o.append(TX(20, y - 9, "r_1", "start", 10, MUT, True))
     o.append(TX((P["c1"][1] + P["s2"] - R) / 2, y - 9, "r_2", "middle", 10, GLD, True))
     o.append(TX((P["c2"][1] + P["sd"] - R) / 2, y - 9, "u", "middle", 10, GLD, True))
     o.append(TX((P["o2"] + P["p1"][0]) / 2, y - 9, "y_2", "middle", 10, SIG, True))
     o.append(TX(xe - 2, y - 9, "y_1", "end", 10, SIG, True))
     x0, x1 = P["s2"] - R - 8, P["o2"] + 8
-    o.append(RECT(x0, y - 50, x1 - x0, 92, 6, "none", SIG, 1.1, dash="5 4"))
-    o.append(T(x1 - 4, y + 38, "内側のループ（マイナーループ）", "end", 9.5, SIG, True, halo=True))
-    o.append(T(P["s1"] + 10, y + 74, "外側のループ", "start", 9.5, MUT, True, halo=True))
+    o.append(RECT(x0, y - 46, x1 - x0, 86, 6, "none", SIG, 1.1, dash="5 4"))
+    o.append(T(x0 + 4, y - 50, "内側のループ（マイナーループ）", "start", 9.5, SIG, True, halo=True))
+    o.append(T(P["s1"] + 10, y + 66, "外側のループ", "start", 9.5, MUT, True, halo=True))
     # (b) モータ
-    yb = 214
-    o.append(T(14, yb - 40, "(b) モータの位置決め: 角度 → 角速度 → 電流の 3 段", "start", 11.5, INK, True))
-    s, P, xe = CHAIN(14, yb, [("a", 20, None, MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 14, None, ALI), ("b", "C_θ", "ct", SIG, SSOFT),
-                              ("a", 20, None, GLD), ("s", {"l": "+", "b": "−"}, "s2"), ("a", 14, None, ALI), ("b", "C_ω", "cw", SIG, SSOFT),
+    yb = 222
+    o.append(T(14, yb - 46, "(b) モータの位置決め: 角度 → 角速度 → 電流の 3 段", "start", 11.5, INK, True))
+    s, P, xe = CHAIN(14, yb, [("a", 20, None, MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 14, None, ALI), ("b", "C_{θ}", "ct", SIG, SSOFT),
+                              ("a", 20, None, GLD), ("s", {"l": "+", "b": "−"}, "s2"), ("a", 14, None, ALI), ("b", "C_{ω}", "cw", SIG, SSOFT),
                               ("a", 20, None, GLD), ("s", {"l": "+", "b": "−"}, "s3"), ("a", 14, None, ALI), ("b", "C_i", "ci", SIG, SSOFT),
                               ("a", 22, None, GLD), ("b", ("1", "L_a s + R_a"), "el"), ("a", 18, None, SIG), ("t", "oi", SIG),
                               ("a", 18, None, SIG), ("b", ("K_t", "Js"), "me"), ("a", 18, None, SIG), ("t", "ow", SIG), ("a", 18, None, SIG),
@@ -718,28 +783,28 @@ def _f14_casc_bd_fig():
     o.append(ARR(xm, yb - 44, xm, yb - 23, c=PUR, lw=1.6))
     o.append(TX(xm + 6, yb - 34, "τ_L", "start", 10, PUR, True, halo=True))
     o.append(TX(16, yb - 9, "θ_r", "start", 10, MUT, True))
-    o.append(TX((P["oi"] + P["s3"]) / 2 - 30, yb + 28, "i", "middle", 9.5, SIG, True, halo=True))
+    o.append(TX((P["el"][1] + P["oi"]) / 2, yb - 9, "i", "middle", 10, SIG, True, halo=True))
+    o.append(TX((P["ow"] + P["in"][0]) / 2, yb - 9, "ω_m", "middle", 10, SIG, True, halo=True))
     o.append(TX(xe - 2, yb - 9, "θ_m", "end", 10, SIG, True))
-    o.append(T(P["ct"][0], yb + 92, "外側: 比例（200 /s）", "start", 9.5, MUT))
-    o.append(T(P["cw"][0] + 20, yb + 92, "角速度: PI（0.5 A/(rad/s)・4 ms）", "start", 9.5, MUT))
-    o.append(T(P["ci"][0] + 90, yb + 92, "電流: PI（5 V/A・0.5 ms）", "start", 9.5, MUT))
+    o.append(T(14, yb + 94, "例の値: 角度は比例 200 /s、角速度は PI 0.5 A/(rad/s)・4 ms、電流は PI 5 V/A・0.5 ms", "start", 9.5, MUT))
     # (c) ヒータ
-    yc = 372
-    o.append(T(14, yc - 40, "(c) ヒータ: 温度 → 電力の 2 段", "start", 11.5, INK, True))
-    s, P, xe = CHAIN(18, yc, [("a", 26, None, MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 20, None, ALI), ("b", "温度の PI", "ct", SIG, SSOFT),
-                              ("a", 44, None, GLD), ("s", {"l": "+", "b": "−"}, "s2"), ("a", 20, None, ALI), ("b", "電力の制御器", "cq", SIG, SSOFT),
-                              ("a", 34, None, GLD), ("b", "ヒータ（電源）", "ht"), ("a", 26, None, SIG), ("t", "oq", SIG), ("a", 26, None, SIG),
-                              ("b", "板（20 s 遅れ）", "pl"), ("a", 26, None, SIG), ("t", "ot", SIG), ("a", 22, None, SIG)])
+    yc = 386
+    o.append(T(14, yc - 44, "(c) ヒータ: 温度 → 電力の 2 段", "start", 11.5, INK, True))
+    s, P, xe = CHAIN(18, yc, [("a", 24, None, MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 16, None, ALI), ("b", "温度の PI", "ct", SIG, SSOFT),
+                              ("a", 64, None, GLD), ("s", {"l": "+", "b": "−"}, "s2"), ("a", 16, None, ALI), ("b", "電力の制御器", "cq", SIG, SSOFT),
+                              ("a", 66, None, GLD), ("b", "ヒータ", "ht"), ("a", 30, None, SIG), ("t", "oq", SIG), ("a", 24, None, SIG),
+                              ("b", "板", "pl"), ("a", 34, None, SIG), ("t", "ot", SIG), ("a", 20, None, SIG)])
     o.append(s)
     o.append(FBPATH(P["oq"], P["s2"], yc, 30, SIG, lab="測った電力"))
-    o.append(FBPATH(P["ot"], P["s1"], yc, 56, SIG))
+    o.append(FBPATH(P["ot"], P["s1"], yc, 58, SIG))
     xh = (P["ht"][0] + P["ht"][1]) / 2
-    o.append(ARR(xh, yc - 44, xh, yc - 18, c=PUR, lw=1.6))
-    o.append(TX(xh + 6, yc - 34, "電源の電圧 V", "start", 10, PUR, True, halo=True))
+    o.append(ARR(xh, yc - 40, xh, yc - 17, c=PUR, lw=1.6))
+    o.append(TX(xh + 6, yc - 30, "電源の電圧 V", "start", 10, PUR, True, halo=True))
     o.append(TX((P["ct"][1] + P["s2"] - R) / 2, yc - 9, "電力の指令", "middle", 9.5, GLD, True, halo=True))
     o.append(TX((P["cq"][1] + P["ht"][0]) / 2, yc - 9, "デューティ比", "middle", 9.5, GLD, True, halo=True))
     o.append(TX(xe - 2, yc - 9, "θ", "end", 10, SIG, True))
-    return SVG(700, yc + 72, o, "カスケード制御。(a) 対象を途中の量 y_2 で分け、y_2 を目標値 r_2 に合わせる内側のループを作る。外側の制御器 C_1 は、制御量 y_1 の偏差から r_2 を決める。内側に入る外乱 d_2 は、外側に届く前に内側のループが打ち消す。(b) モータの位置決めでは、電流・角速度・角度を測り、3 つのループを入れ子にする。負荷トルクは電流と角速度の間に入る。(c) ヒータでは、電力を測って指令に合わせるループを内側に置く。電源の電圧が変わっても、温度が動く前に電力が戻る。")
+    o.append(T((P["pl"][0] + P["pl"][1]) / 2, yc + 30, "むだ時間 20 s", "middle", 9.5, MUT))
+    return SVG(700, yc + 76, o, "カスケード制御。(a) 対象を途中の量 y<sub>2</sub> で分け、y<sub>2</sub> を目標値 r<sub>2</sub> に合わせる内側のループを作る。外側の制御器 C<sub>1</sub> は、制御量 y<sub>1</sub> の偏差から r<sub>2</sub> を決める。内側に入る外乱 d<sub>2</sub> は、外側に届く前に内側のループが打ち消す。(b) モータの位置決めでは、電流・角速度・角度を測り、3 つのループを入れ子にする。負荷トルク τ<sub>L</sub> は電流と角速度の間に入る。(c) ヒータでは、電力を測って指令に合わせるループを内側に置く。電源の電圧が変わっても、温度が動く前に電力が戻る。")
 
 
 F["e14_casc_bd"] = _f14_casc_bd_fig()
@@ -763,16 +828,9 @@ def _f14_casc_dist_fig():
     o.append(p.line(_f14_pts(C_["t"], C_["th"]), c=GRN, lw=2.2))
     ma, mb, mc = float(A["th"].min()), float(B["th"].min()), float(C_["th"].min())
     ia = int(_f14_np.argmin(A["th"])); ib = int(_f14_np.argmin(B["th"]))
-    o.append(T(p.X(A["t"][ia]) + 6, p.Y(ma) + 4, "角度の PID だけ: %s rad" % _f14_f(ma, 2), "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(0.235), p.Y(-1.06), "角度の PID だけ: %s rad" % _f14_f(ma, 2), "start", 9.5, ALI, True, halo=True))
     o.append(T(p.X(B["t"][ib]) + 8, p.Y(mb) + 12, "2 段: %s rad" % _f14_f(mb, 2), "start", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(0.59), p.Y(0.07), "3 段: %s rad" % _f14_f(mc, 4), "end", 9.5, GRN, True, halo=True))
-    # 拡大
-    z, ax = _f14_plot(258, 104, 96, 46, (0.04, 0.09), (-0.0025, 0.0005), [0.05, 0.07, 0.09], [-0.002, 0], sz=8.5,
-                      xf=lambda v: "%g" % v, yf=lambda v: "%g" % v)
-    o.append(RECT(z.x - 4, z.y - 14, z.w + 8, z.h + 30, 3, SCR, LIN, 0.8))
-    o.append(ax)
-    o.append(z.line(_f14_pts(C_["t"], C_["th"]), c=GRN, lw=1.8))
-    o.append(T(z.x + z.w / 2, z.y - 4, "3 段を拡大", "middle", 8.5, GRN, True))
+    o.append(T(p.X(0.59), p.Y(0.07), "3 段: %s rad（この目盛では見えない）" % _f14_f(mc, 4), "end", 9.5, GRN, True, halo=True))
     # (b) 拘束
     o.append(T(390, 18, "(b) 目標を 1 rad 先にして、軸を止められる", "start", 11, INK, True))
     q, ax = _f14_plot(438, 32, 250, 128, (0, 3), (0, 7), [0, 1, 2, 3], [0, 2, 4, 6], yl="電流 i [A]", xl="時間 t [s]")
@@ -784,7 +842,7 @@ def _f14_casc_dist_fig():
     o.append(T(q.X(0.05), q.Y(6) - 5, "拘束電流 12 V ÷ 2 Ω = 6 A", "start", 9.5, MUT, halo=True))
     o.append(q.line(_f14_pts(Ab["t"], Ab["i"]), c=ALI, lw=2))
     o.append(q.line(list(zip(tc, ic)), c=GRN, lw=2.2))
-    o.append(T(q.X(1.2), q.Y(3.6), "角度の PID だけ", "middle", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(0.75), q.Y(4.3), "角度の PID だけ", "middle", 9.5, ALI, True, halo=True))
     o.append(T(q.X(2.95), q.Y(1) + 14, "3 段（電流の指令を 1 A で切る）", "end", 9.5, GRN, True, halo=True))
     # (c) ヒータ
     yc = 222
@@ -859,63 +917,60 @@ def _f14_smith_bd_fig():
     y = 66
     s, P, xe = CHAIN(18, y, [("a", 40, None, MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 40, None, ALI), ("b", "C(s)", "c", SIG, SSOFT),
                              ("a", 40, None, GLD), ("t", "bu", GLD), ("a", 70, None, GLD), ("b", "P_0(s)e^{−Ls}", "p"),
-                             ("a", 120, None, SIG), ("t", "by", SIG), ("a", 40, None, SIG)])
+                             ("a", 216, None, SIG), ("t", "by", SIG), ("a", 40, None, SIG)])
     o.append(s)
     o.append(TX(20, y - 9, "r", "start", 10, MUT, True))
     o.append(TX((P["c"][1] + P["bu"]) / 2, y - 9, "u", "middle", 10, GLD, True))
     o.append(TX(xe - 2, y - 9, "y", "end", 10, SIG, True))
     o.append(T((P["p"][0] + P["p"][1]) / 2, y + 30, "本当の対象", "middle", 9.5, MUT))
     # モデルの行
-    ym = 150
+    ym = 156
+    o.append(T(P["bu"] + 30, ym - 30, "モデル（制御器の中で計算する）", "start", 9.5, TEA, True))
     o.append(W(P["bu"], y, P["bu"], ym, c=GLD, lw=1.6))
-    wb = TFBW("P̃_0(s)")
     xb1 = P["bu"] + 26
     o.append(ARR(P["bu"], ym, xb1, ym, c=GLD, lw=1.6))
-    o.append(TFBOX(xb1, ym, "P̃_0(s)", wb, TEA, TSOFT)[0])
-    xbr = xb1 + wb + 40
+    bx, wb = _f14_tbox(xb1, ym, "P~_0(s)", None, TEA, TSOFT)
+    o.append(bx)
+    xbr = xb1 + wb + 44
     o.append(W(xb1 + wb, ym, xbr, ym, c=TEA, lw=1.6))
     o.append(D(xbr, ym, TEA, 3.6))
-    o.append(TX((xb1 + wb + xbr) / 2, ym - 8, "ỹ_0", "middle", 10, TEA, True))
-    wd = TFBW("e^{−L̃s}")
-    xb2 = xbr + 30
+    o.append(_f14_tt((xb1 + wb + xbr) / 2, ym - 8, "y~_0", "middle", 10, TEA, True))
+    xb2 = xbr + 26
+    bx, wd = _f14_tbox(xb2, ym, "e^{−L̃s}", None, TEA, TSOFT)
+    o.append(bx)
     o.append(ARR(xbr, ym, xb2, ym, c=TEA, lw=1.6))
-    o.append(TFBOX(xb2, ym, "e^{−L̃s}", wd, TEA, TSOFT)[0])
-    xsa = P["by"] - 60
+    xsa = P["by"] - 70
     o.append(ARR(xb2 + wd, ym, xsa - R, ym, c=TEA, lw=1.6))
-    o.append(TX((xb2 + wd + xsa - R) / 2, ym - 8, "ỹ_0(t − L̃)", "middle", 10, TEA, True, halo=True))
+    o.append(_f14_tt((xb2 + wd + xsa - R) / 2, ym - 8, "y~_0(t − L~)", "middle", 10, TEA, True, halo=True))
     o.append(SUMJ(xsa, ym, {"l": "−", "b": "+"}))
-    o.append(W(xbr, ym, xbr, ym + 40, xsa, ym + 40, c=TEA, lw=1.6))
-    o.append(ARR(xsa, ym + 40, xsa, ym + R, c=TEA, lw=1.6))
-    o.append(T((xb1 + xsa) / 2, ym + 56, "モデル（制御器の中で計算する）", "middle", 9.5, TEA, True))
+    o.append(W(xbr, ym, xbr, ym + 46, xsa, ym + 46, c=TEA, lw=1.6))
+    o.append(ARR(xsa, ym + 46, xsa, ym + R, c=TEA, lw=1.6))
     # y_p を作る
-    yb = 252
-    xsb = xsa
+    yb = 262
+    xsb = xsa + 34
     o.append(W(P["by"], y, P["by"], yb, c=SIG, lw=1.6))
     o.append(ARR(P["by"], yb, xsb + R, yb, c=SIG, lw=1.6))
     o.append(SUMJ(xsb, yb, {"r": "+", "t": "+"}))
-    o.append(ARR(xsa, ym + R, xsa, ym + R, c=TEA, lw=0.1))
-    o.append(W(xsa + 0.01, ym + 40, xsa + 0.01, ym + 40, c=TEA, lw=0.1))
-    # 差の線: sum A の右から出て sum B の上へ
-    o.append(W(xsa + R, ym, xsa + 34, ym, c=TEA, lw=1.6))
-    o.append(W(xsa + 34, ym, xsa + 34, yb - 40, xsb, yb - 40, c=TEA, lw=1.6))
-    o.append(ARR(xsb, yb - 40, xsb, yb - R, c=TEA, lw=1.6))
-    o.append(TX(xsa + 40, (ym + yb) / 2 - 6, "ỹ_0 − ỹ_0(t − L̃)", "start", 10, TEA, True, halo=True))
+    o.append(W(xsa + R, ym, xsb, ym, c=TEA, lw=1.6))
+    o.append(ARR(xsb, ym, xsb, yb - R, c=TEA, lw=1.6))
+    o.append(_f14_tt(xsb - 8, yb - 28, "y~_0 − y~_0(t − L~)", "end", 10, TEA, True, halo=True))
     o.append(W(xsb - R, yb, P["s1"], yb, c=GLD, lw=1.6))
     o.append(ARR(P["s1"], yb, P["s1"], y + R, c=GLD, lw=1.6))
-    o.append(TX((P["s1"] + xsb) / 2, yb - 8, "y_p = y + ỹ_0 − ỹ_0(t − L̃)", "middle", 10, GLD, True, halo=True))
+    o.append(_f14_tt((P["s1"] + xsb) / 2 - 60, yb - 8, "y_p = y + y~_0 − y~_0(t − L~)", "middle", 10, GLD, True, halo=True))
     # (b) 等価な形
-    y2 = 340
+    y2 = 350
     o.append(T(14, y2 - 40, "(b) モデルが正しいとき: むだ時間が輪の外へ出る", "start", 11.5, INK, True))
     s, P2, xe2 = CHAIN(18, y2, [("a", 40, None, MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 40, None, ALI), ("b", "C(s)", "c", SIG, SSOFT),
                                 ("a", 50, None, GLD), ("b", "P_0(s)", "p0"), ("a", 50, None, SIG), ("t", "b0", SIG), ("a", 40, None, SIG),
                                 ("b", "e^{−Ls}", "dl", ALI, ASOFT), ("a", 50, None, SIG)])
     o.append(s)
-    o.append(FBPATH(P2["b0"], P2["s1"], y2, 32, GLD, lab="y_p = ỹ_0"))
+    o.append(FBPATH(P2["b0"], P2["s1"], y2, 32, GLD))
+    o.append(_f14_tt((P2["b0"] + P2["s1"]) / 2, y2 + 26, "y_p = y~_0", "middle", 9.5, GLD, True, halo=True))
     o.append(TX(20, y2 - 9, "r", "start", 10, MUT, True))
     o.append(TX(xe2 - 2, y2 - 9, "y", "end", 10, SIG, True))
     o.append(TX(xe2 + 16, y2 - 6, "特性方程式 1 + P_0(s)C(s) = 0", "start", 10, INK, True))
     o.append(TX(xe2 + 16, y2 + 12, "にむだ時間が無い", "start", 10, INK, True))
-    return SVG(700, y2 + 48, o, "(a) スミス予測器。制御器が出した操作量 u をモデルにも入れ、むだ時間の無いモデルの出力 ỹ_0 と、それをむだ時間 L̃ だけ遅らせたものの差を、測った値 y に足して戻す。(b) モデルが正しければ y = ỹ_0(t − L) なので、戻す値 y_p は ỹ_0 そのもの、つまりむだ時間の前の制御量になる。むだ時間は輪の外へ出て、C(s) はむだ時間の無い P_0(s) に合わせて決められる。")
+    return SVG(700, y2 + 48, o, "(a) スミス予測器。制御器が出した操作量 u をモデルにも入れ、むだ時間の無いモデルの出力 ỹ<sub>0</sub> と、それをモデルのむだ時間 L̃ だけ遅らせたものの差を、測った値 y に足して戻す（記号の上の波線はモデルの値）。(b) モデルが正しければ y = ỹ<sub>0</sub>(t − L) なので、戻す値 y<sub>p</sub> は ỹ<sub>0</sub> そのもの、つまりむだ時間の前の制御量になる。むだ時間は輪の外へ出て、C(s) はむだ時間の無い P<sub>0</sub>(s) に合わせて決められる。")
 
 
 F["e14_smith_bd"] = _f14_smith_bd_fig()
@@ -951,6 +1006,7 @@ def _f14_smith_resp_fig():
     yc = 278
     o.append(TX(14, yc, "(c) λ = 10 s の外乱への応答: 制御器が見る y_p と、本当の y", "start", 11, INK, True))
     S = _f14_plate(KP=40, TI=500, smith=True, d=lambda t: -10.0, tEnd=1500, every=5)
+    SL = _f14_plate(KP=40, TI=500, smith=True, d=lambda t: -10.0, tEnd=8000, every=10)
     z, ax = _f14_plot(62, yc + 14, 626, 110, (0, 1500), (-0.8, 0.12), [0, 250, 500, 750, 1000, 1250, 1500], [-0.75, -0.5, -0.25, 0], yl="[K]", xl="時間 t [s]")
     o.append(ax)
     pts = _f14_pts(S["t"], S["y"]); ptp = _f14_pts(S["t"], S["yp"])
@@ -958,10 +1014,10 @@ def _f14_smith_resp_fig():
     o.append(PL([(z.X(ptp[0][0]), z.Y(0))] + [(z.X(a_), z.Y(b_)) for a_, b_ in ptp] + [(z.X(ptp[-1][0]), z.Y(0))], c="none", lw=0, fill=GOSOFT, op=0.9))
     o.append(z.line(pts, c=SIG, lw=2))
     o.append(z.line(ptp, c=GLD, lw=1.8, dash="5 3"))
-    ap = float(_f14_np.trapezoid(S["yp"], S["t"])); ay = float(_f14_np.trapezoid(S["y"], S["t"]))
+    ap = float(_f14_np.trapezoid(SL["yp"], SL["t"])); ay = float(_f14_np.trapezoid(SL["y"], SL["t"]))
     o.append(TX(z.X(70), z.Y(-0.12), "y_p（制御器が見る値）: 面積 %s K·s = d/K_I" % _f14_g(ap, 3), "start", 9.5, GLD, True, halo=True))
     o.append(TX(z.X(330), z.Y(-0.5), "y（本当の温度）: 面積 %s K·s。差の %s K·s = KLd" % (_f14_g(ay, 3), _f14_g(ay - ap, 3)), "start", 9.5, SIG, True, halo=True))
-    return SVG(700, yc + 168, o, "温度の板をスミス予測器で制御する（モデルは正しい）。(a) 目標値への応答は e^(−20s)/(λs + 1) そのもので、行き過ぎず、1 自由度の PI より速い。(b) 外乱には、λ = 10 s でも 1 自由度の (b) より偏差の面積が大きく、板の時定数 500 s でゆっくり戻る。(c) 制御器が見る y_p（金色）は早く 0 に戻るが、本当の温度 y（青）は、その後もむだ時間の分だけ遅れて戻る。2 つの差の面積が KLd = 250 K·s である。")
+    return SVG(700, yc + 168, o, "温度の板をスミス予測器で制御する（モデルは正しい）。(a) 目標値への応答は e<sup>−20s</sup>/(λs + 1) そのもので、行き過ぎず、1 自由度の PI より速い。(b) 外乱には、λ = 10 s でも 1 自由度の (b) より偏差の面積が大きく、板の時定数 500 s でゆっくり戻る。(c) 制御器が見る y<sub>p</sub>（金色の破線）は早く 0 に近づくが、本当の温度 y（青）は遅れて戻る。2 つの差の面積が KLd = 250 K·s である（面積は 8000 s までの数値計算）。")
 
 
 F["e14_smith_resp"] = _f14_smith_resp_fig()
@@ -987,39 +1043,45 @@ def _f14_smith_map(lams, Ls, Lm=20.0, nw=4000):
 def _f14_smith_robust_fig():
     o = []
     o.append(T(14, 18, "(a) 目標値を 1 K 上げる（モデルのむだ時間 20 s）", "start", 11, INK, True))
-    p, ax = _f14_plot(62, 32, 270, 150, (0, 600), (-0.4, 2.0), [0, 100, 200, 300, 400, 500, 600], [0, 0.5, 1, 1.5], yl="温度のずれ [K]", xl="時間 t [s]")
+    p, ax = _f14_plot(62, 32, 270, 140, (0, 600), (-0.5, 2.0), [0, 100, 200, 300, 400, 500, 600], [0, 0.5, 1, 1.5, 2], yl="温度のずれ [K]", xl="時間 t [s]")
     o.append(ax)
     o.append(W(p.X(0), p.Y(1), p.X(600), p.Y(1), c=MUT, lw=1, dash="5 3"))
-    cs = [(10.0, 20.0, GRN, None, "λ = 10 s、本当 20 s"), (10.0, 30.0, SIG, None, "λ = 10 s、本当 30 s"),
-          (10.0, 45.0, GLD, None, "λ = 10 s、本当 45 s"), (5.0, 10.0, ALI, None, "λ = 5 s、本当 10 s（短い）")]
+    cs = [(10.0, 20.0, GRN, None, "λ = 10 s、本当のむだ時間 20 s"), (10.0, 30.0, SIG, None, "λ = 10 s、本当のむだ時間 30 s"),
+          (10.0, 45.0, GLD, None, "λ = 10 s、本当のむだ時間 45 s"), (5.0, 10.0, ALI, None, "λ = 5 s、本当のむだ時間 10 s（短い）")]
     for k, (lam, Lt, c, dash, lab) in enumerate(cs):
-        Rr = _f14_plate(KP=500 / (1.25 * lam), TI=500, smith=True, Lt=Lt, r=lambda t: 1.0, tEnd=600, every=5)
-        o.append(p.clip(_f14_pts(Rr["t"], Rr["y"]), c=c, lw=1.9, dash=dash))
-        o.append(LEGL(p.X(170), p.Y(1.92) + k * 14 + 4, [(c, dash, lab)], 9.5, 10))
+        Rr = _f14_plate(KP=500 / (1.25 * lam), TI=500, smith=True, Lt=Lt, r=lambda t: 1.0, tEnd=600, every=2)
+        t_, y_ = Rr["t"], Rr["y"]
+        bad = _f14_np.where(_f14_np.abs(y_) > 2.5)[0]
+        if len(bad):
+            t_, y_ = t_[:bad[0] + 1], y_[:bad[0] + 1]
+        o.append(p.clip(_f14_pts(t_, y_), c=c, lw=1.9 if c != ALI else 1.1, dash=dash))
+        o.append(LEGL(14, 222 + k * 15, [(c, dash, lab)], 9.5, 10))
+    o.append(T(p.X(200), p.Y(1.75), "振れが大きくなり続ける", "start", 9.5, ALI, True, halo=True))
     # (b) 地図
     o.append(T(380, 18, "(b) 安定な組（白）と不安定な組（赤）", "start", 11, INK, True))
     lams = list(_f14_np.exp(_f14_np.linspace(math.log(2), math.log(40), 34)))
     Ls = list(range(0, 71))
     M = _f14_smith_map(lams, Ls)
     q = Plot(430, 32, 258, 150, (0, 70), (2, 40), ylog=True)
+    rr = (lams[1] / lams[0]) ** 0.5
     for i in range(len(lams)):
-        y0 = lams[i] / (lams[1] / lams[0]) ** 0.5; y1 = lams[i] * (lams[1] / lams[0]) ** 0.5
+        y0 = lams[i] / rr; y1 = lams[i] * rr
         for j in range(len(Ls)):
             if M[i, j]:
                 o.append(RECT(q.X(max(0, Ls[j] - 0.5)), q.Y(min(40, y1)), q.X(min(70, Ls[j] + 0.5)) - q.X(max(0, Ls[j] - 0.5)),
                               q.Y(max(2, y0)) - q.Y(min(40, y1)), 0, ASOFT, "none", 0))
     o.append(q.axes(xl="本当のむだ時間 L [s]", yl="λ [s]", xt=[0, 10, 20, 30, 40, 50, 60, 70], yt=[2, 5, 10, 20, 40],
                     xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v, sz=9))
-    # 十分条件 |L − 20| ≤ λ
     ys = list(_f14_np.exp(_f14_np.linspace(math.log(2), math.log(40), 60)))
     o.append(q.line([(max(0.0, 20 - lam), lam) for lam in ys], c=GRN, lw=1.8))
     o.append(q.line([(min(70.0, 20 + lam), lam) for lam in ys], c=GRN, lw=1.8))
-    o.append(T(q.X(20), q.Y(2.6), "|L − 20| ≤ λ", "middle", 9, GRN, True, halo=True))
+    o.append(_f14_tt(q.X(20), q.Y(24), "|L − L~| ≤ λ", "middle", 9.5, GRN, True, halo=True))
     o.append(W(q.X(55), q.y, q.X(55), q.y + q.h, c=MUT, lw=1.2, dash="4 3"))
-    o.append(T(q.X(55) - 3, q.y + 12, "PI (b) の限界", "end", 9, MUT, True, halo=True))
+    o.append(T(q.X(55) + 3, q.Y(14), "PI (b)", "start", 9, MUT, True, halo=True))
+    o.append(T(q.X(55) + 3, q.Y(14) + 12, "の限界", "start", 9, MUT, True, halo=True))
     for lam, Lt, c, dash, lab in cs:
         o.append(D(q.X(Lt), q.Y(lam), c, 3.8))
-    return SVG(700, 226, o, "モデルのむだ時間（20 s）が本当のむだ時間と違うとき。(a) λ = 10 s では、本当のむだ時間が 30 s・45 s でも収まるが、λ = 5 s では、本当のむだ時間が 10 s と短い側に外れただけで振動が大きくなり続ける。(b) λ と本当のむだ時間の組で、閉ループが安定か（ナイキストの安定判別法で数値的に判定）。緑の線の間は、本文で導いた十分な条件 |L − 20| ≤ λ を満たす。λ が小さいと、モデルより短い側にも長い側にも不安定な組がある。破線は、1 節の (b) の PI が安定でいられる限界の 55 s。")
+    return SVG(700, 284, o, "モデルのむだ時間（L̃ = 20 s）が本当のむだ時間 L と違うとき。(a) λ = 10 s では、本当のむだ時間が 30 s・45 s でも収まるが、λ = 5 s では、本当のむだ時間が 10 s と短い側に外れただけで振れが大きくなり続ける（途中で切って描いた）。(b) λ と本当のむだ時間の組で、閉ループが安定か（ナイキストの安定判別法で数値的に判定）。緑の線の間は、本文で導いた十分な条件 |L − L̃| ≤ λ を満たす。λ が小さいと、モデルより短い側にも長い側にも不安定な組がある。破線は、1 節の (b) の PI が安定でいられる限界の 55 s。点は (a) の 4 つの場合。")
 
 
 F["e14_smith_robust"] = _f14_smith_robust_fig()
@@ -1098,19 +1160,22 @@ def _f14_whole_fig():
     o.append(T(14, 18, "(a) モータの位置決め: 3 段のカスケード＋目標値フィードフォワード", "start", 11.5, INK, True))
     y = 112
     s, P, xe = CHAIN(14, y, [("b", "目標の形", "tg", SIG, SSOFT), ("a", 16, None, MUT), ("t", "br", MUT), ("a", 14, None, MUT),
-                             ("s", {"l": "+", "b": "−"}, "s1"), ("a", 12, None, ALI), ("b", "C_θ", "ct"), ("a", 14, None, GLD),
+                             ("s", {"l": "+", "b": "−"}, "s1"), ("a", 12, None, ALI), ("b", "C_{θ}", "ct"), ("a", 14, None, GLD),
                              ("s", {"l": "+", "t": "+"}, "f1"), ("a", 12, None, GLD), ("s", {"l": "+", "b": "−"}, "s2"), ("a", 12, None, ALI),
-                             ("b", "C_ω", "cw"), ("a", 14, None, GLD), ("s", {"l": "+", "t": "+"}, "f2"), ("a", 12, None, GLD),
+                             ("b", "C_{ω}", "cw"), ("a", 14, None, GLD), ("s", {"l": "+", "t": "+"}, "f2"), ("a", 12, None, GLD),
                              ("s", {"l": "+", "b": "−"}, "s3"), ("a", 12, None, ALI), ("b", "C_i", "ci"), ("a", 18, None, GLD),
                              ("b", "モータ", "m"), ("a", 30, None, SIG)])
     o.append(s)
     o.append(FFPATH(P["br"], P["f1"], y, 36, GLD, box="\\dot{r}", bc=SIG, bfill=SSOFT, bh=24))
     o.append(FFPATH(P["br"] + 0.01, P["f2"], y, 72, GLD, box="J\\ddot{r}/K_t", bc=SIG, bfill=SSOFT, bh=24))
-    o.append(FBPATH(P["m"][1] - 14, P["s3"], y, 26, SIG, lab="i"))
-    o.append(FBPATH(P["m"][1] - 8, P["s2"], y, 44, SIG, lab="ω_m"))
-    o.append(FBPATH(P["m"][1] + 20, P["s1"], y, 62, SIG, lab="θ_m"))
-    o.append(T((P["f1"] + P["s2"]) / 2 + 40, y - 86, "角速度の指令に、目標値の角速度を足す", "start", 9.5, MUT))
-    o.append(T((P["f2"] + P["s3"]) / 2 + 30, y - 50, "電流の指令に、角加速度に要る電流を足す", "start", 9.5, MUT))
+    o.append(TX(xe - 2, y - 9, "θ_m", "end", 10, SIG, True))
+    # 測った量を、モータの箱の下から戻す
+    m0, m1 = P["m"]
+    for k, (xs_, dep, lab) in enumerate([(m0 + 14, 30, "i"), (m0 + 32, 48, "ω_m"), (m1 - 12, 66, "θ_m")]):
+        xt_ = [P["s3"], P["s2"], P["s1"]][k]
+        o.append(W(xs_, y + 17, xs_, y + dep, xt_, y + dep, c=SIG, lw=1.5))
+        o.append(ARR(xt_, y + dep, xt_, y + R, c=SIG, lw=1.5, head=6))
+        o.append(TX(xs_ + 5, y + dep - 4, lab, "start", 9.5, SIG, True, halo=True))
     # (b) 温度の板
     yb = 296
     o.append(T(14, yb - 70, "(b) 温度の板: 電力のループ＋周りの温度と目標値のフィードフォワード", "start", 11.5, INK, True))
@@ -1122,12 +1187,12 @@ def _f14_whole_fig():
     o.append(s)
     o.append(FFPATH(P["br"], P["f1"], yb, 44, GLD, box="Q(s)", bc=SIG, bfill=SSOFT, bh=24))
     xa = P["f2"]
-    o.append(ARR(xa, yb - 30, xa, yb - R, c=GLD, lw=1.5))
-    o.append(TX(xa + 6, yb - 22, "(25 − \\hat{θ}_a)/R̃_th", "start", 9.5, GLD, True, halo=True))
+    o.append(ARR(xa, yb - 34, xa, yb - R, c=GLD, lw=1.5))
+    o.append(_f14_tt(xa + 6, yb - 24, "(25 − θ_a)/R~_th", "start", 9.5, GLD, True, halo=True))
     o.append(FBPATH(P["ot"], P["s1"], yb, 32, SIG))
     o.append(TX(16, yb - 9, "θ_r", "start", 10, MUT, True))
     o.append(TX(xe - 2, yb - 9, "θ", "end", 10, SIG, True))
-    return SVG(700, yb + 46, o, "構成の組み合わせの例。(a) モータの位置決め装置でよく使われる形。3 段のカスケードの角速度の指令に目標値の角速度を、電流の指令に角加速度に要る電流を、フィードフォワードとして足す。(b) 温度の板では、ヒータの電力のループを内側に置き、目標値には前置フィルタとフィードフォワード Q(s)、周りの温度には外乱のフィードフォワードを足して、PI は残りの偏差だけを受け持つ。")
+    return SVG(700, yb + 46, o, "構成の組み合わせの例。(a) モータの位置決め装置でよく使われる形。3 段のカスケードの角速度の指令に目標値の角速度を、電流の指令に角加速度に要る電流を、フィードフォワードとして足す。(b) 温度の板では、ヒータの電力のループを内側に置き、目標値には前置フィルタ G<sub>f</sub> とフィードフォワード Q(s)、周りの温度（測った値 θ<sub>a</sub>）には熱抵抗のモデル R̃<sub>th</sub> を使った外乱のフィードフォワードを足して、PI は残りの偏差だけを受け持つ。")
 
 
 F["e14_whole"] = _f14_whole_fig()
