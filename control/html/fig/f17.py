@@ -1058,3 +1058,236 @@ def _f17_hidden_fig():
 
 
 F["e17_hidden"] = _f17_hidden_fig()
+
+
+# =====================================================================
+# 5 節: 行列指数関数の級数の部分和と、e^{At} の要素
+# =====================================================================
+def _f17_expm_fig():
+    o = []
+    t0 = 0.2
+    At = _F17_APEND * t0
+    o.append(TX(14, 18, "(a) 振子の角度の e^{At}（t = 0.2 s）を級数で足していく", "start", 11.5, INK, True))
+    o.append(TX(14, 36, "At = [0  0.2; 9.156  0]。偶数番目の項は対角の要素に、奇数番目の項は対角の外の要素に入る", "start", 9.5, MUT))
+    cols = [26, 110, 214, 334, 454]
+    hdr = ["k", "項 (At)^k/k! の (1,1)", "項の (2,1)", "k 項目までの和 (1,1)", "和 (2,1)"]
+    y = 58
+    for x, h in zip(cols, hdr):
+        o.append(TX(x, y, h, "start", 9.5, INK, True))
+    o.append(W(14, y + 5, 560, y + 5, c=LIN, lw=1))
+    term = _f17_np.eye(2)
+    S = _f17_np.eye(2)
+    ex = _f17_la.expm(At)
+    for k in range(10):
+        if k > 0:
+            term = term @ At / k
+            S = S + term
+        yy = y + 18 + k * 15.5
+        o.append(T(cols[0] + 4, yy, "%d" % k, "middle", 9.5, MUT))
+        for j, v in enumerate((term[0, 0], term[1, 0], S[0, 0], S[1, 0])):
+            col = MUT if j < 2 else SIG
+            txt = "0" if abs(v) < 1e-12 else ("%.6f" % v if abs(v) < 1 else "%.5f" % v)
+            if abs(v) >= 10:
+                txt = "%.4f" % v
+            o.append(T(cols[1 + j] + 64, yy, txt, "end", 9.5, col, j >= 2))
+    yy = y + 18 + 10 * 15.5 + 4
+    o.append(W(14, yy - 11, 560, yy - 11, c=LIN, lw=1))
+    o.append(TX(cols[0] - 12, yy + 2, "式 cosh・ω_0 sinh", "start", 9.5, GRN, True))
+    o.append(T(cols[3] + 64, yy + 2, "%.5f" % ex[0, 0], "end", 9.5, GRN, True))
+    o.append(T(cols[4] + 64, yy + 2, "%.4f" % ex[1, 0], "end", 9.5, GRN, True))
+    o.append(T(574, y + 18 + 9 * 15.5, "← A⁹ の項まで足すと", "start", 9.5, SIG, True))
+    o.append(T(574, y + 18 + 9 * 15.5 + 14, "有効数字 5 桁が合う", "start", 9.5, SIG, True))
+    # (b) 要素の時間の変化
+    yb = y + 18 + 10 * 15.5 + 40
+    o.append(TX(14, yb, "(b) e^{At} の要素を時間の関数として描く", "start", 11.5, INK, True))
+    p = Plot(62, yb + 34, 270, 120, (0, 1.2), (-1.5, 4))
+    o.append(p.axes(xl="時間 t [s]", yl="要素の値", xt=[0, 0.4, 0.8, 1.2], yt=[-1, 0, 1, 2, 3, 4], xfmt=lambda v: "%g" % v))
+    o.append(TX(p.x + 4, p.y - 7, "振子の角度（ω_0 = 6.77 rad/s）", "start", 10, ALI, True))
+    tt = _f17_np.linspace(0, 1.2, 600)
+    o.append(p.clip([(a, math.cosh(_F17_W0 * a)) for a in tt], c=ALI, lw=2.2))
+    o.append(p.clip([(a, math.sinh(_F17_W0 * a) / _F17_W0) for a in tt], c=ALI, lw=1.8, dash="6 3"))
+    q = Plot(410, yb + 34, 270, 120, (0, 2.4), (-1.2, 1.2))
+    o.append(q.axes(xl="時間 t [s]", yl=None, xt=[0, 0.6, 1.2, 1.8, 2.4], yt=[-1, 0, 1], xfmt=lambda v: "%g" % v))
+    o.append(TX(q.x + 4, q.y - 7, "ダンパの無い台車（ω_n = 5 rad/s）", "start", 10, SIG, True))
+    tt = _f17_np.linspace(0, 2.4, 600)
+    o.append(q.line([(a, math.cos(5 * a)) for a in tt], c=SIG, lw=2.2))
+    o.append(q.line([(a, math.sin(5 * a) / 5) for a in tt], c=SIG, lw=1.8, dash="6 3"))
+    o.append(LEGL(q.x, q.y + q.h + 46, [(SIG, None, "(1,1) cos ω_{n}t"), (SIG, "6 3", "(1,2) sin(ω_{n}t)/ω_n [s]")], 9.5))
+    o.append(LEGL(p.x, p.y + p.h + 46, [(ALI, None, "(1,1) cosh ω_{0}t"), (ALI, "6 3", "(1,2) sinh(ω_{0}t)/ω_0 [s]")], 9.5))
+    return SVG(700, yb + 34 + 120 + 58, o,
+               "行列指数関数 eᴬᵗ = I + At + (At)²/2! + … の計算。(a) 振子の角度と角速度の A で、t = 0.2 s の級数の項と、その和の 1 列目の要素。和は、式で求めた cosh(1.353) = 2.0641 と ω₀ sinh(1.353) = 12.218 に近づく。(b) 要素を時間の関数として描くと、振子では指数関数のように増え続け、ダンパの無い台車では同じ振幅で揺れ続ける。eᴬᵗ の 1 列目は、1 番目の状態変数だけを 1 にして放したときの動きである。")
+
+
+F["e17_expm"] = _f17_expm_fig()
+
+
+# =====================================================================
+# 5 節: 固有値の位置と、位相平面の軌跡の形
+# =====================================================================
+def _f17_portraits_fig():
+    o = []
+    cases = [("渦巻き（台車 c = 2）", _f17_amsd(c=2.0), (-3, 3), (-15, 15), "in", SIG),
+             ("楕円（ダンパなし c = 0）", _f17_amsd(c=0.0), (-3, 3), (-15, 15), "ellipse", TEA),
+             ("広がる渦巻き（c = −2）", _f17_amsd(c=-2.0), (-3, 3), (-15, 15), "out", ALI),
+             ("結節（過減衰 c = 20）", _f17_amsd(c=20.0), (-3, 3), (-30, 30), "in", SIG),
+             ("鞍点（振子の角度）", _F17_APEND, (-3, 3), (-20, 20), "saddle", ALI),
+             ("広がる結節（c = −20）", _f17_amsd(c=-20.0), (-3, 3), (-30, 30), "out", ALI)]
+    cw, chh = 232, 222
+    for k, (title, A, xr, yr, kind, cc) in enumerate(cases):
+        cx0 = 6 + (k % 3) * cw
+        cy0 = 6 + (k // 3) * chh
+        o.append(T(cx0 + 8, cy0 + 14, title, "start", 10.5, INK, True))
+        # 小さな s 平面
+        sp = Plot(cx0 + 120, cy0 + 22, 100, 44, (-20, 20), (-7, 7))
+        o.append(RECT(sp.x, sp.y, sp.w, sp.h, 0, SCR, LIN, 0.7))
+        o.append(SPLANE(sp))
+        ev = _f17_la.eigvals(A)
+        for z in ev:
+            X_, Y_ = sp.X(z.real), sp.Y(z.imag)
+            o.append(W(X_ - 3.5, Y_ - 3.5, X_ + 3.5, Y_ + 3.5, c=cc, lw=1.8)); o.append(W(X_ - 3.5, Y_ + 3.5, X_ + 3.5, Y_ - 3.5, c=cc, lw=1.8))
+        txt = ", ".join(_f17_fmt(z.real, 3) if abs(z.imag) < 1e-9 else ("%s ± j%s" % (_f17_fmt(z.real, 2) if abs(z.real) > 1e-9 else "", _f17_fmt(abs(z.imag), 3))).strip() for z in ev if z.imag >= -1e-9)
+        o.append(T(cx0 + 114, cy0 + 40, "固有値", "end", 9, MUT))
+        o.append(T(cx0 + 114, cy0 + 54, txt, "end", 9, cc, True))
+        # 位相平面
+        P = Plot(cx0 + 22, cy0 + 74, 200, 128, xr, yr)
+        o.append(_f17_box(P))
+        o.append(_f17_axes0(P))
+        o.append(_f17_field(P, A, 11, 8, c=GRD, L=7))
+        if kind == "in":
+            starts = [(xr[1] * math.cos(a), yr[1] * math.sin(a)) for a in _f17_np.linspace(0.3, 2 * math.pi + 0.3, 7)[:-1]]
+            o.append(_f17_trajs(P, A, starts, 6.0, c=cc, lw=1.3, n=1200))
+        elif kind == "ellipse":
+            starts = [(a, 0.0) for a in (0.8, 1.6, 2.4)]
+            o.append(_f17_trajs(P, A, starts, 1.26, c=cc, lw=1.3, n=600))
+        elif kind == "out":
+            starts = [(0.25 * math.cos(a), 0.25 * yr[1] / xr[1] * math.sin(a)) for a in _f17_np.linspace(0, 2 * math.pi, 9)[:-1]]
+            o.append(_f17_trajs(P, A, starts, 3.0, c=cc, lw=1.3, n=1500))
+        else:
+            sts = []
+            for a in (-0.9, -0.5, -0.15, 0.15, 0.5, 0.9):
+                sts.append((xr[1] * a, yr[1]))
+                sts.append((-xr[1] * a, yr[0]))
+            o.append(_f17_trajs(P, A, sts, 1.2, c=cc, lw=1.3, n=800))
+        if kind in ("in", "out", "saddle") and abs(_f17_la.eigvals(A)[0].imag) < 1e-9:
+            evr, Vr = _f17_eig2(A)
+            for i in range(2):
+                o.append(_f17_line(P, Vr[:, i], GRN if evr[i] < 0 else ALI, 1.8))
+    o.append(T(14, 2 * chh + 18, "小さな s 平面は、横が実部 ±20 /s、縦が虚部 ±7 rad/s。位相平面は、横が 1 番目、縦が 2 番目の状態変数", "start", 9, MUT))
+    return SVG(700, 2 * chh + 28, o,
+               "固有値の位置（上の小さな s 平面）と、入力 0 のときの位相平面の軌跡の形。上の段は共役な複素数の固有値で、実部が負なら回りながら縮む渦巻き、0 なら楕円、正なら広がる渦巻きになる。下の段は実数の固有値で、2 つとも負なら回らずに原点へ入る結節、正と負なら鞍点、2 つとも正なら原点から離れる。実数の固有値の固有ベクトルの向きの直線（緑・赤）の上では、状態は直線から出ない。")
+
+
+F["e17_portraits"] = _f17_portraits_fig()
+
+
+# =====================================================================
+# 6 節: 座標変換（過減衰の台車を対角正準形へ）
+# =====================================================================
+def _f17_coord_fig():
+    o = []
+    A = _f17_amsd(c=20.0)
+    ev, V = _f17_eig2(A)                  # V の列が固有ベクトル（1 番目の成分 1）
+    Ti = _f17_la.inv(V)
+    o.append(T(14, 18, "(a) 元の座標 x = [p, ṗ]ᵀ", "start", 11.5, INK, True))
+    P = Plot(66, 32, 240, 200, (-4, 4), (-40, 40))
+    o.append(_f17_box(P))
+    o.append(P.axes(xl="位置 p [cm]", yl=None, xt=[-4, -2, 0, 2, 4], yt=[-40, -20, 0, 20, 40]))
+    o.append(TX(P.x - 36, P.y + P.h / 2, "速度 ṗ [cm/s]", "middle", 10, MUT, rot=-90))
+    # 斜めの格子（x̃ の格子を写したもの）
+    for a in _f17_np.arange(-6, 6.01, 1.0):
+        pts = [tuple(V @ _f17_np.array([a, b])) for b in (-3, 3)]
+        o.append(P.clip(pts, c=FNT, lw=0.8, dash="3 3"))
+    for b in _f17_np.arange(-3, 3.01, 0.5):
+        pts = [tuple(V @ _f17_np.array([a, b])) for a in (-8, 8)]
+        o.append(P.clip(pts, c=FNT, lw=0.8, dash="3 3"))
+    o.append(_f17_axes0(P))
+    o.append(_f17_line(P, V[:, 0], GRN, 2.0)); o.append(_f17_line(P, V[:, 1], TEA, 2.0))
+    starts_t = [(3.0, -1.0), (-3.0, 1.0), (2.5, 1.0), (-2.5, -1.0), (0.5, 1.8), (-0.5, -1.8)]
+    trs = []
+    for xt0 in starts_t:
+        x0 = V @ _f17_np.array(xt0)
+        t, xs = _f17_free(A, x0, 4.0, 800)
+        trs.append((t, xs))
+        o.append(P.clip(list(zip(xs[:, 0], xs[:, 1])), c=SIG, lw=1.6))
+        o.append(D(P.X(x0[0]), P.Y(x0[1]), SIG, 2.6))
+    o.append(TX(P.X(2.9), P.Y(-1.34 * 2.9) - 8, "v_1（−1.34）", "end", 9.5, GRN, True, halo=True))
+    o.append(TX(P.X(1.95), P.Y(-37), "v_2（−18.66）", "start", 9.5, TEA, True, halo=True))
+    # 真ん中の矢印
+    o.append(ARR(318, 120, 380, 120, c=INK, lw=1.6))
+    o.append(ARR(380, 140, 318, 140, c=INK, lw=1.6))
+    o.append(TX(349, 112, "x̃ = T^{−1}x", "middle", 10, INK, True))
+    o.append(TX(349, 158, "x = Tx̃", "middle", 10, INK, True))
+    o.append(TX(349, 186, "T = [v_1 v_2]", "middle", 9.5, MUT))
+    # (b) 新しい座標
+    o.append(T(398, 18, "(b) 対角正準形の座標 x̃ = [x̃₁, x̃₂]ᵀ", "start", 11.5, INK, True))
+    Q = Plot(440, 32, 240, 200, (-4.5, 4.5), (-2.2, 2.2))
+    o.append(_f17_box(Q))
+    o.append(Q.axes(xl=None, yl=None, xt=[-4, -2, 0, 2, 4], yt=[-2, -1, 0, 1, 2]))
+    o.append(TX(Q.x + Q.w / 2, Q.y + Q.h + 31, "x̃_1（遅いモードの大きさ）", "middle", 10, GRN))
+    o.append(TX(Q.x - 30, Q.y + Q.h / 2, "x̃_2（速いモード）", "middle", 10, TEA, rot=-90))
+    for a in _f17_np.arange(-4, 4.01, 1.0):
+        o.append(W(Q.X(a), Q.y, Q.X(a), Q.y + Q.h, c=FNT, lw=0.8, dash="3 3"))
+    for b in _f17_np.arange(-2, 2.01, 0.5):
+        o.append(W(Q.x, Q.Y(b), Q.x + Q.w, Q.Y(b), c=FNT, lw=0.8, dash="3 3"))
+    o.append(W(Q.x, Q.Y(0), Q.x + Q.w, Q.Y(0), c=GRN, lw=2.0))
+    o.append(W(Q.X(0), Q.y, Q.X(0), Q.y + Q.h, c=TEA, lw=2.0))
+    for t, xs in trs:
+        xt = xs @ Ti.T
+        o.append(Q.clip(list(zip(xt[:, 0], xt[:, 1])), c=SIG, lw=1.6))
+        o.append(D(Q.X(xt[0, 0]), Q.Y(xt[0, 1]), SIG, 2.6))
+    o.append(T(Q.x + Q.w - 4, Q.Y(0) - 6, "x̃₁ 軸 = v₁ の向き", "end", 9.5, GRN, True, halo=True))
+    o.append(T(Q.X(0) + 5, Q.y + 12, "x̃₂ 軸 = v₂ の向き", "start", 9.5, TEA, True, halo=True))
+    o.append(TX(14, 284, "Ã = T^{−1}AT = [−1.34  0; 0  −18.66]: 2 つの状態変数が別々に e^{−1.34t}・e^{−18.66t} 倍で縮む", "start", 10, INK))
+    return SVG(700, 296, o,
+               "過減衰の台車（c = 20 N·s/m）を、固有ベクトルを並べた T で座標変換する。(a) 元の位相平面に、新しい座標の格子を写すと、2 本の固有ベクトルの向きに沿った斜めの格子になる。(b) 新しい座標では格子は縦と横になり、軌跡は、速いモード（縦）がまず縮み、その後は遅いモード（横）に沿って原点に入る。2 つの図の軌跡は、同じ動きを別の物差しで測ったものである。")
+
+
+F["e17_coord"] = _f17_coord_fig()
+
+
+# =====================================================================
+# 6 節: 2 つの正準形のブロック線図（モードの電圧 → 角速度）
+# =====================================================================
+def _f17_canon_fig():
+    o = []
+    o.append(T(14, 18, "(a) 可制御正準形: 積分を一列に並べ、最後の行の係数で戻す", "start", 11.5, INK, True))
+    yc = 104
+    s, pos, xe = CHAIN(30, yc, [("a", 46, "u", GLD), ("s", {"l": "+", "b": "−", "t": "−"}, "s"), ("a", 40, "ẋ_2", INK),
+                                ("b", ("1", "s"), "I1", SIG, SSOFT), ("a", 64, "x_2", SIG), ("t", "t2", SIG), ("a", 30, None, SIG),
+                                ("b", ("1", "s"), "I2", SIG, SSOFT), ("a", 64, "x_1", SIG), ("t", "t1", SIG), ("a", 30, None, SIG),
+                                ("b", "2 × 10^6", "Cb"), ("a", 50, "y", SIG)])
+    o.append(s)
+    o.append(FBPATH(pos["t2"], pos["s"], yc, 46, c=MUT, box="2000"))
+    o.append(_f17_toppath(pos["t1"], pos["s"], yc, 48, "40000", c=MUT))
+    o.append(TX(536, yc + 30, "A = [0  1; −40000  −2000]", "start", 10, INK))
+    o.append(TX(536, yc + 46, "B = [0  1]ᵀ", "start", 10, INK))
+    o.append(TX(536, yc + 62, "C = [2 × 10^6  0]", "start", 10, INK))
+    o.append(T(pos["s"] + 20, yc + 70, "a₁ = 2000", "start", 9.5, MUT))
+    o.append(T(pos["s"] + 20, yc - 64, "a₀ = 40000", "start", 9.5, MUT))
+    # (b) 対角正準形
+    y0 = 196
+    o.append(T(14, y0, "(b) 対角正準形: モードごとの一次遅れを並列に並べて足す（部分分数分解）", "start", 11.5, INK, True))
+    yc2 = y0 + 76
+    ya, yb = yc2 - 34, yc2 + 34
+    o.append(ARR(30, yc2, 104, yc2, c=GLD, lw=1.6))
+    o.append(TX(56, yc2 - 8, "u", "middle", 10, GLD, True))
+    o.append(D(104, yc2, GLD, 3.6))
+    o.append(W(104, yc2, 104, ya, c=GLD, lw=1.6)); o.append(W(104, yc2, 104, yb, c=GLD, lw=1.6))
+    for yy, den, gain, lab, cc in ((ya, "s + 20.2", "1020.6", "x̃_1（遅いモード）", GRN), (yb, "s + 1980", "−1020.6", "x̃_2（速いモード）", TEA)):
+        s1, p1, x1 = CHAIN(104, yy, [("a", 36, None, GLD), ("b", ("1", den), "b1", cc, soft(cc)), ("a", 104, None, cc), ("b", gain, "g"), ("w", 60, cc)])
+        o.append(s1)
+        o.append(TX((p1["b1"][1] + p1["g"][0]) / 2, yy - 8, lab, "middle", 9.5, cc, True, halo=True))
+        xend = x1
+    xs_ = xend + 15
+    o.append(W(xend, ya, xs_, ya, c=GRN, lw=1.6)); o.append(ARR(xs_, ya, xs_, yc2 - 15, c=GRN, lw=1.6, head=6))
+    o.append(W(xend, yb, xs_, yb, c=TEA, lw=1.6)); o.append(ARR(xs_, yb, xs_, yc2 + 15, c=TEA, lw=1.6, head=6))
+    o.append(SUMJ(xs_, yc2, {"t": "+", "b": "+"}))
+    o.append(ARR(xs_ + 15, yc2, xs_ + 70, yc2, c=SIG, lw=1.6))
+    o.append(TX(xs_ + 44, yc2 - 8, "y", "middle", 10, SIG, True))
+    o.append(TX(xs_ + 90, yc2 - 6, "P(s) = 1020.6/(s + 20.2)", "start", 10, INK))
+    o.append(TX(xs_ + 90, yc2 + 12, "　　 − 1020.6/(s + 1980)", "start", 10, INK))
+    return SVG(700, yb + 36, o,
+               "モータの電圧から角速度までの伝達関数 2 × 10⁶/(s² + 2000s + 40000) の、2 つの正準形。(a) 可制御正準形は、積分の箱を一列に並べ、分母の係数 a₁ = 2000・a₀ = 40000 で入口へ戻し、分子の係数 2 × 10⁶ で出力を取り出す。(b) 対角正準形は、固有値 −20.2（遅いモード）と −1980（速いモード）の一次遅れを並列に並べて足す。足す係数は、部分分数分解の留数である。")
+
+
+F["e17_canon"] = _f17_canon_fig()
