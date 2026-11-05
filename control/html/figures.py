@@ -875,6 +875,75 @@ def BODE(x, y, w, curves, wr, dbr, phr, hm=140, hp=110, gap=34, dbt=None, pht=No
         o.append(pm.clip(a, c=c, dash=dash)); o.append(pp.clip(b, c=c, dash=dash))
     return "".join(o), pm, pp, y + hm + gap + hp + 40
 
+def SIMLOOP(Pn, Pd, Cn, Cd, tEnd, L=0.0, n=20000, r=1.0, d=None, dy=None, noise=None, umin=None, umax=None, every=None):
+    """フィードバック系（07 章の基本の形、センサは 1）を時間の刻みで数値計算する（widgets.js の U.ctl.simLoop と同じ計算）。
+    制御対象 Pn/Pd（むだ時間 L [s] を含んでよい）、制御器 Cn/Cd（プロパー）。r は目標値（数か t の関数）、d は操作量に入る外乱、
+    dy は制御量に入る外乱、noise は観測ノイズ（t, k の関数）、umin・umax は操作量の飽和（積分は止めないので、ワインドアップは起きる）。
+    零次ホールドで離散化し、むだ時間は操作量を刻みの数だけ遅らせる（平均 h/2 の遅れが加わるので、h = tEnd/n を十分小さくする）。
+    返り値 {"t", "y"（制御量）, "u"（制御器の出力。飽和の後）, "e"（偏差）, "blow"（発散したか）}（numpy の並び。every 刻みごとに記録）。"""
+    import numpy as _np
+    from scipy import signal as _sg
+    h = tEnd / n
+    ev = every or max(1, int(round(n / 1000)))
+    def _d(num, den):
+        num = _np.atleast_1d(_np.asarray(num, dtype=float)); den = _np.atleast_1d(_np.asarray(den, dtype=float))
+        A, B, C, D = _sg.tf2ss(num, den)
+        if A.shape[0] == 0:
+            return None, None, _np.zeros((1, 0)), float(_np.atleast_2d(D)[0, 0])
+        Ad, Bd, _, _, _ = _sg.cont2discrete((A, B, C, D), h, method="zoh")
+        return Ad, Bd[:, 0], _np.atleast_2d(C)[0], float(_np.atleast_2d(D)[0, 0])
+    Apd, Bpd, Cp, Dp = _d(Pn, Pd)
+    Acd, Bcd, Cc, Dc = _d(Cn, Cd)
+    nd = int(round(L / h))
+    if Dp != 0 and nd == 0:
+        raise ValueError("SIMLOOP: むだ時間の無い対象は厳密にプロパーにする")
+    xp = _np.zeros(0 if Apd is None else Apd.shape[0]); xc = _np.zeros(0 if Acd is None else Acd.shape[0])
+    buf = _np.zeros(max(1, nd)); bi = 0
+    rf = r if callable(r) else (lambda t, _v=r: _v)
+    T, Y, U, E, blow = [], [], [], [], False
+    for k in range(n + 1):
+        t = k * h
+        ua = buf[bi] if nd else 0.0
+        y = float(Cp @ xp) if xp.size else 0.0
+        if nd:
+            y += Dp * ua
+        if dy:
+            y += dy(t)
+        e = rf(t) - (y + (noise(t, k) if noise else 0.0))
+        uc = (float(Cc @ xc) if xc.size else 0.0) + Dc * e
+        if umax is not None and uc > umax:
+            uc = umax
+        if umin is not None and uc < umin:
+            uc = umin
+        uin = uc + (d(t) if d else 0.0)
+        if nd:
+            buf[bi] = uin; bi = (bi + 1) % nd
+        else:
+            ua = uin
+        if k % ev == 0:
+            T.append(t); Y.append(y); U.append(uc); E.append(e)
+        if not _np.isfinite(y) or abs(y) > 1e9:
+            blow = True
+            break
+        if xc.size:
+            xc = Acd @ xc + Bcd * e
+        if xp.size:
+            xp = Apd @ xp + Bpd * ua
+    return {"t": _np.array(T), "y": _np.array(Y), "u": _np.array(U), "e": _np.array(E), "blow": blow}
+
+def SMAX(num, den, delay=0.0, wlo=1e-4, whi=1e5):
+    """感度関数のゲインの最大値 Ms = max |1/(1 + L(jω))| と、その角周波数 (Ms, ω)。1/Ms はナイキスト線図の −1 から L(jω) までの最短距離。
+    L = num/den·e^{−delay·s}（U.ctl.smax と同じ計算）。"""
+    import numpy as _np
+    from scipy.optimize import minimize_scalar as _ms
+    f = lambda w: 1.0 / abs(1 + _np.polyval(num, 1j * w) / _np.polyval(den, 1j * w) * _np.exp(-1j * w * delay))
+    ws = _np.logspace(_np.log10(wlo), _np.log10(whi), 4000)
+    vals = _np.array([f(w) for w in ws]); i = int(vals.argmax())
+    lo, hi = _np.log(ws[max(0, i - 1)]), _np.log(ws[min(len(ws) - 1, i + 1)])
+    res = _ms(lambda x: -f(_np.exp(x)), bounds=(lo, hi), method="bounded", options={"xatol": 1e-10})
+    wm = float(_np.exp(res.x)); Ms = max(vals[i], f(wm))
+    return float(Ms), (wm if f(wm) >= vals[i] else float(ws[i]))
+
 def BODEPH(num, den, ws, delay=0.0):
     """伝達関数 num/den（係数は高い次から。むだ時間 delay [s] を掛けたもの）のゲイン [dB] と位相 [°] の並び。
     位相は連続につなぎ、始まりを因数ごとの位相の和にそろえる（widgets.js の U.ctl.bode と同じ約束）:
