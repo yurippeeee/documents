@@ -869,11 +869,36 @@ def BODE(x, y, w, curves, wr, dbr, phr, hm=140, hp=110, gap=34, dbt=None, pht=No
         o.append(W(x, pm.Y(0), x + w, pm.Y(0), c=MUT, lw=1.1))
     if phr[0] < -180 < phr[1]:
         o.append(W(x, pp.Y(-180), x + w, pp.Y(-180), c=MUT, lw=1.1, dash="5 3"))
-    for ws, db, ph, c, dash in curves:
-        a = [(wv, max(dbr[0], min(dbr[1], d))) for wv, d in zip(ws, db) if wr[0] * (1 - 1e-9) <= wv <= wr[1] * (1 + 1e-9)]
-        b = [(wv, max(phr[0], min(phr[1], q))) for wv, q in zip(ws, ph) if wr[0] * (1 - 1e-9) <= wv <= wr[1] * (1 + 1e-9)]
-        o.append(pm.line(a, c=c, dash=dash)); o.append(pp.line(b, c=c, dash=dash))
+    for ws, db, ph, c, dash in curves:   # 目盛の範囲の外に出る部分は、枠の端に張り付けず、切り落とす
+        a = [(wv, d) for wv, d in zip(ws, db) if wr[0] * (1 - 1e-9) <= wv <= wr[1] * (1 + 1e-9)]
+        b = [(wv, q) for wv, q in zip(ws, ph) if wr[0] * (1 - 1e-9) <= wv <= wr[1] * (1 + 1e-9)]
+        o.append(pm.clip(a, c=c, dash=dash)); o.append(pp.clip(b, c=c, dash=dash))
     return "".join(o), pm, pp, y + hm + gap + hp + 40
+
+def BODEPH(num, den, ws, delay=0.0):
+    """伝達関数 num/den（係数は高い次から。むだ時間 delay [s] を掛けたもの）のゲイン [dB] と位相 [°] の並び。
+    位相は連続につなぎ、始まりを因数ごとの位相の和にそろえる（widgets.js の U.ctl.bode と同じ約束）:
+    積分 1 つなら −90° から、負の定数なら −180° から、右半平面の零点・むだ時間は位相を遅らせる側に描く。"""
+    import numpy as _np
+    ws = _np.asarray(ws, dtype=float)
+    g = _np.polyval(num, 1j * ws) / _np.polyval(den, 1j * ws)
+    db = 20 * _np.log10(_np.abs(g))
+    ph = _np.degrees(_np.unwrap(_np.angle(g)))
+    n = list(_np.trim_zeros(_np.atleast_1d(_np.asarray(num, dtype=float)), "f"))
+    d = list(_np.trim_zeros(_np.atleast_1d(_np.asarray(den, dtype=float)), "f"))
+    N = 0
+    while len(d) > 1 and d[-1] == 0:
+        d.pop(); N += 1
+    while len(n) > 1 and n[-1] == 0:
+        n.pop(); N -= 1
+    ref = (-_np.pi if n[-1] / d[-1] < 0 else 0.0) - N * _np.pi / 2
+    jw = 1j * ws[0]
+    for z in (_np.roots(n) if len(n) > 1 else []):
+        ref += _np.angle(1 - jw / z)
+    for p_ in (_np.roots(d) if len(d) > 1 else []):
+        ref -= _np.angle(1 - jw / p_)
+    ph = ph + 360.0 * round((_np.degrees(ref) - ph[0]) / 360.0)
+    return db, ph - _np.degrees(ws * delay)
 
 # 章ごとの図は fig/fNN.py に置く（このファイルの関数と F をそのまま使える）
 import glob as _glob

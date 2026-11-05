@@ -371,11 +371,17 @@
       ws.forEach(function(w){var v=freq(G,w),m=cx.abs(v),p=cx.arg(v)*180/Math.PI;
         if(prev!==null){while(p-prev>180)p-=360;while(p-prev<-180)p+=360;}prev=p;
         mag.push(m);db.push(20*Math.log10(Math.max(m,1e-300)));ph.push(p);});
-      /* 位相の始まりを、因数ごとの位相の和（零点の (jω−z) の偏角の和 − 極の (jω−p) の偏角の和）にそろえる。
-         こうすると積分 1 つなら −90° から、右半平面の極があればその分だけずれた所から描かれる */
-      if(ws.length){var w0=ws[0],ref=0;
-        zeros(G).forEach(function(z){ref+=Math.atan2(w0-z.im,-z.re);});poles(G).forEach(function(p){ref-=Math.atan2(w0-p.im,-p.re);});
-        ref=ref*180/Math.PI-(G.delay||0)*w0*180/Math.PI;if(G.num[0]/G.den[0]<0)ref+=180;
+      /* 位相の始まりを、因数ごとの位相の和にそろえる（360° の整数倍だけずらす）。積分 1 つなら −90° から、
+         負の定数なら −180° から、右半平面の零点・むだ時間は位相を遅らせる側に描かれる */
+      if(ws.length){var w0=ws[0],nn=G.num.slice(),dd=G.den.slice(),N=0,jw=c(0,w0),one=c(1,0);
+        /* 原点の極（積分）と零点（微分）を数え、低い角周波数の形 K0/(jω)^N の位相（K0 が負なら −180°）から始める */
+        while(dd.length>1&&dd[dd.length-1]===0){dd.pop();N++;}
+        while(nn.length>1&&nn[nn.length-1]===0){nn.pop();N--;}
+        var ref=(nn[nn.length-1]/dd[dd.length-1]<0?-Math.PI:0)-N*Math.PI/2;
+        /* 原点以外の零点 z と極 p は (1 − jω/z)・(1 − jω/p) の形の因数の偏角を足し引きする（右半平面の零点は位相を遅らせる側になる） */
+        (nn.length>1?poly.roots(nn):[]).forEach(function(z){ref+=cx.arg(cx.sub(one,cx.div(jw,z)));});
+        (dd.length>1?poly.roots(dd):[]).forEach(function(p){ref-=cx.arg(cx.sub(one,cx.div(jw,p)));});
+        ref=ref*180/Math.PI-(G.delay||0)*w0*180/Math.PI;
         var sh=Math.round((ref-ph[0])/360)*360;if(sh)ph=ph.map(function(p){return p+sh;});}
       return {w:ws,mag:mag,db:db,ph:ph};}
     function series(a,b){return tf(poly.mul(a.num,b.num),poly.mul(a.den,b.den),(a.delay||0)+(b.delay||0));}
@@ -548,8 +554,9 @@
       s.push(Pm.axes({yl:"ゲイン [dB]",yt:dbt,xfmt:function(){return "";}}));s.push(Pp.axes({yl:"位相 [°]",yt:pht,xl:o.xl||"角周波数 ω [rad/s]"}));
       if(dbr[0]<0&&dbr[1]>0)s.push(S.L(x,Pm.Y(0),x+w,Pm.Y(0),"muted",1.1));
       if(phr[0]<-180&&phr[1]>-180)s.push(S.L(x,Pp.Y(-180),x+w,Pp.Y(-180),"muted",1.1,"5 3"));
-      curves.forEach(function(cv){var a=[],b=[];cv.w.forEach(function(ww,i){if(ww>=wr[0]*(1-1e-9)&&ww<=wr[1]*(1+1e-9)){a.push([ww,Math.max(dbr[0],Math.min(dbr[1],cv.db[i]))]);b.push([ww,Math.max(phr[0],Math.min(phr[1],cv.ph[i]))]);}});
-        s.push(Pm.line(a,cv.c||"signal",cv.lw||2,cv.dash));s.push(Pp.line(b,cv.c||"signal",cv.lw||2,cv.dash));});
+      /* 目盛の範囲の外に出る部分は、枠の端に張り付けず、切り落とす */
+      curves.forEach(function(cv){var a=[],b=[];cv.w.forEach(function(ww,i){if(ww>=wr[0]*(1-1e-9)&&ww<=wr[1]*(1+1e-9)){a.push([ww,cv.db[i]]);b.push([ww,cv.ph[i]]);}});
+        s.push(Pm.clip(a,cv.c||"signal",cv.lw||2,cv.dash));s.push(Pp.clip(b,cv.c||"signal",cv.lw||2,cv.dash));});
       return {svg:s.join(""),Pm:Pm,Pp:Pp,h:y+hm+gap+hp+40};}
     /* 図の上でのドラッグ。box は U.svgbox の返り値。cb(type, x, y) の x, y は SVG の座標（viewBox の単位）。
        type は "down"・"move"・"up"。ドラッグ中だけ画面のスクロールを止める */
