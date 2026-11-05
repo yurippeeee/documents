@@ -847,7 +847,7 @@ def _f12_delay_fig():
     o = []
     L = 0.1
     Ks = _f12_np.logspace(-1, 2.3, 1200)
-    o.append(TX(14, 18, "(a) 本当の根: s + 2 + K_ce^{−0.1s} = 0", "start", 11, INK, True))
+    o.append(TX(14, 18, "(a) 本当の根: s + 2 + K_{c}e^{−0.1s} = 0", "start", 11, INK, True))
     p = Plot(56, 32, 270, 270, (-60, 40), (-100, 100))
     o.append(_f12_sp(p, [-60, -40, -20, 0, 20, 40], [-100, -50, 0, 50, 100], xl="実部 σ [1/s]", yl="虚部 ω [rad/s]"))
     for kb in (-2, -1, 0, 1):
