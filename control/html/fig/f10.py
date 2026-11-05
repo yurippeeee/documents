@@ -679,3 +679,130 @@ def _f10_pid_bode_fig():
     o.append(T(q.X(-0.25), q.Y(-1.35), "ω が増すと上へ", "start", 9, INK, halo=True))
     return _f10_svg(700, hh + 44, o, "PID の周波数応答（K_P = 0.84 V/rad、K_I = 5 V/(rad·s)、K_D = 0.02 V·s/rad。T_I = 0.168 s、T_D = 0.0238 s）。(a) ゲインは、低い角周波数では I の K_I/ω、中ほどでは P の K_P、高い角周波数では D の K_D ω にそって谷の形になり、位相は −90° から +90° へ進む。(b) s = jω を入れると、実部はいつも K_P で、虚部は K_D ω − K_I/ω なので、C(jω) は実部 K_P の縦の線の上を下から上へ動く。虚部が 0 になる ω_0 = 1/√(T_I T_D) でゲインは最小の K_P、位相は 0° になる。")
 F["e10_pid_bode"] = _f10_pid_bode_fig()
+
+
+# =====================================================================
+# 5 節: 制御対象ごとの効き方
+# =====================================================================
+def _f10_cmp_speed_fig():
+    o = []
+    res = {}
+    for name, Cn, Cd in (("P", [0.1], [1.0]), ("PI", [0.1, 2.0], [1.0, 0.0])):
+        r = SIMLOOP([50.0], [0.05, 1.0], Cn, Cd, 0.6, n=60000, r=100.0, d=lambda t: -1.0 if t >= 0.3 else 0.0, every=10)
+        res[name] = r
+    t = res["PI"]["t"]
+    o.append(TX(14, 18, "(a) モータの角速度（目標 100 rad/s。0.3 s から負荷トルク 0.01 N·m、電圧に換算して −1 V）", "start", 11, INK, True))
+    p = Plot(70, 32, 600, 140, (0, 0.6), (0, 115))
+    o.append(_f10_band(p, 0.3, 0.6))
+    o.append(p.axes(xl=None, yl="角速度 [rad/s]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6], yt=[0, 25, 50, 75, 100], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
+    o.append(W(p.x, p.Y(100), p.x + p.w, p.Y(100), c=MUT, lw=1.2, dash="5 3"))
+    o.append(p.line(list(zip(res["P"]["t"], res["P"]["y"])), c=TEA, lw=2))
+    o.append(p.line(list(zip(t, res["PI"]["y"])), c=SIG, lw=2.2))
+    yPI = res["PI"]["y"]; m = t >= 0.3
+    kmin = int(_f10_np.argmin(_f10_np.where(m, yPI, 1e9)))
+    o.append(TX(p.X(0.1), p.Y(83.33) + 15, "比例だけ（K_P = 0.1 V/(rad/s)）: 83.3 rad/s（偏差 16.7）", "start", 9.5, TEA, True, halo=True))
+    o.append(T(p.X(0.59), p.Y(75.0) + 15, "負荷で 75.0 rad/s", "end", 9.5, TEA, True, halo=True))
+    o.append(TX(p.X(0.1), p.Y(100) - 6, "PI（K_I = 2 V/rad を足す）: 100 rad/s", "start", 9.5, SIG, True, halo=True))
+    o.append(D(p.X(t[kmin]), p.Y(yPI[kmin]), SIG, 3.4))
+    o.append(T(p.X(t[kmin]) + 8, p.Y(yPI[kmin]) + 4, "いったん %s rad/s、0.09 s で ±2 rad/s に戻る" % _f10_f(yPI[kmin], 1), "start", 9.5, SIG, True, halo=True))
+    o.append(T(14, 204, "(b) 電圧の内訳（PI）と、比例だけの電圧", "start", 11, INK, True))
+    q = Plot(70, 216, 600, 120, (0, 0.6), (0, 11))
+    o.append(_f10_band(q, 0.3, 0.6))
+    o.append(q.axes(xl="時間 t [s]", yl="電圧 [V]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6], yt=[0, 2, 4, 6, 8, 10], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    uP = 0.1 * res["PI"]["e"]; uI = res["PI"]["u"] - uP
+    o.append(q.line(list(zip(res["P"]["t"], res["P"]["u"])), c=TEA, lw=1.4, dash="5 3"))
+    o.append(q.line(list(zip(t, uP)), c=_F10_CP, lw=1.8))
+    o.append(q.line(list(zip(t, uI)), c=_F10_CI, lw=2.2))
+    o.append(q.line(list(zip(t, res["PI"]["u"])), c=INK, lw=1.4))
+    o.append(T(q.X(0.29), q.Y(2) - 6, "I の分 2 V（100 rad/s を保つ電圧）", "end", 9.5, _F10_CI, True, halo=True))
+    o.append(T(q.X(0.59), q.Y(3) - 6, "I の分 3 V（負荷の 1 V を足す）", "end", 9.5, _F10_CI, True, halo=True))
+    o.append(T(q.X(0.012), q.Y(10) + 4, "始めは 10 V", "start", 9.5, INK, True, halo=True))
+    o.append(LEGL(70, 380, [(INK, None, "PI の電圧"), (_F10_CP, None, "P の分"), (_F10_CI, None, "I の分"), (TEA, "5 3", "比例だけの電圧")], 9.5))
+    return _f10_svg(700, 390, o, "モータの角速度（一次遅れ 50/(0.05s + 1)）。(a) 比例だけでは、目標を保つ電圧を偏差から作るので 16.7 rad/s 低く落ち着き、負荷がかかるとさらに 8.3 rad/s 下がる。I 動作を足すと、どちらの偏差も消える。(b) PI の I の分が、100 rad/s を保つ 2 V と、負荷を支える 1 V を、偏差 0 のまま出す。比例だけで偏差を小さくしようと K_P を 0.5 V/(rad/s) に上げると、目標を変えた瞬間の電圧が 50 V になり、12 V の電源では出せない。")
+F["e10_cmp_speed"] = _f10_cmp_speed_fig()
+
+
+def _f10_cmp_pos_fig():
+    o = []
+    load = lambda t: -1.0 if t >= 1.0 else 0.0
+    cs = [("P", 0.21, 0.0, 0.0, TEA, "比例だけ（K_P = 0.21）"), ("PD", 0.84, 0.0, 0.02, SIG, "PD（K_P = 0.84、K_D = 0.02）"),
+          ("PID", 0.84, 5.0, 0.02, GRN, "PID（さらに K_I = 5）")]
+    res = {}
+    for name, KP, KI, KD, c, lab in cs:
+        res[name] = _f10_sim("mpos", KP, KI, KD, 2.0, 1e-4, d=load, every=10)
+    o.append(T(14, 18, "(a) モータの角度（目標 1 rad。1.0 s から負荷トルク 0.01 N·m、電圧に換算して −1 V）", "start", 11, INK, True))
+    p = Plot(70, 32, 600, 160, (0, 2.0), (-0.6, 1.5))
+    o.append(_f10_band(p, 1.0, 2.0))
+    o.append(p.axes(xl=None, yl="角度 [rad]", xt=[0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2], yt=[-0.5, 0, 0.5, 1, 1.5], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
+    o.append(W(p.x, p.Y(1), p.x + p.w, p.Y(1), c=MUT, lw=1.2, dash="5 3"))
+    for name, KP, KI, KD, c, lab in cs:
+        r = res[name]
+        o.append(p.clip(list(zip(r["t"], r["y"])), c=c, lw=2.2 if name == "PID" else 1.9))
+    rp = res["PID"]
+    mp, ts = _f10_metrics(rp["t"], rp["y"], 1.0, 0.0, 0.999)
+    o.append(TX(p.X(1.02), p.y + p.h - 8, "比例だけ: −3.76 rad へ（枠の外。ずれ 4.76 rad）", "start", 9.5, TEA, True, halo=True))
+    o.append(TX(p.X(1.98), p.Y(1 - 1.0 / 0.84) - 6, "PD: ずれ 1.19 rad が残る", "end", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(1.6), p.Y(1.0) + 15, "PID: 0.56 s で ±0.02 rad に戻る", "start", 9.5, GRN, True, halo=True))
+    o.append(TX(p.X(0.17), p.Y(1.30) + 4, "PID: 行き過ぎ %s %%" % _f10_f(mp, 0), "start", 9.5, GRN, True, halo=True))
+    o.append(TX(p.X(0.42), p.Y(0.62), "PD: 5.0 %・0.21 s", "start", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(0.42), p.Y(0.47), "比例だけ: 5.0 %・0.41 s", "start", 9.5, TEA, True, halo=True))
+    o.append(T(14, 232, "(b) 電圧（PID は I の分も示す）", "start", 11, INK, True))
+    q = Plot(70, 244, 600, 120, (0, 2.0), (-0.4, 1.4))
+    o.append(_f10_band(q, 1.0, 2.0))
+    o.append(q.axes(xl="時間 t [s]", yl="電圧 [V]", xt=[0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2], yt=[0, 0.5, 1], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
+    o.append(W(q.X(1.0), q.Y(1.0), q.X(2.0), q.Y(1.0), c=PUR, lw=1, dash="3 3"))
+    for name, KP, KI, KD, c, lab in cs:
+        r = res[name]
+        o.append(q.clip(list(zip(r["t"], r["u"])), c=c, lw=1.6))
+    o.append(q.line(list(zip(rp["t"], rp["uI"])), c=_F10_CI, lw=1.6, dash="5 3"))
+    o.append(T(q.X(1.98), q.Y(1.0) + 14, "負荷を支える 1 V", "end", 9.5, PUR, True, halo=True))
+    o.append(T(q.X(1.98), q.Y(0.55), "PID の I の分 → 1 V", "end", 9.5, _F10_CI, True, halo=True))
+    o.append(LEGL(70, 408, [(TEA, None, cs[0][5]), (SIG, None, cs[1][5]), (GRN, None, cs[2][5]), (_F10_CI, "5 3", "PID の I の分")], 9.5, 12))
+    return _f10_svg(700, 418, o, "モータの角度（積分を含む 1000/(s(s + 20))）。D 動作は測った角度の変わる速さに掛けた（3 節）。(a) PD は、比例だけと同じ 5.0 % の行き過ぎで 2 倍速く落ち着くが、負荷トルクを支える 1 V を偏差から作るので、1/0.84 = 1.19 rad ずれる。I 動作を足した PID は、負荷のずれを 0 に戻す。代わりに、目標値への行き過ぎが 30 % に増える（6 節で減らし方を述べる）。(b) PID の I の分が、負荷を支える 1 V を出すようになる。")
+F["e10_cmp_pos"] = _f10_cmp_pos_fig()
+
+
+def _f10_plate_run(KP, KI, KD, tend=1100.0, h=0.05, t_d=100.0, N=None, noise=None, every=20):
+    """温度の板を 60 °C で落ち着かせておき、t_d に周りの温度が 25 °C から 15 °C に下がる（板から逃げる熱が 8 W 増える）。
+    制御量は周りとの差ではなく板の温度 [°C] で返す。比例だけのときは、比例だけで落ち着く温度から始める。"""
+    if KI:
+        x0, I0 = [35.0], 28.0
+    else:
+        x0, I0 = [35.0 * 1.25 * KP / (1 + 1.25 * KP)], 0.0
+    r = _f10_sim("plate", KP, KI, KD, tend, h, r=lambda t: 35.0, d=lambda t: -8.0 if t >= t_d else 0.0, x0=x0, I0=I0,
+                 N=N, noise=noise, every=every)
+    r["y"] = r["y"] + 25.0
+    return r
+
+
+def _f10_cmp_plate_fig():
+    o = []
+    cs = [("P", 24.0, 0.0, 0.0, TEA, "比例だけ（K_P = 24 W/K）"), ("PI1", 12.0, 0.15, 0.0, SIG, "PI（12 W/K、T_I = 80 s）"),
+          ("PI2", 24.0, 0.6, 0.0, ALI, "PI（24 W/K、T_I = 40 s）"), ("PID", 24.0, 0.6, 240.0, GRN, "PID（24 W/K、40 s、T_D = 10 s）")]
+    res = {c[0]: _f10_plate_run(c[1], c[2], c[3]) for c in cs}
+    o.append(T(14, 18, "(a) 板の温度（目標 60 °C。100 s に周りの温度が 25 °C から 15 °C に下がる）", "start", 11, INK, True))
+    p = Plot(70, 32, 600, 170, (0, 1100), (57.8, 60.6))
+    o.append(_f10_band(p, 100, 1100))
+    o.append(p.axes(xl=None, yl="温度 [°C]", xt=[0, 100, 300, 500, 700, 900, 1100], yt=[58, 58.5, 59, 59.5, 60, 60.5], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
+    o.append(W(p.x, p.Y(60), p.x + p.w, p.Y(60), c=MUT, lw=1.2, dash="5 3"))
+    for name, KP, KI, KD, c, lab in cs:
+        r = res[name]
+        o.append(p.clip(list(zip(r["t"], r["y"])), c=c, lw=1.5 if name == "PI2" else 2.0))
+    o.append(T(p.X(1090), p.Y(58.871) - 5, "比例だけ: 58.87 °C（偏差 1.13 K）", "end", 9.5, TEA, True, halo=True))
+    o.append(T(p.X(1090), p.Y(58.548) + 14, "→ 58.55 °C（偏差 1.45 K）", "end", 9.5, TEA, True, halo=True))
+    o.append(T(p.X(330), p.Y(59.25), "PI（12 W/K・80 s）: −0.66 K、125 s で ±0.1 K", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(330), p.Y(59.43), "PID: −0.41 K、52 s で ±0.1 K", "start", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(330), p.Y(60.47), "PI（24 W/K・40 s）: 振れが大きくなり続ける", "start", 9.5, ALI, True, halo=True))
+    o.append(T(14, 238, "(b) ヒータの電力", "start", 11, INK, True))
+    q = Plot(70, 250, 600, 120, (0, 1100), (0, 80))
+    o.append(_f10_band(q, 100, 1100))
+    o.append(q.axes(xl="時間 t [s]", yl="電力 [W]", xt=[0, 100, 300, 500, 700, 900, 1100], yt=[0, 20, 40, 60, 80], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    for name, KP, KI, KD, c, lab in cs:
+        r = res[name]
+        o.append(q.clip(list(zip(r["t"], r["u"])), c=c, lw=1.4 if name == "PI2" else 1.8))
+    o.append(T(q.X(1090), q.Y(36) - 6, "PI・PID: 28 W → 36 W", "end", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(1090), q.Y(34.8) + 14, "比例だけ: 27.1 W → 34.8 W", "end", 9.5, TEA, True, halo=True))
+    o.append(LEGL(70, 414, [(TEA, None, cs[0][5]), (SIG, None, cs[1][5]), (ALI, None, cs[2][5]), (GRN, None, cs[3][5])], 9.5, 10))
+    return _f10_svg(700, 424, o, "温度の板（一次遅れ ＋ むだ時間 20 s）で、周りの温度が下がったとき。D 動作は測った温度の変わる速さに掛けた。(a) 比例だけでは、逃げる熱を補う電力を偏差から作るので偏差が残る。I 動作で偏差は消えるが、むだ時間があるので強くはできず、24 W/K・40 s の PI は振れが大きくなり続ける（この計算は電力の上限・下限を考えていない）。D 動作を足すと、同じ 24 W/K・40 s で落ち着き、12 W/K・80 s の PI より小さく速く戻る。(b) PI と PID の電力は、逃げる熱が 8 W 増えた分だけ増えて 36 W になる。")
+F["e10_cmp_plate"] = _f10_cmp_plate_fig()
