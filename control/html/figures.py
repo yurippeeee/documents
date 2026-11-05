@@ -841,8 +841,8 @@ def SPLANE(p, rhp=True, zeta=None):
         o.append(RECT(x0, p.y, p.x + p.w - x0, p.h, 0, soft(ALI), "none", 0))
     for z in (zeta or []):
         th = math.acos(z); R = 2 * max(abs(p.xr[0]), abs(p.yr[0]), abs(p.yr[1]))
-        for sg in (1, -1):
-            o.append(W(p.X(0), p.Y(0), p.X(-R * math.cos(th)), p.Y(sg * R * math.sin(th)), c=FNT, lw=1, dash="4 3"))
+        for sg in (1, -1):   # 枠の外へは伸ばさない（枠の境目で切る）
+            o.append(p.clip([(0.0, 0.0), (-R * math.cos(th), sg * R * math.sin(th))], c=FNT, lw=1, dash="4 3"))
     if p.yr[0] < 0 < p.yr[1]:
         o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
     if p.xr[0] < 0 < p.xr[1]:
@@ -917,6 +917,26 @@ def CURVEHEAD(p, vals, k, c, head=7):
     """曲線（複素数の並び vals。Plot p の座標）の k 番目の点に、進む向き（番号が増える向き）の矢じりを置く。"""
     a, b = vals[k - 1], vals[k + 1]
     return _head(p.X(a.real), p.Y(a.imag), p.X(b.real), p.Y(b.imag), c, head)
+
+def RLOCUS(a, b, Ks):
+    """根軌跡: a(s) + K b(s) = 0 の根を Ks の各 K で求め、枝ごとに並べる（12 章で作ったものを共通にした）。
+    a・b は係数の並び（高い次から）。1 つ前の K の根に近い根を同じ枝につなぐ（距離の和が最小になる対応）ので、
+    根の順番の入れ替わりで線が飛ばない。返り値は複素数の配列 R[枝, K の番号]。Ks は対数の刻みで細かくとる。"""
+    import numpy as _np
+    from scipy.optimize import linear_sum_assignment as _lsa
+    a = _np.asarray(a, float); b = _np.asarray(b, float)
+    rows, prev = [], None
+    for K in Ks:
+        r = _np.roots(_np.polyadd(a, K * b))
+        if prev is not None and len(r) == len(prev):
+            i, j = _lsa(_np.abs(prev[:, None] - r[None, :]))
+            r = r[j[_np.argsort(i)]]
+        rows.append(r); prev = r
+    return _np.array(rows).T
+
+def RLBRANCH(p, R, c=SIG, lw=2.0, dash=None):
+    """RLOCUS の枝をすべて Plot p に描く（枠の外は切る）。"""
+    return "".join(p.clip([(z.real, z.imag) for z in br], c=c, lw=lw, dash=dash) for br in R)
 
 def SIMLOOP(Pn, Pd, Cn, Cd, tEnd, L=0.0, n=20000, r=1.0, d=None, dy=None, noise=None, umin=None, umax=None, every=None):
     """フィードバック系（07 章の基本の形、センサは 1）を時間の刻みで数値計算する（widgets.js の U.ctl.simLoop と同じ計算）。
