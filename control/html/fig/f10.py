@@ -175,15 +175,12 @@ def _f10_views_fig():
 F["e10_views"] = _f10_views_fig()
 
 
-def _f10_cart_delay(K, L=0.1, tend=3.0, h=2e-4, u0=2.0, r=1.0):
-    """1 章の台車の速度（質量 1 kg、減衰係数 2 N·s/m）: u = u0 + K(r − 測った速度)、測った速度は L 遅れる。"""
-    n = int(round(tend / h)); nd = int(round(L / h)); a = math.exp(-2.0 * h)
-    v = _f10_np.zeros(n + 1)
-    for k in range(n):
-        vm = v[k - nd] if k >= nd else 0.0
-        u = u0 + K * (r - vm)
-        v[k + 1] = u / 2.0 + (v[k] - u / 2.0) * a
-    return _f10_np.linspace(0, tend, n + 1), v
+def _f10_cart_delay(K, L=0.1, tend=1.2, u0=2.0, r=1.0):
+    """1 章の台車の速度: u = u0 + K(r − 測った速度)、測った速度は L 遅れる（共通部品 SIMLOOP で計算）。
+    SIMLOOP はむだ時間を操作量の側に置くので、その制御量は測った速度にあたる。実際の速度は L だけ前へずらして得る。"""
+    res = SIMLOOP([0.5], [0.5, 1.0], [K], [1.0], tend + L, L=L, n=int(round((tend + L) / 2e-4)), r=r, d=lambda t: u0, every=1)
+    m = res["t"] >= L - 1e-12
+    return res["t"][m] - L, res["y"][m]
 
 
 def _f10_p_limits_fig():
@@ -225,7 +222,7 @@ def _f10_p_limits_fig():
     o.append(W(p.x, p.Y(1), p.x + p.w, p.Y(1), c=MUT, lw=1.2, dash="5 3"))
     o.append(TX(lx[0], p.y + 12, "K_P [N/(m/s)]: 最大", "start", 9, MUT))
     for k, (KP, c) in enumerate(((8, TEA), (14, SIG), (20, ALI))):
-        tt, v = _f10_cart_delay(KP, tend=1.2)
+        tt, v = _f10_cart_delay(KP)
         o.append(p.clip(list(zip(tt[::4], v[::4])), c=c, lw=1.5 if KP == 20 else 1.9))
         txt = ("%d: %s m/s" % (KP, _f10_f(v.max(), 2))) if KP < 20 else "20: 大きくなり続ける"
         o.append(T(lx[0], p.y + 30 + k * 15, txt, "start", 9.5, c, True))
@@ -400,3 +397,141 @@ def _f10_pi_bode_fig():
     o.append(T(pp.X(0.13), pp.Y(-160) + 4, "−180°", "start", 9, MUT, halo=True))
     return _f10_svg(700, hh + 46, o, "I 動作を周波数で見る。(a) PI の制御器のゲインは、K_I/K_P = 3.1 rad/s より低い角周波数で −20 dB/dec で大きくなり、位相は −90° に近づく（8 章 4 節の積分）。(b) 台車の速度の一巡伝達関数。I 動作で低い角周波数のゲインが限りなく大きくなる（偏差が残らない）。代わりに、ゲインが 1 になる角周波数（点）での位相が下がり、位相余裕（9 章 5 節）は比例だけの 104.5° から 82.9°（K_I = 25）、52.6°（K_I = 100）に減る。")
 F["e10_pi_bode"] = _f10_pi_bode_fig()
+
+
+# =====================================================================
+# 3 節: D 動作
+# =====================================================================
+def _f10_pd_curves(t):
+    """モータの角度（目標 1 rad）: 比例だけ K_P = 0.84 と、PD（K_P = 0.84、K_D = 0.02、微分は測った角度に掛ける）。"""
+    thP = _f10_cl_step([840.0], [1.0, 20.0, 840.0], t)
+    thD = _f10_cl_step([840.0], [1.0, 40.0, 840.0], t)
+    wD = _f10_np.gradient(thD, t)
+    return thP, thD, wD
+
+
+def _f10_d_predict_fig():
+    o = []
+    t = _f10_np.linspace(0, 0.3, 6001)
+    thP, thD, wD = _f10_pd_curves(t)
+    TD = 0.02 / 0.84
+    eD = 1.0 - thD
+    pred = eD - TD * wD
+    o.append(TX(14, 18, "(a) 偏差（目標 1 rad。PD: K_P = 0.84 V/rad、K_D = 0.02 V·s/rad、T = K_D/K_P = 0.0238 s）", "start", 11, INK, True))
+    p = Plot(70, 32, 600, 140, (0, 0.3), (-0.4, 1.05))
+    o.append(p.axes(xl=None, yl="偏差 e [rad]", xt=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], yt=[-0.4, 0, 0.4, 0.8], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
+    o.append(p.line(list(zip(t, 1.0 - thP)), c=MUT, lw=1.6, dash="5 3"))
+    o.append(p.line(list(zip(t, pred)), c=_F10_CD, lw=1.8, dash="6 3"))
+    o.append(p.line(list(zip(t, eD)), c=SIG, lw=2.2))
+    t1 = 0.04
+    k1 = int(round(t1 / (t[1] - t[0])))
+    e1, de1 = eD[k1], -wD[k1]
+    o.append(W(p.X(t1), p.Y(e1), p.X(t1 + TD), p.Y(e1 + de1 * TD), c=_F10_CD, lw=2.2))
+    o.append(D(p.X(t1), p.Y(e1), SIG, 4))
+    o.append(D(p.X(t1 + TD), p.Y(e1 + de1 * TD), _F10_CD, 4))
+    k2 = int(round((t1 + TD) / (t[1] - t[0])))
+    o.append(D(p.X(t1 + TD), p.Y(eD[k2]), SIG, 3))
+    o.append(TX(p.X(t1) - 8, p.Y(e1) + 14, "t_1 = 0.04 s", "end", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(t1 + TD) + 6, p.Y(e1 + de1 * TD) + 12, "接線で T 先を予想: e + T de/dt = %s" % _f10_f(e1 + de1 * TD, 3), "start", 9.5, _F10_CD, True, halo=True))
+    o.append(TX(p.X(t1 + TD) + 6, p.Y(e1 + de1 * TD) + 26, "（T 後の本当の偏差は %s rad）" % _f10_f(eD[k2], 3), "start", 9.5, SIG, halo=True))
+    o.append(T(p.X(0.13), p.Y(-0.33), "比例だけ（K_P = 0.84）の偏差: 0 を大きく行き過ぎる", "start", 9.5, MUT, True, halo=True))
+    o.append(T(p.X(0.24), p.Y(0.2), "PD の偏差", "middle", 9.5, SIG, True, halo=True))
+    # (b) 電圧の内訳
+    o.append(T(14, 212, "(b) PD の電圧の内訳", "start", 11, INK, True))
+    q = Plot(70, 224, 600, 130, (0, 0.3), (-0.6, 0.9))
+    o.append(q.axes(xl="時間 t [s]", yl="電圧 [V]", xt=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], yt=[-0.5, 0, 0.5], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
+    uP = 0.84 * eD; uD = -0.02 * wD
+    o.append(q.line(list(zip(t, uP)), c=_F10_CP, lw=1.8))
+    o.append(q.line(list(zip(t, uD)), c=_F10_CD, lw=2.0))
+    o.append(q.line(list(zip(t, uP + uD)), c=INK, lw=1.5))
+    km = int(_f10_np.argmax(wD))
+    o.append(D(q.X(t[km]), q.Y(uD[km]), _F10_CD, 3.6))
+    o.append(T(q.X(t[km]) + 8, q.Y(uD[km]) + 4, "D の分: 角速度 %s rad/s × 0.02 = %s V（ブレーキ）" % (_f10_f(wD[km], 1), _f10_f(uD[km], 3)), "start", 9.5, _F10_CD, True, halo=True))
+    kz = int(_f10_np.argmax(uP + uD < 0))
+    o.append(T(q.X(t[kz]) + 6, q.Y(0.12), "%s s: 合計が負になる（偏差はまだ %s rad 残っている）" % (_f10_f(t[kz], 3), _f10_f(eD[kz], 2)), "start", 9.5, INK, True, halo=True))
+    o.append(LEGL(70, 398, [(INK, None, "電圧の合計"), (_F10_CP, None, "P の分 K_P e"), (_F10_CD, None, "D の分 K_D de/dt"), (_F10_CD, "6 3", "予想した偏差 e + T de/dt"), (MUT, "5 3", "比例だけの偏差")], 9.5, 14))
+    return _f10_svg(700, 408, o, "D 動作は、偏差の傾きから、少し先の偏差を予想して電圧を決める。(a) K_P e + K_D de/dt = K_P(e + T de/dt)（T = K_D/K_P）で、e + T de/dt は、今の点で引いた接線の T 後の値である。(b) 角度が目標へ速く近づく間、D の分は負になってブレーキをかけ、偏差が 0 になる前に電圧の合計を負にする。比例だけでは、偏差が 0 になるまで加速の電圧を出し続けるので、大きく行き過ぎる。")
+F["e10_d_predict"] = _f10_d_predict_fig()
+
+
+def _f10_d_poles_fig():
+    o = []
+    o.append(TX(14, 18, "(a) 閉ループの極（K_P を変えたときの道）", "start", 11.5, INK, True))
+    sp = Plot(70, 36, 220, 220, (-44, 4), (-32, 32))
+    o.append(_f10_sp(sp, [-40, -30, -20, -10, 0], [-30, -20, -10, 0, 10, 20, 30], zeta=[0.69]))
+    o.append(W(sp.X(0), sp.Y(0), sp.X(-20), sp.Y(0), c=MUT, lw=3))
+    o.append(W(sp.X(-10), sp.Y(-31), sp.X(-10), sp.Y(31), c=MUT, lw=3))
+    o.append(W(sp.X(0), sp.Y(0), sp.X(-40), sp.Y(0), c=GRN, lw=1.8, dash="5 3"))
+    o.append(W(sp.X(-20), sp.Y(-31), sp.X(-20), sp.Y(31), c=GRN, lw=1.8, dash="5 3"))
+    o.append(PZ(sp, [complex(-10, 10.488), complex(-10, -10.488)], [], c=TEA, r=5))
+    o.append(PZ(sp, [complex(-10, 27.20), complex(-10, -27.20)], [], c=ALI, r=5))
+    o.append(PZ(sp, [complex(-20, 20.98), complex(-20, -20.98)], [], c=GRN, r=5))
+    o.append(TX(sp.X(-10) + 6, sp.Y(-12) + 4, "比例だけ: 実部 −10", "start", 9, MUT, True, halo=True))
+    o.append(TX(sp.X(-43), sp.Y(-26), "PD（K_D = 0.02）: 実部 −20", "start", 9, GRN, True, halo=True))
+    o.append(T(sp.X(-28), sp.Y(26), "ζ = 0.69", "middle", 9, MUT, halo=True))
+    # (b) 応答
+    o.append(T(330, 18, "(b) 目標 1 rad のステップ応答", "start", 11.5, INK, True))
+    t = _f10_np.linspace(0, 0.6, 6001)
+    q = Plot(370, 36, 300, 160, (0, 0.6), (0, 1.4))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6], yt=[0, 0.5, 1.0], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(RECT(q.x, q.Y(1.02), q.w, q.Y(0.98) - q.Y(1.02), 0, GSOFT, "none", 0))
+    cases = [([210.0], [1.0, 20.0, 210.0], TEA, "比例だけ K_P = 0.21"), ([840.0], [1.0, 20.0, 840.0], ALI, "比例だけ K_P = 0.84"),
+             ([840.0], [1.0, 40.0, 840.0], GRN, "PD K_P = 0.84、K_D = 0.02")]
+    for k, (num, den, c, lab) in enumerate(cases):
+        y = _f10_cl_step(num, den, t)
+        mp, ts = _f10_metrics(t, y, 1.0)
+        o.append(q.line(list(zip(t, y)), c=c, lw=2.2 if c == GRN else 1.8))
+        o.append(W(q.X(ts), q.Y(1.0), q.X(ts), q.y + q.h, c=c, lw=1, dash="2 3"))
+        o.append(TX(q.x - 30, 240 + k * 16, lab, "start", 10, c, True))
+        o.append(T(q.x + 160, 240 + k * 16, "%s %%・%s s" % (_f10_f(mp, 1), _f10_f(ts, 3)), "start", 10, c))
+    o.append(T(q.X(0.59), q.Y(1.02) - 4, "±2 %", "end", 9, GRN, halo=True))
+    o.append(T(q.x + 160, 224, "行き過ぎ量・2 % 整定時間", "start", 9, MUT))
+    o.append(TX(14, 304, "PD の特性方程式 Ts^2 + (1 + KK_D)s + KK_P = 0: K_D は s の係数だけを増やし、極の実部 −(1 + KK_D)/(2T) を左へ動かす。", "start", 10, INK))
+    return _f10_svg(700, 316, o, "D 動作でモータの角度を速く落ち着かせる。(a) 比例だけでは、K_P をどれだけ上げても極の実部は −10 のまま上下に動くだけである（太い灰色の線）。K_D = 0.02 V·s/rad の D 動作を加えると、極の道は実部 −20 の線（緑の破線）に移る。(b) K_P = 0.84 V/rad で比例だけなら 31.5 % 行き過ぎるが、D 動作を加えると、K_P = 0.21 V/rad のときと同じ 5.0 % の行き過ぎで、2 % 整定時間は 0.414 s から 0.207 s に半分になる。")
+F["e10_d_poles"] = _f10_d_poles_fig()
+
+
+def _f10_d_noise_fig():
+    o = []
+    rng = _f10_np.random.default_rng(10)
+    h = 1e-3
+    nz = rng.normal(0.0, 0.002, int(round(1.2 / h)) + 1)
+    r = _f10_sim("mpos", 0.84, 0.0, 0.02, 1.2, h, noise=nz)
+    m = (r["t"] >= 1.0) & (r["t"] <= 1.06)
+    sP, sD = r["uP"][r["t"] >= 0.6].std(), r["uD"][r["t"] >= 0.6].std()
+    o.append(T(14, 18, "(a) 落ち着いた後の電圧の揺れ（角度に標準偏差 0.002 rad のノイズ、1 ms ごとに測る）", "start", 11, INK, True))
+    p = Plot(70, 32, 330, 160, (1.0, 1.06), (-0.2, 0.2))
+    o.append(p.axes(xl="時間 t [s]", yl="電圧の揺れ [V]", xt=[1.0, 1.02, 1.04, 1.06], yt=[-0.2, -0.1, 0, 0.1, 0.2], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
+    tt = r["t"][m]
+    o.append(p.steps(list(zip(tt, r["uD"][m])), c=_F10_CD, lw=1.4))
+    o.append(p.steps(list(zip(tt, r["uP"][m] - 0.84 * (1 - 1.0))), c=_F10_CP, lw=2.0))
+    o.append(TX(p.x + p.w + 10, p.y + 40, "P の分 K_P e", "start", 10, _F10_CP, True))
+    o.append(TX(p.x + p.w + 10, p.y + 55, "標準偏差 K_P σ = %s V" % _f10_f(0.84 * 0.002, 4), "start", 10, _F10_CP))
+    o.append(TX(p.x + p.w + 10, p.y + 85, "D の分 K_D de/dt", "start", 10, _F10_CD, True))
+    o.append(TX(p.x + p.w + 10, p.y + 100, "標準偏差 √2 K_D σ/Δt = %s V" % _f10_f(math.sqrt(2) * 0.02 * 0.002 / 0.001, 3), "start", 10, _F10_CD))
+    o.append(T(p.x + p.w + 10, p.y + 115, "（P の分の %s 倍）" % _f10_f(math.sqrt(2) * 0.02 / (0.84 * 0.001), 0), "start", 10, _F10_CD))
+    o.append(TX(p.x + p.w + 10, p.y + 140, "σ: ノイズの標準偏差、Δt = 1 ms", "start", 9.5, MUT))
+    # (b) ゲイン
+    o.append(T(14, 244, "(b) 正弦波の揺れに対するゲイン（偏差 1 rad の振幅あたりの電圧の振幅）", "start", 11, INK, True))
+    w = _f10_np.logspace(0, 3.5, 200)
+    q = Plot(70, 258, 400, 130, (1, 3162), (0.1, 100), xlog=True, ylog=True)
+    o.append(q.axes(xl="角周波数 ω [rad/s]", yl="ゲイン [V/rad]", xt=[1, 10, 100, 1000], yt=[0.1, 1, 10, 100], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(RECT(q.X(300), q.y, q.X(3162) - q.X(300), q.h, 0, TSOFT, "none", 0))
+    o.append(q.line([(1, 0.84), (3162, 0.84)], c=_F10_CP, lw=2))
+    o.append(q.clip([(wv, 0.02 * wv) for wv in w], c=_F10_CD, lw=2))
+    o.append(D(q.X(42), q.Y(0.84), INK, 3.4))
+    o.append(TX(q.X(42) - 4, q.Y(0.84) + 16, "1/T = 42 rad/s", "end", 9.5, INK, True, halo=True))
+    o.append(TX(q.X(1.2), q.Y(0.84) - 6, "P: K_P = 0.84（どの角周波数でも同じ）", "start", 9.5, _F10_CP, True, halo=True))
+    o.append(TX(q.X(1.2), q.Y(0.13), "D: K_D ω（+20 dB/dec）", "start", 9.5, _F10_CD, True, halo=True))
+    o.append(T(q.X(1800), q.y + 14, "速い揺れ", "middle", 9.5, TEA, True, halo=True))
+    o.append(TX(q.x + q.w + 14, q.y + 30, "1000 rad/s の揺れでは", "start", 9.5, INK))
+    o.append(TX(q.x + q.w + 14, q.y + 46, "D の分は K_D × 1000 = 20 V/rad、", "start", 9.5, _F10_CD, True))
+    o.append(TX(q.x + q.w + 14, q.y + 62, "P の分の 24 倍", "start", 9.5, _F10_CD, True))
+    o.append(TX(q.x + q.w + 14, q.y + 92, "観測ノイズは、動かしたい", "start", 9.5, MUT))
+    o.append(TX(q.x + q.w + 14, q.y + 106, "角度の動きより速く揺れる", "start", 9.5, MUT))
+    o.append(TX(q.x + q.w + 14, q.y + 120, "ことが多い（7 章 6 節）", "start", 9.5, MUT))
+    return _f10_svg(700, 430, o, "D 動作は観測ノイズを大きくする（モータの角度の PD、K_P = 0.84 V/rad、K_D = 0.02 V·s/rad）。(a) 角度の読みの小さなノイズは、P の分には K_P 倍で現れるが、D の分では、1 ms ごとの差を 1 ms で割るので、約 34 倍の大きさになる。(b) 正弦波で見ると、P の分のゲインは一定で、D の分のゲインは角周波数に比例して大きくなる（8 章 4 節の微分）。速く揺れるノイズほど、D の分を通って大きく電圧に現れる。")
+F["e10_d_noise"] = _f10_d_noise_fig()
