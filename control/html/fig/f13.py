@@ -26,6 +26,17 @@ def _f13_n(v):
     return ("%g" % v).replace("-", "−")
 
 
+def _f13_s3(v):
+    """有効数字 3 桁（末尾の 0 も残す）。"""
+    a = abs(v)
+    d = 2 if a >= 1 else 3
+    if a >= 10:
+        d = 1
+    if a >= 100:
+        d = 0
+    return _f13_f(v, d)
+
+
 def _f13_cap(s):
     """図の説明文（HTML）で K_P・ω_gc などを添字のタグにする。"""
     s = _f13_re.sub(r"([A-Za-zωζφα])_\{([^}]*)\}", r"\1<sub>\2</sub>", s)
@@ -156,16 +167,15 @@ def _f13_cart_slg_fig():
         o.append(D(p.X(wv), p.Y(20 * math.log10(g_)), TEA, 3.6))
     o.append(T(p.X(1) - 6, p.Y(20 * math.log10(3.578)) - 7, "|PC| = 3.58", "end", 9.5, SIG, True, halo=True))
     o.append(T(p.X(1) + 6, p.Y(20 * math.log10(0.2225)) + 16, "|S| = 0.222（1/4.58 〜 1/2.58 の間）", "start", 9.5, PUR, True, halo=True))
-    o.append(T(p.X(50) - 6, p.Y(20 * math.log10(0.1599)) - 8, "|PC| = 0.160", "end", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(50) + 6, p.Y(20 * math.log10(0.1569)) + 17, "|G_yr| = 0.157", "start", 9.5, TEA, True, halo=True))
+    o.append(TX(p.X(50) + 7, p.Y(20 * math.log10(0.1569)) + 17, "|PC| = 0.160、|G_{yr}| = 0.157", "start", 9.5, TEA, True, halo=True))
     o.append(T(p.X(50) + 6, p.Y(20 * math.log10(0.9814)) - 7, "|S| = 0.981", "start", 9.5, PUR, True, halo=True))
-    o.append(T(p.X(1) + 6, p.Y(20 * math.log10(0.796)) - 7, "|G_yr| = 0.796", "start", 9.5, TEA, True, halo=True))
+    o.append(TX(p.X(1) + 6, p.Y(20 * math.log10(0.796)) - 7, "|G_{yr}| = 0.796", "start", 9.5, TEA, True, halo=True))
     # 説明
     o.append(T(p.X(0.12), p.Y(-25), "ループのゲインが大きい所", "start", 10, INK, True, halo=True))
     o.append(TX(p.X(0.12), p.Y(-25) + 15, "|S| ≈ 1/|PC|（破線）、|G_{yr}| ≈ 1", "start", 10, PUR, False, halo=True))
     o.append(T(p.X(7.75), p.y + 14, "|PC| ≈ 1: 近似は使えない", "middle", 9.5, MUT, True, halo=True))
-    o.append(T(p.X(900), p.Y(-25), "ループのゲインが小さい所", "end", 10, INK, True, halo=True))
-    o.append(TX(p.X(900), p.Y(-25) + 15, "|G_{yr}| ≈ |PC|、|S| ≈ 1", "end", 10, TEA, False, halo=True))
+    o.append(T(p.X(900), p.Y(15), "ループのゲインが小さい所", "end", 10, INK, True, halo=True))
+    o.append(TX(p.X(900), p.Y(15) + 15, "|G_{yr}| ≈ |PC|、|S| ≈ 1", "end", 10, TEA, False, halo=True))
     o.append(LEGL(70, 318, [(SIG, None, "|P(jω)C(jω)|"), (PUR, None, "|S(jω)|"), (TEA, None, "|G_{yr}(jω)|"), (PUR, "5 4", "1/|P(jω)C(jω)|")], 9.5))
     return _f13_svg(700, 330, o, "台車の速度の比例制御で、一巡伝達関数のゲイン |PC| と、感度関数 |S|、閉ループ伝達関数 |G_yr| を重ねたもの。|PC| が 1 より十分に大きい遅い角周波数では |S| は 1/|PC|（破線）に、1 より十分に小さい速い角周波数では |G_yr| は |PC| に重なる。点は 1 rad/s と 50 rad/s の値で、三角不等式で挟んだ範囲に入る。灰色の帯は |PC| が 1 に近い所（交差 7.75 rad/s のまわり）で、どちらの近似も使えない。")
 
@@ -177,7 +187,7 @@ def _f13_crossover_fig():
     o = []
     Ks = [(0.21, GRN), (0.84, SIG), (4.0, ALI)]
     w = _f13_lw(1, 1000, 700)
-    o.append(T(14, 18, "(a) 感度関数 |S(jω)|", "start", 11, INK, True))
+    o.append(TX(14, 18, "(a) 感度関数 |S(jω)|（点は ω_{gc} での値）", "start", 11, INK, True))
     o.append(TX(364, 18, "(b) 閉ループ伝達関数 |G_{yr}(jω)|", "start", 11, INK, True))
     pa = Plot(64, 34, 270, 150, (1, 1000), (-30, 15), xlog=True)
     pb = Plot(414, 34, 270, 150, (1, 1000), (-30, 15), xlog=True)
@@ -203,8 +213,7 @@ def _f13_crossover_fig():
         for K, c, wgc, pm, v in res:
             a, dx = ("end", -7) if K != 0.21 else ("end", -7)
             yy = p.Y(20 * math.log10(v)) - 7
-            o.append(T(p.X(wgc) + dx, yy, _f13_g(v, 3), a, 9.5, c, True, halo=True))
-    o.append(T(pa.X(1.2), pa.Y(-24), "点: ω_gc での値 1/{2 sin(φm/2)}", "start", 9.5, INK, False, halo=True))
+            o.append(T(p.X(wgc) + dx, yy, _f13_s3(v), a, 9.5, c, True, halo=True))
     # (c) ステップ応答
     o.append(T(14, 240, "(c) 目標の角度を 1 rad 変えたときの角度", "start", 11, INK, True))
     q = Plot(64, 254, 620, 150, (0, 0.6), (0, 1.7))
@@ -246,11 +255,11 @@ def _f13_target_fig():
     o.append(p.clip(asy, c=FNT, lw=1.3, dash="4 3"))
     o.append(p.clip(list(zip(w, db)), c=SIG, lw=2.6))
     o.append(D(p.X(1), p.Y(0), SIG, 4.2))
-    o.append(T(p.X(0.0105), p.Y(10) + 4, "遅い所: ゲインを高く", "start", 10, ALI, True, halo=True))
-    o.append(TX(p.X(0.0105), p.Y(10) + 18, "|S| ≈ 1/|PC| → 追従・外乱", "start", 9.5, ALI, False, halo=True))
-    o.append(T(p.X(95), p.Y(-35) + 4, "速い所: ゲインを低く", "end", 10, ALI, True, halo=True))
-    o.append(TX(p.X(95), p.Y(-35) + 18, "|G_{yr}| ≈ |PC| → ノイズ", "end", 9.5, ALI, False, halo=True))
-    o.append(T(p.X(1) + 8, p.Y(0) - 8, "交差 ω_gc", "start", 10, SIG, True, halo=True))
+    o.append(T(p.X(0.0105), p.Y(-22), "遅い所: ゲインを高く", "start", 10, ALI, True, halo=True))
+    o.append(TX(p.X(0.0105), p.Y(-22) + 15, "|S| ≈ 1/|PC| → 追従・外乱", "start", 9.5, ALI, False, halo=True))
+    o.append(T(p.X(95), p.Y(42), "速い所: ゲインを低く", "end", 10, ALI, True, halo=True))
+    o.append(TX(p.X(95), p.Y(42) + 15, "|G_{yr}| ≈ |PC| → ノイズ", "end", 9.5, ALI, False, halo=True))
+    o.append(TX(p.X(1) + 8, p.Y(0) - 8, "交差 ω_{gc}", "start", 10, SIG, True, halo=True))
     o.append(T(p.X(0.03), p.Y(44), "−40 dB/dec", "middle", 9.5, MUT, halo=True))
     o.append(T(p.X(1.6), p.Y(12), "−20 dB/dec", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(18), p.Y(-26), "−40 dB/dec", "middle", 9.5, MUT, halo=True))
@@ -267,7 +276,7 @@ def _f13_target_fig():
     wgc, pmv, _, _ = _f13_margins(Ln, Ld)
     o.append(ARR(q.X(1), q.Y(-180), q.X(1), q.Y(-180 + pmv), c=GRN, lw=2.0, head=6))
     o.append(TX(q.X(1) + 7, q.Y(-180 + pmv / 2) + 4, "位相余裕 φ_m = %s°（余裕・行き過ぎ）" % _f13_f(pmv, 1), "start", 9.5, GRN, True, halo=True))
-    o.append(T(q.X(0.012), q.Y(-170), "傾き −40 dB/dec の所では −180° に近い", "start", 9, MUT, halo=True))
+    o.append(T(q.X(0.012), q.Y(-104), "傾き −40 dB/dec の所（両端）では −180° に近い", "start", 9, MUT, halo=True))
     return _f13_svg(700, 426, o, "ループ整形の目標の形（例の一巡伝達関数 0.25(1 + 4s)/{s²(1 + s/4)}。角周波数は交差角周波数 ω_gc を 1 とした目盛）。(a) 赤い塗りの領域は、ゲインの線が通ってはいけない所: 遅い角周波数（交差の 1/10 より下）では 20 dB 以上にして外乱を 1/10 以下に縮め、速い角周波数（交差の 10 倍より上）では −20 dB 以下にしてノイズを 1/10 以下にする。その間を、交差の前後で −20 dB/dec の傾きで横切らせる。(b) 交差の前後に −20 dB/dec の区間があるので、交差での位相は −180° から 61.9° 離れる。")
 
 
