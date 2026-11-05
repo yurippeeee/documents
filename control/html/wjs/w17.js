@@ -80,13 +80,17 @@
     var box=U.svgbox(el),ro=U.readout(el),R=null;
     function uf(t){var m=fm.get(),F=fa.get();return m===0?0:(m===1?(t<0.1?F:0):F);}
     function run(){
-      var x0=[0,sv.get(),sph.get()*D2R,sw.get()*D2R],xn=x0.slice(),xl=x0.slice(),n=Math.round(TE/H),T=[],N=[],L=[],fallN=null,t;
+      var x0=[0,sv.get(),sph.get()*D2R,sw.get()*D2R],xn=x0.slice(),xl=x0.slice(),n=Math.round(TE/H),T=[],N=[],L=[],fallN=null,fallX=null,t;
       for(var k=0;k<=n;k++){t=k*H;if(k%EV===0){T.push(t);N.push(xn.slice());L.push(xl.slice());}
         if(k===n)break;var u=uf(t+H/2);
-        if(fallN===null){xn=U.ctl.rk4(function(tt,x){return _w17_pnl(tt,x,u);},t,xn,H);if(Math.abs(xn[2])>=Math.PI/2)fallN=t+H;}
+        if(fallN===null){var xp=xn;xn=U.ctl.rk4(function(tt,x){return _w17_pnl(tt,x,u);},t,xn,H);
+          if(Math.abs(xn[2])>=Math.PI/2){/* 刻みの中で 90° に達する時刻を、刻みの始めから短い 1 刻みで解き直す割線法で求める（刻み幅によらない値にする） */
+            var h0=0,g0=Math.abs(xp[2])-Math.PI/2,h1=H,g1=Math.abs(xn[2])-Math.PI/2,xc=xn;
+            for(var it=0;it<6&&Math.abs(g1)>1e-12&&g1!==g0;it++){var h2=h1-g1*(h1-h0)/(g1-g0);xc=U.ctl.rk4(function(tt,x){return _w17_pnl(tt,x,u);},t,xp,h2);h0=h1;g0=g1;h1=h2;g1=Math.abs(xc[2])-Math.PI/2;}
+            xn=xc;fallN=t+h1;fallX=xc.slice();}}
         if(Math.abs(xl[2])<50)xl=U.ctl.rk4(function(tt,x){return _w17_plin(tt,x,u);},t,xl,H);}
       function cross(arr,deg){var th=deg*D2R;for(var i=1;i<arr.length;i++){var a=Math.abs(arr[i-1][2]),b=Math.abs(arr[i][2]);if(a<th&&b>=th)return T[i-1]+(T[i]-T[i-1])*(th-a)/(b-a);}return null;}
-      R={T:T,N:N,L:L,fall:fallN,t10:[cross(N,10),cross(L,10)],t30:[cross(N,30),cross(L,30)]};
+      R={T:T,N:N,L:L,fall:fallN,fallX:fallX,t10:[cross(N,10),cross(L,10)],t30:[cross(N,30),cross(L,30)]};
       draw();}
     function draw(){
       if(!R)return;var nar=_w17_nar(box),Wd=nar?400:700,o=[],k=Math.min(R.T.length-1,Math.round(st.get()/(H*EV))),tc=R.T[k];
@@ -110,6 +114,7 @@
       var gx0=nar?44:356,gy0=nar?gy+60:22,gw=nar?150:136,gh=nar?96:92,dx=nar?196:174,dy=nar?132:126;
       defs.forEach(function(d,i){var px=gx0+(i%2)*dx,py=gy0+Math.floor(i/2)*dy,lo=0,hi=0;
         R.N.forEach(function(x,j){if(R.fall!==null&&R.T[j]>R.fall)return;var v=x[d[1]]*d[2];lo=Math.min(lo,v);hi=Math.max(hi,v);});
+        if(R.fall!==null&&R.fall<=TE){var vf=R.fallX[d[1]]*d[2];lo=Math.min(lo,vf);hi=Math.max(hi,vf);}
         var lim=1.6*Math.max(Math.abs(lo),Math.abs(hi),1e-6);R.L.forEach(function(x){var v=x[d[1]]*d[2];if(Math.abs(v)<lim){lo=Math.min(lo,v);hi=Math.max(hi,v);}});
         if(hi-lo<1e-9){hi=1;lo=-1;}var pad=(hi-lo)*0.08;lo-=pad;hi+=pad;
         var P=U.plot(px,py,gw,gh,[0,TE],[lo,hi]),yt=U.nice(lo,hi,3).filter(function(v){return v>=lo&&v<=hi;}).map(function(v){return Math.abs(v)<1e-9*(hi-lo)?0:v;});
@@ -118,15 +123,17 @@
         if(lo<0&&hi>0)o.push(S.L(P.x,P.Y(0),P.x+P.w,P.Y(0),"faint",1));
         o.push(S.TX(P.x,P.y-5,d[0],"start",9.5,"ink",true));
         o.push(P.clip(R.T.map(function(tt,j){return [tt,R.L[j][d[1]]*d[2]];}),"muted",1.5,"5 3"));
-        var nn=[];R.T.forEach(function(tt,j){if(R.fall===null||tt<=R.fall+1e-9)nn.push([tt,R.N[j][d[1]]*d[2]]);});o.push(P.clip(nn,"signal",1.9));
-        if(R.fall!==null&&R.fall<=TE)o.push(S.X(P.X(R.fall),P.Y(nn[nn.length-1][1]),4,"alias",1.8));
+        var nn=[];R.T.forEach(function(tt,j){if(R.fall===null||tt<R.fall)nn.push([tt,R.N[j][d[1]]*d[2]]);});
+        if(R.fall!==null&&R.fall<=TE)nn.push([R.fall,R.fallX[d[1]]*d[2]]);o.push(P.clip(nn,"signal",1.9));
+        if(R.fall!==null&&R.fall<=TE)o.push(S.X(P.X(R.fall),P.Y(R.fallX[d[1]]*d[2]),4,"alias",1.8));
         o.push(S.L(P.X(tc),P.y,P.X(tc),P.y+P.h,"alias",1,"3 3"));});
       box.set(S.svg(Wd,nar?gy0+2*dy+12:gy0+2*dy+14,o));
       /* 読み出し */
       var xn=R.N[k],xl=R.L[k],uu2=uf(tc),fn=_w17_pnl(0,xn,uu2),fl=_w17_plin(0,xl,uu2);
-      function vec(x,dot){return "["+[_w17_sig(x[0],3)+" m",_w17_sig(x[1],3)+(dot?" m/s²":" m/s"),_w17_sig(x[2]/D2R,3)+(dot?" °/s":"°"),_w17_sig(x[3]/D2R,3)+(dot?" °/s²":" °/s")].join(", ")+"]";}
-      var h="t = "+_w17_f(tc,3)+" s の状態 x = [p, ṗ, φ, dφ/dt]: 線形でない式 <b>"+vec(xn)+"</b>、線形化した式 "+vec(xl)+"<br>";
-      if(R.fall!==null&&tc>R.fall)h='<span class="warn">線形でない式の振子は '+_w17_f(R.fall,3)+' s に 90° に達して倒れた（その後は計算しない）</span><br>'+h;
+      function z6(v){return Math.abs(v)<1e-6?0:v;}/* 1e−6 未満は計算の誤差として 0 と表示する */
+      function vec(x,dot){return "["+[_w17_sig(z6(x[0]),3)+(dot?" m/s":" m"),_w17_sig(z6(x[1]),3)+(dot?" m/s²":" m/s"),_w17_sig(z6(x[2]/D2R),3)+(dot?" °/s":"°"),_w17_sig(z6(x[3]/D2R),3)+(dot?" °/s²":" °/s")].join(", ")+"]";}
+      var aft=R.fall!==null&&tc>R.fall,h="t = "+_w17_f(tc,3)+" s の状態 x = [p, ṗ, φ, dφ/dt]: 線形でない式"+(aft?"（倒れた時刻の値）":"")+" <b>"+vec(xn)+"</b>、線形化した式 "+vec(xl)+"<br>";
+      if(aft)h='<span class="warn">線形でない式の振子は '+_w17_f(R.fall,3)+' s に 90° に達して倒れた（その後は計算しない）</span><br>'+h;
       h+="状態の変わる速さ ẋ: 線形でない式 "+vec(fn,true)+"、線形化した式 Ax + Bu = "+vec(fl,true)+"<br>";
       function tt(v){return v===null?"達しない":_w17_f(v,3)+" s";}
       h+="10° に達する時刻: 線形でない式 <b>"+tt(R.t10[0])+"</b>、線形化した式 <b>"+tt(R.t10[1])+"</b>　30°: <b>"+tt(R.t30[0])+"</b>、<b>"+tt(R.t30[1])+"</b><br>";
@@ -340,6 +347,8 @@
     var r2=U.ctrls(el);
     var tn=U.textin(r2,"分子の係数（高い次から）","2e6",function(){run();},{width:"200px"});
     var td=U.textin(r2,"分母の係数（高い次から）","1, 2000, 40000",function(){run();},{width:"200px"});
+    var br=U.btnrow(el);
+    U.button(br,"本文の例（モータの角速度）",function(){sp.set(0);tn.set(PRE[0][1]);td.set(PRE[0][2]);run();});
     var box=U.svgbox(el),ro=U.readout(el);
     function parse(s){var a=String(s).replace(/−/g,"-").split(/[,\s]+/).filter(function(x){return x.length;}).map(Number);if(!a.length||a.some(function(x){return !isFinite(x);}))return null;return a;}
     function run(){
