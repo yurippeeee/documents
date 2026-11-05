@@ -916,9 +916,9 @@ def _f07_sens_bundle_fig():
     o = []
     t = _f07_np.linspace(0, 2.5, 501)
     for j, (title, KP) in enumerate((("(a) 開ループ（決めた力 u = cr = 2 N で押すだけ）", 0.0), ("(b) 閉ループ（決めた力 ＋ 比例制御 K_P = 8 N/(m/s)）", 8.0))):
-        x = 62 + j * 318
+        x = 62 + j * 340
         o.append(TX(x - 48, 18, title, "start", 11, INK, True))
-        p = Plot(x, 32, 220, 170, (0, 2.5), (0, 1.6))
+        p = Plot(x, 32, 180, 170, (0, 2.5), (0, 1.6))
         o.append(p.axes(xl="時間 t [s]", yl="速度 y [m/s]" if j == 0 else None, xt=[0, 0.5, 1, 1.5, 2, 2.5], yt=[0, 0.5, 1, 1.5], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=9))
         o.append(p.line([(0, 1), (2.5, 1)], c=MUT, lw=1.1, dash="4 3"))
         fins = []
@@ -932,9 +932,9 @@ def _f07_sens_bundle_fig():
         lo, hi = min(fins), max(fins)
         bx = p.x + p.w + 14
         o.append(RECT(bx, p.Y(hi), 10, p.Y(lo) - p.Y(hi), 2, soft(ALI if j == 0 else GRN), ALI if j == 0 else GRN, 1.2))
-        o.append(T(bx + 14, p.Y(hi) + 4, _f07_n(hi, 3), "start", 9.5, ALI if j == 0 else GRN, True))
-        o.append(T(bx + 14, p.Y(lo) + 4, _f07_n(lo, 3), "start", 9.5, ALI if j == 0 else GRN, True))
-        o.append(T(bx + 14, p.Y((lo + hi) / 2) + 4, "±50 %" if j == 0 else "−16.7 %〜+7.1 %", "start", 9.5, ALI if j == 0 else GRN, True))
+        cc = ALI if j == 0 else GRN
+        o.append(T(bx + 14, p.Y(hi) + 4, _f07_n(hi, 3) + ("（+50 %）" if j == 0 else "（+7.1 %）"), "start", 9.5, cc, True))
+        o.append(T(bx + 14, p.Y(lo) + 4, _f07_n(lo, 3) + ("（−50 %）" if j == 0 else "（−16.7 %）"), "start", 9.5, cc, True))
     o.append(LEGL(62, 252, [(TEA, None, "K = 0.25"), (SIG, None, "0.5（例の値）"), (GLD, None, "0.75 (m/s)/N")], 9.5, 12))
     o.append(LEGL(390, 252, [(MUT, "2 3", "T = 0.25"), (MUT, None, "0.5"), (MUT, "7 3", "0.75 s")], 9.5, 12))
     # (c) 動き始めの傾き
@@ -971,13 +971,14 @@ def _f07_sens_curve_fig():
             yv = _f07_lsim([K1 * (2 + KP)], [0.5, 1 + K1 * KP], _f07_np.ones_like(t), t)
             ch = (yv[-1] - 1.0) * 100
             o.append(CIRC(p.X(d * 100), p.Y(ch), 3.2, c=c, lw=1.5, fill=SCR))
-    o.append(TX(p.X(47), p.Y(44), "開ループ（傾き 1）", "end", 9, MUT, True, halo=True))
-    o.append(TX(p.X(47), p.Y(25), "K_P = 2（S(0) = 0.5）", "end", 9, TEA, True, halo=True))
-    o.append(TX(p.X(47), p.Y(12), "K_P = 8（0.2）", "end", 9, SIG, True, halo=True))
-    o.append(TX(p.X(47), p.Y(-1) - 2, "K_P = 20（0.091）", "end", 9, GLD, True, halo=True))
-    o.append(T(p.X(-48), p.Y(-46), "線: δS'(0)、点: 数値計算", "start", 9, MUT, False, halo=True))
+    o.append(T(p.X(-47), p.Y(46), "原点での傾き = S(0)", "start", 9.5, INK, True, halo=True))
+    for i, (lab, c) in enumerate((("開ループ: 1", MUT), ("K_P = 2: 0.5", TEA), ("K_P = 8: 0.2", SIG), ("K_P = 20: 0.091", GLD))):
+        yy = p.Y(46) + 16 + i * 15
+        o.append(W(p.X(-47), yy - 4, p.X(-47) + 18, yy - 4, c=c, lw=2.2))
+        o.append(TX(p.X(-47) + 24, yy, lab, "start", 9.5, c, True, halo=True))
+    o.append(T(p.X(48), p.Y(-46), "線: δS'(0)、点: 数値計算", "end", 9, MUT, False, halo=True))
     # (b) 型 1 のモータの位置
-    o.append(T(380, 18, "(b) 型 1（モータの位置、K_P = 0.21 V/rad）", "start", 11, INK, True).replace("K_P", "K_P"))
+    o.append(TX(380, 18, "(b) 型 1（モータの位置、K_P = 0.21 V/rad）", "start", 11, INK, True))
     q = Plot(420, 34, 260, 200, (0, 0.6), (0, 1.3))
     o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.2, 0.4, 0.6], yt=[0, 0.5, 1], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=9))
     o.append(q.line([(0, 1), (0.6, 1)], c=MUT, lw=1.1, dash="4 3"))
@@ -986,9 +987,11 @@ def _f07_sens_curve_fig():
         for T_, dash in ((0.025, "2 3"), (0.05, None), (0.075, "7 3")):
             yv = _f07_lsim([K * 0.21], [T_, 1.0, K * 0.21], _f07_np.ones_like(t), t)
             o.append(q.line(list(zip(t, yv)), c=c, lw=1.6 if (K, T_) != (50.0, 0.05) else 2.2, dash=dash))
-    o.append(T(q.X(0.59), q.Y(0.62), "どれも 1 rad に落ち着く（S(0) = 0）", "end", 9.5, GRN, True, halo=True))
-    o.append(T(q.X(0.59), q.Y(0.46), "行き過ぎ量は 0〜19.6 % に変わる", "end", 9.5, MUT, False, halo=True))
-    o.append(LEGL(70, 296, [(TEA, None, "K × 0.5"), (SIG, None, "× 1"), (GLD, None, "× 1.5"), (MUT, "2 3", "T × 0.5"), (MUT, None, "× 1"), (MUT, "7 3", "× 1.5（(b) の線）")], 9.5, 12))
+    o.append(T(q.X(0.59), q.Y(0.36), "どれも 1 rad に落ち着く（S(0) = 0）", "end", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(0.59), q.Y(0.22), "行き過ぎ量は 0〜19.6 % に変わる", "end", 9.5, MUT, False, halo=True))
+    o.append(T(380, 280, "(b) の線:", "start", 9.5, MUT))
+    o.append(LEGL(430, 280, [(TEA, None, "K × 0.5"), (SIG, None, "× 1"), (GLD, None, "× 1.5")], 9.5, 10))
+    o.append(LEGL(430, 296, [(MUT, "2 3", "T × 0.5"), (MUT, None, "× 1"), (MUT, "7 3", "× 1.5")], 9.5, 10))
     return SVG(700, 306, o, "対象の変化は、感度関数の倍率で閉ループに伝わる。(a) 台車の速度で、対象の定常ゲインを δ だけ変えたときの、落ち着く速度の変化。線は 5 節の式 δS'(0)、点は数値計算の値で、一致する。原点での傾きが S(0) = 1/(1 + KK<sub>P</sub>) で、比例ゲインを上げるほど寝る。(b) 型 1 では S(0) = 0 なので、定常ゲインと時定数が ±50 % 変わっても、落ち着く角度は変わらない（動き方は変わる）。")
 F["e07_sens_curve"] = _f07_sens_curve_fig()
 
@@ -1009,13 +1012,10 @@ def _f07_comp_fig():
         yn = [(1 - 1 / g) * (1 - math.exp(-a / tc)) for a in t]
         o.append(p.line(list(zip(t, yd)), c=c, lw=2))
         o.append(p.line(list(zip(t, yn)), c=c, lw=2, dash="6 3"))
-    o.append(TX(p.X(0.6) - 4, p.Y(1 / 2.0) - 6, "K_P = 2", "end", 9.5, TEA, True, halo=True))
-    o.append(TX(p.X(0.6) - 4, p.Y(0.2) - 6, "K_P = 8", "end", 9.5, SIG, True, halo=True))
-    o.append(TX(p.X(0.6) - 4, p.Y(0.0625) - 6, "K_P = 30", "end", 9.5, GLD, True, halo=True))
-    o.append(T(p.X(0.25), p.Y(0.97), "実線: 外乱が残る分（S(s)/s の応答）", "start", 9.5, INK, False, halo=True))
-    o.append(T(p.X(0.25), p.Y(0.87), "破線: ノイズが出る分（G_yr(s)/s の応答）", "start", 9.5, INK, False, halo=True).replace("G_yr", "G<tspan dy=\"3\" font-size=\"6.84\">yr</tspan><tspan dy=\"-3\"></tspan>"))
+    o.append(LEGL(70, 270, [(TEA, None, "K_P = 2 N/(m/s)"), (SIG, None, "8"), (GLD, None, "30")], 9.5, 12))
+    o.append(LEGL(70, 288, [(INK, None, "外乱が残る分（S(s)/s の応答）"), (INK, "6 3", "ノイズが出る分（G_{yr}(s)/s の応答）")], 9.5, 14))
     # (b) 積み上げ
-    o.append(TX(486, 52, "(b) K_P = 8 の 2 つを積むと、どの時刻も 1", "start", 11, INK, True))
+    o.append(TX(486, 52, "(b) K_P = 8 の 2 つの和は 1", "start", 11, INK, True))
     q = Plot(510, 66, 170, 158, (0, 0.6), (0, 1.05))
     o.append(q.axes(xl="時間 t [s]", yl=None, xt=[0, 0.2, 0.4, 0.6], yt=[0, 0.5, 1], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=9))
     g = 5.0
@@ -1030,7 +1030,7 @@ def _f07_comp_fig():
     o.append(W(q.X(0), q.Y(1), q.X(0.6), q.Y(1), c=INK, lw=1.4))
     o.append(T(q.X(0.35), q.Y(0.1), "外乱が残る分 S", "middle", 9.5, PUR, True, halo=True))
     o.append(TX(q.X(0.35), q.Y(0.6), "ノイズが出る分 G_{yr}", "middle", 9.5, TEA, True, halo=True))
-    return SVG(700, 270, o, "台車の速度の比例制御で、制御量に入るステップの外乱と、ステップの観測ノイズ（センサの読みが一定の値だけずれる）を、別々に加えたときの制御量のずれ。(a) 比例ゲインを上げるほど、外乱は速く小さく抑えられるが、同じ速さで、ノイズが制御量に現れる。(b) 外乱が残る分とノイズが出る分を積むと、どの時刻でも 1 になる（S + G<sub>yr</sub> = 1）。")
+    return SVG(700, 298, o, "台車の速度の比例制御で、制御量に入るステップの外乱と、ステップの観測ノイズ（センサの読みが一定の値だけずれる）を、別々に加えたときの制御量のずれ。(a) 比例ゲインを上げるほど、外乱は速く小さく抑えられるが、同じ速さで、ノイズが制御量に現れる。(b) 外乱が残る分とノイズが出る分を積むと、どの時刻でも 1 になる（S + G<sub>yr</sub> = 1）。")
 F["e07_comp"] = _f07_comp_fig()
 
 
@@ -1050,12 +1050,12 @@ def _f07_noise_sd(Kp, sig=0.02, m=1.0, h=1e-3, nh=10, c=2.0):
 
 def _f07_tradeoff_fig():
     o = []
-    o.append(TX(14, 18, "(a) 比例ゲイン K_P と、坂によるずれ・ノイズによる揺れ（1 章 4 節の台車）", "start", 11, INK, True))
-    ks = _f07_np.linspace(0.5, 50, 200)
-    p = Plot(70, 34, 250, 90, (0, 50), (0, 0.15))
-    o.append(p.axes(xl=None, yl=None, xt=[0, 10, 20, 30, 40, 50], yt=[0, 0.05, 0.1, 0.15], xfmt=lambda v: "", yfmt=_f07_fmt, sz=9))
-    o.append(p.line([(k, _F07_D3 / (2 + k)) for k in ks], c=PUR, lw=2))
-    o.append(T(p.x + 6, p.y + 12, "坂 3° による速度のずれ [m/s]", "start", 9.5, PUR, True, halo=True))
+    o.append(T(14, 18, "(a) 比例ゲインを変える（1 章 4 節の台車）", "start", 11, INK, True))
+    ks = _f07_np.linspace(0, 50, 201)
+    p = Plot(70, 34, 250, 90, (0, 50), (0, 0.3))
+    o.append(p.axes(xl=None, yl=None, xt=[0, 10, 20, 30, 40, 50], yt=[0, 0.1, 0.2, 0.3], xfmt=lambda v: "", yfmt=_f07_fmt, sz=9))
+    o.append(p.clip([(k, _F07_D3 / (2 + k)) for k in ks], c=PUR, lw=2))
+    o.append(T(p.x + 60, p.y + 12, "坂 3° による速度のずれ [m/s]", "start", 9.5, PUR, True, halo=True))
     for k in (8, 30):
         v = _F07_D3 / (2 + k)
         o.append(D(p.X(k), p.Y(v), PUR, 3.4))
@@ -1070,10 +1070,11 @@ def _f07_tradeoff_fig():
         o.append(T(q.X(k) + 5, q.Y(v) + 14, _f07_n(v, 4), "start", 9, TEA, True, halo=True))
     o.append(T(q.x + q.w, q.y + q.h + 48, "揺れは標準偏差（1 章 4 節と同じ値）", "end", 9, MUT))
     # (b) 正弦波
-    o.append(T(366, 18, "(b) 角周波数を変えた正弦波（K_P = 8。十分に時間がたった後）", "start", 11, INK, True).replace("K_P", "K_P"))
+    o.append(TX(366, 18, "(b) 正弦波を入れる（K_P = 8 N/(m/s)）", "start", 11, INK, True))
+    o.append(T(366, 36, "入れた正弦波の振幅に対する、制御量の揺れの振幅の比", "start", 9.5, MUT))
     Pn, Pd = [0.5], [0.5, 1.0]
     Gyr, Gyd, S = _f07_cl(Pn, Pd, [8.0], [1.0])
-    specs = [(1.0, "1 rad/s（遅い）"), (50.0, "50 rad/s（速い）")]
+    specs = [(1.0, "1 rad/s"), (50.0, "50 rad/s")]
     for i, (w, lab) in enumerate(specs):
         per = 2 * math.pi / w
         t = _f07_np.linspace(0, 12 * per, 6001)
@@ -1082,15 +1083,14 @@ def _f07_tradeoff_fig():
         yn = -_f07_lsim(Gyr[0], Gyr[1], u, t)
         sel = t >= 10 * per
         ts = (t[sel] - 10 * per) / per
-        for j, (yy, c, name) in enumerate(((yd, PUR, "外乱 → 制御量"), (yn, TEA, "ノイズ → 制御量"))):
-            x = 404 + j * 150
-            pp = Plot(x, 52 + i * 104, 126, 62, (0, 2), (-1.15, 1.15))
+        for j, (yy, c, name) in enumerate(((yd, PUR, "外乱"), (yn, TEA, "ノイズ"))):
+            x = 404 + j * 156
+            pp = Plot(x, 66 + i * 98, 120, 56, (0, 2), (-1.15, 1.15))
             o.append(pp.axes(xl=None, yl=None, xt=[0, 1, 2], yt=[-1, 0, 1], xfmt=(lambda v: "%g" % v) if i == 1 else (lambda v: ""), yfmt=_f07_fmt, sz=8.5))
             o.append(pp.line(list(zip(ts, u[sel])), c=c, lw=1.1, dash="4 2"))
             o.append(pp.line(list(zip(ts, yy[sel])), c=SIG, lw=1.9))
             amp = (yy[sel].max() - yy[sel].min()) / 2
-            o.append(T(x + 63, pp.y - 5, "%s %.2f 倍" % (name, amp), "middle", 9, c if True else INK, True))
-        o.append(T(398, 52 + i * 104 + 36, lab, "end", 9.5, INK, True).replace("", ""))
+            o.append(T(x + 60, pp.y - 5, "%s %s: %.2f 倍" % (name, lab, amp), "middle", 9.5, c, True))
     o.append(T(554, 270, "横軸: 周期を単位にした時間（細い破線が入れた正弦波）", "middle", 9, MUT))
     return SVG(700, 280, o, "外乱を抑えることと、ノイズを通さないことの釣り合い。(a) 比例ゲインを上げると、坂による速度のずれは減るが、観測ノイズによる速度の揺れは増える（1 章 4 節の数値）。(b) 同じ角周波数の正弦波で比べると、遅い 1 rad/s では外乱は 0.22 倍に縮み、ノイズは 0.80 倍が制御量に出る。速い 50 rad/s では外乱はほとんど縮まないが、ノイズは 0.16 倍しか出ない。")
 F["e07_tradeoff"] = _f07_tradeoff_fig()
