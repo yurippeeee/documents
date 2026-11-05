@@ -742,7 +742,7 @@ def _f10_cmp_pos_fig():
     mp, ts = _f10_metrics(rp["t"], rp["y"], 1.0, 0.0, 0.999)
     o.append(TX(p.X(1.02), p.y + p.h - 8, "比例だけ: −3.76 rad へ（枠の外。ずれ 4.76 rad）", "start", 9.5, TEA, True, halo=True))
     o.append(TX(p.X(1.98), p.Y(1 - 1.0 / 0.84) - 6, "PD: ずれ 1.19 rad が残る", "end", 9.5, SIG, True, halo=True))
-    o.append(TX(p.X(1.6), p.Y(1.0) + 15, "PID: 0.56 s で ±0.02 rad に戻る", "start", 9.5, GRN, True, halo=True))
+    o.append(TX(p.X(1.42), p.Y(1.0) + 15, "PID: 0.56 s で ±0.02 rad に戻る", "start", 9.5, GRN, True, halo=True))
     o.append(TX(p.X(0.17), p.Y(1.30) + 4, "PID: 行き過ぎ %s %%" % _f10_f(mp, 0), "start", 9.5, GRN, True, halo=True))
     o.append(TX(p.X(0.42), p.Y(0.62), "PD: 5.0 %・0.21 s", "start", 9.5, SIG, True, halo=True))
     o.append(TX(p.X(0.42), p.Y(0.47), "比例だけ: 5.0 %・0.41 s", "start", 9.5, TEA, True, halo=True))
@@ -778,31 +778,168 @@ def _f10_plate_run(KP, KI, KD, tend=1100.0, h=0.05, t_d=100.0, N=None, noise=Non
 
 def _f10_cmp_plate_fig():
     o = []
-    cs = [("P", 24.0, 0.0, 0.0, TEA, "比例だけ（K_P = 24 W/K）"), ("PI1", 12.0, 0.15, 0.0, SIG, "PI（12 W/K、T_I = 80 s）"),
-          ("PI2", 24.0, 0.6, 0.0, ALI, "PI（24 W/K、T_I = 40 s）"), ("PID", 24.0, 0.6, 240.0, GRN, "PID（24 W/K、40 s、T_D = 10 s）")]
+    cs = [("P", 24.0, 0.0, 0.0, TEA, "比例だけ（K_P = 24 W/K）"), ("PI1", 12.0, 0.15, 0.0, SIG, "PI（12 W/K・T_I = 80 s）"),
+          ("PID", 24.0, 0.6, 240.0, GRN, "PID（24 W/K・40 s・T_D = 10 s）")]
     res = {c[0]: _f10_plate_run(c[1], c[2], c[3]) for c in cs}
+    res["PI2"] = _f10_plate_run(24.0, 0.6, 0.0)
     o.append(T(14, 18, "(a) 板の温度（目標 60 °C。100 s に周りの温度が 25 °C から 15 °C に下がる）", "start", 11, INK, True))
-    p = Plot(70, 32, 600, 170, (0, 1100), (57.8, 60.6))
+    p = Plot(70, 32, 600, 150, (0, 1100), (58.2, 60.3))
     o.append(_f10_band(p, 100, 1100))
-    o.append(p.axes(xl=None, yl="温度 [°C]", xt=[0, 100, 300, 500, 700, 900, 1100], yt=[58, 58.5, 59, 59.5, 60, 60.5], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
+    o.append(p.axes(xl=None, yl="温度 [°C]", xt=[0, 100, 300, 500, 700, 900, 1100], yt=[58.5, 59, 59.5, 60], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
     o.append(W(p.x, p.Y(60), p.x + p.w, p.Y(60), c=MUT, lw=1.2, dash="5 3"))
     for name, KP, KI, KD, c, lab in cs:
         r = res[name]
-        o.append(p.clip(list(zip(r["t"], r["y"])), c=c, lw=1.5 if name == "PI2" else 2.0))
+        o.append(p.clip(list(zip(r["t"], r["y"])), c=c, lw=2.2 if name == "PID" else 1.9))
     o.append(T(p.X(1090), p.Y(58.871) - 5, "比例だけ: 58.87 °C（偏差 1.13 K）", "end", 9.5, TEA, True, halo=True))
     o.append(T(p.X(1090), p.Y(58.548) + 14, "→ 58.55 °C（偏差 1.45 K）", "end", 9.5, TEA, True, halo=True))
-    o.append(T(p.X(330), p.Y(59.25), "PI（12 W/K・80 s）: −0.66 K、125 s で ±0.1 K", "start", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(330), p.Y(59.43), "PID: −0.41 K、52 s で ±0.1 K", "start", 9.5, GRN, True, halo=True))
-    o.append(T(p.X(330), p.Y(60.47), "PI（24 W/K・40 s）: 振れが大きくなり続ける", "start", 9.5, ALI, True, halo=True))
-    o.append(T(14, 238, "(b) ヒータの電力", "start", 11, INK, True))
-    q = Plot(70, 250, 600, 120, (0, 1100), (0, 80))
+    o.append(T(p.X(330), p.Y(59.38), "PI（12 W/K・80 s）: −0.66 K、125 s で ±0.1 K に戻る", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(330), p.Y(59.58), "PID: −0.41 K、52 s で ±0.1 K に戻る", "start", 9.5, GRN, True, halo=True))
+    o.append(T(14, 222, "(b) ヒータの電力", "start", 11, INK, True))
+    q = Plot(70, 234, 600, 100, (0, 1100), (0, 80))
     o.append(_f10_band(q, 100, 1100))
     o.append(q.axes(xl="時間 t [s]", yl="電力 [W]", xt=[0, 100, 300, 500, 700, 900, 1100], yt=[0, 20, 40, 60, 80], xfmt=_f10_n, yfmt=_f10_n, sz=9))
     for name, KP, KI, KD, c, lab in cs:
         r = res[name]
-        o.append(q.clip(list(zip(r["t"], r["u"])), c=c, lw=1.4 if name == "PI2" else 1.8))
+        o.append(q.clip(list(zip(r["t"], r["u"])), c=c, lw=1.8))
     o.append(T(q.X(1090), q.Y(36) - 6, "PI・PID: 28 W → 36 W", "end", 9.5, GRN, True, halo=True))
     o.append(T(q.X(1090), q.Y(34.8) + 14, "比例だけ: 27.1 W → 34.8 W", "end", 9.5, TEA, True, halo=True))
-    o.append(LEGL(70, 414, [(TEA, None, cs[0][5]), (SIG, None, cs[1][5]), (ALI, None, cs[2][5]), (GRN, None, cs[3][5])], 9.5, 10))
-    return _f10_svg(700, 424, o, "温度の板（一次遅れ ＋ むだ時間 20 s）で、周りの温度が下がったとき。D 動作は測った温度の変わる速さに掛けた。(a) 比例だけでは、逃げる熱を補う電力を偏差から作るので偏差が残る。I 動作で偏差は消えるが、むだ時間があるので強くはできず、24 W/K・40 s の PI は振れが大きくなり続ける（この計算は電力の上限・下限を考えていない）。D 動作を足すと、同じ 24 W/K・40 s で落ち着き、12 W/K・80 s の PI より小さく速く戻る。(b) PI と PID の電力は、逃げる熱が 8 W 増えた分だけ増えて 36 W になる。")
+    o.append(LEGL(70, 378, [(TEA, None, cs[0][5]), (SIG, None, cs[1][5]), (GRN, None, cs[2][5])], 9.5, 14))
+    # (c) 同じ 24 W/K・40 s で D の有無
+    o.append(TX(14, 412, "(c) 同じ 24 W/K・T_I = 40 s で、D 動作の有無を比べる", "start", 11, INK, True))
+    z = Plot(70, 426, 600, 110, (0, 1100), (58.0, 62.0))
+    o.append(_f10_band(z, 100, 1100))
+    o.append(z.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 100, 300, 500, 700, 900, 1100], yt=[58, 59, 60, 61, 62], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(z.x, z.Y(60), z.x + z.w, z.Y(60), c=MUT, lw=1.2, dash="5 3"))
+    o.append(z.clip(list(zip(res["PI2"]["t"], res["PI2"]["y"])), c=ALI, lw=1.6))
+    o.append(z.clip(list(zip(res["PID"]["t"], res["PID"]["y"])), c=GRN, lw=2.2))
+    o.append(T(z.X(330), z.y + 14, "PI（D なし）: 振れが大きくなり続ける（不安定）", "start", 9.5, ALI, True, halo=True))
+    o.append(TX(z.X(330), z.Y(60) + 16, "PID（T_D = 10 s）: 落ち着く", "start", 9.5, GRN, True, halo=True))
+    return _f10_svg(700, 572, o, "温度の板（一次遅れ ＋ むだ時間 20 s）で、周りの温度が下がったとき。D 動作は測った温度の変わる速さに掛けた。(a) 比例だけでは、逃げる熱を補う電力を偏差から作るので偏差が残る。I 動作を足すと偏差は消える。D 動作も足した PID は、12 W/K・80 s の PI より小さく速く戻る。(b) PI と PID の電力は、逃げる熱が 8 W 増えた分だけ増えて 36 W になる。(c) PID と同じ 24 W/K・40 s で D 動作を除くと、むだ時間のために振れが大きくなり続ける（この計算は電力の上限・下限を考えていない）。D 動作が、強い P と I を使えるようにしている。")
 F["e10_cmp_plate"] = _f10_cmp_plate_fig()
+
+
+# =====================================================================
+# 6 節: 微分の実際
+# =====================================================================
+def _f10_filter_fig():
+    o = []
+    KP, TD = 0.84, 0.02 / 0.84
+    o.append(T(14, 18, "(a) 微分する信号が段差で 1 変わったとき", "start", 11, INK, True))
+    p = Plot(70, 34, 250, 130, (-0.002, 0.02), (0, 9.5))
+    o.append(p.axes(xl="時間 t [s]", yl="D の分 [V]", xt=[0, 0.005, 0.01, 0.015, 0.02], yt=[0, 2, 4, 6, 8], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    t = _f10_np.linspace(0, 0.02, 801)
+    o.append(ARR(p.X(0), p.Y(0), p.X(0), p.y + 2, c=MUT, lw=2.4))
+    o.append(TX(p.X(0) + 5, p.y + 12, "理想の微分: 限りなく高く細い山（面積 K_P T_D）", "start", 9, MUT, True, halo=True))
+    for N, c in ((10, _F10_CD), (3, SIG)):
+        y = KP * N * _f10_np.exp(-N * t / TD)
+        o.append(p.line([(-0.002, 0), (0, 0)] + list(zip(t, y)), c=c, lw=2))
+        o.append(TX(p.X(TD / N) + 6, p.Y(KP * N * math.exp(-1)) + 4, "N = %d: 山 K_P N = %s V" % (N, _f10_f(KP * N, 2)), "start", 9.5, c, True, halo=True))
+    o.append(T(390, 18, "(b) 微分する信号が一定の速さ 1 rad/s で増えるとき", "start", 11, INK, True))
+    q = Plot(430, 34, 250, 130, (-0.01, 0.08), (0, 0.025))
+    o.append(q.axes(xl="時間 t [s]", yl="D の分 [V]", xt=[0, 0.02, 0.04, 0.06, 0.08], yt=[0, 0.01, 0.02], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    t = _f10_np.linspace(0, 0.08, 801)
+    o.append(q.line([(-0.01, 0), (0, 0), (0, KP * TD), (0.08, KP * TD)], c=MUT, lw=2, dash="5 3"))
+    for N, c in ((10, _F10_CD), (3, SIG)):
+        y = KP * TD * (1 - _f10_np.exp(-N * t / TD))
+        o.append(q.line([(-0.01, 0), (0, 0)] + list(zip(t, y)), c=c, lw=2))
+    o.append(TX(q.X(0.078), q.Y(KP * TD) - 6, "理想: K_P T_D × 1 rad/s = 0.02 V", "end", 9.5, MUT, True, halo=True))
+    o.append(TX(q.X(0.006), q.Y(0.006), "時定数 T_D/N で追いつく", "start", 9.5, INK, True, halo=True))
+    o.append(T(14, 218, "(c) D の分のゲイン（正弦波の振幅の比）", "start", 11, INK, True))
+    w = _f10_np.logspace(0, 4, 400)
+    z = Plot(70, 232, 400, 140, (1, 10000), (0.01, 30), xlog=True, ylog=True)
+    o.append(z.axes(xl="角周波数 ω [rad/s]", yl="ゲイン [V/rad]", xt=[1, 10, 100, 1000, 10000], yt=[0.01, 0.1, 1, 10], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(z.clip([(wv, KP * TD * wv) for wv in w], c=MUT, lw=1.8, dash="5 3"))
+    for N, c in ((10, _F10_CD), (3, SIG)):
+        g = KP * TD * w / _f10_np.sqrt(1 + (TD * w / N) ** 2)
+        o.append(z.line(list(zip(w, g)), c=c, lw=2))
+        o.append(TX(z.X(9000), z.Y(KP * N) - 6, "N = %d: 上限 K_P N = %s" % (N, _f10_f(KP * N, 2)), "end", 9.5, c, True, halo=True))
+        o.append(W(z.X(N / TD), z.y + z.h, z.X(N / TD), z.Y(KP * N), c=c, lw=1, dash="2 3"))
+    o.append(z.line([(1, KP), (10000, KP)], c=_F10_CP, lw=1.4, dash="4 3"))
+    o.append(TX(z.X(1.3), z.Y(KP) - 6, "P の分 K_P", "start", 9.5, _F10_CP, True, halo=True))
+    o.append(TX(z.X(1.3), z.Y(0.05), "理想の微分 K_P T_D ω", "start", 9.5, MUT, True, halo=True))
+    o.append(TX(z.x + z.w + 14, z.y + 24, "折れ点 N/T_D:", "start", 10, INK, True))
+    o.append(TX(z.x + z.w + 14, z.y + 40, "N = 3 で 126 rad/s", "start", 10, SIG))
+    o.append(TX(z.x + z.w + 14, z.y + 56, "N = 10 で 420 rad/s", "start", 10, _F10_CD))
+    o.append(TX(z.x + z.w + 14, z.y + 84, "それより遅い揺れには微分", "start", 10, INK))
+    o.append(TX(z.x + z.w + 14, z.y + 100, "として働き、速い揺れには", "start", 10, INK))
+    o.append(TX(z.x + z.w + 14, z.y + 116, "K_P N 倍より大きくしない", "start", 10, INK))
+    return _f10_svg(700, 412, o, "不完全微分 K_P T_D s/(1 + (T_D/N)s) の働き（モータの角度の例 K_P = 0.84 V/rad、T_D = 0.0238 s）。(a) 段差を微分すると、理想の微分は限りなく高い山になるが、不完全微分は高さ K_P N の山を時定数 T_D/N で減らす。(b) 一定の速さで増える信号には、時定数 T_D/N 遅れて理想の微分と同じ値になる。(c) ゲインは、折れ点 N/T_D より低い角周波数では理想の微分と同じで、それより高い角周波数では K_P N で頭打ちになる。")
+F["e10_filter"] = _f10_filter_fig()
+
+
+def _f10_noise_n_fig():
+    o = []
+    rng = _f10_np.random.default_rng(7)
+    h = 1.0
+    nz = rng.normal(0.0, 0.05, int(round(1100 / h)) + 1)
+    o.append(T(14, 18, "(a) ヒータの電力（読みに標準偏差 0.05 K のノイズ、1 s ごとに読む。100 s に周りの温度が下がる）", "start", 10.5, INK, True))
+    rows = [(None, ALI, "理想の微分（N なし）"), (10, _F10_CD, "N = 10"), (2, SIG, "N = 2")]
+    y0 = 34
+    stds = []
+    for k, (N, c, lab) in enumerate(rows):
+        r = _f10_plate_run(24.0, 0.6, 240.0, h=h, N=N, noise=nz, every=1)
+        p = Plot(70, y0 + k * 74, 480, 60, (0, 1100), (-30, 110))
+        o.append(RECT(p.x, p.Y(80), p.w, p.Y(0) - p.Y(80), 0, GSOFT, "none", 0))
+        o.append(p.axes(xl="時間 t [s]" if k == 2 else None, yl=None, xt=[0, 100, 300, 500, 700, 900, 1100], yt=[0, 80], xfmt=_f10_n if k == 2 else (lambda v: ""), yfmt=_f10_n, sz=9))
+        o.append(p.clip(list(zip(r["t"], r["u"])), c=c, lw=1.0))
+        sd = float(r["u"][r["t"] >= 300].std())
+        stds.append(sd)
+        o.append(TX(p.x + p.w + 12, p.y + 22, lab, "start", 10, c, True))
+        o.append(T(p.x + p.w + 12, p.y + 38, "揺れの標準偏差 %s W" % _f10_f(sd, 1), "start", 10, c))
+    o.append(T(36, y0 + 74 + 34, "電力 [W]", "middle", 9.5, MUT, rot=-90))
+    o.append(T(p.x + p.w + 12, y0 + 3 * 74 + 4, "緑の帯: 出せる 0〜80 W", "start", 9, GRN))
+    yb = y0 + 3 * 74 + 46
+    o.append(T(14, yb, "(b) ノイズの無いときの、周りの温度が下がった後の板の温度", "start", 10.5, INK, True))
+    q = Plot(70, yb + 14, 480, 120, (0, 1100), (59.4, 60.2))
+    o.append(_f10_band(q, 100, 1100))
+    o.append(q.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 100, 300, 500, 700, 900, 1100], yt=[59.4, 59.6, 59.8, 60, 60.2], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(q.x, q.Y(60), q.x + q.w, q.Y(60), c=MUT, lw=1.2, dash="5 3"))
+    for k, (N, c, lab) in enumerate([(None, ALI, "N なし: 52 s"), (10, _F10_CD, "N = 10: 50 s"), (2, SIG, "N = 2: 163 s"), (1, GLD, "N = 1: 揺れが続く")]):
+        r = _f10_plate_run(24.0, 0.6, 240.0, N=N)
+        o.append(q.clip(list(zip(r["t"], r["y"])), c=c, lw=1.8))
+        o.append(T(q.x + q.w + 12, q.y + 18 + k * 16, lab, "start", 10, c, True))
+    o.append(T(q.x + q.w + 12, q.y + 88, "±0.1 K に戻るまで", "start", 9, MUT))
+    return _f10_svg(700, yb + 180, o, "温度の板の PID（24 W/K・T_I = 40 s・T_D = 10 s）で、不完全微分の N を変える。(a) 理想の微分では、読みのわずかなノイズが、ヒータが出せない負の電力や 80 W を超える電力になって現れる。N を小さくするほど電力の揺れは小さくなる。(b) 一方で、N を小さくしすぎると、D 動作の先読みが遅れて効かなくなり、外乱の後に揺れが長く続く。N は、ノイズへの弱さと D 動作の効き目の釣り合いで選ぶ。")
+F["e10_noise_n"] = _f10_noise_n_fig()
+
+
+def _f10_kick_fig():
+    o = []
+    t0 = 0.1
+    step = lambda t: 1.0 if t >= t0 else 0.0
+    rE = _f10_sim("mpos", 0.84, 5.0, 0.02, 0.7, 1e-5, r=step, N=10, dmode="e", every=10)
+    rY = _f10_sim("mpos", 0.84, 5.0, 0.02, 0.7, 1e-5, r=step, N=10, dmode="y", every=10)
+    o.append(T(14, 18, "(a) 何を微分するか（目標を 0.1 s に 1 rad 変える。N = 10）", "start", 11, INK, True))
+    p = Plot(66, 34, 260, 120, (0, 0.7), (0, 1.4))
+    o.append(p.axes(xl=None, yl="角度 [rad]", xt=[0, 0.1, 0.3, 0.5, 0.7], yt=[0, 0.5, 1.0], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
+    o.append(p.line([(0, 0), (t0, 0), (t0, 1), (0.7, 1)], c=MUT, lw=1.2, dash="5 3"))
+    o.append(p.line(list(zip(rE["t"], rE["y"])), c=ALI, lw=1.9))
+    o.append(p.line(list(zip(rY["t"], rY["y"])), c=SIG, lw=2.1))
+    mpE, tsE = _f10_metrics(rE["t"], rE["y"], 1.0, t0)
+    mpY, tsY = _f10_metrics(rY["t"], rY["y"], 1.0, t0)
+    o.append(T(p.X(0.69), p.Y(0.42), "偏差の微分: 行き過ぎ %s %%" % _f10_f(mpE, 1), "end", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(0.69), p.Y(0.26), "測った角度の微分: %s %%" % _f10_f(mpY, 1), "end", 9.5, SIG, True, halo=True))
+    q = Plot(66, 178, 260, 120, (0, 0.7), (-1, 10))
+    o.append(q.axes(xl="時間 t [s]", yl="電圧 [V]", xt=[0, 0.1, 0.3, 0.5, 0.7], yt=[0, 2, 4, 6, 8, 10], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(q.line(list(zip(rE["t"], rE["u"])), c=ALI, lw=1.6))
+    o.append(q.line(list(zip(rY["t"], rY["u"])), c=SIG, lw=2.0))
+    o.append(T(q.X(0.112), q.Y(rE["u"].max()) + 6, "微分キック %s V" % _f10_f(rE["u"].max(), 1), "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(0.15), q.Y(2.2), "測った角度の微分: 最大 %s V" % _f10_f(rY["u"].max(), 2), "start", 9.5, SIG, True, halo=True))
+    # (b) 目標値の重み
+    o.append(T(380, 18, "(b) 比例の目標値の重み b（測った角度の微分）", "start", 11, INK, True))
+    p2 = Plot(430, 34, 250, 120, (0, 0.7), (0, 1.4))
+    o.append(p2.axes(xl=None, yl="角度 [rad]", xt=[0, 0.1, 0.3, 0.5, 0.7], yt=[0, 0.5, 1.0], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
+    o.append(p2.line([(0, 0), (t0, 0), (t0, 1), (0.7, 1)], c=MUT, lw=1.2, dash="5 3"))
+    q2 = Plot(430, 178, 250, 120, (0, 0.7), (-0.2, 1.0))
+    o.append(q2.axes(xl="時間 t [s]", yl="電圧 [V]", xt=[0, 0.1, 0.3, 0.5, 0.7], yt=[0, 0.5, 1.0], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(q2.x, q2.Y(0), q2.x + q2.w, q2.Y(0), c=MUT, lw=1))
+    for k, (b, c) in enumerate(((1.0, SIG), (0.5, GRN), (0.0, GLD))):
+        r = rY if b == 1.0 else _f10_sim("mpos", 0.84, 5.0, 0.02, 0.7, 1e-5, r=step, N=10, dmode="y", b=b, every=10)
+        mp, ts = _f10_metrics(r["t"], r["y"], 1.0, t0)
+        o.append(p2.line(list(zip(r["t"], r["y"])), c=c, lw=2))
+        o.append(q2.line(list(zip(r["t"], r["u"])), c=c, lw=1.8))
+        o.append(T(p2.X(0.69), p2.Y(0.42) + k * 15, "b = %s: %s %%・%s s" % (_f10_n(b), _f10_f(max(mp, 0.0), 1), _f10_f(ts, 2)), "end", 9.5, c, True, halo=True))
+    o.append(T(p2.X(0.69), p2.Y(0.42) - 14, "行き過ぎ量・2 % 整定時間", "end", 9, MUT, halo=True))
+    o.append(TX(q2.X(0.69), q2.Y(0.85), "目標を変えた瞬間の電圧の跳び: bK_P", "end", 9.5, INK, halo=True))
+    return _f10_svg(700, 340, o, "モータの角度の PID（K_P = 0.84 V/rad、K_I = 5 V/(rad·s)、K_D = 0.02 V·s/rad、N = 10）で、目標を段差で変える。(a) 偏差を微分すると、目標の段差がそのまま微分され、電圧に 9.2 V の一瞬の山（微分キック）が出る（N なしの理想の微分なら限りなく高い）。測った角度だけを微分すると山は消える。2 つは目標値が一定の間は同じ働きで、極も同じである。(b) 比例の分の目標値に重み b を掛けると、目標を変えた瞬間の電圧の跳びと行き過ぎが小さくなる。b は外乱への応答を変えない。")
+F["e10_kick"] = _f10_kick_fig()
