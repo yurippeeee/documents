@@ -245,7 +245,7 @@
       var h="";
       if(uns)h+='<span class="warn">閉ループが不安定</span>（閉ループの極: '+_w13_poles(ps)+'）。積分が 0 になる条件（閉ループが安定）を満たさない<br>';
       h+="∫ ln|S(jω)| dω: 0 より下（緑） <b>"+_w13_f(wb.neg,2)+"</b>、上（赤） <b>+"+_w13_f(wb.pos,2)+"</b>、和 "+_w13_f(wb.neg+wb.pos,3)+"（1e−6〜1e6 rad/s で数値積分。0 に近いことを確かめる）<br>";
-      h+="最大感度 M<sub>s</sub> = <b>"+_w13_g(sm.Ms,3)+"</b>（"+_w13_g(sm.w,3)+" rad/s）、−1 の点との最も近い距離 1/M<sub>s</sub> = "+_w13_g(1/sm.Ms,3)+"<br>";
+      h+="最大感度 M<sub>s</sub> = <b>"+_w13_g(sm.Ms,3)+"</b>（"+_w13_g(sm.w,3)+" rad/s）、−1 の点との最短距離 1/M<sub>s</sub> = "+_w13_g(1/sm.Ms,3)+"<br>";
       h+="交差 "+(mg.wgc?_w13_g(mg.wgc,3)+" rad/s、位相余裕 "+_w13_f(mg.pm,1)+"°":"—")+(mg.gmDb!=null?"、ゲイン余裕 "+_w13_f(mg.gmDb,1)+" dB":"");
       ro.innerHTML=h+'<div class="wnote">(a) の横軸は対数でない目盛で、描いた範囲の外の面積も数値に含めた。縦の目盛の外（−2.5 より下）は描いていない。</div>';
     }

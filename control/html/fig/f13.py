@@ -401,7 +401,7 @@ def _f13_lag_time_fig():
     o.append(TX(p.X(2.74), p.Y(0.9756 * 0.98) + 15, "2.74 s で 2 % の幅（緑）に入る: 尾 −0.133e^{−0.699t}", "middle", 9.5, SIG, True, halo=True))
     # (b) 観測ノイズによる揺れ
     o.append(T(14, 222, "(b) 観測ノイズ（0.01 s ごとに変わる、標準偏差 0.02 m/s）による速度の揺れ", "start", 11, INK, True))
-    rng = _f13_np.random.default_rng(7)
+    rng = _f13_np.random.default_rng(3)   # 1 章 4 節の図と同じ seed（比例 8 の標準偏差が 1 章の本文の 0.0035 m/s にそろう）
     nz = rng.normal(0.0, 0.02, 30000)
     noise = lambda tt, k: nz[int(tt / 0.01)]
     lanes = []
