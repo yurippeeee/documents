@@ -73,7 +73,7 @@
       var r=o2===0?1:100,tEnd=o2===0?1.2:0.25,yu=o2===0?"rad":"rad/s",yl=o2===0?"角度":"角速度";
       var M=Math.max(10,Math.ceil(Ts/(o2===0?5e-4:1e-4))),lc=Math.round(lf*M);
       var sd=_w15_simsd(U,G,function(e){return Kp*e;},Ts,tEnd,M,lc,r);
-      var hc=o2===0?2e-4:2e-5,ct=_w15_simfb(U,G,Kp,tEnd,hc,0,0,r),dl=_w15_simfb(U,G,Kp,tEnd,hc,Ts/2,Lc,r);
+      var hc=o2===0?1e-4:2e-5,ct=_w15_simfb(U,G,Kp,tEnd,hc,0,0,r),dl=_w15_simfb(U,G,Kp,tEnd,hc,Ts/2,Lc,r);
       var yf=r*(o2===0?1:50*Kp/(1+50*Kp));
       /* 余裕 */
       var L0=ctl.tf(G.num.map(function(v){return v*Kp;}),G.den),m0=ctl.margins(L0,1e-2,1e5);
@@ -236,7 +236,7 @@
     var S=U.S,ctl=U.ctl,cx=ctl.cx;
     U.head(el,"DISCRETIZATION","伝達関数の制御器を、T_s ごとの計算式にする".replace("T_s","T<sub>s</sub>"));
     var r1=U.ctrls(el);
-    var kd=U.select(r1,"制御器",["進み補償（モータの角度。13 章 3 節）","PI（モータの速度。10 章 5 節）"],0,draw);
+    var kd=U.select(r1,"制御器",["進み補償（13 章 3 節）","PI（10 章 5 節）"],0,draw);
     var mt=U.select(r1,"近似",_W15_MNAME,2,draw);
     var tsS=U.slider(r1,"サンプリング周期 T<sub>s</sub>",{values:[0.5,1,2,5,10,15,20,30,40],value:10,fmt:function(v){return v+" ms";},onInput:draw});
     var r2=U.ctrls(el);
