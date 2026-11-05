@@ -408,11 +408,11 @@ def _f15_alias_wave_fig():
     for k in range(13):
         v = math.sin(2 * math.pi * 0.9 * k)
         o.append(D(p.X(k), p.Y(v), INK, 3.6))
-    o.append(LEGL(80, 222, [(TEA, None, "元の揺れ（0.9f_s）"), (ALI, "7 4", "点の列が示す揺れ（0.1f_s）")], 9.5, 18))
-    o.append(T(470, 222, "点: 取り出した値", "start", 9.5, INK))
+    o.append(LEGL(80, 240, [(TEA, None, "元の揺れ（0.9f_s）"), (ALI, "7 4", "点の列が示す揺れ（0.1f_s）")], 9.5, 18))
+    o.append(T(470, 240, "点: 取り出した値", "start", 9.5, INK))
     # (b) 折り返し
-    o.append(TX(14, 256, "(b) 元の周波数 f と、取り出した点の列に現れる周波数 |f − mf_s|", "start", 11, INK, True))
-    q = Plot(70, 272, 600, 150, (0, 2.6), (0, 0.6))
+    o.append(TX(14, 272, "(b) 元の周波数 f と、取り出した点の列に現れる周波数 |f − mf_s|", "start", 11, INK, True))
+    q = Plot(70, 288, 600, 150, (0, 2.6), (0, 0.6))
     o.append(RECT(q.X(0.5), q.y, q.X(2.6) - q.X(0.5), q.h, 0, ASOFT, "none", 0))
     o.append(q.axes(xl="元の周波数 f / f_s", yl="現れる周波数 / f_s", xt=[0, 0.5, 1, 1.5, 2, 2.5], yt=[0, 0.1, 0.25, 0.5], xfmt=_f15_n, yfmt=_f15_n))
     xs = _f15_np.linspace(0, 2.6, 1041)
@@ -424,7 +424,7 @@ def _f15_alias_wave_fig():
         o.append(T(q.X(fv), q.Y(0.1) + 16, _f15_n(fv), "middle", 9.5, ALI, True, halo=True))
     o.append(W(q.X(0.5), q.y, q.X(0.5), q.y + q.h, c=MUT, lw=1.2, dash="5 3"))
     o.append(TX(q.X(0.5) + 6, q.y + 14, "ナイキスト周波数 f_s/2: これより速い成分は折り返して現れる", "start", 9.5, ALI, True, halo=True))
-    return _f15_svg(700, 460, o, "エイリアシング。(a) 周波数 0.9f_s の正弦波（青緑）を T_s ごとに取り出すと、点の列は周波数 0.1f_s のゆっくりした正弦波（赤の破線。符号は逆）とまったく同じになる。(b) 周波数 f の成分は、f_s の整数倍との差の大きさ |f − mf_s| が最も小さくなる周波数に現れる。グラフは f_s/2 ごとに折り返し、0.1f_s・0.9f_s・1.1f_s・1.9f_s・2.1f_s の成分は、どれも 0.1f_s に現れる。")
+    return _f15_svg(700, 476, o, "エイリアシング。(a) 周波数 0.9f_s の正弦波（青緑）を T_s ごとに取り出すと、点の列は周波数 0.1f_s のゆっくりした正弦波（赤の破線。符号は逆）とまったく同じになる。(b) 周波数 f の成分は、f_s の整数倍との差の大きさ |f − mf_s| が最も小さくなる周波数に現れる。グラフは f_s/2 ごとに折り返し、0.1f_s・0.9f_s・1.1f_s・1.9f_s・2.1f_s の成分は、どれも 0.1f_s に現れる。")
 
 
 F["e15_alias_wave"] = _f15_alias_wave_fig()
@@ -526,8 +526,8 @@ F["e15_aaf"] = _f15_aaf_fig()
 # =====================================================================
 def _f15_diff3_fig():
     o = []
-    f = lambda s: 0.25 + 0.35 * s + 0.55 * s * s       # 1 周期の中の値の動き（例）
-    exact = 0.25 + 0.35 / 2 + 0.55 / 3
+    f = lambda s: 0.5 + 0.3 * s + 0.25 * s * s         # 1 周期の中の値の動き（例）
+    exact = 0.5 + 0.3 / 2 + 0.25 / 3
     panels = [("(a) 前進差分", "左端の値 × T_s", _F15_CF, "left", "時刻 k−1 の傾き ≈ 差 ÷ T_s"),
               ("(b) 後退差分", "右端の値 × T_s", _F15_CB, "right", "時刻 k の傾き ≈ 差 ÷ T_s"),
               ("(c) 双一次変換", "両端の平均 × T_s（台形）", _F15_CT, "trap", "両端の傾きの平均 = 差 ÷ T_s")]
@@ -566,13 +566,15 @@ F["e15_diff3"] = _f15_diff3_fig()
 
 def _f15_map_fig():
     o = []
-    pts = [complex(-0.3, 0), complex(-1.5, 0), complex(-3.0, 0), complex(-0.4, 1.2), complex(-1.5, 2.5)]
+    pts = [complex(-0.3, 0), complex(-1.5, 0), complex(-3.0, 0), complex(-0.4, 1.2), complex(-1.5, 1.4)]
     def mark(p, z, i, c=INK):
         if not (p.xr[0] <= z.real <= p.xr[1] and p.yr[0] <= z.imag <= p.yr[1]):
             return ""
         s = D(p.X(z.real), p.Y(z.imag), c, 3.6)
-        dy = -6 if z.imag >= 0 else 14
-        return s + T(p.X(z.real) + 5, p.Y(z.imag) + dy, str(i), "start", 9.5, c, True, halo=True)
+        dx, dy, an = {1: (3, -6, "start"), 2: (3, 15, "start"), 3: (-4, -6, "end"), 4: (3, -6, "start"), 5: (4, -5, "start")}[i]
+        if z.imag < -1e-9:
+            dy = 15
+        return s + T(p.X(z.real) + dx, p.Y(z.imag) + dy, str(i), an, 9.5, c, True, halo=True)
     def frame(p, title, xt, yt):
         r = [RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.8)]
         r.append(p.axes(xt=xt, yt=yt, xfmt=_f15_n, yfmt=_f15_n, sz=8.5))
@@ -584,21 +586,24 @@ def _f15_map_fig():
     th = _f15_np.linspace(0, 2 * math.pi, 241)
     unit = lambda p: p.line([(math.cos(a), math.sin(a)) for a in th], c=INK, lw=1.3, dash="4 3")
     # (a) s 平面
-    pa = Plot(52, 40, 190, 150, (-3.4, 0.8), (-3.0, 3.0))
+    pa = Plot(52, 40, 190, 163, (-3.4, 0.8), (-1.8, 1.8))
     o.append(RECT(pa.x, pa.y, pa.X(0) - pa.x, pa.h, 0, GSOFT, "none", 0))
-    o.append(frame(pa, "(a) 連続時間の極 λT_s", [-3, -2, -1, 0], [-2, 0, 2]))
+    o.append(frame(pa, "(a) 連続時間の極 λT_s", [-3, -2, -1, 0], [-1, 0, 1]))
     o.append(pa.clip([(-1 + math.cos(a), math.sin(a)) for a in th], c=_F15_CF, lw=1.4, dash="5 3"))
-    o.append(T(pa.X(-1), pa.Y(1) - 4, "前進差分が発散しない範囲", "middle", 8.5, _F15_CF, True, halo=True))
+    o.append(T(pa.X(-1), pa.Y(-1) + 13, "前進差分で発散しない範囲", "middle", 8.5, _F15_CF, True, halo=True))
     for i, z in enumerate(pts, 1):
         o.append(mark(pa, z, i))
-    o.append(T(pa.X(-3.3), pa.Y(-2.6), "左半平面（安定）", "start", 9, GRN, True, halo=True))
-    maps = [("(b) 正しい倍率 e^{λT_s}", lambda z: _f15_np.exp(z), _F15_CX),
+    o.append(T(pa.X(-3.3), pa.Y(1.45), "左半平面（安定）", "start", 9, GRN, True, halo=True))
+    maps = [("(b) 正しい倍率 exp(λT_s)", lambda z: _f15_np.exp(z), _F15_CX),
             ("(c) 前進差分 1 + λT_s", lambda z: 1 + z, _F15_CF),
             ("(d) 後退差分 1/(1 − λT_s)", lambda z: 1 / (1 - z), _F15_CB),
             ("(e) 双一次変換", lambda z: (1 + z / 2) / (1 - z / 2), _F15_CT)]
     pos = [(300, 40), (500, 40), (52, 262), (300, 262)]
     for (title, fz, c), (px, py) in zip(maps, pos):
-        p = Plot(px, py, 150, 150, (-2.2, 1.6), (-1.9, 1.9))
+        if c == _F15_CF:
+            p = Plot(px, py, 150, 150, (-2.3, 1.5), (-1.9, 1.9))
+        else:
+            p = Plot(px, py, 150, 150, (-1.3, 1.3), (-1.3, 1.3))
         # 左半平面の像を塗る（点を細かく写して多角形で近づける）
         if c == _F15_CF:
             o.append(RECT(p.x, p.y, p.X(1) - p.x, p.h, 0, soft(c), "none", 0))
@@ -608,7 +613,7 @@ def _f15_map_fig():
             else:
                 poly = [(math.cos(a), math.sin(a)) for a in th]
             o.append(PL([(p.X(a), p.Y(b)) for a, b in poly], c="none", lw=0, fill=soft(c)))
-        o.append(frame(p, title, [-2, -1, 0, 1], [-1, 0, 1]))
+        o.append(frame(p, title, [-2, -1, 0, 1] if c == _F15_CF else [-1, 0, 1], [-1, 0, 1]))
         o.append(unit(p))
         if c == _F15_CF:
             o.append(W(p.X(1), p.y, p.X(1), p.y + p.h, c=c, lw=1.6))
@@ -625,14 +630,14 @@ def _f15_map_fig():
     nx = 500
     notes = [(_F15_CX, "正しい倍率: 左半平面 → 単位円の内側"),
              (_F15_CF, "前進差分: 左半平面 → 1 より左の半平面。"),
-             (_F15_CF, "  速い極 3・5 は単位円の外（発散）"),
+             (_F15_CF, "  速い極 3 と揺れる極 4・5 は外（発散）"),
              (_F15_CB, "後退差分: 左半平面 → 小さな円の内側"),
              (_F15_CT, "双一次変換: 左半平面 → 単位円の内側"),
              (INK, "破線の円: 単位円（半径 1）"),
              (INK, "番号: (a) の極 1〜5 の写る先")]
     for i, (c, s) in enumerate(notes):
         o.append(T(nx, 286 + i * 18, s, "start", 9.5, c, True))
-    return _f15_svg(700, 444, o, "連続時間の極 λ（(a)。横軸と縦軸は λT_s の実部と虚部）が、1 周期の倍率としてどこに写るか。塗った所は左半平面全体の写る先、破線は原点を中心とする半径 1 の円（単位円）で、倍率がその内側なら計算式は発散しない。(b) 正しい倍率 e^{λT_s} では、左半平面はちょうど単位円の内側に写る。(c) 前進差分では左半平面が 1 より左の半平面に写り、速い極 3・5 は単位円の外に出る。(d) 後退差分では内側の小さな円に、(e) 双一次変換では単位円の内側全体に写る。")
+    return _f15_svg(700, 444, o, "連続時間の極 λ（(a)。横軸と縦軸は λT_s の実部と虚部）が、1 周期の倍率としてどこに写るか。塗った所は左半平面全体の写る先、破線は原点を中心とする半径 1 の円（単位円）で、倍率がその内側なら計算式は発散しない。(b) 正しい倍率 e^{λT_s} では、左半平面はちょうど単位円の内側に写る。(c) 前進差分では左半平面が 1 より左の半平面に写り、速い極 3 と、虚軸に近い揺れる極 4・5 は単位円の外に出る（赤）。(d) 後退差分では内側の小さな円に、(e) 双一次変換では単位円の内側全体に写る。")
 
 
 F["e15_map"] = _f15_map_fig()
@@ -703,7 +708,7 @@ def _f15_warp_fig():
     o.append(T(p.X(w1) + 6, p.Y(30) + 16, "28.2 rad/s → 30", "start", 9.5, ALI, True, halo=True))
     o.append(TX(p.X(60), p.Y(108), "T_s = 30 ms", "start", 9.5, SIG, True, halo=True))
     o.append(TX(p.X(76), p.Y(84), "10 ms", "start", 9.5, TEA, True, halo=True))
-    o.append(T(p.X(98), p.Y(70), "ω_w = ω", "end", 9.5, MUT, halo=True))
+    o.append(TX(p.X(98), p.Y(70), "ω_w = ω", "end", 9.5, MUT, halo=True))
     # (b) 位相
     o.append(TX(370, 18, "(b) 進み補償器の位相（T_s = 30 ms）", "start", 11, INK, True))
     q = Plot(410, 34, 270, 200, (3, 100), (0, 36), xlog=True)
@@ -726,3 +731,242 @@ def _f15_warp_fig():
 
 
 F["e15_warp"] = _f15_warp_fig()
+
+
+# =====================================================================
+# 5 節: z 変換と離散時間の極
+# =====================================================================
+def _f15_zgrid_fig():
+    o = []
+    rs = [0.5, 0.85, 1.0, 1.1]
+    ths = [(0, "0°"), (math.pi / 4, "45°"), (math.pi / 2, "90°"), (math.pi, "180°")]
+    rc = lambda r: SIG if r < 1 else (GLD if r == 1 else ALI)
+    # 左: z 平面
+    o.append(T(14, 18, "(a) z 平面の極の位置", "start", 11, INK, True))
+    p = Plot(40, 60, 170, 170, (-1.25, 1.25), (-1.25, 1.25))
+    o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.8))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1)); o.append(W(p.X(0), p.y, p.X(0), p.y + p.h, c=MUT, lw=1))
+    th = _f15_np.linspace(0, 2 * math.pi, 241)
+    o.append(p.line([(math.cos(a), math.sin(a)) for a in th], c=INK, lw=1.3, dash="4 3"))
+    for th_, lab in ths:
+        for r in rs:
+            for sg in ((1, -1) if 0 < th_ < math.pi else (1,)):
+                z = r * complex(math.cos(th_), sg * math.sin(th_))
+                o.append(D(p.X(z.real), p.Y(z.imag), rc(r), 3.2))
+    o.append(T(p.x + 4, p.y + p.h + 16, "破線: 単位円", "start", 9.5, INK))
+    for i, (r, lab) in enumerate([(0.5, "|z| = 0.5・0.85: 内側"), (1.0, "|z| = 1: 単位円の上"), (1.1, "|z| = 1.1: 外側")]):
+        o.append(D(46, p.y + p.h + 34 + i * 16 - 4, rc(r), 3.6))
+        o.append(T(56, p.y + p.h + 34 + i * 16, lab, "start", 9.5, rc(r), True))
+    # 右: 応答の列
+    o.append(T(244, 18, "(b) インパルスを入れたときの出力の列（k = 0〜16）", "start", 11, INK, True))
+    cw, ch, gx, gy = 112, 70, 254, 50
+    for j, r in enumerate(rs):
+        o.append(T(gx + j * cw + cw / 2, gy - 6, "|z| = %s" % _f15_n(r), "middle", 10, rc(r), True))
+    for i, (th_, lab) in enumerate(ths):
+        o.append(T(gx - 6, gy + i * ch + ch / 2 + 4, lab, "end", 10, INK, True))
+        for j, r in enumerate(rs):
+            x0, y0 = gx + j * cw, gy + i * ch
+            o.append(RECT(x0 + 3, y0 + 3, cw - 6, ch - 6, 4, SCR, LIN, 0.8))
+            q = Plot(x0 + 8, y0 + 8, cw - 16, ch - 16, (-0.5, 16.5), (-1.9, 1.9))
+            o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=LIN, lw=0.8))
+            for k in range(17):
+                v = r ** k * math.cos(k * th_)
+                vv = max(-1.9, min(1.9, v))
+                o.append(W(q.X(k), q.Y(0), q.X(k), q.Y(vv), c=rc(r), lw=1.1))
+                o.append(D(q.X(k), q.Y(vv), rc(r), 1.8))
+    o.append(T(gx - 30, gy + 4 * ch / 2 + 4, "偏角", "middle", 10, MUT, rot=-90))
+    o.append(T(gx, gy + 4 * ch + 18, "列: 極の大きさ（1 回ごとの縮み方）。行: 極の偏角（1 回ごとに回る角度）。", "start", 9.5, INK))
+    o.append(T(gx, gy + 4 * ch + 34, "0° は符号を変えずに変わり、180° は 1 回ごとに符号を変える。", "start", 9.5, INK))
+    return _f15_svg(700, gy + 4 * ch + 44, o, "離散時間の極 z の位置と、インパルス（k = 0 だけ 1 の列）を入れたときの出力の列（偏角 0° と 180° は実数の極 1 つ、45° と 90° は共役な極の組）。極の大きさが 1 より小さいと列は 1 回ごとに縮み、1 なら同じ大きさで続き、1 より大きいと大きくなり続ける。偏角は 1 回に回る角度で、180°（負の実軸の上）では 1 回ごとに符号を変える。6 章 3 節の s 平面の極と応答の対応を、z 平面に移したもの。")
+
+
+F["e15_zgrid"] = _f15_zgrid_fig()
+
+
+def _f15_zmap_fig():
+    o = []
+    o.append(TX(14, 18, "(a) s 平面（sT_s の実部と虚部）", "start", 11, INK, True))
+    p = Plot(60, 34, 230, 300, (-3.2, 0.7), (-7, 7))
+    o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.8))
+    o.append(RECT(p.x, p.Y(math.pi), p.w, p.Y(-math.pi) - p.Y(math.pi), 0, MSOFT, "none", 0))
+    o.append(p.axes(xt=[-3, -2, -1, 0], yt=[-6, -math.pi, 0, math.pi, 6], xfmt=_f15_n, yfmt=lambda v: {math.pi: "π", -math.pi: "−π"}.get(v, _f15_n(v)), sz=9))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
+    vcols = [(-2.0, PUR), (-1.0, TEA), (-0.5, GRN), (0.0, INK)]
+    for sx, c in vcols:
+        o.append(W(p.X(sx), p.Y(math.pi), p.X(sx), p.Y(-math.pi), c=c, lw=2.0))
+    for sy in (math.pi / 2, -math.pi / 2):
+        o.append(W(p.X(-3.2), p.Y(sy), p.X(0.7), p.Y(sy), c=GLD, lw=1.6, dash="6 3"))
+    for sy in (math.pi, -math.pi):
+        o.append(W(p.X(-3.2), p.Y(sy), p.X(0.7), p.Y(sy), c=ALI, lw=1.6, dash="3 3"))
+    kz = 0.3 / math.sqrt(1 - 0.09)
+    o.append(p.clip([(0, 0), (-kz * 7, 7)], c=SIG, lw=1.6))
+    o.append(p.clip([(0, 0), (-kz * 7, -7)], c=SIG, lw=1.6))
+    lam = complex(-0.5, 2.0); lam2 = complex(-0.5, 2.0 - 2 * math.pi)
+    for z, c in ((lam, INK), (lam.conjugate(), INK), (lam2, ALI), (lam2.conjugate(), ALI)):
+        o.append(W(p.X(z.real) - 5, p.Y(z.imag) - 5, p.X(z.real) + 5, p.Y(z.imag) + 5, c=c, lw=2))
+        o.append(W(p.X(z.real) - 5, p.Y(z.imag) + 5, p.X(z.real) + 5, p.Y(z.imag) - 5, c=c, lw=2))
+    o.append(T(p.X(-0.5) + 8, p.Y(2.0) + 4, "λ", "start", 10, INK, True, halo=True))
+    o.append(TX(p.X(-0.5) + 8, p.Y(2.0 - 2 * math.pi) + 4, "λ − j2π/T_s", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(-3.1), p.Y(math.pi) - 5, "虚部 ±π: ナイキスト周波数", "start", 9, ALI, True, halo=True))
+    # (b) z 平面
+    o.append(TX(360, 18, "(b) z 平面（z = exp(sT_s)）", "start", 11, INK, True))
+    q = Plot(380, 54, 260, 260, (-1.15, 1.15), (-1.15, 1.15))
+    o.append(RECT(q.x, q.y, q.w, q.h, 0, SCR, LIN, 0.8))
+    o.append(q.axes(xt=[-1, -0.5, 0, 0.5, 1], yt=[-1, -0.5, 0, 0.5, 1], xfmt=_f15_n, yfmt=_f15_n, sz=9))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1)); o.append(W(q.X(0), q.y, q.X(0), q.y + q.h, c=MUT, lw=1))
+    th = _f15_np.linspace(0, 2 * math.pi, 361)
+    for sx, c in vcols:
+        rr = math.exp(sx)
+        o.append(q.line([(rr * math.cos(a), rr * math.sin(a)) for a in th], c=c, lw=2.0))
+    for ang in (math.pi / 2, -math.pi / 2):
+        o.append(q.line([(0, 0), (1.15 * math.cos(ang), 1.15 * math.sin(ang))], c=GLD, lw=1.6, dash="6 3"))
+    o.append(q.line([(0, 0), (-1.15, 0)], c=ALI, lw=1.6, dash="3 3"))
+    sp = []
+    for wv in _f15_np.linspace(0, 6.0, 200):
+        s_ = complex(-0.3 / math.sqrt(1 - 0.09) * wv, wv)
+        z = _f15_np.exp(s_)
+        sp.append((z.real, z.imag))
+    o.append(q.line(sp, c=SIG, lw=1.6))
+    zz = _f15_np.exp(lam)
+    for z in (zz, zz.conjugate()):
+        o.append(W(q.X(z.real) - 5, q.Y(z.imag) - 5, q.X(z.real) + 5, q.Y(z.imag) + 5, c=INK, lw=2))
+        o.append(W(q.X(z.real) - 5, q.Y(z.imag) + 5, q.X(z.real) + 5, q.Y(z.imag) - 5, c=INK, lw=2))
+    o.append(TX(q.X(zz.real) - 8, q.Y(zz.imag) - 8, "λ と λ − j2π/T_s の写る先", "end", 9.5, INK, True, halo=True))
+    labs = [(PUR, None, "実部 −2"), (TEA, None, "−1"), (GRN, None, "−0.5"), (INK, None, "0（虚軸 → 単位円）"),
+            (GLD, "6 3", "虚部 ±π/2"), (ALI, "3 3", "±π"), (SIG, None, "減衰比 0.3")]
+    o.append(LEGL(30, 372, labs[:4], 9.5, 14))
+    o.append(LEGL(30, 392, labs[4:], 9.5, 14))
+    return _f15_svg(700, 404, o, "s 平面の点 s を z 平面の点 z = e^{sT_s} に写す（横軸・縦軸は sT_s の実部と虚部）。実部が同じ縦の線は原点を中心とする円に（虚軸は単位円に、左半平面は単位円の内側に）、虚部が同じ横の線は原点からの半直線に写る。灰色の帯（虚部が −π/T_s から π/T_s）だけで z 平面全体を覆い、虚部が 2π/T_s 違う極 λ と λ − j2π/T_s（赤）は、z 平面の同じ点に写る（3 節のエイリアシングと同じこと）。減衰比 0.3 の線は渦巻きに写る。".replace("e^{sT_s}", "e<sup>sT<sub>s</sub></sup>"))
+
+
+F["e15_zmap"] = _f15_zmap_fig()
+
+
+def _f15_zloop_fig():
+    o = []
+    K, Tm, Kp = 50.0, 0.05, 0.1
+    zp = lambda Ts: 1 - (1 + K * Kp) * (1 - math.exp(-Ts / Tm))
+    o.append(TX(14, 18, "(a) 閉ループの極の動き（T_s を延ばす）", "start", 11, INK, True))
+    p = Plot(56, 40, 250, 200, (-1.5, 1.2), (-1.0, 1.0))
+    o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.8))
+    o.append(p.axes(xt=[-1.5, -1, -0.5, 0, 0.5, 1], yt=[-1, 0, 1], xfmt=_f15_n, yfmt=_f15_n, sz=9))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1)); o.append(W(p.X(0), p.y, p.X(0), p.y + p.h, c=MUT, lw=1))
+    th = _f15_np.linspace(0, 2 * math.pi, 241)
+    o.append(p.clip([(math.cos(a), math.sin(a)) for a in th], c=INK, lw=1.3, dash="4 3"))
+    Tss = _f15_np.linspace(0.0, 0.025, 200)
+    o.append(p.clip([(zp(t), 0.0) for t in Tss], c=SIG, lw=3.0))
+    marks = [(0.001, "1"), (0.002, "2"), (0.005, "5"), (0.00912, "9.12"), (0.015, "15"), (0.0203, "20.3"), (0.025, "25 ms")]
+    for i, (Ts, lab) in enumerate(marks):
+        z = zp(Ts)
+        c = SIG if abs(z) < 1 - 1e-3 else (GLD if abs(z) < 1 + 1e-3 else ALI)
+        o.append(D(p.X(z), p.Y(0), c, 4))
+        o.append(T(p.X(z), p.Y(0) + (-10 if i % 2 == 0 else 20), lab, "middle", 9, c, True, halo=True))
+    o.append(T(p.X(0.6), p.Y(0.3), "0 より右: 単調", "middle", 9, SIG, True, halo=True))
+    o.append(T(p.X(-0.55), p.Y(0.62), "0 より左: 符号を変えて揺れる", "middle", 9, PUR, True, halo=True))
+    o.append(T(p.X(-1.42), p.Y(-0.8), "単位円の外: 発散", "start", 9, ALI, True, halo=True))
+    # (b) 応答
+    o.append(T(340, 18, "(b) 目標を 100 rad/s にしたときの角速度", "start", 11, INK, True))
+    q = Plot(380, 40, 300, 200, (0, 0.2), (0, 170))
+    o.append(q.axes(xl="時間 t [s]", yl="角速度 [rad/s]", xt=[0, 0.05, 0.1, 0.15, 0.2], yt=[0, 50, 83.3, 100, 150], xfmt=_f15_n, yfmt=_f15_n))
+    o.append(W(q.x, q.Y(83.33), q.x + q.w, q.Y(83.33), c=MUT, lw=1, dash="5 3"))
+    t = _f15_np.linspace(0, 0.2, 801)
+    Tcl = Tm / (1 + K * Kp)
+    o.append(q.line(list(zip(t, 83.333 * (1 - _f15_np.exp(-t / Tcl)))), c=MUT, lw=1.8, dash="5 3"))
+    labs = [(MUT, "5 3", "連続時間")]
+    for Ts, c in ((0.002, TEA), (0.010, SIG), (0.015, PUR), (0.020, ALI)):
+        tt, yy, uu = _f15_simsd([K], [Tm, 1.0], lambda e: Kp * e, Ts, 0.2, M=int(round(Ts / 1e-4)), r=100.0)
+        o.append(q.clip(list(zip(tt[::2], yy[::2])), c=c, lw=1.8))
+        for k in range(int(0.2 / Ts) + 1):
+            i = int(round(k * Ts / 1e-4))
+            if i < len(yy) and yy[i] <= 170:
+                o.append(D(q.X(tt[i]), q.Y(yy[i]), c, 2.4))
+        labs.append((c, None, "%s ms" % _f15_n(Ts * 1000)))
+    o.append(LEGL(350, 282, labs, 9.5, 10))
+    o.append(TX(56, 282, "点の数字: T_s [ms]", "start", 9.5, INK))
+    return _f15_svg(700, 294, o, "モータの速度の比例制御（K_P = 0.1 V/(rad/s)）を T_s ごとに測って計算するとき。(a) 閉ループの極 z = 1 − 6(1 − e^{−T_s/0.05}) は、T_s を延ばすと実軸の上を 1 から左へ動き、9.12 ms で 0、20.3 ms で −1 を通って単位円の外へ出る。(b) 極が負になると、角速度は 1 回ごとに目標の両側へ揺れ、20 ms ではほとんど揺れ続ける。連続時間では、この閉ループは時定数 8.33 ms の一次遅れで、振動しない（最終値は 83.3 rad/s。偏差が残るのは比例制御だから）。".replace("e^{−T_s/0.05}", "e<sup>−T<sub>s</sub>/0.05</sup>"))
+
+
+F["e15_zloop"] = _f15_zloop_fig()
+
+
+# =====================================================================
+# 6 節: サンプリング周期の選び方
+# =====================================================================
+def _f15_dmargin(numz, denz, Ts, extra=0):
+    ws = _f15_np.logspace(-2, math.log10(math.pi / Ts * 0.999999), 20000)
+    z = _f15_np.exp(1j * ws * Ts)
+    g = _f15_np.polyval(numz, z) / _f15_np.polyval(denz, z) * z ** (-extra)
+    mag = _f15_np.abs(g); ph = _f15_np.unwrap(_f15_np.angle(g))
+    idx = _f15_np.where(_f15_np.diff(_f15_np.sign(mag - 1)))[0]
+    if not len(idx):
+        return None
+    i = idx[0]
+    return 180 + math.degrees(ph[i])
+
+
+def _f15_ts_pm_fig():
+    o = []
+    Pn, Pd = _F15_PPOS
+    wgc, pm0 = 30.007, 63.73
+    o.append(TX(14, 18, "モータの角度の進み補償（13 章 3 節、双一次変換）: サンプリング周期 T_s と位相余裕", "start", 11, INK, True))
+    p = Plot(70, 36, 600, 230, (0, 30), (-20, 70))
+    o.append(RECT(p.x, p.Y(0), p.w, p.Y(-20) - p.Y(0), 0, ASOFT, "none", 0))
+    o.append(p.axes(xl="サンプリング周期 T_s [ms]", yl="位相余裕 [°]", xt=[0, 5, 10, 15, 20, 25, 30], yt=[-20, 0, 20, 40, 60], xfmt=_f15_n, yfmt=_f15_n))
+    o.append(W(p.x, p.Y(pm0), p.x + p.w, p.Y(pm0), c=MUT, lw=1.2, dash="5 3"))
+    o.append(T(p.X(29.5), p.Y(pm0) - 5, "連続時間 63.7°", "end", 9.5, MUT, True, halo=True))
+    for k, c in ((0.5, SIG), (1.5, ALI)):
+        o.append(p.clip([(0, pm0), (30, pm0 - math.degrees(wgc * k * 0.030))], c=c, lw=2.0))
+    Cn, Cd = _F15_LEAD
+    for Ts_ms in (1, 2, 5, 10, 15, 20, 25, 30):
+        Ts = Ts_ms / 1000.0
+        nd, dd, _ = _f15_sg.cont2discrete((Pn, Pd), Ts, method="zoh")
+        nd = _f15_np.atleast_1d(_f15_np.squeeze(nd)); dd = _f15_np.atleast_1d(_f15_np.squeeze(dd))
+        b0, b1, a = _f15_lead_coef("tus", Ts)
+        Ln = _f15_np.polymul([b0, b1], nd); Ld = _f15_np.polymul([1.0, -a], dd)
+        for ex, c in ((0, SIG), (1, ALI)):
+            v = _f15_dmargin(Ln, Ld, Ts, ex)
+            if v is not None and -20 <= v <= 70:
+                o.append(D(p.X(Ts_ms), p.Y(v), c, 4))
+    o.append(W(p.X(4.6), p.y, p.X(4.6), p.y + p.h, c=GRN, lw=1.4, dash="4 3"))
+    o.append(T(p.X(4.6) + 5, p.Y(-8), "立ち上がり時間の 1/10（4.6 ms）", "start", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(29.5), p.Y(-15), "不安定", "end", 9.5, ALI, True, halo=True))
+    o.append(TX(p.X(16), p.Y(62), "(A) すぐ出す: 減り ω_gc T_s/2", "start", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(6), p.Y(8), "(B) 次の周期に出す: 減り 3ω_gc T_s/2", "start", 9.5, ALI, True, halo=True))
+    o.append(TX(p.x, 312, "線: 2 節の式（63.7° から 57.3° × ω_gc × 遅れ [s] を引く）。点: 離散時間のループで厳密に求めた値（5 節）。", "start", 9.5, INK))
+    return _f15_svg(700, 324, o, "サンプリング周期 T_s と、モータの角度の進み補償（双一次変換で離散化）の位相余裕。線は 2 節の式で、計算が終わりしだい出す (A) では ω_gc T_s/2、次の周期に出す (B) では 3ω_gc T_s/2 だけ減る。点は 5 節の方法で厳密に求めた値で、線とほぼ重なる。立ち上がり時間の 1/10 の 4.6 ms では、(A) で 4.0°、(B) で 11.9° 減る。(B) では 25 ms 付近で不安定になる。")
+
+
+F["e15_ts_pm"] = _f15_ts_pm_fig()
+
+
+def _f15_plate_tr():
+    Pn, Pd = [1.25], [500.0, 1.0]
+    t, y, u = _f15_simct(Pn, Pd, [1600.0, 10.0], [160.0, 0.0], 1500.0, h=0.05, L=20.0)
+    t10 = t[_f15_np.where(y >= 0.1)[0][0]]; t90 = t[_f15_np.where(y >= 0.9)[0][0]]
+    return t90 - t10
+
+
+def _f15_ts_loops_fig():
+    o = []
+    rows = [("モータの電流の PI（14 章 4 節）", 50e-6, 0.44e-3),
+            ("モータの速度の PI（10 章 5 節）", 1e-3, 22e-3),
+            ("モータの角度の進み遅れ補償（13 章 6 節）", 1e-3, 20e-3),
+            ("モータの角度の進み補償（13 章 3 節）", 1e-3, 46e-3),
+            ("温度の板の PI（11 章 3 節）", 1.0, _f15_plate_tr())]
+    o.append(TX(14, 18, "例の対象のサンプリング周期 T_s（点）と、閉ループの立ち上がり時間 t_r（四角）", "start", 11, INK, True))
+    p = Plot(300, 40, 380, 5 * 40, (1e-5, 1e3), (0, 5), xlog=True)
+    o.append(p.axes(xl="時間 [s]", yl=None, xt=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100, 1000], yt=[], xfmt=lambda v: {1e-5: "10 µs", 1e-4: "100 µs", 1e-3: "1 ms", 1e-2: "10 ms", 1e-1: "0.1 s", 1: "1 s", 10: "10 s", 100: "100 s", 1000: "1000 s"}[v], sz=8.5))
+    for i, (name, Ts, tr) in enumerate(rows):
+        yy = p.y + 20 + i * 40
+        o.append(T(p.x - 10, yy + 4, name, "end", 10, INK, True))
+        o.append(W(p.X(Ts), yy, p.X(tr), yy, c=MUT, lw=2.2))
+        o.append(RECT(p.X(tr / 10) - 1, yy - 7, 2, 14, 0, GRN, "none", 0))
+        o.append(D(p.X(Ts), yy, GLD, 5))
+        o.append(RECT(p.X(tr) - 5, yy - 5, 10, 10, 1, SIG, "none", 0))
+        o.append(TX(p.X(tr) + 9, yy + 4, "t_r/T_s = %s" % ("%.0f" % (tr / Ts)), "start", 9, MUT, True, halo=True))
+    o.append(RECT(300, 288, 2, 12, 0, GRN, "none", 0))
+    o.append(TX(308, 298, "緑の線: t_r/10（立ち上がり時間に 10 回の目安）", "start", 9.5, GRN, True))
+    return _f15_svg(700, 310, o, "例の対象で使う程度のサンプリング周期（点）と、閉ループの立ち上がり時間（四角）。横軸は対数。速いループほど短い T_s が要り、モータの電流のループは数十 µs、温度の板は 1 s である。どのループも、立ち上がり時間の中に 9 回から数十回サンプリングしている。値はどれも例の値。".replace("t_r", "t<sub>r</sub>"))
+
+
+F["e15_ts_loops"] = _f15_ts_loops_fig()
