@@ -42,9 +42,11 @@
     var x=o.x0.slice();if(integ)x.push(0);
     var T=[0],X=[x.slice()],Uu=[ctrl(0,x)],fell=false,tf=null;
     for(var k=0;k<n;k++){var tk=k*h;cfd=(o.push&&tk>=o.push[0]-1e-9&&tk<o.push[0]+o.push[1]-1e-9)?o.push[2]:0;cd=o.dist?o.dist(tk+1e-9):0;
-      x=U.ctl.rk4(f,tk,x,h);var fl=Math.abs(x[2])>Math.PI/2;
-      if((k+1)%ev===0||fl){T.push((k+1)*h);X.push(x.slice());Uu.push(ctrl((k+1)*h,x));}
-      if(fl){fell=true;tf=(k+1)*h;break;}}
+      var xp=x,a0=Math.abs(x[2]);x=U.ctl.rk4(f,tk,x,h);var a1=Math.abs(x[2]),fl=a1>Math.PI/2;
+      if(fl){/* 倒れた（傾きが 90° を越えた）時刻と状態は、刻みの間を直線で補って求める（刻み幅で値が変わらないように） */
+        var al=(Math.PI/2-a0)/(a1-a0),xi=xp.map(function(v,j){return v+al*(x[j]-v);});
+        fell=true;tf=tk+al*h;T.push(tf);X.push(xi);Uu.push(ctrl(tf,xi));break;}
+      if((k+1)%ev===0){T.push((k+1)*h);X.push(x.slice());Uu.push(ctrl((k+1)*h,x));}}
     return {t:T,x:X,u:Uu,fell:fell,tf:tf};}
   function _w18_acker(U,A,B,poles){return U.ctl.mat.acker(A,B,poles)[0];}
 
