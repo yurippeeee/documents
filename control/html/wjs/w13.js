@@ -4,8 +4,10 @@
   function _w13_g(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v),s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
   function _w13_s3(v){var a=Math.abs(v);if(a===0)return "0";var d=a>=100?0:(a>=10?1:(a>=1?2:3));return _w13_f(v,d);}
   /* 行き過ぎ量 [%] と ±2 % の整定時間（最終値 yf）。落ち着かなければ ts = NaN */
-  function _w13_met(t,y,yf){var mx=-Infinity,last=-1;for(var k=0;k<t.length;k++){if(y[k]>mx)mx=y[k];if(Math.abs(y[k]-yf)>0.02*Math.abs(yf))last=k;}
-    return {mp:(mx-yf)/Math.abs(yf)*100,ts:last<0?0:(last+1<t.length?t[last+1]:NaN)};}
+  function _w13_met(t,y,yf){var mx=-Infinity,last=-1,bd=0.02*Math.abs(yf);for(var k=0;k<t.length;k++){if(y[k]>mx)mx=y[k];if(Math.abs(y[k]-yf)>bd)last=k;}
+    /* 2 % の幅に入る時刻は、最後に外れた点と次の点の間を直線で補って求める */
+    var ts=last<0?0:NaN;if(last>=0&&last+1<t.length){var e0=Math.abs(y[last]-yf)-bd,e1=Math.abs(y[last+1]-yf)-bd;ts=t[last]+(t[last+1]-t[last])*e0/Math.max(1e-300,e0-e1);}
+    return {mp:(mx-yf)/Math.abs(yf)*100,ts:ts};}
   /* 制御器 K_c・遅れ補償器 (s + z1)/(s + p1)・進み補償器 (1 + s/z2)/(1 + s/p2)。lag・lead が null ならその部分を入れない */
   function _w13_C(U,Kc,lag,lead){var P=U.ctl.poly,num=[Kc],den=[1];
     if(lag){num=P.mul(num,[1,lag[0]]);den=P.mul(den,[1,lag[1]]);}
@@ -39,7 +41,7 @@
     var br=U.btnrow(el);
     U.button(br,"本文の例",function(){rr.set(10);zz.set(_W13_LAG[obj.get()].z0);cmp.set(true);draw();});
     U.button(br,"遅れ補償なし",function(){rr.set(1);draw();});
-    U.button(br,"零点を交差に近づける",function(){zz.set(8);draw();});
+    U.button(br,"零点を交差に近づける",function(){if(rr.get()===1)rr.set(10);zz.set(8);draw();});
     var box=U.svgbox(el),ro=U.readout(el);
     function draw(){
       var c=_W13_LAG[obj.get()],r=rr.get(),z1=c.zs[zz.get()],p1=z1/r;
@@ -255,7 +257,7 @@
   /* ---- 6 節: ループ整形の設計 ---- */
   REG.w13_shape=function(el,U){
     var S=U.S,ctl=U.ctl,P=ctl.tf(_W13_MPLA.num,_W13_MPLA.den);
-    var DEF={Kc:1.697,p1:0.15,z1:1.5,z2:26.83,p2:134.2,lag:true,lead:true};
+    var DEF={Kc:1.69706,p1:0.15,z1:1.5,z2:26.8328,p2:134.164,lag:true,lead:true};   /* 6 節の設計（√5 などを丸めない値） */
     U.head(el,"LOOP SHAPING","ループ整形 — 折れ点を動かし、余裕・感度・応答を同時に見る（モータの位置、L<sub>a</sub> を含む）");
     var r1=U.ctrls(el);
     var kc=U.slider(r1,"全体のゲイン K<sub>c</sub>",{min:0.05,max:20,log:true,value:DEF.Kc,fmt:function(v){return _w13_s3(v)+" V/rad";},onInput:draw});
@@ -273,9 +275,9 @@
     var br=U.btnrow(el);
     function setd(o){kc.set(o.Kc);sp1.set(o.p1);sz1.set(o.z1);sz2.set(o.z2);sp2.set(o.p2);ulag.set(o.lag);ulead.set(o.lead);draw();}
     U.button(br,"本文の例（進み遅れ）",function(){setd(DEF);});
-    U.button(br,"遅れ補償器の零点を 6 rad/s に",function(){setd({Kc:1.697,p1:0.6,z1:6,z2:26.83,p2:134.2,lag:true,lead:true});});
-    U.button(br,"進み補償だけ",function(){setd({Kc:1.697,p1:0.15,z1:1.5,z2:26.83,p2:134.2,lag:false,lead:true});});
-    U.button(br,"比例だけ（1.70 V/rad）",function(){setd({Kc:1.697,p1:0.15,z1:1.5,z2:26.83,p2:134.2,lag:false,lead:false});});
+    U.button(br,"遅れ補償器の零点を 6 rad/s に",function(){setd({Kc:DEF.Kc,p1:0.6,z1:6,z2:DEF.z2,p2:DEF.p2,lag:true,lead:true});});
+    U.button(br,"進み補償だけ",function(){setd({Kc:DEF.Kc,p1:0.15,z1:1.5,z2:DEF.z2,p2:DEF.p2,lag:false,lead:true});});
+    U.button(br,"比例だけ（1.70 V/rad）",function(){setd({Kc:DEF.Kc,p1:0.15,z1:1.5,z2:DEF.z2,p2:DEF.p2,lag:false,lead:false});});
     U.button(br,"10 章の PD（N = 10）",function(){setd({Kc:0.84,p1:0.15,z1:1.5,z2:38.2,p2:420,lag:false,lead:true});});
     var box=U.svgbox(el),ro=U.readout(el),last=null,grab=null;
     /* ドラッグ: 折れ点の印（ゲインの図の下の並び）を左右に、図のほかの所を上下に動かすと K_c が変わる */
