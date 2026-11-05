@@ -386,7 +386,7 @@ def _f18_move_fig():
     o = []
     A, Bv = _F18_ACART, _F18_BCART
     o.append(T(14, 18, "(a) ゲインを増やしたときの極の動き", "start", 11.5, INK, True))
-    P = Plot(56, 34, 300, 250, (-20, 2), (-11, 11))
+    P = Plot(56, 34, 300, 300, (-20, 2), (-11, 11))
     o.append(_f18_box(P))
     o.append(SPLANE(P))
     o.append(P.axes(xl="実部 [1/s]", yl="虚部 [rad/s]", xt=[-20, -15, -10, -5, 0], yt=[-10, -5, 0, 5, 10], grid=False))
@@ -426,7 +426,7 @@ def _f18_move_fig():
              ([25, 8], SIG, "F = [25  8]（両方）", "0.84 s")]
     for i, (Fv, c, lab, ts2) in enumerate(cases):
         col, row = i % 2, i // 2
-        px, py = 412 + col * 150, 56 + row * 118
+        px, py = 412 + col * 150, 60 + row * 150
         q = Plot(px, py, 120, 66, (0, 4), (-10, 10))
         o.append(q.axes(xl=None, yl=None, xt=[0, 1, 2, 3, 4], yt=[-10, 0, 10], sz=9))
         Acl = A - _f18_np.outer(Bv, _f18_np.array(Fv, float))
@@ -436,9 +436,245 @@ def _f18_move_fig():
         o.append(W(q.X(0), q.Y(-0.2), q.X(4), q.Y(-0.2), c=FNT, lw=0.8, dash="2 2"))
         o.append(TX(px - 6, py - 7, lab, "start", 9.5, c, True))
         o.append(T(px + 118, py + 14, "±2 mm に " + ts2, "end", 9, c, True, halo=True))
-    o.append(T(560, 56 + 118 + 66 + 32, "時間 t [s]（どの図も 0〜4 s）", "middle", 9.5, MUT))
-    return SVG(700, 326, o,
+    o.append(T(560, 60 + 150 + 66 + 34, "時間 t [s]（どの図も 0〜4 s）", "middle", 9.5, MUT))
+    return SVG(700, 376, o,
                "台車とばね・ダンパ（1 kg、2 N·s/m、25 N/m）に状態フィードバック u = −f₁p − f₂ṗ を加えたときの、閉ループの極と応答。(a) f₁ だけを増やすと、極の和は変わらず、極は実部 −1 の縦の線の上を動く（揺れが速くなるだけ）。f₂ だけを増やすと、極の積は変わらず、極は半径 5 の円の上を左へ動いて −5 で重なり、その先は実軸の上を左右に分かれる。2 つを合わせると、2 つの極をどこへでも動かせる。(b) 10 cm ずらして静かに放したときの位置。点線は ±2 mm（初めのずれの 2 %）。")
 
 
 F["e18_move"] = _f18_move_fig()
+
+
+# =====================================================================
+# 2 節: 2 枚の板（例の値: C 400 J/K、R 1.25 K/W、つなぐ金具 2.5 K/W）
+# =====================================================================
+_F18_CTH, _F18_RTH, _F18_R12 = 400.0, 1.25, 2.5
+
+
+def _f18_plates_AB(rho, R12=_F18_R12):
+    k = 0.0 if R12 is None else 1.0 / R12
+    A = _f18_np.array([[-1 / _F18_RTH - k, k], [k, -1 / _F18_RTH - k]]) / _F18_CTH
+    B = _f18_np.array([rho, 1 - rho]) / _F18_CTH
+    return A, B
+
+
+def _f18_step_lin(A, B, x0, q, T, n=500):
+    """入力一定 q のときの ẋ = A x + B q を厳密に解く。返り値 (t, x)。"""
+    nn = A.shape[0]
+    Mx = _f18_np.zeros((nn + 1, nn + 1)); Mx[:nn, :nn] = A * (T / n); Mx[:nn, nn] = B * q * (T / n)
+    E = _f18_la.expm(Mx)
+    xs = [_f18_np.asarray(x0, float)]
+    for _ in range(n):
+        xs.append(E[:nn, :nn] @ xs[-1] + E[:nn, nn])
+    return _f18_np.linspace(0, T, n + 1), _f18_np.array(xs)
+
+
+def _f18_plates_fig():
+    o = []
+    # (a) 絵
+    o.append(T(14, 18, "(a) 2 枚の板と 1 つのヒータ", "start", 11.5, INK, True))
+    y0 = 96
+    for i, (x, nm) in enumerate(((26, "板 1"), (142, "板 2"))):
+        o.append(RECT(x, y0, 72, 22, 3, MSOFT, MUT, 1.4))
+        o.append(TX(x + 36, y0 + 15, nm + "  θ_" + str(i + 1), "middle", 10, INK, True))
+        for k in range(2):
+            xx = x + 22 + k * 28
+            o.append(PATH("M%g,%g c-4,-5 4,-9 0,-14 c-4,-5 4,-9 0,-14" % (xx, y0 - 3), c=ALI, lw=1.3))
+    o.append(TX(120, 50, "周りへ逃げる（R_th）", "middle", 9.5, ALI))
+    o.append(T(120, 36, "周りの温度 θₐ = 25 °C", "middle", 9.5, MUT))
+    o.append(RECT(98, y0 + 6, 44, 10, 2, GOSOFT, GLD, 1.2))
+    o.append(TX(120, y0 + 34, "金具 R_{12}", "middle", 9.5, GLD))
+    o.append(RECT(30, y0 + 66, 180, 14, 3, PSOFT, PUR, 1.3))
+    o.append(T(120, y0 + 96, "ヒータ（電力 q）", "middle", 10, PUR, True))
+    o.append(ARR(62, y0 + 64, 62, y0 + 26, c=PUR, lw=2))
+    o.append(ARR(178, y0 + 64, 178, y0 + 26, c=PUR, lw=2))
+    o.append(TX(68, y0 + 52, "ρq", "start", 10, PUR, True))
+    o.append(TX(172, y0 + 52, "(1 − ρ)q", "end", 10, PUR, True))
+    o.append(T(14, y0 + 124, "ρ = 1/2: 半分ずつ入れる", "start", 10, INK))
+    o.append(T(14, y0 + 140, "ρ = 1: 全部を板 1 に入れる", "start", 10, INK))
+    o.append(T(14, y0 + 162, "板 1 が 35 °C、板 2 が 25 °C から、", "start", 9.5, MUT))
+    o.append(T(14, y0 + 177, "ヒータ 0・40・80 W で 500 s 温める", "start", 9.5, MUT))
+    # (b)(c) 状態の平面
+    cols = [(MUT, 0.0, "0 W"), (TEA, 40.0, "40 W"), (PUR, 80.0, "80 W")]
+    for j, (rho, title, xp) in enumerate(((0.5, "(b) ρ = 1/2（半分ずつ）", 282), (1.0, "(c) ρ = 1（板 1 だけ）", 500))):
+        o.append(T(xp - 30, 18, title, "start", 11.5, INK, True))
+        P = Plot(xp, 44, 190, 132, (20, 85), (20, 65))
+        o.append(_f18_box(P))
+        o.append(P.axes(xl="板 1 の温度 θ_1 [°C]", yl="板 2 の温度 θ_2 [°C]" if j == 0 else None, xt=[20, 40, 60, 80], yt=[20, 40, 60]))
+        o.append(P.clip([(20, 20), (65, 65)], c=FNT, lw=1, dash="3 3"))
+        A, Bv = _f18_plates_AB(rho)
+        marks = []
+        for c, q, lab in cols:
+            t, xs = _f18_step_lin(A, Bv, [10.0, 0.0], q, 500.0, 500)
+            th = xs + 25.0
+            o.append(P.clip([(a, b) for a, b in th], c=c, lw=2.0))
+            o.append(_head(P.X(th[-6, 0]), P.Y(th[-6, 1]), P.X(th[-1, 0]), P.Y(th[-1, 1]), c, 7))
+            m = th[250]
+            marks.append(m)
+            o.append(D(P.X(m[0]), P.Y(m[1]), c, 4))
+        o.append(D(P.X(35), P.Y(25), INK, 3.4))
+        o.append(T(P.X(35) + 4, P.Y(25) + 14, "始め", "start", 9, INK, halo=True))
+        if rho == 0.5:
+            dd = marks[0][0] - marks[0][1]
+            o.append(P.clip([(20 + dd, 20), (65 + dd, 65)], c=ALI, lw=1.4, dash="5 3"))
+            o.append(T(P.X(70), P.Y(38), "250 s 後の差は", "middle", 9.5, ALI, True, halo=True))
+            o.append(T(P.X(70), P.Y(38) + 13, "どれも 3.68 K", "middle", 9.5, ALI, True, halo=True))
+        else:
+            o.append(T(xp - 30, 236, "250 s 後の差:", "start", 9.5, INK, True))
+            for i, ((c, q, lab), m) in enumerate(zip(cols, marks)):
+                o.append(T(xp + 44 + i * 52, 236, "%s K" % _f18_fmt(m[0] - m[1], 3), "start", 9.5, c, True))
+        if j == 0:
+            o.append(LEGL(xp - 30, 236, [(MUT, None, "0 W"), (TEA, None, "40 W"), (PUR, None, "80 W")], 9.5, 12))
+    o.append(T(282 - 30, 256, "点は 250 s 後、矢じりは 500 s 後。破線の斜めの線は 2 枚が同じ温度", "start", 9.5, MUT))
+    return SVG(700, 284, o,
+               "2 枚の同じ板を熱抵抗 2.5 K/W の金具でつなぎ、1 つのヒータで温める（熱容量 400 J/K、周りへの熱抵抗 1.25 K/W）。(b) ヒータを半分ずつ入れると、電力を 0・40・80 W のどれにしても、250 s 後の 2 枚の温度の差は同じ 3.68 K で、点は傾き 45° の同じ直線の上に並ぶ。差は電力によらず時定数 250 s で減るだけで、ヒータでは動かせない。(c) 全部を板 1 に入れると、金具を通って板 2 にも熱が届き、差も電力で変わる。")
+
+
+F["e18_plates"] = _f18_plates_fig()
+
+
+def _f18_reach(A, Bv, T, qm, n=600, ndir=180):
+    """0 から、|入力| ≤ qm で時間 T のうちに届く状態の範囲の境界（凸の多角形の頂点）。"""
+    sig = _f18_np.linspace(0, T, n + 1)
+    lam, V = _f18_np.linalg.eigh(A)
+    g = _f18_np.array([V @ (_f18_np.exp(lam * s) * (V.T @ Bv)) for s in sig])
+    wq = _f18_np.full(n + 1, T / n); wq[0] = wq[-1] = T / n / 2
+    pts = []
+    for k in range(ndir):
+        th = 2 * math.pi * k / ndir
+        d = _f18_np.array([math.cos(th), math.sin(th)])
+        s = _f18_np.sign(g @ d)
+        pts.append(qm * (wq * s) @ g)
+    return _f18_np.array(pts)
+
+
+def _f18_ctrb_fig():
+    o = []
+    o.append(T(14, 18, "(a) 可制御性行列の 2 つの列 B・AB の向き", "start", 11.5, INK, True))
+    for i, rho in enumerate((0.5, 0.75, 1.0)):
+        cx, cy = 74 + i * 130, 118
+        R = 46
+        o.append(RECT(cx - 58, cy - 62, 116, 124, 4, SCR, LIN, 0.8))
+        o.append(W(cx - 50, cy, cx + 50, cy, c=MUT, lw=0.8)); o.append(W(cx, cy - 54, cx, cy + 54, c=MUT, lw=0.8))
+        for v in ((1, 1), (1, -1)):
+            nv = math.hypot(*v)
+            o.append(W(cx - 52 * v[0] / nv, cy + 52 * v[1] / nv, cx + 52 * v[0] / nv, cy - 52 * v[1] / nv, c=FNT, lw=1, dash="3 3"))
+        A, Bv = _f18_plates_AB(rho)
+        b = Bv / _f18_np.linalg.norm(Bv)
+        ab = A @ Bv
+        ab = ab / _f18_np.linalg.norm(ab)
+        pB, pAB = (cx + R * b[0], cy - R * b[1]), (cx + R * ab[0], cy - R * ab[1])
+        det = _f18_np.linalg.det(_f18_ctrb(A, Bv))
+        if abs(det) > 1e-15:
+            o.append(PL([(cx, cy), pB, (pB[0] + pAB[0] - cx, pB[1] + pAB[1] - cy), pAB], c="none", lw=0, fill=SSOFT))
+        o.append(ARR(cx, cy, pB[0], pB[1], c=GLD, lw=2.2))
+        o.append(ARR(cx, cy, pAB[0], pAB[1], c=PUR, lw=2.2))
+        o.append(T(cx, cy - 68, "ρ = %s" % ("1/2" if rho == 0.5 else _f18_ff(rho)), "middle", 10.5, INK, True))
+        lab = "det = 0（階数 1）" if abs(det) < 1e-15 else "det = %s × 10⁻⁹" % _f18_fmt(det * 1e9, 2)
+        o.append(T(cx, cy + 78, lab, "middle", 9.5, ALI if abs(det) < 1e-15 else SIG, True))
+    o.append(LEGL(20, 226, [(GLD, None, "B（入力が直接入る向き）"), (PUR, None, "AB（その先へ伝わる向き）")], 9.5, 14))
+    o.append(T(20, 246, "長さはそろえて描いた。破線は固有ベクトルの向き [1, 1]ᵀ・[1, −1]ᵀ", "start", 9.5, MUT))
+    # (b) 届く範囲
+    xb = 452
+    o.append(T(xb - 40, 18, "(b) 500 s のうちに届く状態", "start", 11.5, INK, True))
+    P = Plot(xb, 34, 230, 190, (-30, 30), (-25, 25))
+    o.append(_f18_box(P))
+    o.append(P.axes(xl="板 1 の温度のずれ [K]", yl="板 2 の温度のずれ [K]", xt=[-30, -20, -10, 0, 10, 20, 30], yt=[-20, -10, 0, 10, 20]))
+    o.append(_f18_axes0(P))
+    for rho, c in ((1.0, SIG), (0.6, GLD), (0.5, ALI)):
+        A, Bv = _f18_plates_AB(rho)
+        pts = _f18_reach(A, Bv, 500.0, 40.0)
+        if rho == 0.5:
+            o.append(P.clip([tuple(pts[:, 0].min() * _f18_np.array([1, 1])), tuple(pts[:, 0].max() * _f18_np.array([1, 1]))], c=c, lw=3))
+        else:
+            o.append(PL([(P.X(a), P.Y(b)) for a, b in pts], c=c, lw=1.6, fill=soft(c), op=0.6))
+    o.append(T(P.X(14), P.Y(-17), "ρ = 1", "start", 9.5, SIG, True, halo=True))
+    o.append(T(P.X(-4), P.Y(-6) + 4, "ρ = 0.6", "end", 9.5, GLD, True, halo=True))
+    o.append(T(P.X(9), P.Y(14) - 2, "ρ = 1/2（線の上だけ）", "end", 9.5, ALI, True, halo=True))
+    o.append(T(xb - 40, 276, "ヒータを 40 W のまわりで ±40 W 変える", "start", 9.5, MUT)); o.append(T(xb - 40, 290, "（ずれは 40 W での釣り合いの温度からの差）", "start", 9.5, MUT))
+    return SVG(700, 298, o,
+               "可制御性行列 [B AB] と、入力で届く状態の範囲（2 枚の板）。(a) ρ = 1/2 では、B と AB がどちらも 2 枚がそろって上下する向き [1, 1]ᵀ に並び（逆向き）、2 本が張る平行四辺形がつぶれて行列式が 0 になる。ρ = 0.75・1 では向きが違い、行列式は 0 でない。(b) ヒータの電力を ±40 W の範囲で変えて、500 s のうちに届く状態。ρ = 1/2 では線の上にしか行けない。ρ = 0.6 も可制御だが、範囲が細く、差の向きへはわずかしか動かせない。")
+
+
+F["e18_ctrb"] = _f18_ctrb_fig()
+
+
+# =====================================================================
+# 2 節: 1 台の台車に 2 本の振子
+# =====================================================================
+def _f18_twop_AB(l1, l2, m1=0.2, m2=0.2):
+    """x = [p, ṗ, φ1, φ̇1, φ2, φ̇2]。p̈ = (u − m1 g φ1 − m2 g φ2)/M、l_i φ̈_i = g φ_i − p̈。"""
+    M, g = _F18_M, _F18_g
+    A = _f18_np.zeros((6, 6)); Bv = _f18_np.zeros(6)
+    A[0, 1] = 1; A[2, 3] = 1; A[4, 5] = 1
+    A[1, 2] = -m1 * g / M; A[1, 4] = -m2 * g / M; Bv[1] = 1 / M
+    for i, ll in ((3, l1), (5, l2)):
+        A[i, :] = -A[1, :] / ll; A[i, i - 1] += g / ll; Bv[i] = -Bv[1] / ll
+    return A, Bv
+
+
+def _f18_twopend_fig():
+    o = []
+    o.append(T(14, 18, "(a) 1 台の台車に 2 本の振子", "start", 11.5, INK, True))
+    for k, (l1, l2, lab, c) in enumerate(((0.3, 0.3, "同じ長さ 0.3 m・0.3 m", ALI), (0.3, 0.6, "0.3 m・0.6 m", GRN))):
+        cx, gy = 70 + k * 120, 200
+        o.append(_f18_ground(cx - 50, cx + 50, gy))
+        o.append(_f18_cart(cx - 34, gy - 32, 68, 20, SIG))
+        for j, (ll, ph) in enumerate(((l1, 0.10), (l2, -0.06))):
+            px = cx - 16 + 32 * j
+            L = ll * 220
+            bx, by = px + L * math.sin(ph), gy - 32 - L * math.cos(ph)
+            o.append(W(px, gy - 32, bx, by, c=INK, lw=2.2))
+            o.append(CIRC(bx, by, 6, c=SIG, lw=1.4, fill=SSOFT))
+            o.append(D(px, gy - 32, INK, 2.6))
+        o.append(T(cx, gy + 22, lab, "middle", 9.5, c, True))
+    rows = [("長さ", "階数", "6 つの極を −6 に置く F の最大の要素"), ("0.3・0.3 m", "4", "置けない（±5.72 が残る）"),
+            ("0.3・0.6 m", "6", "574"), ("0.3・0.4 m", "6", "859"), ("0.3・0.32 m", "6", "3009")]
+    for i, (a, b, c_) in enumerate(rows):
+        y = 240 + i * 15
+        cc = INK if i == 0 else (ALI if i == 1 else MUT)
+        o.append(T(16, y, a, "start", 9.5, cc, i == 0)); o.append(T(96, y, b, "middle", 9.5, cc, i == 0)); o.append(T(118, y, c_, "start", 9.5, cc, i == 0))
+    # (b) s 平面: 同じ長さ
+    A, Bv = _f18_twop_AB(0.3, 0.3)
+    m2 = 0.4
+    As = _f18_np.array([[0, 1, 0, 0], [0, 0, -m2 * _F18_g / _F18_M, 0], [0, 0, 0, 1], [0, 0, (_F18_M + m2) * _F18_g / (_F18_M * 0.3), 0]])
+    Bs = _f18_np.array([0, 1 / _F18_M, 0, -1 / (_F18_M * 0.3)])
+    Fs = _f18_acker(As, Bs, [-4] * 4)
+    F6 = _f18_np.array([Fs[0], Fs[1], Fs[2] / 2, Fs[3] / 2, Fs[2] / 2, Fs[3] / 2])
+    ev_cl = _f18_np.linalg.eigvals(A - _f18_np.outer(Bv, F6))
+    ev_ol = _f18_np.linalg.eigvals(A)
+    xs_ = 286
+    o.append(T(xs_ - 30, 18, "(b) 同じ長さ: 極の位置", "start", 11.5, INK, True))
+    P = Plot(xs_, 34, 170, 170, (-9, 9), (-9, 9))
+    o.append(_f18_box(P)); o.append(SPLANE(P))
+    o.append(P.axes(xl="実部 [1/s]", yl="虚部 [rad/s]", xt=[-8, -4, 0, 4, 8], yt=[-8, -4, 0, 4, 8], grid=False))
+    for z in ev_ol:
+        o.append(_f18_X(P, z, MUT, 5, 1.8))
+    for z in ev_cl:
+        fixed = abs(abs(z.real) - math.sqrt(_F18_g / 0.3)) < 1e-3 and abs(z.imag) < 1e-6
+        o.append(_f18_X(P, z, ALI if fixed else SIG, 6, 2.4))
+        if fixed:
+            o.append(CIRC(P.X(z.real), P.Y(0), 10, c=ALI, lw=1.3))
+    o.append(T(P.X(5.72), P.Y(0) - 16, "±5.72 は動かない", "middle", 9.5, ALI, True, halo=True))
+    o.append(T(P.X(-4), P.Y(0) + 24, "4 つは −4 へ", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(P.X(0), P.Y(-7.4), "灰色: 開ループ 0・0・±5.72・±7.67", "middle", 9, MUT, halo=True))
+    # (c) 時間の応答: 2 本がそろう動きは立つが、差は増える
+    xc = 520
+    o.append(T(xc - 30, 18, "(c) 同じ長さ: 傾き", "start", 11.5, INK, True))
+    Q = Plot(xc, 34, 170, 170, (0, 0.8), (-25, 25))
+    o.append(Q.axes(xl="時間 t [s]", yl="傾き [°]", xt=[0, 0.2, 0.4, 0.6, 0.8], yt=[-20, -10, 0, 10, 20], xfmt=lambda v: "%g" % v))
+    Acl = A - _f18_np.outer(Bv, F6)
+    t, xs = _f18_free(Acl, [0, 0, 1.0, 0, 0, 0], 0.8, 400)
+    o.append(Q.clip(list(zip(t, xs[:, 2])), c=SIG, lw=2.0))
+    o.append(Q.clip(list(zip(t, xs[:, 4])), c=TEA, lw=2.0, dash="6 3"))
+    o.append(Q.clip(list(zip(t, xs[:, 2] - xs[:, 4])), c=ALI, lw=1.4, dash="2 3"))
+    o.append(TX(Q.X(0.04), Q.Y(16), "φ_1", "start", 10, SIG, True, halo=True))
+    o.append(TX(Q.X(0.04), Q.Y(-12), "φ_2", "start", 10, TEA, True, halo=True))
+    o.append(TX(Q.X(0.36), Q.Y(21), "差 φ_1 − φ_2", "end", 9.5, ALI, True, halo=True))
+    o.append(T(xc - 30, 246, "初めに振子 1 だけを 1° 傾ける。", "start", 9.5, MUT))
+    o.append(T(xc - 30, 261, "そろう動きは −4 の極で収まるが、", "start", 9.5, MUT))
+    o.append(T(xc - 30, 276, "差は cosh(5.72t) × 1° で増える", "start", 9.5, ALI))
+    return SVG(700, 312, o,
+               "1 台の台車に立てた 2 本の振子（おもりはどちらも 0.2 kg）。(a) 2 本の長さが同じだと、台車の加速度は 2 本に同じように効くので、2 本の傾きの差は動かせない（可制御性行列の階数は 6 のうち 4）。長さが違えば可制御だが、長さが近いほど大きなゲインが要る。(b) 同じ長さで、2 本がそろう動きと台車の 4 つの極を −4 に置いても、差のモードの固有値 ±5.72 は残る。(c) そのとき振子 1 だけを 1° 傾けると、2 本は逆向きに倒れていく（線形化した式で計算）。")
+
+
+F["e18_twopend"] = _f18_twopend_fig()
