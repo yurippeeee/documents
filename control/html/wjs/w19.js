@@ -4,6 +4,7 @@
   function _w19_f(v,d){v=+v;if(!isFinite(v))return v>0?"∞":"−∞";if(Math.abs(v)<0.5*Math.pow(10,-d))v=0;return v.toFixed(d).replace("-","−");}
   function _w19_g(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);if(a>=Math.pow(10,d))return String(Math.round(v)).replace("-","−");
     var s=(+v).toPrecision(d);if(s.indexOf("e")>=0)s=String(+(+v).toPrecision(d));return s.replace("-","−");}
+  function _w19_n(v){if(Math.abs(v)<1e-12)return "0";return String(+(+v).toPrecision(3)).replace("-","−");}   /* 目盛の数（末尾の 0 を付けない） */
   /* 複素数の極の文字（a ± jb の上側） */
   function _w19_cs(z,d){d=d||3;if(Math.abs(z.im)<1e-6*(1+Math.abs(z.re)))return _w19_g(z.re,d);return _w19_g(z.re,d)+" ± j"+_w19_g(Math.abs(z.im),d);}
   function _w19_poles(rs){var out=[];rs.forEach(function(z){if(z.im<-1e-6*(1+Math.abs(z.re)))return;out.push(_w19_cs(z,3));});return out.join("、");}
@@ -48,7 +49,7 @@
   function _w19_wave(S,U,x,y,w,h,T,lo,hi,title,series,tc,xl){if(hi-lo<1e-9){hi=lo+1;}var P=U.plot(x,y,w,h,[0,T],[lo,hi]),o=[];
     o.push(S.RECT(P.x,P.y,P.w,P.h,0,"var(--screen)","line",0.6));
     var yt=U.nice(lo,hi,3).filter(function(v){return v>=lo-1e-9&&v<=hi+1e-9;}).map(function(v){return Math.abs(v)<1e-9*(hi-lo)?0:v;});
-    o.push(P.axes({xl:xl?"時間 t [s]":null,yt:yt,xt:U.nice(0,T,4).filter(function(v){return v<=T+1e-9;}),xfmt:function(v){return String(+v.toFixed(3));},yfmt:function(v){return _w19_g(v,2);},sz:8.5}));
+    o.push(P.axes({xl:xl?"時間 t [s]":null,yt:yt,xt:U.nice(0,T,4).filter(function(v){return v<=T+1e-9;}),xfmt:function(v){return String(+v.toFixed(3));},yfmt:_w19_n,sz:8.5}));
     if(lo<0&&hi>0)o.push(S.L(P.x,P.Y(0),P.x+P.w,P.Y(0),"faint",1));
     o.push(S.TX(P.x,P.y-5,title,"start",9.5,"ink",true));
     series.forEach(function(s){var pts=[];for(var i=0;i<s[0].length;i++)pts.push([s[0][i],s[1][i]]);o.push(P.clip(pts,s[2],s[4]||1.8,s[3]));});
@@ -85,13 +86,13 @@
       for(var i=0;i<=400;i++){var F=Fmax*i/400,j=Jof(F);if(isFinite(j))Fs.push([F,j]);}
       var px=nar?52:58,pw=nar?330:270,P=U.plot(px,28,pw,180,[0,Fmax],[0,Jtop]);
       o.push(S.T(nar?10:12,14,"評価関数 J（入力を u = −Fv の形に限ったとき、R = 1、v(0) = 1 m/s）","start",10,"ink",true));
-      o.push(P.axes({xl:"ゲイン F [N/(m/s)]",yl:"J",xt:U.nice(0,Fmax,5).filter(function(v){return v<=Fmax;}),yt:U.nice(0,Jtop,4).filter(function(v){return v<=Jtop;}),yfmt:function(v){return _w19_g(v,3);},ylOff:nar?34:40}));
+      o.push(P.axes({xl:"ゲイン F [N/(m/s)]",yl:"J",xt:U.nice(0,Fmax,5).filter(function(v){return v<=Fmax;}),yt:U.nice(0,Jtop,4).filter(function(v){return v<=Jtop;}),yfmt:_w19_n,ylOff:nar?34:40}));
       o.push(P.clip(Fs,"signal",2.2));
       if(a>0){o.push(S.L(P.X(a/b),P.y,P.X(a/b),P.y+P.h,"alias",1,"3 3"));o.push(S.T(P.X(a/b)+3,P.y+12,"F ≤ "+_w19_g(a/b,3)+" は不安定","start",9,"alias",false,false,null,true));}
       o.push(S.D(P.X(Fo),P.Y(Jmin),"signal",4.5));o.push(S.L(P.X(Fo),P.Y(Jmin),P.X(Fo),P.y+P.h,"signal",1,"3 3"));
       o.push(S.T(P.X(Fo)+(Fo>Fmax*0.6?-6:6),P.Y(Jmin)+16,"最適 F = "+_w19_g(Fo,3)+"、J = "+_w19_g(Jmin,3),Fo>Fmax*0.6?"end":"start",9.5,"signal",true,false,null,true));
       if(stab&&Fm<=Fmax){o.push(S.D(P.X(Fm),P.Y(Math.min(Jm,Jtop)),"purple",4));
-        o.push(S.T(P.X(Fm)+(Fm>Fmax*0.6?-6:6),P.Y(Math.min(Jm,Jtop))-8,"F = "+_w19_f(Fm,1)+"：J = "+_w19_g(Jm,3),Fm>Fmax*0.6?"end":"start",9.5,"purple",true,false,null,true));}
+        o.push(S.T(P.X(Fm)+(Fm>Fmax*0.6?-6:6),P.Y(Math.min(Jm,Jtop))-8,"F = "+_w19_f(Fm,1)+" のとき J = "+_w19_g(Jm,3),Fm>Fmax*0.6?"end":"start",9.5,"purple",true,false,null,true));}
       /* (2) 速度と力 */
       var Tm=Math.min(6,Math.max(0.3,5/Math.min(sgo,stab?sgm:sgo))),N=300,ts=[],vo=[],vm=[],uo=[],um=[];
       for(var k=0;k<=N;k++){var t=Tm*k/N;ts.push(t);var e1=v0*Math.exp(-sgo*t),e2=stab?v0*Math.exp(-sgm*t):NaN;vo.push(e1);vm.push(e2);uo.push(-Fo*e1);um.push(-Fm*e2);}
@@ -99,24 +100,26 @@
       var w1=_w19_wave(S,U,gx,gy,gw,gh,Tm,-0.05,1.05,"速度 v [m/s]",[[ts,vo,"signal"],[ts,vm,"purple","6 3"]],null,false);o.push(w1.svg);
       var ulo=Math.min(-Fo,stab?-Fm:0,-0.1)*1.08,w2=_w19_wave(S,U,gx,gy+gh+30,gw,gh,Tm,ulo,Math.max(0.05,-ulo*0.06),"力 u [N]",[[ts,uo,"signal"],[ts,um,"purple","6 3"]],null,true);o.push(w2.svg);
       /* (3) s 平面の実軸 */
-      var sy=nar?gy+2*gh+100:258,sx0=nar?20:400,sx1=nar?380:680,smin=-Math.max(4,Math.ceil(Math.max(sgo,stab?sgm:0,Math.abs(a))*1.15)),smax=Math.max(1,Math.abs(a)*1.3);
+      var sy=nar?gy+2*gh+100:296,sx0=nar?20:400,sx1=nar?380:680,smin=-Math.max(4,Math.ceil(Math.max(sgo,stab?sgm:0,Math.abs(a))*1.15)),smax=Math.max(1,Math.abs(a)*1.3);
       var SP=U.plot(sx0,sy-10,sx1-sx0,20,[smin,smax],[-1,1]);
       o.push(S.T(sx0,sy-22,"極（s 平面の実軸）","start",9.5,"ink",true));
       o.push(S.RECT(SP.X(0),sy-10,SP.X(smax)-SP.X(0),20,0,U.soft("alias"),"none",0));
       o.push(S.L(sx0,sy,sx1,sy,"muted",1.2));o.push(S.L(SP.X(0),sy-12,SP.X(0),sy+12,"muted",1.4));
-      U.nice(smin,smax,6).forEach(function(v){if(v<smin||v>smax)return;o.push(S.L(SP.X(v),sy-3,SP.X(v),sy+3,"muted",1));o.push(S.T(SP.X(v),sy+15,_w19_g(v,3),"middle",8.5,"muted"));});
+      U.nice(smin,smax,6).forEach(function(v){if(v<smin||v>smax)return;o.push(S.L(SP.X(v),sy-3,SP.X(v),sy+3,"muted",1));o.push(S.T(SP.X(v),sy+15,_w19_n(v),"middle",8.5,"muted"));});
       o.push(S.X(SP.X(a),sy,5,"muted",2));o.push(S.X(SP.X(-sgo),sy,5.5,"signal",2.4));if(stab&&-sgm>=smin)o.push(S.X(SP.X(-sgm),sy,5,"purple",2));
       if(a>0){o.push(S.L(SP.X(-a),sy-9,SP.X(-a),sy+9,"alias",1.2,"2 2"));}
       o.push(S.T(sx1,sy+30,"灰: 対象の極 a　青: 最適　紫: 比べる F"+(a>0?"　赤の点線: 鏡の位置 −a":""),"end",9,"muted"));
       box.set(S.svg(Wd,nar?sy+40:sy+38,o));
       /* 読み出し（数値積分は台形で、式の値と比べる） */
-      var Jx=Q*_w19_isq(ts,vo,1),Ju=R*_w19_isq(ts,uo,1),tail=Math.exp(-2*sgo*Tm)/(2*sgo)*(Q+R*Fo*Fo);
+      /* 数値積分（シンプソン則、2000 区間）で、式の値と比べる */
+      var NS=2000,hs=Tm/NS,Ix=0;for(var q2=0;q2<=NS;q2++){var vv=v0*Math.exp(-sgo*q2*hs),wq=(q2===0||q2===NS)?1:(q2%2?4:2);Ix+=wq*vv*vv;}Ix*=hs/3;
+      var Jx=Q*Ix,Ju=R*Fo*Fo*Ix,tail=Math.exp(-2*sgo*Tm)/(2*sgo)*(Q+R*Fo*Fo);
       var h="対象 dv/dt = "+_w19_g(a,3)+"v + u（a = −c/m、b = 1/m、m = 1 kg）。最適なゲイン F = (a + √(a² + b²Q/R))/b = <b>"+_w19_g(Fo,4)+" N/(m/s)</b>、閉ループの極 <b>"+_w19_g(-sgo,4)+" /s</b><br>";
       h+="J の最小値 RF v(0)²/b = <b>"+_w19_g(Jmin,4)+"</b>（数値積分: 速度の項 Q∫v²dt "+_w19_g(Jx,4)+" ＋ 力の項 R∫u²dt "+_w19_g(Ju,4)+" ＝ "+_w19_g(Jx+Ju+tail,4)+"）<br>";
       if(stab)h+="比べる F = "+_w19_f(Fm,1)+": 極 "+_w19_g(-sgm,4)+" /s、J = <b>"+_w19_g(Jm,4)+"</b>（最小値より "+_w19_g(Jm-Jmin,3)+" 大きい。∫R(u + "+_w19_g(Fo,3)+"v)²dt = R(F − "+_w19_g(Fo,3)+")²v(0)²/(2(bF − a)) = "+_w19_g(R*(Fm-Fo)*(Fm-Fo)/(2*sgm),3)+"）<br>";
       else h+='<span class="warn">比べる F = '+_w19_f(Fm,1)+" では閉ループの極 "+_w19_g(-sgm,3)+" /s が 0 以上で、速度が 0 に戻らない（J は限りなく大きい）</span><br>";
       if(a>0)h+="対象の極 +"+_w19_g(a,3)+" は右半平面にある。Q/R を 0 に近づけても、最適な極は −√(a² + b²Q/R) で −"+_w19_g(a,3)+"（鏡に映した位置）より右へ行かない<br>";
-      ro.innerHTML=h+'<div class="wnote">本文 2 節の式。閉ループの速度は v(t) = e^{−(bF − a)t} で、J は式でも求められる。数値積分は表示した時間の範囲を台形で足し、範囲の外の小さな残りを式で加えた。</div>'.replace("e^{−(bF − a)t}","e<sup>−(bF − a)t</sup>");
+      ro.innerHTML=h+'<div class="wnote">本文 2 節の式。閉ループの速度は v(t) = e<sup>−(bF − a)t</sup> で、J は式でも求められる。数値積分は、表示した時間の範囲をシンプソン則で足し、範囲の外の小さな残りを式で加えた。</div>';
     }
     draw();
   };
@@ -197,7 +200,7 @@
     var S=U.S,TE=3,H=0.001,EV=5;
     U.head(el,"LQR VS PLACEMENT","同じ速さの極配置と最適レギュレータ");
     var r1=U.ctrls(el);
-    var sw=U.slider(r1,U.htx("極配置の速さ ω_p（4 つの極を −ω_p）"),{values:[3,3.5,4,4.5,5,5.5,5.6978,6,6.5,7,8],value:5.6978,fmt:function(v){return _w19_g(v,3)+" rad/s";},onInput:function(){run();}});
+    var sw=U.slider(r1,U.htx("極配置の速さ ω_p"),{values:[3,3.5,4,4.5,5,5.5,5.6978,6,6.5,7,8],value:5.6978,fmt:function(v){return _w19_g(v,3)+" rad/s";},onInput:function(){run();}});
     var sa=U.select(r1,"最適レギュレータの角度の重み",["評価しない（本文の例と同じ形）","角度の最大値 30°","角度の最大値 10°"],0,function(){run();});
     var stst=U.select(r1,"試験",["10° 傾けて静かに放す","おもりを右へ 1 N で 0.1 s 押す"],0,function(){run();});
     var r3=U.ctrls(el);
@@ -218,7 +221,7 @@
       var lo=Math.log(0.02),hi=Math.log(20),ok=true,tl=tp1Of(_w19_design(U,Math.exp(lo),ph,5).F,0.002),th=tp1Of(_w19_design(U,Math.exp(hi),ph,5).F,0.002);
       if(!(tl<=tgt&&th>=tgt))ok=false;
       for(var it=0;it<26&&ok;it++){var mid=(lo+hi)/2,tm=tp1Of(_w19_design(U,Math.exp(mid),ph,5).F,0.002);if(tm>tgt)hi=mid;else lo=mid;}
-      var pm=Math.exp((lo+hi)/2),d=_w19_design(U,pm,ph,5),ts=stst.get(),x0=ts===0?x10:[0,0,0,0],push=ts===1?[0,0.1,1]:null;
+      var pm=+Math.exp((lo+hi)/2).toPrecision(3),d=_w19_design(U,pm,ph,5),ts=stst.get(),x0=ts===0?x10:[0,0,0,0],push=ts===1?[0,0.1,1]:null;
       var rl=_w19_sim(U,d.F,x0,{T:TE,h:H,push:push,every:EV}),rp=_w19_sim(U,Fp,x0,{T:TE,h:H,push:push,every:EV});
       R={wp:wp,Fp:Fp,d:d,pm:pm,ok:ok,tgt:tgt,rl:rl,rp:rp,ts:ts,ph:ph,el:_w19_eig(U,d.F),ep:_w19_eig(U,Fp),
         tl1:tp1Of(d.F,0.001)};
@@ -327,23 +330,23 @@
       o.push(P.clip(v1.map(function(q){return [q[0],-q[1]];}),"signal",1.2,"4 3"));o.push(P.clip(v1,"signal",2.2));
       [Math.round(ws.length*0.25),Math.round(ws.length*0.45),Math.round(ws.length*0.6)].forEach(function(j){o.push(S.CURVEHEAD(P,v1,j,"signal",8));});
       o.push(S.T(P.X(1.15),P.Y(-1.8),"ω → 0 で右の枠の外へ","end",9,"muted",false,false,null,true));
-      o.push(S.T(nar?44:48,nar?310:288,(Math.abs(k-1)>1e-9||L>0)?"青: k 倍と L の遅れを入れた線図　灰: 元の線図":"青: F(jωI − A)⁻¹B（破線は鏡像）　赤: |1 + F(jωI − A)⁻¹B| < 1 の円","start",9,"muted"));
+      o.push(S.T(nar?44:48,nar?324:300,(Math.abs(k-1)>1e-9||L>0)?"青: k 倍と L の遅れを入れた線図　灰: 元の線図":"青: F(jωI − A)⁻¹B（破線は鏡像）　赤: |1 + F(jωI − A)⁻¹B| < 1 の円","start",9,"muted"));
       /* 振子の応答 */
       var res=R.res,t=res.t,phs=_w19_col(res,2,1/_W19_D2R),ps=_w19_col(res,0,100);
-      var gx=nar?52:410,gy0=nar?344:28,gw=nar?330:270,gh=nar?96:100;
+      var gx=nar?52:410,gy0=nar?356:28,gw=nar?330:270,gh=nar?96:100;
       var ra=_w19_range([phs],0.1,4),rp=_w19_range([ps],0.1,4);
       o.push(_w19_wave(S,U,gx,gy0,gw,gh,TE,Math.max(ra[0],-95),Math.min(ra[1],95),"角度 φ [°]（2° から放す）",[[t,phs,"signal"]],null,false).svg);
       o.push(_w19_wave(S,U,gx,gy0+gh+34,gw,gh,TE,Math.max(rp[0],-200),Math.min(rp[1],200),"台車の位置 p [cm]",[[t,ps,"signal"]],null,true).svg);
       var stable=R.n===1;
       o.push(S.T(gx,gy0+2*gh+84,stable?"−1 を反時計回りに 1 回: 安定":"−1 を反時計回りに 1 回まわらない（"+R.n+" 回）: 不安定","start",10,stable?"green":"alias",true));
-      box.set(S.svg(Wd,nar?gy0+2*gh+96:Math.max(296,gy0+2*gh+96),o));
+      box.set(S.svg(Wd,nar?gy0+2*gh+96:Math.max(310,gy0+2*gh+96),o));
       /* 読み出し */
       var g0=C.gcs.length?C.gcs[0]:null,dm=null;C.gcs.forEach(function(g){if(dm===null||g[2]<dm)dm=g[2];});
       var h="F = ["+F.map(function(v){return _w19_g(v,4);}).join(", ")+"]、閉ループの極 "+_w19_poles(_w19_eig(U,F))+"<br>";
-      h+="−1 からの最短距離 |1 + F(jωI − A)<sup>−1</sup>B| = <b>"+_w19_g(C.dmin,3)+"</b>（"+_w19_g(C.wd,3)+" rad/s）"+(C.dmin>=0.9995?'：<span class="ok">円に入らない</span>':'：<span class="warn">円の中を通る</span>')+"<br>";
+      h+="−1 からの最短距離 |1 + F(jωI − A)<sup>−1</sup>B| = <b>"+_w19_g(C.dmin,3)+"</b>"+(C.dmin>=0.9995?'（角周波数が高いと 1 に近づく）：<span class="ok">円に入らない</span>':"（"+_w19_g(C.wd,3)+' rad/s）：<span class="warn">円の中を通る</span>')+"<br>";
       h+="力の倍率の下限 <b>"+_w19_g(C.kmin,3)+" 倍</b>（上は何倍でも安定）"+(g0?"、位相余裕 <b>"+_w19_f(g0[1],1)+"°</b>（ω<sub>gc</sub> = "+_w19_g(g0[0],3)+" rad/s）、許されるむだ時間 φ<sub>m</sub>/ω<sub>gc</sub> = <b>"+_w19_g(dm*1000,3)+" ms</b>":"")+"<br>";
       var mx=_w19_maxabs(phs.slice(Math.floor(phs.length*0.8)));
-      h+="いまの設定（k = "+_w19_g(k,3)+"、L = "+Math.round(L*1000)+" ms）: 線図と鏡像が −1 を反時計回りに回る回数 "+R.n+"（開ループの右半平面の固有値は +6.77 の 1 つ）→ "+(stable?'<span class="ok">安定</span>':'<span class="warn">不安定</span>')+"。2° から放した振子は"+(res.fall!=null?'<span class="warn"> '+_w19_f(res.fall,2)+" s に倒れた</span>":(stable?"立ち直る（最後の 1.2 s の振れ "+_w19_g(mx,2)+"°）":"大きく振れる"))+"<br>";
+      h+="いまの設定（k = "+_w19_g(k,3)+"、L = "+Math.round(L*1000)+" ms）: 線図と鏡像が −1 を反時計回りに回る回数 "+R.n+"（開ループの右半平面の固有値は +6.77 の 1 つ）→ "+(stable?'<span class="ok">安定</span>':'<span class="warn">不安定</span>')+"。2° から放した振子は"+(res.fall!=null?'<span class="warn"> '+_w19_f(res.fall,2)+" s に倒れた</span>":(stable?(mx<0.01?"立ち直る":"立ち直る（最後の 1.2 s の振れ "+_w19_f(mx,2)+"°）"):"大きく振れる"))+"<br>";
       ro.innerHTML=h+'<div class="wnote">一巡伝達関数は 17 章 3 節の伝達関数から F(sI − A)<sup>−1</sup>B = {(f₁ + f₂s)(s² − g/l)/M − (f₃ + f₄s)s²/(Ml)} / {s²(s² − (M + m)g/(Ml))} として計算した。回る回数は、虚軸を下から上へ進み、原点を右側の小さな半円で迂回する経路で数えた。振子の動きは線形でない式で、力は k 倍し、L だけ前の状態から決める（刻み 1 ms）。</div>';
     }
     prep();

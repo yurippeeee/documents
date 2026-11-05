@@ -224,8 +224,8 @@ def _f19_area_fig():
         pts = [(p2.X(0), p2.Y(0))] + [(p2.X(a), p2.Y(b * b)) for a, b in zip(ts, v)] + [(p2.X(1.5), p2.Y(0))]
         o.append(PL(pts, c=c, lw=1.6, fill=soft(c), op=0.55, dash=dash))
     o.append(T(p1.X(0.62), p1.Y(0.47), "F = 0（押さない）", "start", 9.5, MUT, True, halo=True))
-    o.append(T(p1.X(0.32), p1.Y(0.2) - 2, "F = 1", "start", 9.5, TEA, True, halo=True))
-    o.append(T(p1.X(0.13), p1.Y(0.06) - 4, "F = 8", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p1.X(0.6), p1.Y(0.06), "F = 1", "start", 9.5, TEA, True, halo=True))
+    o.append(T(p1.X(0.24), p1.Y(0.2), "F = 8", "start", 9.5, SIG, True, halo=True))
     o.append(T(p2.X(1.48), p2.Y(0.9), "面積 ∫v² dt [m²/s]", "end", 9.5, INK, True, halo=True))
     o.append(T(p2.X(1.48), p2.Y(0.9) + 15, "F = 0: 0.25", "end", 9.5, MUT, True, halo=True))
     o.append(T(p2.X(1.48), p2.Y(0.9) + 29, "F = 1: 0.167", "end", 9.5, TEA, True, halo=True))
@@ -242,8 +242,9 @@ def _f19_area_fig():
         if F > 0:
             uu = _f19_np.minimum(u * u, 8.0)
             pts = [(q2.X(0), q2.Y(0))] + [(q2.X(a), q2.Y(b)) for a, b in zip(ts, uu)] + [(q2.X(1.5), q2.Y(0))]
-            o.append(PL(pts, c=c, lw=1.6, fill=soft(c), op=0.55))
-    o.append(T(q2.X(0.03) + 8, q2.Y(8) + 11, "F = 8 は t = 0 で 64（枠の外）", "start", 9, SIG, halo=True))
+            o.append(PL(pts, c="none", lw=0, fill=soft(c), op=0.55))
+            o.append(q2.clip(list(zip(ts, u * u)), c=c, lw=1.6))
+    o.append(T(q2.X(0.13), q2.Y(7.0), "F = 8 は t = 0 で 64（上は枠の外）", "start", 9, SIG, halo=True))
     o.append(T(q1.X(0.5), q1.Y(-1.6), "F = 1", "start", 9.5, TEA, True, halo=True))
     o.append(T(q1.X(0.2) + 6, q1.Y(-6.5), "F = 8", "start", 9.5, SIG, True, halo=True))
     o.append(T(q1.X(1.48), q1.Y(0) - 5, "F = 0 は押さない", "end", 9, MUT, halo=True))
@@ -289,14 +290,14 @@ def _f19_quad_fig():
     o.append(P.axes(xl="位置 p [m]", yl="速度 \\dot{p} [m/s]", xt=[-0.1, 0, 0.1], yt=[-1, 0, 1], xfmt=lambda v: ("%g" % v).replace("-", "−"), yfmt=lambda v: ("%g" % v).replace("-", "−")))
     o.append(W(P.X(0), P.y, P.X(0), P.y + P.h, c=MUT, lw=1)); o.append(W(P.x, P.Y(0), P.x + P.w, P.Y(0), c=MUT, lw=1))
     th = _f19_np.linspace(0, 2 * math.pi, 181)
-    for Qm, c, dash in (([[100, 0], [0, 1]], SIG, None), ([[400, 0], [0, 1]], TEA, "5 3"), ([[100, 8], [8, 1]], PUR, "2 3")):
+    for Qm, c, dash in (([[100, 0], [0, 1]], SIG, None), ([[400, 0], [0, 1]], TEA, "5 3"), ([[100, 6], [6, 1]], PUR, "2 3")):
         Qm = _f19_np.array(Qm, float)
         ev, V = _f19_np.linalg.eigh(Qm)
         pts = [V @ _f19_np.array([math.cos(a) / math.sqrt(ev[0]), math.sin(a) / math.sqrt(ev[1])]) for a in th]
         o.append(P.clip([(q[0], q[1]) for q in pts], c=c, lw=2.0, dash=dash))
     o.append(TX(P.X(0.012), P.Y(1.22), "diag(100, 1)", "start", 9.5, SIG, True, halo=True))
     o.append(TX(P.X(0.052), P.Y(-0.62), "diag(400, 1)", "start", 9.5, TEA, True, halo=True))
-    o.append(TX(P.X(-0.145), P.Y(-1.28), "対角の外 8: 傾く", "start", 9.5, PUR, True, halo=True))
+    o.append(TX(P.X(-0.145), P.Y(-1.28), "対角の外 6: 傾く", "start", 9.5, PUR, True, halo=True))
     o.append(T(P.X(0.1), P.Y(0) + 13, "0.1", "middle", 9, SIG, halo=True))
     return SVG(700, 254, o,
                "状態の重み行列 Q。(a) 状態変数が 2 つのとき、xᵀQx は 2 乗と積に重みを掛けて足した 1 つの数になる。(b) 台車とばね・ダンパの状態 (p, ṗ) で、xᵀQx が 1 になる点を結んだ楕円。位置の重みを 4 倍にすると、半分のずれ（0.05 m）で同じ大きさに数える。対角の外の要素は楕円を傾ける。")
@@ -346,7 +347,7 @@ def _f19_tradeoff_fig():
         if l:
             o.append(T(xr, 98 + i * 16, l, "start", 10, MUT))
     return SVG(700, 316, o,
-               "台車で F を 0 から 14 N/(m/s) まで変えたときの、速度の面積と力の面積の組（黒の曲線）。J が等しい組は傾き −Q/R の直線の上にあり、J が最も小さい点は、その直線が曲線に接する点である。Q/R = 5 (N/(m/s))² では F = 1、96 では F = 8 が選ばれる。")
+               "台車で F を 0 から 14 N/(m/s) まで変えたときの、速度の面積と力の面積の組（太い曲線。点は F の値）。J が等しい組は傾き −Q/R の直線の上にあり、J が最も小さい点は、その直線が曲線に接する点である。Q/R = 5 (N/(m/s))² では F = 1、96 では F = 8 が選ばれる。")
 
 
 F["e19_tradeoff"] = _f19_tradeoff_fig()
@@ -366,8 +367,8 @@ def _f19_valley_fig():
         Jo = (QR + Fo * Fo) / (2 * (Fo + 2))
         o.append(D(P.X(Fo), P.Y(Jo), c, 4.5))
         o.append(W(P.X(Fo), P.Y(Jo), P.X(Fo), P.Y(0), c=c, lw=1, dash="3 3"))
-    o.append(TX(P.X(1.4), P.Y(1.0) - 8, "Q/R = 5: 底は F = 1、J = 1", "start", 9.5, TEA, True, halo=True))
-    o.append(TX(P.X(8.6), P.Y(8.0) + 16, "Q/R = 96: 底は F = 8、J = 8", "start", 9.5, SIG, True, halo=True))
+    o.append(TX(P.X(23.5), P.Y(18.6), "Q/R = 96: 底は F = 8、J = 8", "end", 9.5, SIG, True, halo=True))
+    o.append(TX(P.X(23.5), P.Y(18.6) + 15, "Q/R = 5: 底は F = 1、J = 1", "end", 9.5, TEA, True, halo=True))
     o.append(D(P.X(4), P.Y((96 + 16) / 12.0), SIG, 3.2)); o.append(D(P.X(16), P.Y((96 + 256) / 36.0), SIG, 3.2))
     o.append(T(P.X(4) + 4, P.Y(9.33) - 7, "F = 4: 9.33", "start", 9, SIG, halo=True))
     o.append(T(P.X(16), P.Y(9.78) - 8, "F = 16: 9.78", "middle", 9, SIG, halo=True))
@@ -431,9 +432,10 @@ def _f19_mirror_fig():
     qs = _f19_np.logspace(-1, 3, 200)
     o.append(G.line([(q, -2 + math.sqrt(4 + q)) for q in qs], c=SIG, lw=2.2))
     o.append(G.line([(q, 2 + math.sqrt(4 + q)) for q in qs], c=PUR, lw=2.2))
-    o.append(T(G.X(0.15), G.Y(4) - 6, "a = +2: 4 より下がらない", "start", 9.5, PUR, True, halo=True))
-    o.append(T(G.X(2.0), G.Y(1.0) - 4, "a = −2: 0 に近づく", "start", 9.5, SIG, True, halo=True))
-    o.append(T(G.X(30), G.Y(26), "差はいつも 2a/b = 4", "middle", 9.5, MUT, halo=True))
+    o.append(T(G.X(300) - 6, G.Y(2 + math.sqrt(304)) - 4, "a = +2", "end", 9.5, PUR, True, halo=True))
+    o.append(T(G.X(300) + 6, G.Y(-2 + math.sqrt(304)) + 12, "a = −2", "start", 9.5, SIG, True, halo=True))
+    o.append(T(G.X(0.12), G.Y(13), "Q/R → 0 で、a = +2 は 4 に、", "start", 9.5, INK, halo=True))
+    o.append(T(G.X(0.12), G.Y(13) + 14, "a = −2 は 0 に近づく（差は 2a/b = 4）", "start", 9.5, INK, halo=True))
     # (c) 安定にする力の面積と、置いた極
     o.append(T(372, 262, "(c) 極を −σ に置くのに要る力の面積", "start", 11.5, INK, True))
     C = Plot(430, 278, 250, 150, (0, 10), (0, 10))
@@ -562,15 +564,19 @@ def _f19_bryson_fig():
                                                       (_F19_SIMA10, "(b) 例（0.5 m・角度は評価しない・5 N）", ("0.034", "0", "0.053", "0.087"), False))):
         x00 = 62 + k * 340
         o.append(T(x00 - 48, 18, title, "start", 11.5, INK, True))
-        P = Plot(x00, 34, 270, 170, (0, 3), (0, 3))
-        o.append(P.axes(xl="時間 t [s]", yl="（量 ÷ 許せる最大値）^2", xt=[0, 1, 2, 3], yt=[0, 1, 2, 3]))
+        P = Plot(x00, 34, 270, 170, (0, 1.5), (0, 3))
+        o.append(P.axes(xl="時間 t [s]", yl="（量 ÷ 許せる最大値）^2", xt=[0, 0.5, 1, 1.5], yt=[0, 1, 2, 3], xfmt=lambda v: "%g" % v))
         t, p, pd, ph, phd, u = sim
         o.append(P.clip(list(zip(t, (p / 0.5) ** 2)), c=SIG, lw=2.0))
         o.append(P.clip(list(zip(t, (ph / th10) ** 2)), c=TEA if angle_on else FNT, lw=2.0, dash=None if angle_on else "4 3"))
         o.append(P.clip(list(zip(t, (u / 5.0) ** 2)), c=GLD, lw=2.0))
         um = float(_f19_np.max(_f19_np.abs(u)))
-        o.append(T(P.X(0.06), P.Y(min((um / 5) ** 2, 2.95)) + 3, "(u/5 N)^2 の初め %s" % _f19_f((um / 5) ** 2, 2), "start", 9.5, GLD, True, halo=True))
-        o.append(T(P.X(0.32), P.Y(0.95) - (2 if angle_on else 18), "(φ/10°)^2" + ("" if angle_on else "（J に入れない）"), "start", 9.5, TEA if angle_on else MUT, True, halo=True))
+        o.append(TX(P.X(0.05), P.Y(min((um / 5) ** 2, 2.9)) + 4, "(u/5 N)^2 の初め %s" % _f19_f((um / 5) ** 2, 2), "start", 9.5, GLD, True, halo=True))
+        if angle_on:
+            o.append(TX(P.X(0.22), P.Y(1.25), "(φ/10°)^2 の初め 1", "start", 9.5, TEA, True, halo=True))
+        else:
+            o.append(TX(P.X(0.30), P.Y(0.62), "(φ/10°)^2（J には入れない）", "start", 9.5, MUT, True, halo=True))
+        o.append(TX(P.X(0.62), P.Y(0.22), "(p/0.5 m)^2", "start", 9.5, SIG, True, halo=True))
         yb = 246
         o.append(T(x00 - 48, yb, "J の内訳: 位置 %s ＋ 角度 %s ＋ 力 %s ＝ %s" % parts, "start", 10, INK))
     o.append(LEGL(62, 272, [(SIG, None, "(p/0.5 m)^2"), (TEA, None, "(φ/10°)^2"), (GLD, None, "(u/5 N)^2")]))
@@ -622,7 +628,7 @@ def _f19_wfx_fig():
     o.append(T(Pc.X(1.0), Pc.Y(11.0) - 2, "0.5 m（例）: 13.3 cm、1.22 s", "start", 9.5, SIG, True, halo=True))
     o.append(T(Pc.X(1.2), Pc.Y(5.6), "0.25 m: 11.7 cm、0.92 s", "start", 9.5, GRN, True, halo=True))
     xr = 372
-    lines = [("効くのは比 q₁₁/R = u_max²/p_max² だけ", INK, True),
+    lines = [("効くのは比 q_{11}/R = u_{max}^2/p_{max}^2 だけ", INK, True),
              ("0.25 m・5 N と 0.5 m・10 N は同じ F", MUT, False),
              ("1 m・5 N と 0.5 m・2.5 N も同じ F", MUT, False),
              ("", MUT, False),
@@ -631,7 +637,7 @@ def _f19_wfx_fig():
              ("0.25 m: 7.07 N、0.5 m: 5.27 N、1 m: 4.22 N", MUT, False)]
     for i, (l, c, b) in enumerate(lines):
         if l:
-            o.append(T(xr, 296 + i * 18, l, "start", 10, c, b))
+            o.append(TX(xr, 296 + i * 18, l, "start", 10, c, b))
     return SVG(700, 476, o,
                "倒立振子の重みの効き方（台車の位置 0.5 m・力 5 N を基準に、ブライソンの規則で決めた重み）。(a) 角度を許せる最大値を小さくする（重みを大きくする）ほど、10° から放したときの初めの力が大きい。(b) その代わり、おもりを押したときに、台車を戻す途中で振子が傾く角度は小さくなる。(c) 角度を評価しないとき、台車の位置を許せる最大値を小さくするほど、台車は速く戻る。")
 
@@ -737,7 +743,7 @@ def _f19_cmp_fig():
     o.append(W(Pc.x, Pc.Y(0), Pc.x + Pc.w, Pc.Y(0), c=MUT, lw=1))
     for sim, c, dash in sims:
         o.append(Pc.clip(list(zip(sim[0], sim[3] / _F19_D2R)), c=c, lw=2.0, dash=dash))
-    o.append(T(Pc.X(1.0), Pc.Y(-5.2) + 14, "±0.2° に 1.85 s（青）・1.71 s（紫）", "start", 9.5, INK, halo=True))
+    o.append(T(Pc.X(1.0), Pc.Y(6.5), "±0.2° に 1.85 s（青）・1.71 s（紫）", "start", 9.5, INK, halo=True))
     # (d) 台車の位置
     o.append(T(380, 262, "(d) 台車の位置 p [cm]", "start", 11.5, INK, True))
     Pd = Plot(420, 278, 260, 150, (0, 3), (-2, 15))
@@ -763,7 +769,7 @@ def _f19_front_fig():
     o = []
     x0 = _f19_np.array(_F19_X10)
     JA = float(x0 @ _F19_XA @ x0)
-    o.append(T(14, 18, "(a) 4 つの極を −ω_p に置いたときの J（例の重み）", "start", 11.5, INK, True))
+    o.append(TX(14, 18, "(a) 4 つの極を −ω_p に置いたときの J（例の重み）", "start", 11.5, INK, True))
     P = Plot(62, 34, 270, 190, (3, 8), (0, 0.25))
     o.append(P.axes(xl="極配置の速さ ω_p [rad/s]", yl="評価関数 J", xt=[3, 4, 5, 6, 7, 8], yt=[0, 0.05, 0.1, 0.15, 0.2, 0.25], yfmt=lambda v: "%g" % v))
     wps = _f19_np.linspace(3, 8, 101)
@@ -805,12 +811,12 @@ def _f19_front_fig():
             o.append(D(Q2.X(a), Q2.Y(b), SIG, 3.4))
             o.append(T(Q2.X(a) - 4, Q2.Y(b) + 14, "%g m" % pm, "end", 9, SIG, halo=True))
     o.append(T(Q2.X(2.95), Q2.Y(5) - 5, "上限 5 N", "end", 9, ALI, halo=True))
-    o.append(T(Q2.X(1.7), Q2.Y(12.5), "極配置（−ω_p × 4）", "start", 9.5, PUR, True, halo=True))
+    o.append(TX(Q2.X(1.7), Q2.Y(12.5), "極配置（−ω_p × 4）", "start", 9.5, PUR, True, halo=True))
     o.append(T(Q2.X(1.7), Q2.Y(10.5), "最適レギュレータ", "start", 9.5, SIG, True, halo=True))
     o.append(T(Q2.X(1.7), Q2.Y(10.5) + 13, "（角度は評価せず、位置の", "start", 9, SIG, halo=True))
     o.append(T(Q2.X(1.7), Q2.Y(10.5) + 26, "最大値を 3 m から 0.13 m へ）", "start", 9, SIG, halo=True))
     return SVG(700, 270, o,
-               "(a) 4 つの極を同じ点 −ω_p に置く極配置の J（例の重み、10° から放す）。ω_p = 5 rad/s で最も小さく、最適レギュレータとの差は 1.0 %。(b) 10° から立て直す最大の力と、台車が ±1 cm に収まる時間。同じ速さなら、最適レギュレータの方が力が小さく、差は速い設計ほど大きい。点の数字は ω_p と、位置を許せる最大値。")
+               "(a) 4 つの極を同じ点 −ω<sub>p</sub> に置く極配置の J（例の重み、10° から放す）。ω<sub>p</sub> = 5 rad/s で最も小さく、最適レギュレータとの差は 1.0 %。(b) 10° から立て直す最大の力と、台車が ±1 cm に収まる時間。同じ速さなら、最適レギュレータの方が力が小さく、差は速い設計ほど大きい。点の数字は ω<sub>p</sub> と、台車の位置を許せる最大値。")
 
 
 F["e19_front"] = _f19_front_fig()
@@ -832,7 +838,6 @@ def _f19_cut_fig():
     o.append(T(xcut, yc - 18, "切る", "middle", 9.5, ALI, True, halo=True))
     o.append(W(pos["tx"], yc - 1.5, pos["tx"], yc + 1.5, c=SIG, lw=4))
     o.append(T(pos["tx"] - 22, yc - 9, "x", "middle", 10.5, SIG, True, halo=True))
-    o.append(T(xe + 4, yc + 4, "状態 x", "start", 10, SIG, True))
     o.append(FBPATH(pos["tx"], xs, yc, 56, c=SIG, box="F"))
     o.append(TX(xs + 34, yc + 50, "Fx", "start", 10, SIG, True, halo=True))
     o.append(T((pos["P"][0] + pos["P"][1]) / 2, yc - 28, "対象（u から x まで）", "middle", 9.5, MUT))
