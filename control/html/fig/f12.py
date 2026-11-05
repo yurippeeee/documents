@@ -27,6 +27,12 @@ def _f12_sp(p, xt, yt, xl="実部 σ [1/s]", yl="虚部 ω [rad/s]", sz=9, zeta=
     return "".join(o)
 
 
+def _f12_zeta(p, z, c=FNT):
+    """減衰比 z の線（原点から左上と左下）を枠で切って描く（SPLANE の zeta は枠の外まで伸びるので使わない）。"""
+    th = math.acos(z); L = 4 * max(abs(p.xr[0]), abs(p.xr[1]), abs(p.yr[0]), abs(p.yr[1]))
+    return "".join(p.clip([(0, 0), (-L * math.cos(th), sg * L * math.sin(th))], c=c, lw=1, dash="4 3") for sg in (1, -1))
+
+
 def _f12_kgrid(lo, hi, per=200, extra=()):
     """K_c の刻み: 0 と、10^lo〜10^hi を対数の目盛で等しい間隔に（1 桁を per 等分）。extra の値も入れる。"""
     n = int(round((hi - lo) * per)) + 1
@@ -691,7 +697,8 @@ def _f12_zline_fig():
     p = Plot(58, 32, 282, 282, (-25, 5), (-15, 15))
     o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.8))
     o.append(_f12_region(p, -4.0))
-    o.append(SPLANE(p, zeta=[_F12_ZETA]))
+    o.append(SPLANE(p))
+    o.append(_f12_zeta(p, _F12_ZETA))
     o.append(p.axes(xl="実部 σ [1/s]", yl="虚部 ω [rad/s]", xt=[-20, -10, 0], yt=[-10, 0, 10], xfmt=_f12_fmt, yfmt=_f12_fmt, sz=9))
     o.append(SPLANE(p, rhp=False))
     o.append(W(p.X(-4), p.y, p.X(-4), p.y + p.h, c=GRN, lw=1.2, dash="5 3"))
@@ -741,7 +748,8 @@ def _f12_pdes_fig():
     o = []
     o.append(TX(14, 18, "(a) 望む極 s_d = −20 + j20.98 を通るように零点を置く", "start", 11, INK, True))
     p = Plot(58, 32, 372, 228, (-56, 6), (-4, 34))
-    o.append(_f12_sp(p, [-50, -40, -30, -20, -10, 0], [0, 10, 20, 30], xl="実部 σ [1/s]", yl="虚部 ω [rad/s]", zeta=[_F12_ZETA]))
+    o.append(_f12_sp(p, [-50, -40, -30, -20, -10, 0], [0, 10, 20, 30], xl="実部 σ [1/s]", yl="虚部 ω [rad/s]"))
+    o.append(_f12_zeta(p, _F12_ZETA))
     sd = complex(-20, 20 * _F12_TPSI)
     z = sd.real - sd.imag / math.tan(math.radians(43.63))
     # できあがった PD の根軌跡（円）

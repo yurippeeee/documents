@@ -3,9 +3,11 @@
   function _w12_nar(box){var w=box.el.clientWidth;return w>0&&w<520;}
   function _w12_f(v,d){v=+v;if(!isFinite(v))return v>0?"∞":"−∞";if(Math.abs(v)<0.5*Math.pow(10,-d))v=0;return v.toFixed(d).replace("-","−");}
   function _w12_sig(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v),s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();if(s.indexOf("e")>=0)s=v.toExponential(1);return s.replace(/^-/,"−");}
+  /* 有効数字 d 桁（末尾の 0 を残す。例 −3.20） */
+  function _w12_p3(v,d){d=d||3;if(Math.abs(v)<1e-9)return "0";var s=(+v).toPrecision(d);if(s.indexOf("e")>=0)return _w12_sig(v,d);return s.replace(/^-/,"−");}
   /* 極の文字。共役な組は「a ± jb」にまとめる（虚部が負のものは省く） */
   function _w12_plist(rs,d){var out=[];rs.forEach(function(z){var tol=1e-6*(1+Math.abs(z.re)+Math.abs(z.im));
-    if(Math.abs(z.im)<=tol)out.push(_w12_sig(z.re,d||3));else if(z.im>0)out.push((Math.abs(z.re)<1e-9?"":_w12_sig(z.re,d||3)+" ")+"± <i>j</i>"+_w12_sig(z.im,d||3));});return out.join("、");}
+    if(Math.abs(z.im)<=tol)out.push(_w12_p3(z.re,d||3));else if(z.im>0)out.push((Math.abs(z.re)<1e-6*(1+Math.abs(z.im))?"":_w12_p3(z.re,d||3)+" ")+"± <i>j</i>"+_w12_p3(z.im,d||3));});return out.join("、");}
   /* K_c の刻み: 0 と 10^lo〜10^hi を対数の目盛で等しく（1 桁を per 等分）。extra の値も入れる */
   function _w12_kgrid(lo,hi,per,extra){var n=Math.max(2,Math.round((hi-lo)*per)),ks=[0];for(var i=0;i<=n;i++)ks.push(Math.pow(10,lo+(hi-lo)*i/n));
     (extra||[]).forEach(function(e){if(e>0)ks.push(e);});ks.sort(function(x,y){return x-y;});return ks;}
@@ -40,8 +42,8 @@
   /* 性質を描く: 実軸の上の部分（金の太線）・漸近線（金の破線）・分岐点（金の点） */
   function _w12_drawProps(S,P,pr){var o=[],L=10*Math.max(P.xr[1]-P.xr[0],P.yr[1]-P.yr[0]);
     pr.seg.forEach(function(sg){var x0=Math.max(P.xr[0],sg[0]),x1=Math.min(P.xr[1],sg[1]);if(x1>x0)o.push(S.L(P.X(x0),P.Y(0),P.X(x1),P.Y(0),"gold",5));});
-    if(pr.sa!==null)pr.angs.forEach(function(an){var r=an*Math.PI/180;o.push(P.clip([[pr.sa,0],[pr.sa+L*Math.cos(r),L*Math.sin(r)]],"gold",1.4,"6 4"));});
-    if(pr.sa!==null&&pr.sa>=P.xr[0]&&pr.sa<=P.xr[1])o.push(S.D(P.X(pr.sa),P.Y(0),"gold",4));
+    if(pr.sa!==null&&pr.n-pr.m>=2){pr.angs.forEach(function(an){var r=an*Math.PI/180;o.push(P.clip([[pr.sa,0],[pr.sa+L*Math.cos(r),L*Math.sin(r)]],"gold",1.4,"6 4"));});
+      if(pr.sa>=P.xr[0]&&pr.sa<=P.xr[1])o.push(S.D(P.X(pr.sa),P.Y(0),"gold",4));}
     pr.br.forEach(function(b){if(b.s>=P.xr[0]&&b.s<=P.xr[1])o.push(S.CIRC(P.X(b.s),P.Y(0),5.5,"gold",2));});
     return o.join("");}
   /* 単位ステップ応答と、行き過ぎ量 [%]・2 % 整定時間 */
@@ -56,8 +58,10 @@
   /* 円弧（中心 (cx, cy)、半径 r、角度は度で正の実軸から反時計回り） */
   function _w12_arc(S,cx,cy,r,a0,a1,c,lw){var x0=cx+r*Math.cos(a0*Math.PI/180),y0=cy-r*Math.sin(a0*Math.PI/180),x1=cx+r*Math.cos(a1*Math.PI/180),y1=cy-r*Math.sin(a1*Math.PI/180);
     return S.PATH("M"+x0.toFixed(2)+","+y0.toFixed(2)+" A"+r+","+r+" 0 "+(Math.abs(a1-a0)>180?1:0)+" "+(a1>a0?0:1)+" "+x1.toFixed(2)+","+y1.toFixed(2),c,lw||1.3);}
-  /* 角度を (−180, 180] にそろえる */
-  function _w12_wrap(a){while(a>180)a-=360;while(a<=-180)a+=360;return a;}
+  /* 漸近線の角度の文字（180° はそのまま、ほかは ±） */
+  function _w12_angtxt(a){var w=_w12_wrap(a);return (Math.abs(Math.abs(w)-180)<1e-9?"180":(w>0?"+":"")+_w12_f(w,0))+"°";}
+  /* 角度を [−180, 180) にそろえる（−180° は負の側で表す） */
+  function _w12_wrap(a){while(a>=180)a-=360;while(a<-180)a+=360;return a;}
 
   /* ---- 2 節: 角度の条件と大きさの条件を、点を動かして確かめる ---- */
   REG.w12_angle=function(el,U){
@@ -104,13 +108,13 @@
         o.push(S.L(x0,y0,x0+22,y0,e.c,1,"3 2"));
         if(len>1e-9){o.push(_w12_arc(S,x0,y0,13+3*(i%3),0,ang,e.c,1.3));o.push(S.ARR(x0,y0,P.X(pt.re),P.Y(pt.im),e.c,1.5,6));}});
       o.push(U.ctl.pz(P,pr.ps,pr.zs,"muted",5.5));
-      var lhs=_w12_wrap(sum),dev=180-Math.abs(lhs),on=Math.abs(dev)<1.0&&Math.abs(pt.im)>1e-9||(Math.abs(pt.im)<=1e-9&&Math.abs(dev)<1.0);
+      var lhs=_w12_wrap(sum),dev=180-Math.abs(lhs),on=Math.abs(dev)<1.0;if(Math.abs(dev)<0.05)lhs=-180;
       var beta=U.ctl.poly.trim(E.b.slice())[0],Kc=lp/(beta*lz);
       o.push(S.CIRC(P.X(pt.re),P.Y(pt.im),7,on?"green":"alias",2.4,"screen"));
       o.push(S.D(P.X(pt.re),P.Y(pt.im),on?"green":"alias",3));
       o.push(S.T(P.x+P.w,P.y-6,"点をドラッグ（つまみでも動く）","end",9,"muted"));
       /* 角度の針 */
-      var cx=nar?200:575,cy=nar?20+ph+120:130,R0=70;
+      var cx=nar?200:575,cy=nar?20+ph+150:130,R0=70;
       o.push(S.T(cx,cy-R0-22,"角度の条件の左辺","middle",10,"ink",true));
       o.push(S.CIRC(cx,cy,R0,"line",1.2,"screen"));
       o.push(S.L(cx-R0-8,cy,cx+R0+8,cy,"faint",1));o.push(S.L(cx,cy-R0-6,cx,cy+R0+6,"faint",1));
@@ -160,7 +164,7 @@
     var br=U.btnrow(el),mb=U.btnrow(el);
     var tk=U.ticker(function(){var E=EX[ex.get()],lk=Math.log10(kc.get())+(Math.log10(E.kr[1])-Math.log10(E.kr[0]))/150;
       if(lk>=Math.log10(E.kr[1])){kc.set(E.kr[1]);stop();}else kc.set(+Math.pow(10,lk).toPrecision(4));draw();},60);
-    var bplay=U.button(br,"再生（K_c を小さい値から上げる）",function(){var E=EX[ex.get()];if(kc.get()>=E.kr[1]*0.999)kc.set(E.kr[0]);tk.start();});
+    var bplay=U.button(br,"再生（K<sub>c</sub> を小さい値から上げる）",function(){var E=EX[ex.get()];if(kc.get()>=E.kr[1]*0.999)kc.set(E.kr[0]);tk.start();});
     U.button(br,"停止",function(){stop();});
     U.button(br,"本文の例",function(){stop();kc.set(EX[ex.get()].k0);draw();});
     function stop(){tk.stop();}
@@ -175,13 +179,13 @@
       var P=U.plot(nar?52:56,20,nar?330:300,nar?250:300,V.xr,V.yr);
       o.push(_w12_sp(U,S,P,V.xt,V.yt));
       if(cp.get())o.push(_w12_drawProps(S,P,C.pr));
-      o.push(_w12_br(P,C.R,"muted",1.8));
+      o.push(_w12_br(P,C.R,"signal",1.8));
       o.push(U.ctl.pz(P,C.pr.ps,C.pr.zs,"muted",5));
       var num=U.ctl.poly.scale(E.b,K),den=U.ctl.poly.add(E.a,num),rs=U.ctl.poly.roots(den),uns=_w12_unstable(rs),ax=_w12_axis(rs);
-      var cpl=uns?"alias":(ax?"gold":"signal");
+      var cpl=uns?"alias":"gold";
       rs.forEach(function(z){if(_w12_in(P,z))o.push(S.X(P.X(z.re),P.Y(z.im),6.5,cpl,2.6));
         else{var xx=Math.max(P.x+4,Math.min(P.x+P.w-4,P.X(Math.max(P.xr[0],Math.min(P.xr[1],z.re))))),yy=Math.max(P.y+4,Math.min(P.y+P.h-4,P.Y(Math.max(P.yr[0],Math.min(P.yr[1],z.im)))));o.push(S.D(xx,yy,cpl,3.6));}});
-      o.push(S.T(P.x,P.y-6,"灰: 根軌跡　×: K_c = "+_w12_sig(K,3)+" の閉ループの極","start",9,"muted"));
+      o.push(S.TX(P.x,P.y-6,"青: 根軌跡　金の ×: K_c = "+_w12_sig(K,3)+" の閉ループの極","start",9,"muted"));
       /* ステップ応答 */
       var r=_w12_resp(U,num,den,E.tEnd,800),yf=uns?null:U.ctl.dcgain(U.ctl.tf(num,den));
       var ymax=1.2,ymin=0;r.y.forEach(function(v){if(isFinite(v)){ymax=Math.max(ymax,Math.min(v*1.05,2.6));ymin=Math.min(ymin,Math.max(v,-1.5));}});
@@ -190,7 +194,7 @@
       o.push(Q.axes({xl:"時間 t [s]",yl:E.yl,xt:U.nice(0,E.tEnd,4),yt:U.nice(ymin,ymax,4),xfmt:function(v){return _w12_sig(v,3);},yfmt:function(v){return _w12_sig(v,2);},ylOff:40}));
       o.push(Q.line([[0,1],[E.tEnd,1]],"muted",1,"4 3"));
       var pts=[];for(var i=0;i<r.t.length;i++)pts.push([r.t[i],r.y[i]]);
-      o.push(Q.clip(pts,cpl,2));
+      o.push(Q.clip(pts,uns?"alias":"signal",2));
       o.push(S.T(Q.x,Q.y-6,"目標値の単位ステップに対する応答","start",9,"muted"));
       box.set(S.svg(Wd,nar?qy+qh+42:20+300+44,o));
       /* 読み出し */
@@ -240,6 +244,7 @@
     U.button(br,"極の組を足す",function(){add("p",true,-8,12);});
     U.button(br,"実の零点を足す",function(){add("z",false,-30,0);});
     U.button(br,"零点の組を足す",function(){add("z",true,-30,15);});
+    U.button(br,"初めの形に戻す（本文の例）",function(){load(pre.get());});
     U.button(br,"選んだものを消す",function(){msg="";if(sel>=0){items.splice(sel,1);sel=-1;while(nz()>Math.max(0,np()-1)){for(var i=items.length-1;i>=0;i--)if(items[i].k==="z"){items.splice(i,1);break;}msg="零点が極より少なくなるよう、零点も消した";}}draw();});
     var r2=U.ctrls(el);
     var sre=U.slider(r2,"選んだ極・零点の実部 σ",{min:-110,max:10,step:0.1,value:-20,fmt:function(v){return _w12_f(v,1)+" /s";},onInput:function(v){if(sel<0||sel>=items.length)return;items[sel].re=v;draw();}});
@@ -271,7 +276,7 @@
       var a=polyOf("p"),b=U.ctl.poly.scale(polyOf("z"),beta),ok=np()>0&&nz()<np(),K=kc.get(),rs=[],pr=null;
       if(ok){pr=_w12_props(U,a,b);
         var R=_w12_track(U,a,b,_w12_kgrid(-5,6,45,[K]));
-        if(cpr.get()){if(pr.sa!==null){var L=10*(P.xr[1]-P.xr[0]);pr.angs.forEach(function(an){var r=an*Math.PI/180;o.push(P.clip([[pr.sa,0],[pr.sa+L*Math.cos(r),L*Math.sin(r)]],"gold",1.4,"6 4"));});
+        if(cpr.get()){if(pr.sa!==null&&pr.n-pr.m>=2){var L=10*(P.xr[1]-P.xr[0]);pr.angs.forEach(function(an){var r=an*Math.PI/180;o.push(P.clip([[pr.sa,0],[pr.sa+L*Math.cos(r),L*Math.sin(r)]],"gold",1.4,"6 4"));});
             if(pr.sa>=P.xr[0]&&pr.sa<=P.xr[1])o.push(S.D(P.X(pr.sa),P.Y(0),"gold",4));}
           pr.br.forEach(function(q){if(q.s>=P.xr[0]&&q.s<=P.xr[1])o.push(S.CIRC(P.X(q.s),P.Y(0),5.5,"gold",2));});}
         o.push(_w12_br(P,R,"signal",2.2));
@@ -297,7 +302,7 @@
       /* 読み出し */
       if(!ok){ro.innerHTML='<span class="warn">極を 1 つ以上置き、零点は極より少なくする</span>'+(msg?"<br>"+msg:"");return;}
       var h="開ループの極: "+_w12_plist(pr.ps)+"　零点: "+(pr.m?_w12_plist(pr.zs):"なし")+"（n = "+pr.n+"、m = "+pr.m+"、β = "+_w12_sig(beta,4)+"）<br>";
-      h+="漸近線: "+(pr.n-pr.m)+" 本、σ<sub>a</sub> = "+_w12_sig(pr.sa,4)+"、角度 "+pr.angs.map(function(x){return _w12_f(_w12_wrap(x),0)+"°";}).join("・")+"　分岐点: "+(pr.br.length?pr.br.map(function(q){return _w12_sig(q.s,4)+"（K<sub>c</sub> = "+_w12_sig(q.K,3)+"）";}).join("、"):"なし")+"<br>";
+      h+=(pr.n-pr.m>=2?"漸近線: "+(pr.n-pr.m)+" 本、σ<sub>a</sub> = "+_w12_sig(pr.sa,4)+"、角度 "+pr.angs.map(_w12_angtxt).join("・"):"漸近線: 1 本（180°。負の実軸に沿って左へ）")+"　分岐点: "+(pr.br.length?pr.br.map(function(q){return _w12_sig(q.s,4)+"（K<sub>c</sub> = "+_w12_sig(q.K,3)+"）";}).join("、"):"なし")+"<br>";
       var sum=0;rs.forEach(function(z){sum+=z.re;});
       h+="閉ループの極の和: "+_w12_sig(sum,4)+"（"+(pr.n-pr.m>=2?"n − m ≥ 2 なので K<sub>c</sub> によらず開ループの極の和 "+_w12_sig(pr.sump,4)+" のまま":"n − m = 1 なので K<sub>c</sub>β ずつ左へずれる")+"）<br>";
       h+="K<sub>c</sub> = "+_w12_sig(K,4)+" の閉ループの極: "+_w12_plist(rs)+"　";
@@ -323,7 +328,7 @@
     var br=U.btnrow(el),sd={re:-20,im:20.98};
     function zmin(){var M=MPS[mps.get()]/100,l=Math.log(M);return -l/Math.sqrt(Math.PI*Math.PI+l*l);}
     function tanpsi(){var z=zmin();return Math.sqrt(1-z*z)/z;}
-    U.button(br,"交点の K_c にする（比例）",function(){mode.set(0);kc.set(+(0.1/(zmin()*zmin())).toPrecision(4));draw();});
+    U.button(br,"交点の K<sub>c</sub> にする（比例）",function(){mode.set(0);kc.set(+(0.1/(zmin()*zmin())).toPrecision(4));draw();});
     U.button(br,"望む極を減衰比の線の上へ（PD）",function(){mode.set(1);sd.im=Math.min(33,-sd.re*tanpsi());sync();draw();});
     U.button(br,"本文の例 1（5 %・1 s・比例）",function(){mps.set(1);tss.set(0);mode.set(0);kc.set(0.21);draw();});
     U.button(br,"本文の例 2（5 %・0.25 s・PD）",function(){mps.set(1);tss.set(3);mode.set(1);sd={re:-20,im:20.98};sync();draw();});
@@ -341,7 +346,8 @@
       var P=U.plot(nar?52:56,20,nar?330:330,nar?299:299,[-70,5],[-34,34]);PP=P;
       o.push(S.RECT(P.x,P.y,P.w,P.h,0,"screen","line",0.8));
       o.push(region(P,sg,tp));
-      o.push(U.ctl.splane(P,{zeta:[zt]}));
+      o.push(U.ctl.splane(P));
+      [1,-1].forEach(function(sgn){o.push(P.clip([[0,0],[-200*zt,sgn*200*Math.sqrt(1-zt*zt)]],"faint",1,"4 3"));});
       o.push(P.axes({xl:"実部 σ [1/s]",yl:"虚部 ω [rad/s]",xt:[-70,-60,-50,-40,-30,-20,-10,0],yt:[-30,-20,-10,0,10,20,30],xfmt:function(v){return _w12_sig(v,3);},yfmt:function(v){return _w12_sig(v,3);},ylOff:34,sz:9}));
       o.push(U.ctl.splane(P,{rhp:false}));
       o.push(S.L(P.X(sg),P.y,P.X(sg),P.y+P.h,"green",1.2,"5 3"));
@@ -351,7 +357,7 @@
         o.push(S.L(P.X(-20),P.Y(0),P.X(0),P.Y(0),"signal",2.2));o.push(S.L(P.X(-10),P.y,P.X(-10),P.y+P.h,"signal",2.2));
         if(Klo!==null&&Klo<=Kint){o.push(S.L(P.X(-20-sg),P.Y(0),P.X(sg),P.Y(0),"green",4.4));o.push(S.L(P.X(-10),P.Y(-10*tp),P.X(-10),P.Y(10*tp),"green",4.4));}
         var si={re:-10,im:10*tp};o.push(U.ctl.pz(P,[si,{re:-10,im:-10*tp}],[],"gold",6));
-        o.push(S.TX(P.X(-10)+8,P.Y(10*tp)-6,"交点 K_c = "+_w12_sig(Kint,3),"start",9.5,"gold",true,true));
+        o.push(S.TX(P.X(-10)-8,P.Y(10*tp)-8,"交点 K_c = "+_w12_sig(Kint,3),"end",9.5,"gold",true,true));
         o.push(U.ctl.pz(P,[{re:0,im:0},{re:-20,im:0}],[],"muted",5));
         num=[1000*Kc];den=[1,20,1000*Kc];rs=U.ctl.poly.roots(den);
         h+="比例: 根軌跡と減衰比 "+_w12_f(zt,3)+" の線の交点は −10 ± <i>j</i>"+_w12_f(10*tp,2)+"、大きさの条件から K<sub>c</sub> = |s||s + 20| ÷ 1000 = "+_w12_sig(Kint,3)+" V/rad。";
@@ -388,7 +394,7 @@
       if(ok){var r=_w12_resp(U,num,den,tEnd,900),inf=_w12_info(r.t,r.y,1),pts=[];for(var i=0;i<r.t.length;i++)pts.push([r.t[i],r.y[i]]);
         if(numE){var r2=_w12_resp(U,numE,den,tEnd,900),pe=[];for(var j=0;j<r2.t.length;j++)pe.push([r2.t[j],r2.y[j]]);o.push(Q.clip(pe,"gold",1.5,"5 3"));var inf2=_w12_info(r2.t,r2.y,1);}
         o.push(Q.clip(pts,"signal",2.2));
-        var okM=inf.Mp<=mp+1e-6,okT=inf.t2<=ts+1e-9;
+        var okM=inf.Mp<=mp+0.05,okT=inf.t2<=ts+0.0005;
         h+="閉ループの極 "+_w12_plist(rs)+"　応答: 行き過ぎ量 "+_w12_f(inf.Mp,1)+" %（上限 "+mp+" %）"+(okM?'<span class="ok"> 満たす</span>':'<span class="warn"> 満たさない</span>')+"、2 % 整定時間 "+(isFinite(inf.t2)?_w12_sig(inf.t2,3)+" s":"—")+"（上限 "+ts+" s）"+(okT?'<span class="ok"> 満たす</span>':'<span class="warn"> 満たさない</span>');
         if(numE)h+="<br>金の破線: D 動作を偏差に掛けた場合（閉ループの零点 "+_w12_sig(-1/(numE[0]/numE[1]),3)+" が加わる）: 行き過ぎ量 "+_w12_f(inf2.Mp,1)+" %、2 % 整定時間 "+_w12_sig(inf2.t2,3)+" s";}
       o.push(S.T(Q.x,Q.y-6,"青: 目標値の単位ステップ"+(M===1?"（D 動作は測った制御量に）":""),"start",9,"muted"));
