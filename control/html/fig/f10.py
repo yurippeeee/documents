@@ -417,7 +417,7 @@ def _f10_d_predict_fig():
     TD = 0.02 / 0.84
     eD = 1.0 - thD
     pred = eD - TD * wD
-    o.append(TX(14, 18, "(a) 偏差（目標 1 rad。PD: K_P = 0.84 V/rad、K_D = 0.02 V·s/rad、T = K_D/K_P = 0.0238 s）", "start", 11, INK, True))
+    o.append(TX(14, 18, "(a) 偏差（目標 1 rad。PD: K_P = 0.84 V/rad、K_D = 0.02 V·s/rad、K_D/K_P = 0.0238 s）", "start", 11, INK, True))
     p = Plot(70, 32, 600, 140, (0, 0.3), (-0.4, 1.05))
     o.append(p.axes(xl=None, yl="偏差 e [rad]", xt=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], yt=[-0.4, 0, 0.4, 0.8], xfmt=lambda v: "", yfmt=_f10_n, sz=9))
     o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
@@ -433,9 +433,9 @@ def _f10_d_predict_fig():
     k2 = int(round((t1 + TD) / (t[1] - t[0])))
     o.append(D(p.X(t1 + TD), p.Y(eD[k2]), SIG, 3))
     o.append(TX(p.X(t1) - 8, p.Y(e1) + 14, "t_1 = 0.04 s", "end", 9.5, SIG, True, halo=True))
-    o.append(TX(p.X(t1 + TD) + 6, p.Y(e1 + de1 * TD) + 12, "接線で T 先を予想: e + T de/dt = %s" % _f10_f(e1 + de1 * TD, 3), "start", 9.5, _F10_CD, True, halo=True))
-    o.append(TX(p.X(t1 + TD) + 6, p.Y(e1 + de1 * TD) + 26, "（T 後の本当の偏差は %s rad）" % _f10_f(eD[k2], 3), "start", 9.5, SIG, halo=True))
-    o.append(T(p.X(0.13), p.Y(-0.33), "比例だけ（K_P = 0.84）の偏差: 0 を大きく行き過ぎる", "start", 9.5, MUT, True, halo=True))
+    o.append(TX(p.X(t1 + TD) + 6, p.Y(e1 + de1 * TD) + 12, "接線で K_D/K_P 先を予想: e + (K_D/K_P) de/dt = %s" % _f10_f(e1 + de1 * TD, 3), "start", 9.5, _F10_CD, True, halo=True))
+    o.append(TX(p.X(t1 + TD) + 6, p.Y(e1 + de1 * TD) + 26, "（K_D/K_P 後の本当の偏差は %s rad）" % _f10_f(eD[k2], 3), "start", 9.5, SIG, halo=True))
+    o.append(TX(p.X(0.13), p.Y(-0.33), "比例だけ（K_P = 0.84 V/rad）の偏差: 0 を大きく行き過ぎる", "start", 9.5, MUT, True, halo=True))
     o.append(T(p.X(0.24), p.Y(0.2), "PD の偏差", "middle", 9.5, SIG, True, halo=True))
     # (b) 電圧の内訳
     o.append(T(14, 212, "(b) PD の電圧の内訳", "start", 11, INK, True))
@@ -451,8 +451,8 @@ def _f10_d_predict_fig():
     o.append(T(q.X(t[km]) + 8, q.Y(uD[km]) + 4, "D の分: 角速度 %s rad/s × 0.02 = %s V（ブレーキ）" % (_f10_f(wD[km], 1), _f10_f(uD[km], 3)), "start", 9.5, _F10_CD, True, halo=True))
     kz = int(_f10_np.argmax(uP + uD < 0))
     o.append(T(q.X(t[kz]) + 6, q.Y(0.12), "%s s: 合計が負になる（偏差はまだ %s rad 残っている）" % (_f10_f(t[kz], 3), _f10_f(eD[kz], 2)), "start", 9.5, INK, True, halo=True))
-    o.append(LEGL(70, 398, [(INK, None, "電圧の合計"), (_F10_CP, None, "P の分 K_P e"), (_F10_CD, None, "D の分 K_D de/dt"), (_F10_CD, "6 3", "予想した偏差 e + T de/dt"), (MUT, "5 3", "比例だけの偏差")], 9.5, 14))
-    return _f10_svg(700, 408, o, "D 動作は、偏差の傾きから、少し先の偏差を予想して電圧を決める。(a) K_P e + K_D de/dt = K_P(e + T de/dt)（T = K_D/K_P）で、e + T de/dt は、今の点で引いた接線の T 後の値である。(b) 角度が目標へ速く近づく間、D の分は負になってブレーキをかけ、偏差が 0 になる前に電圧の合計を負にする。比例だけでは、偏差が 0 になるまで加速の電圧を出し続けるので、大きく行き過ぎる。")
+    o.append(LEGL(70, 398, [(INK, None, "電圧の合計"), (_F10_CP, None, "P の分 K_P e"), (_F10_CD, None, "D の分 K_D de/dt"), (_F10_CD, "6 3", "予想した偏差 e + (K_D/K_P) de/dt"), (MUT, "5 3", "比例だけの偏差")], 9.5, 14))
+    return _f10_svg(700, 408, o, "D 動作は、偏差の傾きから、少し先の偏差を予想して電圧を決める。(a) K_P e + K_D de/dt = K_P{e + (K_D/K_P) de/dt} で、e + (K_D/K_P) de/dt は、今の点で引いた接線の K_D/K_P 後の値である。(b) 角度が目標へ速く近づく間、D の分は負になってブレーキをかけ、偏差が 0 になる前に電圧の合計を負にする。比例だけでは、偏差が 0 になるまで加速の電圧を出し続けるので、大きく行き過ぎる。")
 F["e10_d_predict"] = _f10_d_predict_fig()
 
 

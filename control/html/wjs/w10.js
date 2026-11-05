@@ -147,21 +147,21 @@
 
   /* ---- 5 節: 対象ごとの効き方（P・I・D の分に分けて見る） ---- */
   var _W10_PD={
-    mpos:{kp:[0.1,0.21,0.42,0.84,1.5,3],kpu:"V/rad",ti:[0.05,0.1,0.168,0.3,0.5,1],td:[0.005,0.01,0.0238,0.04,0.06,0.1],
-      pre:[["比例だけ（0.21 V/rad）",0,1,2,2],["PD（本文の例）",2,3,2,2],["PID（本文の例）",3,3,2,2],["PID で K_P = 0.21",3,1,2,2]],
-      tEnd:2.0,h:2e-4,ev:5,td0:1.0,dist:"1.0 s から負荷トルク 0.01 N·m（−1 V）",dv:-1,r:1,band:0.02},
+    mpos:{kp:[0.1,0.21,0.42,0.84,1.5,3],kpu:"V/rad",ti:[0.05,0.1,0.168,0.3,0.42,1],td:[0.005,0.01,0.0238,0.04,0.06,0.1],
+      pre:[["比例だけ（0.21 V/rad）",0,1,2,2],["PD（本文の例）",2,3,2,2],["PID（本文の例）",3,3,2,2],["PID で I を強く（T_I = 0.05 s）",3,3,0,2]],
+      def:2,tf:0.53,tEnd:2.0,h:1e-4,ev:10,td0:1.0,dist:"1.0 s から負荷トルク 0.01 N·m（−1 V）",dv:-1,r:1,band:0.02},
     mspd:{kp:[0.02,0.05,0.1,0.2,0.5,1],kpu:"V/(rad/s)",ti:[0.01,0.025,0.05,0.1,0.2,0.5],td:[0.0005,0.001,0.002,0.005,0.01,0.02],
       pre:[["比例だけ（0.1）",0,2,2,2],["PI（本文の例）",1,2,2,2],["比例だけ（0.5）",0,4,2,2],["PI に D を足す",3,2,2,2]],
-      tEnd:0.6,h:5e-5,ev:6,td0:0.3,dist:"0.3 s から負荷トルク 0.01 N·m（−1 V）",dv:-1,r:100,band:0.02},
+      def:1,tf:0.52,tEnd:0.6,h:5e-5,ev:6,td0:0.3,dist:"0.3 s から負荷トルク 0.01 N·m（−1 V）",dv:-1,r:100,band:0.02},
     plate:{kp:[6,12,18,24,30,36],kpu:"W/K",ti:[20,40,60,80,160,320],td:[2.5,5,10,15,20,40],
       pre:[["比例だけ（24 W/K）",0,3,1,2],["PI（12 W/K・80 s）",1,1,3,2],["PI（24 W/K・40 s）",1,3,1,2],["PID（24・40・10）",3,3,1,2]],
-      tEnd:1100,h:0.1,ev:5,td0:100,dist:"100 s に周りの温度が 25 °C から 15 °C に（−8 W）",dv:-8,r:35,band:0}
+      def:3,tf:0.13,tEnd:1100,h:0.1,ev:5,td0:100,dist:"100 s に周りの温度が 25 °C から 15 °C に（−8 W）",dv:-8,r:35,band:0}
   };
   REG.w10_pid=function(el,U){
     var S=U.S,ctl=U.ctl,keys=["mpos","mspd","plate"];
     U.head(el,"PID","P・I・D の分に分けて見る — モータの角速度・角度、温度の板");
     var r1=U.ctrls(el);
-    var pl=U.select(r1,"対象",["モータの角度 1000/(s(s + 20))","モータの角速度 50/(0.05s + 1)","温度の板（むだ時間 20 s）"],0,function(){relabel();preset(cur().pre[2]);});
+    var pl=U.select(r1,"対象",["モータの角度 1000/(s(s + 20))","モータの角速度 50/(0.05s + 1)","温度の板（むだ時間 20 s）"],0,function(){relabel();preset(cur().pre[cur().def]);});
     var md=U.select(r1,"制御器",["比例だけ","PI","PD","PID"],3,function(){run();});
     function cur(){return _W10_PD[keys[pl.get()]];}
     var r2=U.ctrls(el);
@@ -177,7 +177,7 @@
     U.button(br,"■ 止める",function(){tk.stop();});
     var pbs=[0,1,2,3].map(function(k){return U.button(br,"",function(){preset(cur().pre[k]);});});
     function relabel(){pbs.forEach(function(b,k){b.innerHTML=_w10_h(cur().pre[k][0]);});}
-    function preset(p){tk.stop();md.set(p[1]);kp.set(p[2]);ti.set(p[3]);td.set(p[4]);ds.set(true);st.set(0.25);run();}
+    function preset(p){tk.stop();md.set(p[1]);kp.set(p[2]);ti.set(p[3]);td.set(p[4]);ds.set(true);st.set(cur().tf);run();}
     var box=U.svgbox(el),ro=U.readout(el),R=null;
     function run(){
       var key=keys[pl.get()],c=cur(),P=_W10_PL[key],M=+md.get(),KP=c.kp[kp.get()],TI=c.ti[ti.get()],TD=c.td[td.get()];
@@ -191,7 +191,7 @@
       var bad=y.length<t.length||y.some(function(v){return !isFinite(v)||Math.abs(v)>1e6;});res.bad=bad;
       if(key==="plate"){var ptf=ctl.series(ctl.tf(P.num,P.den,P.L),_w10_C(U,KP,KI,KD,null));res.mg=ctl.margins(ptf,1e-4,10);}
       else{var Cs=_w10_C(U,KP,KI,KD,null),PO=ctl.poly;res.ps=PO.roots(PO.add(PO.mul(P.den,Cs.den),PO.mul(P.num,Cs.num)));}
-      R=res;draw();
+      R=res;st.set(st.get());draw();
     }
     function draw(){
       if(!R)return;var key=R.key,c=cur(),P=_W10_PL[key],t=R.t,y=R.yy,n=t.length,nar=_w10_nar(box),Wd=nar?400:700,o=[];
@@ -220,9 +220,9 @@
         o.push(S.T(px+20,py+114,"周り "+(R.D&&t[ix]>=c.td0?"15":"25")+" °C","start",9.5,"purple",true));
         o.push(S.TX(px+8,py+ph+12,"θ = "+_w10_f(tp,2)+" °C（目標 60）","start",10,"signal",true,true));}
       /* P・I・D の棒 */
-      var by=py+ph+30,bx0=px+40,bw=pw-50,vals=[[R.uP[ix],"P","gold"],[R.uI[ix],"I","green"],[R.uD[ix],"D","teal"],[R.u[ix],"計","ink"]];
+      var by=py+ph+44,bx0=px+40,bw=pw-50,vals=[[R.uP[ix],"P","gold"],[R.uI[ix],"I","green"],[R.uD[ix],"D","teal"],[R.u[ix],"計","ink"]];
       var um=0;for(var k=0;k<n;k++){um=Math.max(um,Math.abs(R.uP[k]),Math.abs(R.uI[k]),Math.abs(R.uD[k]),Math.abs(R.u[k]));}um=Math.min(um,1e6)||1;
-      var z=bx0+bw/2;o.push(S.T(px,by-6,R.D&&key!=="plate"?"操作量の内訳 ["+P.uu+"]":"操作量の内訳 ["+P.uu+"]","start",10,"ink",true));
+      var z=bx0+bw/2;o.push(S.T(px,by-6,"操作量の内訳 ["+P.uu+"]","start",10,"ink",true));
       vals.forEach(function(v,k){var yy=by+6+k*20,len=v[0]/um*bw/2;o.push(S.T(bx0-8,yy+11,v[1],"end",10,v[2],true));
         o.push(S.RECT(Math.min(z,z+len),yy+2,Math.abs(len),12,2,U.soft(v[2]),v[2],1));o.push(S.T(z+(len>=0?len+4:len-4),yy+12,_w10_g(v[0],3),len>=0?"start":"end",9,v[2],false,false,null,true));});
       o.push(S.L(z,by+4,z,by+86,"muted",1));
@@ -261,18 +261,22 @@
       if(key==="plate"){var y0=y[0],m1=-Infinity,mn=Infinity,lastOut=-1;for(var k2=0;k2<n;k2++){if(t[k2]<t0)continue;mn=Math.min(mn,y[k2]);if(Math.abs(y[k2]-y[n-1])>0.1)lastOut=k2;}
         hs+="始めの温度 "+_w10_f(y0,2)+" °C（偏差 "+_w10_f(60-y0,2)+" K）";
         if(R.D)hs+="。周りの温度が下がった後: 最も低い "+_w10_f(mn,2)+" °C（"+_w10_f(mn-y0,2)+" K）、"+(R.KI?(Math.abs(y[n-1]-60)<0.02&&lastOut>=0&&lastOut+1<n?"±0.1 K に戻るまで <b>"+_w10_g(t[lastOut+1]-t0,3)+" s</b>":'<span class="warn">表示の時間の中で ±0.1 K に戻らない</span>'):"落ち着く温度 "+_w10_f(y[n-1],2)+" °C（偏差 "+_w10_f(60-y[n-1],2)+" K）");
-        hs+="<br>";if(R.mg)hs+="一巡伝達関数: ゲイン交差角周波数 "+(R.mg.wgc?_w10_g(R.mg.wgc,3)+" rad/s、位相余裕 <b>"+_w10_f(R.mg.pm,1)+"°</b>":"なし")+"<br>";}
-      else{var me=_w10_met(t,y,c.r,0,R.D?t0:null,0.02),yb=at(R.D?t0-1e-9:R.tEnd);
-        hs+="目標値の変化: "+(Math.abs(yb-c.r)>0.005*c.r?"落ち着く値 "+_w10_g(yb,4)+" "+yu+"（偏差 <b>"+_w10_g(c.r-yb,3)+" "+yu+"</b>）":"偏差なし、行き過ぎ量 <b>"+_w10_f(Math.max(0,me.mp),1)+" %</b>、2 % 整定時間 <b>"+(isFinite(me.ts)?_w10_g(me.ts,3)+" s":"—")+"</b>")+"<br>";
-        if(R.D){var mn2=Infinity,tmn=0,last2=-1,bandv=key==="mpos"?0.02:2;for(var k3=0;k3<n;k3++){if(t[k3]<t0)continue;if(y[k3]<mn2){mn2=y[k3];tmn=t[k3];}if(Math.abs(y[k3]-c.r)>bandv)last2=k3;}
-          var fin=y[n-1];hs+="負荷の後: 最も下がって "+_w10_g(mn2,4)+" "+yu+"（"+_w10_g(tmn-t0,3)+" s 後）、"+(Math.abs(fin-c.r)<bandv*0.5&&last2>=0&&last2+1<n?"±"+bandv+" "+yu+" に戻るまで <b>"+_w10_g(t[last2+1]-t0,3)+" s</b>":"ずれ <b>"+_w10_g(c.r-fin,3)+" "+yu+"</b> が残る")+"<br>";}
+        hs+="<br>";if(R.mg)hs+="一巡伝達関数: ゲイン交差角周波数 "+(R.mg.wgc?_w10_g(R.mg.wgc,3)+" rad/s、位相余裕 <b>"+_w10_f(R.mg.pm,1)+"°</b>":"なし")+(R.mg.pm!=null&&R.mg.pm<0?' <span class="warn">位相余裕が負: 閉ループは不安定で、振れが大きくなり続ける（9 章 6 節）</span>':"")+"<br>";}
+      else{/* 落ち着く値は式で求める（I 動作があるか、角度（対象が積分を含む）なら目標値。速度の比例だけなら KK_P/(1 + KK_P) 倍） */
+        var KK=50*R.KP,yf=(R.KI||key==="mpos")?c.r:c.r*KK/(1+KK),bandv=key==="mpos"?0.02:2,unst=R.ps&&_w10_rhp(R.ps);
+        var me=_w10_met(t,y,yf,0,R.D?t0:null,0.02),tw=R.D?t0:R.tEnd;
+        if(unst)hs+='<span class="warn">閉ループが不安定</span><br>';
+        else{hs+="目標値の変化: "+(Math.abs(yf-c.r)>1e-9?"落ち着く値 "+_w10_g(yf,3)+" "+yu+"（偏差 <b>"+_w10_g(c.r-yf,3)+" "+yu+"</b>）、":"偏差なし、")+"行き過ぎ量 <b>"+_w10_f(Math.max(0,me.mp),1)+" %</b>、2 % 整定時間 <b>"+(isFinite(me.ts)?_w10_g(me.ts,3)+" s":"—</b>（"+_w10_g(tw,3)+" s までに落ち着かない）<b>")+"</b><br>";
+        if(R.D){if(R.KI){var mn2=Infinity,tmn=0,last2=-1;for(var k3=0;k3<n;k3++){if(t[k3]<t0)continue;if(y[k3]<mn2){mn2=y[k3];tmn=t[k3];}if(Math.abs(y[k3]-c.r)>bandv)last2=k3;}
+            hs+="負荷の後: 最も下がって "+_w10_g(mn2,3)+" "+yu+"（目標からのずれ "+_w10_g(c.r-mn2,3)+" "+yu+"、"+_w10_g(tmn-t0,3)+" s 後）、"+(last2>=0&&last2+1<n?"±"+bandv+" "+yu+" に戻るまで <b>"+_w10_g(t[last2+1]-t0,3)+" s</b>":'<span class="warn">表示の時間の中では ±'+bandv+" "+yu+" に戻りきらない</span>")+"<br>";}
+          else{var yd=key==="mpos"?c.r+c.dv/R.KP:yf+50*c.dv/(1+KK);hs+="負荷の後: 落ち着く値 "+_w10_g(yd,3)+" "+yu+"（目標からのずれ <b>"+_w10_g(c.r-yd,3)+" "+yu+"</b>）。I 動作が無いので、ずれが残る<br>";}}}
         if(R.ps)hs+="閉ループの極: "+_w10_poles(R.ps)+(_w10_rhp(R.ps)?' <span class="warn">不安定</span>':"")+"<br>";}
       var umax=Math.max.apply(null,R.u),umin=Math.min.apply(null,R.u);hs+=P.ulab+"の範囲: "+_w10_g(umin,3)+"〜"+_w10_g(umax,3)+" "+uu;
-      if(umax>P.uhi+1e-9||umin<P.ulo-1e-9)hs+=' <span class="warn">出せる範囲（'+P.ulo+"〜"+P.uhi+" "+uu+"）を超える。実際にはこのとおりには動かない（11 章 4 節）</span>";
+      if(umax>P.uhi+1e-9||umin<P.ulo-1e-9)hs+=' <span class="warn">出せる範囲（'+_w10_g(P.ulo,3)+"〜"+_w10_g(P.uhi,3)+" "+uu+"）を超える。実際にはこのとおりには動かない（11 章 4 節）</span>";
       if(R.M>=2&&key==="mspd")hs+="<br>一次遅れの対象に D 動作を足すと、閉ループの時定数が (T + KK<sub>D</sub>)/(1 + KK<sub>P</sub>) = "+_w10_g((0.05+50*R.KD)/(1+50*R.KP),3)+" s に延びる";
       ro.innerHTML=hs+'<div class="wnote">D 動作は測った制御量の変わる速さに掛け（3 節）、理想の微分として計算した。刻み '+_w10_g(c.h,2)+' s の数値計算。操作量の上限・下限は考えていない。値はどれも例の値。</div>';
     }
-    relabel();preset(_W10_PD.mpos.pre[2]);
+    relabel();preset(_W10_PD.mpos.pre[_W10_PD.mpos.def]);
   };
 
   function _w10_mix(a,b){var o={},k;for(k in a)o[k]=a[k];for(k in b)o[k]=b[k];return o;}
@@ -336,7 +340,7 @@
       o.push(S.LEGL(lx,ly,[["muted","5 3","理想の微分 K_P T_D ω"]],9,10));
       if(N!=null)o.push(S.LEGL(lx,ly+16,[["teal",null,"不完全微分（上限 K_P N = "+_w10_g(KP*N,3)+"）"]],9,10));
       o.push(S.LEGL(lx,ly+32,[["gold","4 3","P の分 K_P"]],9,10));
-      box.set(S.svg(Wd,ly+44,o));
+      box.set(S.svg(Wd,Math.max(ly+44,G.y+G.h+46),o));
       /* 読み出し */
       var win=Rn.u.filter(function(v,i){return Rn.t[i]>=tw;}),sdu=_w10_sd(win),hs="";
       hs+="落ち着いた後（"+tw+" s から）の"+(p===0?"電圧":"電力")+"の揺れ（標準偏差）: <b>"+_w10_g(sdu,3)+" "+P.uu+"</b>";
@@ -371,10 +375,10 @@
     var box=U.svgbox(el),ro=U.readout(el);
     function run(){
       var p=pl.get(),N=Ns[nn.get()],b=Bs[bb.get()],D=ds.get(),key=p===0?"mpos":"plate",P=_W10_PL[key];
-      var KP=p===0?0.84:24,KI=p===0?5:0.6,KD=p===0?0.02:240,ts=p===0?0.1:100,dz=p===0?1.1:900,tEnd=p===0?(D?2.1:1.2):(D?1500:900),h=p===0?1e-4:0.05;
+      var KP=p===0?0.84:24,KI=p===0?5:0.6,KD=p===0?0.02:240,ts=p===0?0.1:100,dz=p===0?1.1:900,tEnd=p===0?(D?2.1:1.2):(D?1500:900),h=p===0?1e-5:0.05;
       var off=p===0?0:25,r0=p===0?0:35,r1v=p===0?1:37,dv=p===0?-1:-8;
       var cases=[["偏差の微分（b = 1）","e",1,"alias"],["測定値の微分（b = 1）","y",1,"signal"],["測定値の微分（b = "+b+"）","y",b,"green"]];
-      var res=cases.map(function(cs){var o={KP:KP,KI:KI,KD:KD,N:N,dmode:cs[1],b:cs[2],deriv:"diff",h:h,tEnd:tEnd,every:1,
+      var res=cases.map(function(cs){var o={KP:KP,KI:KI,KD:KD,N:N,dmode:cs[1],b:cs[2],deriv:"diff",h:h,tEnd:tEnd,every:p===0?10:1,
         r:function(t){return t>=ts-1e-12?r1v:r0;},d:function(t){return D&&t>=dz?dv:0;}};
         if(p===1){o.x0=[35];o.I0=28+KP*(1-cs[2])*35;}return _w10_sim(U,P,o);});
       var nar=_w10_nar(box),Wd=nar?400:700,x0=nar?52:62,pw=nar?330:610,o=[],stp=Math.max(1,Math.round(res[0].t.length/2500));
