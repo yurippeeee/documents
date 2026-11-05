@@ -199,7 +199,7 @@
       if(lp&&!o.carry&&nl===2&&!A&&!o.noise){var vv=Object.keys(lev).map(Number).sort(function(a,b){return a-b;}),sw=[];for(i=1501;i<r.v.length;i++)if(r.v[i]!==r.v[i-1])sw.push(i);
         var m2c=Math.floor((sw.length-1)/2),D=0,Tw=0;if(m2c>=1){var a0=sw[0],a1=sw[2*m2c],hc=0;for(i=a0;i<a1;i++)if(Math.abs(r.v[i]-vv[1])<1e-9)hc++;D=hc/(a1-a0);Tw=(a1-a0)/m2c;}
         if(Tw>0)h+="2 つの段を往復: 上の段の割合 D = "+_w16_f(D,2)+"、周期 "+_w16_g(Tw,3)+" s。式 D(1 − D)KΔu T<sub>w</sub>/T = "+_w16_g(D*(1-D)*kdu*Tw/500,2)+" K<br>";}
-      ro.innerHTML=h+'<div class="wnote">本文 3 節の場面。温度は 0〜102.4 °C を ADC の値に比例するように、ヒータは 0〜80 W を PWM の段で出すとした（例の値）。読みは 20 s 遅れ、1 s ごとに制御する。右の図の点は、出力をその段にとどめたときに板が行き着く温度で、緑の帯（偏差の読みが 0 になる範囲）に入る点があれば、I の分はそこで止まれる。</div>';
+      ro.innerHTML=h+'<div class="wnote">本文 3 節の場面。温度は 0〜102.4 °C を ADC の値に比例するように、ヒータは 0〜80 W を PWM の段で出すとした（例の値）。読みは 20 s 遅れ、1 s ごとに制御する。「行き着く温度」の図の点は、出力をその段にとどめたときに板が行き着く温度で、緑の帯（偏差の読みが 0 になる範囲）に入る点があれば、I の分はそこで止まれる。</div>';
     }
     draw();
   };
