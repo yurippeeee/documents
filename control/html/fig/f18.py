@@ -80,11 +80,11 @@ def _f18_run(F, x0, T, h=0.001, nl=True, umax=None, push=None, dist=None, r=None
             u = max(-umax, min(umax, u))
         return u
 
+    cur = [0.0, 0.0]          # 押す力と外乱（刻みの始めの時刻で決め、その刻みの間は一定。変わる時刻は刻みの境目にそろえる）
+
     def f(t, x):
         u = ctrl(t, x)
-        fd = push[2] if (push and push[0] - 1e-12 <= t < push[0] + push[1] - 1e-12) else 0.0
-        d = dist(t) if dist else 0.0
-        dx = plant(x, u, fd, d)
+        dx = plant(x, u, cur[0], cur[1])
         if fI is not None:
             dx = dx + [(r(t) if r else 0.0) - x[0]]
         return dx
@@ -94,7 +94,10 @@ def _f18_run(F, x0, T, h=0.001, nl=True, umax=None, push=None, dist=None, r=None
     ts, xs, us = [0.0], [x.copy()], [ctrl(0.0, x)]
     fell = False
     for k in range(n):
-        x = _f18_rk4(f, k * h, x, h)
+        tk = k * h
+        cur[0] = push[2] if (push and push[0] - 1e-9 <= tk < push[0] + push[1] - 1e-9) else 0.0
+        cur[1] = dist(tk + 1e-9) if dist else 0.0
+        x = _f18_rk4(f, tk, x, h)
         if (k + 1) % every == 0:
             ts.append((k + 1) * h); xs.append(x.copy()); us.append(ctrl((k + 1) * h, x))
         if abs(x[2]) > math.pi / 2:
@@ -1043,3 +1046,253 @@ def _f18_pend_limit_fig():
 
 
 F["e18_pend_limit"] = _f18_pend_limit_fig()
+
+
+# =====================================================================
+# 5 節: 積分型サーボ系
+# =====================================================================
+_F18_CY = _f18_np.array([1.0, 0, 0, 0])
+_F18_AI = _f18_np.block([[_F18_AP, _f18_np.zeros((4, 1))], [-_F18_CY[None, :], _f18_np.zeros((1, 1))]])
+_F18_BI = _f18_np.concatenate([_F18_BP, [0.0]])
+_F18_FI = _f18_acker(_F18_AI, _F18_BI, [-4.0] * 5)          # [−19.57, −10.26, −36.74, −6.079, 15.66]
+
+
+def _f18_servo_bd_fig():
+    o = []
+    yc = 70
+    o.append(T(14, 18, "積分型サーボ系（台車の位置 y = p を目標値 r に追従させる）", "start", 11.5, INK, True))
+    s, pos, xe = CHAIN(14, yc, [("a", 30, "r", MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 34, "e", INK),
+                                ("b", ("1", "s"), "I", SIG, SSOFT), ("a", 34, "w", SIG), ("b", "f_I", "fi"), ("a", 30, None, GLD),
+                                ("s", {"l": "−", "b": "−"}, "s2"), ("a", 34, "u", GLD), ("s", {"l": "+", "t": "+"}, "s3"),
+                                ("a", 30, None, GLD), ("b", "\\dot{x} = Ax + Bu + Bd", "P", SIG, SSOFT)])
+    o.append(s)
+    o.append(TOPIN(pos["s3"], yc, 40, "外乱 d", PUR))
+    o.append(T((pos["I"][0] + pos["I"][1]) / 2, yc + 36, "偏差の積分", "middle", 9.5, SIG, True))
+    o.append(T((pos["I"][0] + pos["I"][1]) / 2, yc + 49, "（5 つ目の状態 w）", "middle", 9.5, SIG))
+    xt = xe + 40
+    o.append(W(xe, yc, xt + 26, yc, c=SIG, lw=4))
+    o.append(_head(xt + 16, yc, xt + 36, yc, SIG, 10))
+    o.append(T(xe + 6, yc - 9, "x", "start", 11, SIG, True, halo=True))
+    o.append(D(xt, yc, SIG, 4.6))
+    y1, y2 = yc + 70, yc + 116
+    o.append(W(xt, yc, xt, y2, c=SIG, lw=4))
+    wF = TFBW("F")
+    xmF = (xt + pos["s2"]) / 2 + 40
+    o.append(W(xt, y1, xmF + wF / 2 + 4, y1, c=SIG, lw=4))
+    o.append(_head(xmF + wF / 2 + 22, y1, xmF + wF / 2, y1, SIG, 10))
+    o.append(TFBOX(xmF - wF / 2, y1, "F", wF, SIG, PAN)[0])
+    o.append(W(xmF - wF / 2, y1, pos["s2"], y1, c=GLD, lw=1.5))
+    o.append(ARR(pos["s2"], y1, pos["s2"], yc + 15, c=GLD, lw=1.5, head=6))
+    o.append(TX((xmF - wF / 2 + pos["s2"]) / 2, y1 - 6, "Fx", "middle", 10, GLD, True, halo=True))
+    wC = TFBW("C")
+    xmC = (xt + pos["s1"]) / 2 + 60
+    o.append(W(xt, y2, xmC + wC / 2 + 4, y2, c=SIG, lw=4))
+    o.append(_head(xmC + wC / 2 + 22, y2, xmC + wC / 2, y2, SIG, 10))
+    o.append(TFBOX(xmC - wC / 2, y2, "C", wC, LIN, PAN)[0])
+    o.append(W(xmC - wC / 2, y2, pos["s1"], y2, c=SIG, lw=1.5))
+    o.append(ARR(pos["s1"], y2, pos["s1"], yc + 15, c=SIG, lw=1.5, head=6))
+    o.append(TX((xmC - wC / 2 + pos["s1"]) / 2, y2 - 6, "y = Cx = p", "middle", 10, SIG, True, halo=True))
+    o.append(_f18_tx(14, y2 + 40, "u = −Fx − f_{I}w = −[F  f_{I}][x; w]（状態が 5 つの系の状態フィードバック）。落ち着くと \\dot{w} = r − y = 0 なので y = r", "start", 10.5, INK))
+    return SVG(700, y2 + 54, o,
+               "積分型サーボ系のブロック線図。偏差 e = r − y を積分した w を新しい状態にし、元の状態 x と合わせた 5 つの状態に状態フィードバックを掛ける。閉ループが安定なら、落ち着いたとき w の変わる速さ e が 0 なので、一定の外乱 d があっても制御量 y は目標値 r に一致する。外乱を打ち消す一定の力は、たまった積分 w が出す。")
+
+
+F["e18_servo_bd"] = _f18_servo_bd_fig()
+
+
+def _f18_servo_resp_fig():
+    o = []
+    r = lambda t: 0.5
+    d = lambda t: 0.5 if t >= 6.0 else 0.0
+    tn, xn, un, fn = _f18_run(_F18_F4, [0, 0, 0, 0], 14.0, h=0.002, r=r, dist=d)
+    ti, xi, ui, fi = _f18_run(_F18_FI[:4], [0, 0, 0, 0], 14.0, h=0.002, r=r, dist=d, fI=_F18_FI[4])
+    o.append(T(14, 18, "台車を 0.5 m 右の目標へ運び、6 s に右向き 0.5 N の外乱を加える（線形でない式）", "start", 11.5, INK, True))
+    specs = [("台車の位置 p [m]", 0, (-0.1, 0.7), [0, 0.2, 0.4, 0.6], 1.0, 120),
+             ("振子の角度 φ [°]", 2, (-4, 8), [-4, 0, 4, 8], 180 / math.pi, 70),
+             ("力 u [N]", None, (-2.2, 1.4), [-2, -1, 0, 1], 1.0, 70)]
+    y = 40
+    Ps = []
+    for k, (yl, idx, yr, yt, scl, hh) in enumerate(specs):
+        q = Plot(64, y, 600, hh, (0, 14), yr)
+        o.append(q.axes(xl="時間 t [s]" if k == 2 else None, yl=None, xt=[0, 2, 4, 6, 8, 10, 12, 14], yt=yt,
+                        xfmt=(lambda v: "%g" % v) if k == 2 else (lambda v: ""), yfmt=lambda v: _f18_ff(v), sz=9))
+        o.append(TX(q.x + 6, q.y + 12, yl, "start", 9.5, INK, True, halo=True))
+        o.append(W(q.X(6), q.y, q.X(6), q.y + q.h, c=PUR, lw=1, dash="3 3"))
+        if k == 0:
+            o.append(W(q.X(0), q.Y(0.5), q.X(14), q.Y(0.5), c=MUT, lw=1.2, dash="6 4"))
+        else:
+            o.append(W(q.X(0), q.Y(0), q.X(14), q.Y(0), c=FNT, lw=1))
+        ya = (un if idx is None else xn[:, idx]) * scl
+        yb_ = (ui if idx is None else xi[:, idx]) * scl
+        o.append(q.clip(list(zip(tn, ya)), c=ALI, lw=1.8, dash="6 3"))
+        o.append(q.clip(list(zip(ti, yb_)), c=GRN, lw=2.2))
+        Ps.append(q)
+        y += hh + 26
+    q = Ps[0]
+    o.append(T(q.X(6) + 4, q.Y(0.2), "外乱 0.5 N", "start", 9.5, PUR, True, halo=True))
+    o.append(T(q.X(14) - 4, q.Y(0.5) - 6, "目標 0.5 m", "end", 9.5, MUT, halo=True))
+    o.append(T(q.X(13.8), q.Y(0.3723) + 14, "積分なし: 12.8 cm 左で止まる", "end", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(8.9), q.Y(0.6), "積分あり: 左へ 2.8 cm ずれてから戻る", "start", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(2.1), q.Y(0.6), "先に左へ: 2.2 cm（積分なし）、1.1 cm（あり）", "start", 9.5, INK, halo=True))
+    o.append(LEGL(64, y + 18, [(ALI, "6 3", "積分なし u = −F(x − x_r)（4 節の F）"), (GRN, None, "積分型サーボ系（5 つの極を −4）")], 9.5, 16))
+    return SVG(700, y + 28, o,
+               "倒立振子の台車を 0.5 m 右へ運ぶ。積分なし（赤の破線）は、初めに左向き 1.96 N で押して台車を先に左へ動かし、振子を右へ傾けてから運ぶ。6 s に一定の外乱が加わると、12.8 cm のずれが残る。積分型サーボ系（緑）は、目標値が積分を通してだけ入るので初めの力は 0 で、外乱の後も、積分がたまって外乱を打ち消す −0.5 N を出し、目標の位置へ戻る。")
+
+
+F["e18_servo_resp"] = _f18_servo_resp_fig()
+
+
+# =====================================================================
+# 6 節: 極の速さ・観測ノイズ・並べ方
+# =====================================================================
+def _f18_speed_fig():
+    o = []
+    cases = [(2.0, TEA), (4.0, SIG), (8.0, PUR)]
+    o.append(TX(14, 18, "(a) 4 つの極を −ω_{p} に置いて、10° から立て直す", "start", 11.5, INK, True))
+    runs = []
+    for wp, c in cases:
+        F = _f18_acker(_F18_AP, _F18_BP, [-wp] * 4)
+        runs.append((wp, c, F) + _f18_run(F, [0, 0, math.radians(10), 0], 5.0, h=0.001)[:3])
+    specs = [("角度 φ [°]", 2, (-6, 11), [-5, 0, 5, 10], 180 / math.pi), ("台車の位置 p [cm]", 0, (-5, 50), [0, 20, 40], 100.0),
+             ("力 u [N]", None, (-4, 15), [0, 5, 10, 15], 1.0)]
+    y = 40
+    for k, (yl, idx, yr, yt, scl) in enumerate(specs):
+        q = Plot(58, y, 300, 70, (0, 5), yr)
+        o.append(q.axes(xl="時間 t [s]" if k == 2 else None, yl=None, xt=[0, 1, 2, 3, 4, 5], yt=yt,
+                        xfmt=(lambda v: "%g" % v) if k == 2 else (lambda v: ""), yfmt=lambda v: _f18_ff(v), sz=9))
+        o.append(TX(q.x + q.w - 4, q.y + 12, yl, "end", 9.5, INK, True, halo=True))
+        o.append(W(q.X(0), q.Y(0), q.X(5), q.Y(0), c=FNT, lw=1))
+        if idx is None:
+            o.append(W(q.X(0), q.Y(5), q.X(5), q.Y(5), c=ALI, lw=1, dash="4 3"))
+            o.append(T(q.X(5) - 2, q.Y(5) - 4, "5 N", "end", 9, ALI, halo=True))
+        for wp, c, F, ts, xs, us in runs:
+            ys = (us if idx is None else xs[:, idx]) * scl
+            o.append(q.clip(list(zip(ts, ys)), c=c, lw=1.9))
+        y += 96
+    o.append(LEGL(58, y + 22, [(TEA, None, "ω_p = 2 rad/s"), (SIG, None, "4 rad/s"), (PUR, None, "8 rad/s")], 9.5, 14))
+    # (b) ω_p に対する値
+    xb = 448
+    o.append(TX(xb - 40, 18, "(b) 極の速さ ω_p [rad/s] による違い", "start", 11.5, INK, True))
+    wps = [2, 3, 4, 5, 6, 8]
+    vals = {"u": [], "p": [], "lim": []}
+    for wp in wps:
+        F = _f18_acker(_F18_AP, _F18_BP, [-wp] * 4)
+        ts, xs, us, fell = _f18_run(F, [0, 0, math.radians(10), 0], 6.0, h=0.002)
+        vals["u"].append(float(_f18_np.abs(us).max())); vals["p"].append(float(_f18_np.abs(xs[:, 0]).max() * 100))
+        vals["lim"].append(_f18_maxtilt(F, 5.0))
+    rows = [("10° からの最大の力 [N]", "u", (0, 16), [0, 5, 10, 15], SIG), ("台車が動く最大の距離 [cm]", "p", (0, 50), [0, 25, 50], GLD),
+            ("上限 5 N で立て直せる傾き [°]", "lim", (0, 40), [0, 20, 40], GRN)]
+    for k, (yl, key, yr, yt, c) in enumerate(rows):
+        q = Plot(xb, 40 + k * 96, 230, 64, (1.5, 8.5), yr)
+        o.append(q.axes(xl="極の速さ ω_p [rad/s]" if k == 2 else None, yl=None, xt=wps, yt=yt,
+                        xfmt=(lambda v: "%g" % v) if k == 2 else (lambda v: ""), yfmt=lambda v: "%g" % v, sz=9))
+        if key == "u":
+            o.append(T(q.x + 6, q.y + 12, yl, "start", 9.5, INK, True, halo=True))
+            o.append(W(q.X(1.5), q.Y(5), q.X(8.5), q.Y(5), c=ALI, lw=1, dash="4 3"))
+            o.append(T(q.X(8.4), q.Y(5) + 12, "上限 5 N", "end", 9, ALI, halo=True))
+        else:
+            o.append(T(q.x + q.w - 4, q.y + 12, yl, "end", 9.5, INK, True, halo=True))
+        o.append(q.line(list(zip(wps, vals[key])), c=c, lw=2))
+        for w_, v in zip(wps, vals[key]):
+            o.append(D(q.X(w_), q.Y(v), c, 3))
+    return SVG(700, y + 34, o,
+               "倒立振子の 4 つの極を同じ点 −ω_p に置き、ω_p を変えて比べる（線形でない式、振子を 10° 傾けて放す）。(a) 極を遠くへ置くほど、振子は速く立ち、台車の動きも小さいが、初めに要る力が大きい。(b) 最大の力は ω_p とともに急に増え、上限 5 N（赤の破線）を超えると飽和して、立て直せる傾きが小さくなる。極が近いと、台車が大きく動く。")
+
+
+F["e18_speed"] = _f18_speed_fig()
+
+
+def _f18_noise_fig():
+    o = []
+    sig = _f18_np.array([0.001, 0.01, math.radians(0.1), math.radians(1.0)])
+    o.append(T(14, 18, "(a) 立っているときの力（状態の測定に観測ノイズ）", "start", 11.5, INK, True))
+    rng = _f18_np.random.default_rng(7)
+    h = 0.001
+    y = 40
+    for wp, c in ((4.0, SIG), (8.0, PUR)):
+        F = _f18_acker(_F18_AP, _F18_BP, [-wp] * 4)
+        Acl = _F18_AP - _f18_np.outer(_F18_BP, F)
+        Mx = _f18_np.zeros((5, 5)); Mx[:4, :4] = _F18_AP * h; Mx[:4, 4] = _F18_BP * h
+        E = _f18_la.expm(Mx); Ad, Bd = E[:4, :4], E[:4, 4]
+        x = _f18_np.zeros(4); us = []
+        for k in range(3000):
+            n = rng.normal(size=4) * sig
+            u = -F @ (x + n)
+            us.append(u)
+            x = Ad @ x + Bd * u
+        us = _f18_np.array(us[1000:])
+        q = Plot(58, y, 300, 70, (0, 2), (-1.5, 1.5))
+        o.append(q.axes(xl="時間 t [s]" if wp == 8.0 else None, yl=None, xt=[0, 0.5, 1, 1.5, 2], yt=[-1, 0, 1],
+                        xfmt=(lambda v: "%g" % v) if wp == 8.0 else (lambda v: ""), yfmt=lambda v: _f18_ff(v), sz=9))
+        tt = _f18_np.arange(len(us)) * h
+        o.append(q.line(list(zip(tt[::4], us[::4])), c=c, lw=1.0))
+        sd = math.sqrt(float(((_f18_np.abs(F) * sig) ** 2).sum()))
+        o.append(TX(q.x + 6, q.y + 12, "力 u [N]、ω_p = %g rad/s: 標準偏差 %s N" % (wp, _f18_fmt(sd, 2)), "start", 9.5, c, True, halo=True))
+        y += 96
+    o.append(T(14, y + 22, "ノイズの標準偏差（例の値）: 位置 1 mm、速度 1 cm/s、角度 0.1°、角速度 1 °/s", "start", 9.5, MUT))
+    # (b) 寄与
+    xb = 420
+    o.append(TX(xb - 30, 18, "(b) 力のノイズの内訳 |f_{i}| × 標準偏差 [N]", "start", 11.5, INK, True))
+    q = Plot(xb, 40, 250, 150, (0, 3), (0, 0.5))
+    o.append(q.axes(xl=None, yl=None, xt=[], yt=[0, 0.1, 0.2, 0.3, 0.4, 0.5], yfmt=lambda v: "%g" % v, sz=9))
+    cols = [(GLD, "位置"), (TEA, "速度"), (SIG, "角度"), (PUR, "角速度")]
+    for g_, wp in enumerate((2.0, 4.0, 8.0)):
+        F = _f18_acker(_F18_AP, _F18_BP, [-wp] * 4)
+        terms = _f18_np.abs(F) * sig
+        for j, (c, nm) in enumerate(cols):
+            x0 = q.X(g_ + 0.12 + j * 0.16)
+            o.append(RECT(x0, q.Y(terms[j]), q.X(0.14) - q.X(0), q.Y(0) - q.Y(terms[j]), 1, soft(c), c, 1.0))
+        tot = math.sqrt(float((terms ** 2).sum()))
+        o.append(W(q.X(g_ + 0.08), q.Y(tot), q.X(g_ + 0.8), q.Y(tot), c=ALI, lw=1.6))
+        o.append(T(q.X(g_ + 0.44), q.Y(tot) - 5, "計 %s" % _f18_fmt(tot, 2), "middle", 9, ALI, True, halo=True))
+        o.append(TX(q.X(g_ + 0.44), q.y + q.h + 15, "ω_p = %g" % wp, "middle", 9.5, INK))
+    o.append(LEGEND(xb - 20, q.y + q.h + 40, [(c, nm) for c, nm in cols], 9.5, 12))
+    o.append(T(xb - 20, q.y + q.h + 60, "赤の線: 合わせた標準偏差（2 乗の和の平方根）", "start", 9.5, ALI))
+    return SVG(700, max(y + 32, q.y + q.h + 72), o,
+               "状態を測る値に観測ノイズが加わると、力にはゲイン倍されたノイズが加わる（線形化した式、1 ms ごとに独立なノイズ）。(a) 極の速さ ω_p を 4 から 8 rad/s にすると、ゲインが大きくなり、力のノイズは約 5 倍になる。(b) ノイズの内訳。極を遠くへ置くほど、どの項も大きくなる。とくに速度と角速度の項が大きい。")
+
+
+F["e18_noise"] = _f18_noise_fig()
+
+
+def _f18_pattern_fig():
+    o = []
+    pats = [([-4.0] * 4, SIG, "−4 を 4 つ"), ([-3.0, -3.0, -6.0, -6.0], TEA, "−3 と −6 を 2 つずつ"), ([-2.0, -2.0, -8.0, -8.0], PUR, "−2 と −8 を 2 つずつ")]
+    o.append(T(14, 18, "(a) 極の並べ方", "start", 11.5, INK, True))
+    P = Plot(40, 40, 230, 80, (-9, 1), (-1.6, 1.6))
+    o.append(_f18_box(P)); o.append(SPLANE(P))
+    o.append(P.axes(xl="実部 [1/s]", yl=None, xt=[-8, -6, -4, -2, 0], yt=[], grid=False))
+    for k, (pl, c, nm) in enumerate(pats):
+        yy = 0.9 - k * 0.9
+        for z in sorted(set(pl)):
+            o.append(_f18_X(P, complex(z, yy), c, 5.5, 2.2))
+            o.append(T(P.X(z), P.Y(yy) - 9, "×%d" % pl.count(z), "middle", 9, c, True, halo=True))
+    o.append(T(40, 168, "（重ならないよう縦にずらして描いた。どれも実軸の上）", "start", 9, MUT))
+    o.append(T(14, 196, "10° から立て直すとき:", "start", 10, INK, True))
+    res = []
+    for pl, c, nm in pats:
+        F = _f18_acker(_F18_AP, _F18_BP, pl)
+        ts, xs, us, fell = _f18_run(F, [0, 0, math.radians(10), 0], 6.0, h=0.001)
+        idx = _f18_np.where(_f18_np.abs(xs[:, 0]) > 0.01)[0]
+        t1 = ts[idx[-1] + 1]
+        res.append((pl, c, nm, ts, xs, us, t1, float(_f18_np.abs(us).max())))
+    for k, (pl, c, nm, ts, xs, us, t1, um) in enumerate(res):
+        o.append(T(14, 216 + k * 18, "%s: ±1 cm に %s s、最大の力 %s N" % (nm, _f18_fmt(t1, 3), _f18_fmt(um, 3)), "start", 9.5, c, True))
+    xb = 330
+    o.append(T(xb - 30, 18, "(b) 台車の位置と力", "start", 11.5, INK, True))
+    q = Plot(xb, 40, 340, 100, (0, 4), (-2, 18))
+    o.append(q.axes(xl=None, yl=None, xt=[0, 1, 2, 3, 4], yt=[0, 5, 10, 15], xfmt=lambda v: "", yfmt=lambda v: "%g" % v, sz=9))
+    o.append(T(q.x + 6, q.y + 12, "台車の位置 p [cm]", "start", 9.5, INK, True, halo=True))
+    r = Plot(xb, 170, 340, 90, (0, 4), (-2, 5.5))
+    o.append(r.axes(xl="時間 t [s]", yl=None, xt=[0, 1, 2, 3, 4], yt=[-2, 0, 2, 4], xfmt=lambda v: "%g" % v, yfmt=lambda v: _f18_ff(v), sz=9))
+    o.append(T(r.x + 6, r.y + 12, "力 u [N]", "start", 9.5, INK, True, halo=True))
+    for v in (1, -1):
+        o.append(W(q.X(0), q.Y(v), q.X(4), q.Y(v), c=FNT, lw=0.8, dash="2 2"))
+    for pl, c, nm, ts, xs, us, t1, um in res:
+        o.append(q.clip(list(zip(ts, xs[:, 0] * 100)), c=c, lw=2))
+        o.append(r.clip(list(zip(ts, us)), c=c, lw=2))
+    return SVG(700, 300, o,
+               "同じくらいの速さでも、極の並べ方で要る力は変わる（倒立振子、線形でない式、10° から）。−4 を 4 つ置いたものと、−3 と −6 を 2 つずつ置いたものは、台車が ±1 cm に収まるまでの時間がほぼ同じだが、後者は最大の力が 15 % 大きい。−2 と −8 に分けると、遅く、力も大きい。")
+
+
+F["e18_pattern"] = _f18_pattern_fig()
