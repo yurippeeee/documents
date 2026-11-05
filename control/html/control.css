@@ -166,3 +166,8 @@ blockquote .dia svg{background:var(--panel)}
 
 @media (max-width:520px){body{font-size:15.5px}.ctrl{flex-basis:100%}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+
+/* 上の点（\dot{φ} を U.htx で書いたもの）。結合文字の点はフォントで位置が崩れるので、小さな円で描く */
+.ovd,.ovd2{position:relative;display:inline-block;line-height:1}
+.ovd::after,.ovd2::after{content:"";position:absolute;top:-.2em;left:50%;width:.17em;height:.17em;margin-left:-.085em;border-radius:50%;background:currentColor}
+.ovd2::after{margin-left:-.22em;box-shadow:.27em 0 0 currentColor}

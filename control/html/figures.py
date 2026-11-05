@@ -672,6 +672,16 @@ def _tx_tokens(s):
 
 _TX_SMALL = {"sub": 0.72, "sup": 0.72, "supsub": 0.72 * 0.8}   # 普通の文字に対する大きさ
 
+# 点を付ける文字の位置を決めるための、文字ごとの送り幅の見積もり（tw より細かく、英数字を幅で 5 つに分ける）。
+# 配置（中央・右寄せ）と重なりの検査は今までどおり tw で数え、これは \dot の点と、点を付ける文字の位置だけに使う
+_TX_ADV_TAB = {}
+for _cs, _w in ((" .,:;'|!ilIj`", 0.28), ('()[]{}ftr-"', 0.36), ("mwMW@%", 0.82), ("ABCDEFGHJKLNOPQRSTUVXYZ&", 0.66), ("=+<>~^*#$_/\\", 0.58), ("0123456789", 0.56)):
+    for _c in _cs:
+        _TX_ADV_TAB[_c] = _w
+_TX_ADV_G = {"ω": 0.8, "φ": 0.72, "ψ": 0.75, "θ": 0.62, "π": 0.62}   # 幅の広いギリシャ文字
+def _tx_adv(t, size):
+    return sum(size * _TX_ADV_TAB.get(ch, 0.53) if ord(ch) < 128 else (size * _TX_ADV_G[ch] if ch in _TX_ADV_G else tw(ch, size)) for ch in t)
+
 def TX(x, y, s, a="start", sz=10, c=INK, b=False, halo=False, rot=None):
     """添字・上付き・上の点を含む文字。
     "K_P" "u_0" "ω_gc"（1 文字の後の _ に続く英数字）・"t_{2%}"（_{…} で何でも添字）・"e^{−Ls}" "x^2"（上付き）・
@@ -689,14 +699,16 @@ def TX(x, y, s, a="start", sz=10, c=INK, b=False, halo=False, rot=None):
     o = ['<text x="%g" y="%g" text-anchor="start" font-size="%g" fill="%s" font-family="var(--sans)" font-weight="%s"%s>'
          % (round(x0, 2), round(y, 2), sz, c, "700" if b else "400", hs)]
     dots, xx, cur = [], x0, 0.0   # cur: 今の基線からのずれ（下が正）
-    for kind, t in segs:
+    # 点を付ける文字より前の部分は、見積もった幅ちょうどに描かせる（textLength）。フォントによる幅の違いで、点が文字からずれないように
+    last_dot = max([i for i, (k, _) in enumerate(segs) if k in ("dot1", "dot2")], default=-1)
+    for idx, (kind, t) in enumerate(segs):
         want = 3.0 if kind == "sub" else (-sz * 0.38 if kind == "sup" else (-sz * 0.18 if kind == "supsub" else 0.0))
         dy = want - cur; cur = want
         fs = ' font-size="%g"' % round(sz * _TX_SMALL[kind], 2) if kind in _TX_SMALL else ""
-        o.append('<tspan%s%s>%s</tspan>' % ((' dy="%g"' % round(dy, 2)) if abs(dy) > 1e-9 else "", fs, E(t)))
-        ww = wseg(kind, t)
-        if t.count(" "):   # 点の位置だけは、空白を実際の幅（0.28 字ほど）で数える（文字の配置と重なり検査は今までどおり）
-            ww -= t.count(" ") * (sz * _TX_SMALL[kind] if kind in _TX_SMALL else sz) * (0.56 - 0.28)
+        ww = _tx_adv(t, sz * _TX_SMALL[kind] if kind in _TX_SMALL else sz)   # 点の位置だけは細かい見積もりで数える
+        fit = idx < last_dot and kind not in ("dot1", "dot2") and t.strip() != ""
+        tl = ' textLength="%g" lengthAdjust="spacingAndGlyphs"' % round(ww, 2) if fit else ""
+        o.append('<tspan%s%s%s>%s</tspan>' % ((' dy="%g"' % round(dy, 2)) if abs(dy) > 1e-9 else "", fs, tl, E(t)))
         if kind in ("dot1", "dot2"):
             cx = xx + ww / 2; cy = y - sz * 0.86; r = max(1.1, sz * 0.11)
             if kind == "dot1": dots.append((cx, cy, r))
