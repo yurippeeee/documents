@@ -32,7 +32,7 @@
     var ob=U.select(r1,"対象",_W08_OBJ.map(function(o){return o.nm;}),0,function(){var o=_W08_OBJ[ob.get()];wx.set(Math.log10(o.ex/o.wc));tk.stop();draw();});
     var vw=U.select(r1,"右上の図",["G(jω) の矢印（複素平面）","極・零点から jω への矢印（s 平面）"],0,function(){draw();});
     var r2=U.ctrls(el);
-    var wx=U.slider(r2,"角周波数 ω",{min:-2,max:2,step:0.005,value:0,fmt:function(v){return _w08_sig(cur().wc*Math.pow(10,v),3)+" rad/s";},onInput:function(){draw();}});
+    var wx=U.slider(r2,"角周波数 ω",{min:-2,max:2,step:0.005,value:0,fmt:function(v){return _w08_p3(cur().wc*Math.pow(10,v),3)+" rad/s";},onInput:function(){draw();}});
     wx.el.style.flex="1 1 100%";
     var br=U.btnrow(el);
     function pre(k,w){ob.set(k);var o=_W08_OBJ[k];wx.set(Math.log10(w/o.wc));draw();}
@@ -98,10 +98,10 @@
       var bx=nar?60:452,by=nar?ay+ah+62:28,bw=nar?280:238,bh=nar?190:176;
       if(vw.get()===0)O.push(drawVec(bx,by,bw,bh));else O.push(drawS(bx,by,bw,bh));
       /* (c) 動く絵 */
-      var cy=nar?by+bh+20:ay+ah+48,cx0=nar?40:60,cw=nar?320:340;
+      var cy=nar?by+bh+46:ay+ah+58,cx0=nar?40:60,cw=nar?320:340;
       O.push(drawPic(cx0,cy,cw,tc));
       /* (d) ボード線図 */
-      var dy=cy+86,bs=U.ctl.bodeSvg([{w:st.ws,db:st.B.db,ph:st.B.ph,c:"signal",lw:2.2}],{x:nar?56:64,y:dy,w:nar?310:600,hm:nar?100:110,hp:nar?90:100,gap:30,wr:[st.ws[0],st.ws[st.ws.length-1]]});
+      var dy=cy+104,bs=U.ctl.bodeSvg([{w:st.ws,db:st.B.db,ph:st.B.ph,c:"signal",lw:2.2}],{x:nar?56:64,y:dy,w:nar?310:600,hm:nar?100:110,hp:nar?90:100,gap:30,wr:[st.ws[0],st.ws[st.ws.length-1]]});
       O.push(S.T(nar?14:20,dy-8,"(d) ボード線図（点は今の角周波数）","start",10.5,"ink",true));
       O.push(bs.svg);
       var gdb=20*Math.log10(st.gain);
@@ -128,9 +128,12 @@
       return o.join("");
     }
     function drawS(x,y,w,h){
-      var o=[],ps=U.ctl.poles(st.G),zs=U.ctl.zeros(st.G),R=st.w;
-      ps.concat(zs).forEach(function(p){R=Math.max(R,Math.hypot(p.re,p.im));});R*=1.2;
-      var P=U.plot(x+26,y+14,w-34,h-30,[-1.25*R,0.3*R],[-(1.55*R*(h-30)/(w-34))+1.15*R,1.15*R]);
+      var o=[],ps=U.ctl.poles(st.G),zs=U.ctl.zeros(st.G),pts=ps.concat(zs),x0=0,x1=0,y0=0,y1=st.w;
+      pts.forEach(function(p){x0=Math.min(x0,p.re);x1=Math.max(x1,p.re);y0=Math.min(y0,p.im);y1=Math.max(y1,p.im);});
+      var xs=(x1-x0)||st.w,ys=(y1-y0)||st.w;x0-=0.15*xs;x1+=0.25*xs;y0-=0.12*ys;y1+=0.18*ys;
+      /* 縦と横の目盛の大きさをそろえ（角度が正しく見えるように）、すべての点を枠に入れる */
+      var pw=w-34,ph=h-30,sc=Math.min(pw/(x1-x0),ph/(y1-y0)),xm=(x0+x1)/2,ymd=(y0+y1)/2;
+      var P=U.plot(x+26,y+14,pw,ph,[xm-pw/sc/2,xm+pw/sc/2],[ymd-ph/sc/2,ymd+ph/sc/2]);
       o.push(S.T(x,y-0,"(b) 極・零点から jω への矢印","start",10.5,"ink",true));
       o.push(S.RECT(P.x,P.y,P.w,P.h,0,"screen","line",0.8));o.push(U.ctl.splane(P));
       var jw={re:0,im:st.w};
@@ -165,9 +168,9 @@
         o2.push(S.T(x+w,y+70,"台車の振れ ±"+_w08_sig(st.gain*(o.pic==="spring"?100:1),3)+" cm","end",9,"muted"));}
       else{var hu=(u+1)/2,hy=0.5+0.5*yv/(gm||1);
         o2.push(S.RECT(x+20,gy-24,26,40,2,"screen","line",1));o2.push(S.RECT(x+20,gy+16-40*hu,26,40*hu,2,"var(--gold-soft)","gold",1.2));
-        o2.push(S.T(x+33,gy+28,"ヒータ","middle",9,"gold"));
+        o2.push(S.T(x+33,gy+27,"ヒータ","middle",9,"gold"));
         o2.push(S.RECT(x+90,gy-24,16,40,8,"screen","line",1));o2.push(S.RECT(x+92,gy+14-36*Math.max(0,Math.min(1,hy)),12,36*Math.max(0,Math.min(1,hy)),6,"var(--signal-soft)","signal",1.2));
-        o2.push(S.T(x+98,gy+28,"温度","middle",9,"signal"));
+        o2.push(S.T(x+98,gy+27,"温度","middle",9,"signal"));
         o2.push(S.T(x+130,gy-4,"電力の揺れ: "+(u>=0?"+":"−")+_w08_f(Math.abs(u),2)+" W","start",9.5,"gold"));
         o2.push(S.T(x+130,gy+12,"温度の揺れ: "+(yv>=0?"+":"−")+_w08_f(Math.abs(yv),3)+" K（振幅 "+_w08_sig(st.gain,3)+" K）","start",9.5,"signal"));}
       return o2.join("");
@@ -252,8 +255,9 @@
       /* 読み出し */
       var txt="G(s) = "+lg(m.K);m.el.slice(1).forEach(function(e){txt+=" × "+e.nm;});
       var h=txt+"<br>";
-      var sl=-20*m.N,seg="低い角周波数の傾き "+(sl>0?"+":"")+sl+" dB/dec（ω = 1 で "+_w08_f(20*Math.log10(m.K),2)+" dB）";
-      m.cor.forEach(function(c){sl+=c.d;seg+=" → "+lg(c.w)+" rad/s（"+c.nm+"）で "+(sl>0?"+":"")+sl+" dB/dec";});
+      var sg=function(v){return (v>0?"+":"")+String(v).replace("-","−");};
+      var sl=-20*m.N,seg="低い角周波数の傾き "+sg(sl)+" dB/dec（ω = 1 で "+_w08_f(20*Math.log10(m.K),2)+" dB）";
+      m.cor.forEach(function(c){sl+=c.d;seg+=" → "+lg(c.w)+" rad/s（"+c.nm+"）で "+sg(sl)+" dB/dec";});
       h+="漸近線: "+seg+"<br>";
       /* 0 dB を横切る所 */
       var wc=null,wa=null;for(var i=1;i<ws.length;i++){if(wc===null&&(B.db[i-1]>=0)!==(B.db[i]>=0))wc=ws[i-1]*Math.pow(ws[i]/ws[i-1],B.db[i-1]/(B.db[i-1]-B.db[i]));if(wa===null&&(as[i-1]>=0)!==(as[i]>=0))wa=ws[i-1]*Math.pow(ws[i]/ws[i-1],as[i-1]/(as[i-1]-as[i]));}
@@ -280,7 +284,7 @@
     U.button(br,U.htx("モータ K_P = 0.21（ζ 0.690）"),function(){pre(0.69,14.49);});
     U.button(br,U.htx("モータ K_P = 1（ζ 0.316）"),function(){pre(0.3162,31.62);});
     U.button(br,U.htx("モータ K_P = 10（ζ 0.1）"),function(){pre(0.1,100);});
-    U.button(br,"ζ = 0.707",function(){pre(0.7071,5);});
+    U.button(br,"ζ = 0.707",function(){pre(0.7072,5);});
     var box=U.svgbox(el),ro=U.readout(el);
     function draw(){
       var z=ze.get(),w=wn.get(),G=U.ctl.tf([w*w],[1,2*z*w,w*w]),nar=_w08_nar(box),Wd=nar?400:700,O=[];
@@ -342,7 +346,7 @@
     var S=U.S;
     U.head(el,"FREQUENCY SWEEP","周波数掃引 — 正弦波を順に入れて、ゲインと位相を測る");
     var r1=U.ctrls(el);
-    var ob=U.select(r1,"対象",_W08_SW.map(function(o){return o.nm;}),0,function(){draw();});
+    var ob=U.select(r1,"対象",_W08_SW.map(function(o){return o.nm;}),0,function(){nz.set(nz.get());sel.set(sel.get());draw();});
     var nz=U.slider(r1,"観測ノイズ（本文の値の何倍か）",{values:[0,0.5,1,2,4],value:1,fmt:function(v){var o=_W08_SW[ob.get()];return v+" 倍（"+_w08_sig(o.sd*v,2)+" "+o.yu+"）";},onInput:function(){draw();}});
     var r2=U.ctrls(el);
     var np=U.slider(r2,"平均する周期の数",{values:[1,2,3,5,10,20],value:3,fmt:function(v){return v+" 周期";},onInput:function(){draw();}});
@@ -365,8 +369,7 @@
         if(o.kind==="fo"){var a=Math.exp(-dt/o.T),x=0;step=function(u){var y=x;x=a*x+(1-a)*o.K*u;return y;};}
         else{var A=[[0,1],[-o.wn*o.wn,-2*o.z*o.wn]],Bm=[[0],[o.K*o.wn*o.wn]],dd=U.ctl.mat.c2d(A,Bm,dt),X=[0,0];
           step=function(u){var y=X[0],x0=dd.A[0][0]*X[0]+dd.A[0][1]*X[1]+dd.B[0][0]*u,x1=dd.A[1][0]*X[0]+dd.A[1][1]*X[1]+dd.B[1][0]*u;X=[x0,x1];return y;};}
-        for(var i=0;i<(Wp+nper)*M;i++){var t=i*dt,tm=t+dt/2-o.L,u=tm>=0?o.amp*Math.sin(w*tm):0,yx;
-          if(i>=Wp*M){yx=null;}
+        for(var i=0;i<(Wp+nper)*M;i++){var t=i*dt,tm=t+dt/2-o.L,u=tm>=0?o.amp*Math.sin(w*tm):0;
           var yv=step(u);
           if(i>=Wp*M){var ym=yv+sd*rg.normal();ss+=ym*Math.sin(w*t);sc+=ym*Math.cos(w*t);rec.push([t-Wp*Pd,ym]);}}
         var re=2*ss/(nper*M)/o.amp,im=2*sc/(nper*M)/o.amp;
