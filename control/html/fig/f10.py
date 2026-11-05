@@ -484,12 +484,12 @@ def _f10_d_poles_fig():
         mp, ts = _f10_metrics(t, y, 1.0)
         o.append(q.line(list(zip(t, y)), c=c, lw=2.2 if c == GRN else 1.8))
         o.append(W(q.X(ts), q.Y(1.0), q.X(ts), q.y + q.h, c=c, lw=1, dash="2 3"))
-        o.append(TX(q.x - 30, 240 + k * 16, lab, "start", 10, c, True))
-        o.append(T(q.x + 160, 240 + k * 16, "%s %%・%s s" % (_f10_f(mp, 1), _f10_f(ts, 3)), "start", 10, c))
+        o.append(TX(q.x - 30, 264 + k * 16, lab, "start", 10, c, True))
+        o.append(T(q.x + 160, 264 + k * 16, "%s %%・%s s" % (_f10_f(mp, 1), _f10_f(ts, 3)), "start", 10, c))
     o.append(T(q.X(0.59), q.Y(1.02) - 4, "±2 %", "end", 9, GRN, halo=True))
-    o.append(T(q.x + 160, 224, "行き過ぎ量・2 % 整定時間", "start", 9, MUT))
-    o.append(TX(14, 304, "PD の特性方程式 Ts^2 + (1 + KK_D)s + KK_P = 0: K_D は s の係数だけを増やし、極の実部 −(1 + KK_D)/(2T) を左へ動かす。", "start", 10, INK))
-    return _f10_svg(700, 316, o, "D 動作でモータの角度を速く落ち着かせる。(a) 比例だけでは、K_P をどれだけ上げても極の実部は −10 のまま上下に動くだけである（太い灰色の線）。K_D = 0.02 V·s/rad の D 動作を加えると、極の道は実部 −20 の線（緑の破線）に移る。(b) K_P = 0.84 V/rad で比例だけなら 31.5 % 行き過ぎるが、D 動作を加えると、K_P = 0.21 V/rad のときと同じ 5.0 % の行き過ぎで、2 % 整定時間は 0.414 s から 0.207 s に半分になる。")
+    o.append(T(q.x + 160, 248, "行き過ぎ量・2 % 整定時間", "start", 9, MUT))
+    o.append(TX(14, 328, "PD の特性方程式 Ts^2 + (1 + KK_D)s + KK_P = 0: K_D は s の係数だけを増やし、極の実部 −(1 + KK_D)/(2T) を左へ動かす。", "start", 10, INK))
+    return _f10_svg(700, 340, o, "D 動作でモータの角度を速く落ち着かせる。(a) 比例だけでは、K_P をどれだけ上げても極の実部は −10 のまま上下に動くだけである（太い灰色の線）。K_D = 0.02 V·s/rad の D 動作を加えると、極の道は実部 −20 の線（緑の破線）に移る。(b) K_P = 0.84 V/rad で比例だけなら 31.5 % 行き過ぎるが、D 動作を加えると、K_P = 0.21 V/rad のときと同じ 5.0 % の行き過ぎで、2 % 整定時間は 0.414 s から 0.207 s に半分になる。")
 F["e10_d_poles"] = _f10_d_poles_fig()
 
 
@@ -535,3 +535,147 @@ def _f10_d_noise_fig():
     o.append(TX(q.x + q.w + 14, q.y + 120, "ことが多い（7 章 6 節）", "start", 9.5, MUT))
     return _f10_svg(700, 430, o, "D 動作は観測ノイズを大きくする（モータの角度の PD、K_P = 0.84 V/rad、K_D = 0.02 V·s/rad）。(a) 角度の読みの小さなノイズは、P の分には K_P 倍で現れるが、D の分では、1 ms ごとの差を 1 ms で割るので、約 34 倍の大きさになる。(b) 正弦波で見ると、P の分のゲインは一定で、D の分のゲインは角周波数に比例して大きくなる（8 章 4 節の微分）。速く揺れるノイズほど、D の分を通って大きく電圧に現れる。")
 F["e10_d_noise"] = _f10_d_noise_fig()
+
+
+# =====================================================================
+# 4 節: PID の式
+# =====================================================================
+def _f10_par_bd(x0, yc, boxes, tail=None, labs=("P の分", "I の分", "D の分")):
+    """3 つの枝が並んだ線図（偏差 e を引き出して 3 つの箱に入れ、加え合わせ点で足す）。tail は後ろに直列につなぐ箱。"""
+    o = []
+    R = 15
+    bw = max(TFBW(b) for b in boxes)
+    xb = x0 + 70
+    xs = xb + bw + 70
+    ys = (yc - 46, yc, yc + 46)
+    o.append(ARR(x0, yc, x0 + 40, yc, c=ALI, lw=1.6))
+    o.append(TX(x0 + 2, yc - 8, "偏差 e", "start", 10, ALI, True, halo=True))
+    o.append(D(x0 + 40, yc, ALI, 3.6))
+    o.append(W(x0 + 40, ys[0], x0 + 40, ys[2], c=ALI, lw=1.6))
+    for k, (yy, b) in enumerate(zip(ys, boxes)):
+        o.append(ARR(x0 + 40, yy, xb, yy, c=ALI, lw=1.6))
+        o.append(TFBOX(xb, yy, b, bw, SIG if k == 1 and False else LIN, PAN, h=40 if isinstance(b, tuple) else 32)[0])
+        c = (_F10_CP, _F10_CI, _F10_CD)[k]
+        if k == 1:
+            o.append(ARR(xb + bw, yy, xs - R, yy, c=c, lw=1.8))
+        else:
+            o.append(W(xb + bw, yy, xs, yy, c=c, lw=1.8))
+            o.append(ARR(xs, yy, xs, yc + (-R if k == 0 else R), c=c, lw=1.8))
+        o.append(T(xb + bw + 6, yy - 6, labs[k], "start", 9.5, c, True, halo=True))
+    o.append(SUMJ(xs, yc, {"l": "+", "t": "+", "b": "+"}))
+    x = xs + R
+    if tail is not None:
+        o.append(ARR(x, yc, x + 26, yc, c=INK, lw=1.6))
+        svg, w = TFBOX(x + 26, yc, tail, None, SIG, SSOFT)
+        o.append(svg)
+        x = x + 26 + w
+    o.append(ARR(x, yc, x + 56, yc, c=GLD, lw=1.8))
+    o.append(TX(x + 56, yc + 18, "操作量 u", "end", 10, GLD, True, halo=True))
+    return "".join(o), x + 56
+
+
+def _f10_forms_fig():
+    o = []
+    yc = 96
+    o.append(T(14, 18, "(a) 並列形", "start", 11.5, INK, True))
+    svg, xe = _f10_par_bd(16, yc, ["K_P", ("K_I", "s"), "K_D s"])
+    o.append(svg)
+    o.append(T(370, 18, "(b) 標準形", "start", 11.5, INK, True))
+    svg, xe2 = _f10_par_bd(368, yc, ["1", ("1", "T_I s"), "T_D s"], tail="K_P")
+    o.append(svg)
+    y = 190
+    o.append(W(12, y - 14, 688, y - 14, c=LIN, lw=0.8))
+    o.append(TX(16, y + 6, "並列形: u = K_P e + K_I ∫e dt + K_D de/dt（3 つのゲインを別々に決める）", "start", 10.5, INK))
+    o.append(TX(16, y + 28, "標準形: u = K_P（e + (1/T_I) ∫e dt + T_D de/dt）（K_P が全体の強さ、T_I・T_D は時間）", "start", 10.5, INK))
+    o.append(TX(16, y + 54, "変換: K_I = K_P/T_I、K_D = K_P T_D　　逆に T_I = K_P/K_I、T_D = K_D/K_P", "start", 10.5, SIG, True))
+    o.append(TX(16, y + 76, "I を使わないときは、並列形では K_I = 0、標準形では T_I を限りなく大きくする", "start", 10, MUT))
+    return _f10_svg(700, y + 88, o, "PID の 2 つの書き方。(a) 並列形は、偏差を 3 つの枝に分け、それぞれに K_P・K_I/s・K_D s を掛けて足す。(b) 標準形は、1・1/(T_I s)・T_D s の和に、最後に K_P を掛ける。どちらも同じ制御器を表し、ゲインは下の式で書き換えられる。")
+F["e10_forms"] = _f10_forms_fig()
+
+
+def _f10_ti_td_fig():
+    o = []
+    o.append(TX(14, 18, "(a) 偏差が 1 で一定のとき（PI）: T_I の意味", "start", 11.5, INK, True))
+    p = Plot(66, 40, 250, 150, (-0.3, 2.3), (0, 3.4))
+    o.append(p.axes(xl="時間 t", yl="操作量", xt=[0, 1, 2], yt=[0, 1, 2, 3], xfmt=lambda v: "", yfmt=lambda v: "", sz=9))
+    for v, lab in ((0, "0"), (1, "T_I"), (2, "2T_I")):
+        o.append(TX(p.X(v), p.y + p.h + 15, lab, "middle", 9.5, MUT))
+    for v, lab in ((0, "0"), (1, "K_P"), (2, "2K_P"), (3, "3K_P")):
+        o.append(TX(p.x - 7, p.Y(v) + 3.5, lab, "end", 9.5, MUT))
+    o.append(p.line([(-0.3, 0), (0, 0), (0, 1), (2.3, 1)], c=_F10_CP, lw=2))
+    o.append(p.line([(-0.3, 0), (0, 0), (2.3, 2.3)], c=_F10_CI, lw=2))
+    o.append(p.line([(-0.3, 0), (0, 0), (0, 1), (2.3, 3.3)], c=INK, lw=1.6))
+    o.append(W(p.X(1), p.Y(1), p.X(1), p.y + p.h, c=FNT, lw=1, dash="3 3"))
+    o.append(D(p.X(1), p.Y(1), _F10_CI, 4))
+    o.append(TX(p.X(1.05), p.Y(1) + 15, "T_I 後に I の分が P の分に追いつく", "start", 9.5, _F10_CI, True, halo=True))
+    o.append(TX(p.X(2.25), p.Y(1) - 6, "P の分 K_P", "end", 9.5, _F10_CP, True, halo=True))
+    o.append(TX(p.X(1.15), p.Y(2.75), "合計", "end", 9.5, INK, True, halo=True))
+    o.append(TX(p.X(2.25), p.Y(1.45), "I の分 K_P t/T_I", "end", 9.5, _F10_CI, True, halo=True))
+    o.append(TX(386, 18, "(b) 偏差が一定の速さで増えるとき（PD）: T_D の意味", "start", 11.5, INK, True))
+    q = Plot(430, 40, 250, 150, (-0.5, 4.0), (0, 4.4))
+    o.append(q.axes(xl="時間 t", yl="操作量", xt=[0, 1, 2, 3, 4], yt=[0, 1, 2, 3, 4], xfmt=lambda v: "", yfmt=lambda v: "", sz=9))
+    for v, lab in ((0, "0"), (1, "T_D"), (2, "2T_D"), (3, "3T_D")):
+        o.append(TX(q.X(v), q.y + q.h + 15, lab, "middle", 9.5, MUT))
+    o.append(TX(q.x - 7, q.Y(1) + 3.5, "K_P αT_D", "end", 9, MUT))
+    o.append(q.line([(-0.5, 0), (0, 0), (4.0, 4.0)], c=_F10_CP, lw=2))
+    o.append(q.line([(-0.5, 0), (0, 0), (0, 1), (4.0, 1)], c=_F10_CD, lw=2))
+    o.append(q.clip([(-0.5, 0), (0, 0), (0, 1), (3.4, 4.4)], c=INK, lw=1.6))
+    o.append(DIM(q.X(1), q.Y(2), q.X(2), q.Y(2), None, c=SIG))
+    o.append(TX(q.X(1.5), q.Y(2) + 15, "T_D", "middle", 10, SIG, True, halo=True))
+    o.append(TX(q.X(0.15), q.Y(3.6), "P + D = K_P α(t + T_D)", "start", 9.5, INK, True, halo=True))
+    o.append(TX(q.X(3.9), q.Y(3.0) + 18, "P の分 K_P αt", "end", 9.5, _F10_CP, True, halo=True))
+    o.append(TX(q.X(3.9), q.Y(1) - 6, "D の分 K_P T_D α", "end", 9.5, _F10_CD, True, halo=True))
+    o.append(TX(14, 238, "(a) 一定の偏差が T_I だけ続くと、I の分は P の分と同じ大きさになる。T_I が短いほど I 動作は強い。", "start", 10, INK))
+    o.append(TX(14, 256, "(b) P と D の和は、P の分の線を T_D だけ左へずらしたもの: P の分が T_D 後に出す値を、今出す。", "start", 10, INK))
+    return _f10_svg(700, 266, o, "標準形の積分時間 T_I と微分時間 T_D の意味（制御器だけを取り出し、偏差を決めた形で入れたときの操作量）。(a) 偏差が時刻 0 から 1 のとき、P の分は K_P のまま、I の分は時間に比例して増え、T_I で K_P に届く。(b) 偏差が一定の速さ α で増えるとき、D の分は K_P T_D α で一定で、P と D の和は、P の分だけの線より T_D だけ早く同じ値になる。")
+F["e10_ti_td"] = _f10_ti_td_fig()
+
+
+_F10_PID_M = (0.84, 5.0, 0.02)          # モータの角度の PID（K_P [V/rad]、K_I [V/(rad·s)]、K_D [V·s/rad]）
+
+
+def _f10_pid_bode_fig():
+    o = []
+    KP, KI, KD = _F10_PID_M
+    w = _f10_np.logspace(0, 3, 600)
+    db, ph = BODEPH([KD, KP, KI], [1.0, 0.0], w)
+    w0 = 1.0 / math.sqrt((KP / KI) * (KD / KP))
+    o.append(TX(14, 18, "(a) PID のボード線図（モータの角度の例: K_P = 0.84、K_I = 5、K_D = 0.02）", "start", 11, INK, True))
+    svg, pm, pp, hh = BODE(70, 40, 340, [(w, db, ph, INK, None)], (1, 1000), (-10, 30), (-90, 90), hm=130, hp=100,
+                           dbt=[-10, 0, 10, 20, 30], pht=[-90, -45, 0, 45, 90])
+    o.append(svg)
+    o.append(pm.clip([(wv, 20 * math.log10(KI / wv)) for wv in w], c=_F10_CI, lw=1.4, dash="4 3"))
+    o.append(pm.line([(1, 20 * math.log10(KP)), (1000, 20 * math.log10(KP))], c=_F10_CP, lw=1.4, dash="4 3"))
+    o.append(pm.clip([(wv, 20 * math.log10(KD * wv)) for wv in w], c=_F10_CD, lw=1.4, dash="4 3"))
+    o.append(pm.line(list(zip(w, db)), c=INK, lw=2.2))
+    for z in (7.18, 34.8):
+        o.append(W(pm.X(z), pm.y, pm.X(z), pm.y + pm.h, c=FNT, lw=1, dash="2 3"))
+        o.append(W(pp.X(z), pp.y, pp.X(z), pp.y + pp.h, c=FNT, lw=1, dash="2 3"))
+    o.append(D(pm.X(w0), pm.Y(20 * math.log10(KP)), INK, 3.6))
+    o.append(D(pp.X(w0), pp.Y(0), INK, 3.6))
+    o.append(TX(pm.X(w0), pm.Y(20 * math.log10(KP)) + 16, "ω_0 = 15.8 rad/s で最小 K_P", "middle", 9.5, INK, True, halo=True))
+    o.append(TX(pm.X(1.15), pm.Y(26), "I: K_I/ω", "start", 9.5, _F10_CI, True, halo=True))
+    o.append(TX(pm.X(900), pm.Y(26), "D: K_D ω", "end", 9.5, _F10_CD, True, halo=True))
+    o.append(TX(pm.X(900), pm.Y(20 * math.log10(KP)) - 6, "P: K_P", "end", 9.5, _F10_CP, True, halo=True))
+    o.append(T(pm.X(7.18), pm.y - 4, "零点 7.18", "middle", 9, MUT, halo=True))
+    o.append(T(pm.X(34.8), pm.y - 4, "34.8 rad/s", "middle", 9, MUT, halo=True))
+    o.append(T(pp.X(1.15), pp.Y(-70), "低い角周波数: −90°（I）", "start", 9.5, _F10_CI, True, halo=True))
+    o.append(T(pp.X(900), pp.Y(70), "高い角周波数: +90°（D）", "end", 9.5, _F10_CD, True, halo=True))
+    # (b) 複素平面の C(jω)
+    o.append(TX(450, 18, "(b) C(jω) = K_P + j(K_D ω − K_I/ω)", "start", 11, INK, True))
+    q = Plot(480, 40, 190, 230, (-0.3, 1.6), (-1.6, 1.6))
+    o.append(RECT(q.x, q.y, q.w, q.h, 0, SCR, LIN, 0.8))
+    o.append(q.axes(xl="実部 [V/rad]", yl="虚部 [V/rad]", xt=[0, 0.5, 1, 1.5], yt=[-1.5, -1, -0.5, 0, 0.5, 1, 1.5], xfmt=_f10_n, yfmt=_f10_n, sz=9))
+    o.append(W(q.X(0), q.y, q.X(0), q.y + q.h, c=MUT, lw=1.2))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
+    o.append(ARR(q.X(KP), q.Y(-1.55), q.X(KP), q.Y(1.55), c=INK, lw=2))
+    for wv, a in ((4.0, "start"), (7.18, "start"), (15.8, "start"), (34.8, "start"), (60.0, "start")):
+        im = KD * wv - KI / wv
+        o.append(D(q.X(KP), q.Y(im), SIG, 3.6))
+        o.append(T(q.X(KP) + 7, q.Y(im) + 4, "ω = %s" % _f10_n(wv), a, 9, SIG, True, halo=True))
+    im = KD * 34.8 - KI / 34.8
+    o.append(ARR(q.X(0), q.Y(0), q.X(KP) - 3, q.Y(im) + 2, c=_F10_CD, lw=1.4, head=6))
+    o.append(T(q.X(0.05), q.Y(0.5), "+33°", "start", 9.5, _F10_CD, True, halo=True))
+    o.append(T(q.X(-0.25), q.Y(-1.35), "ω が増すと上へ", "start", 9, INK, halo=True))
+    return _f10_svg(700, hh + 44, o, "PID の周波数応答（K_P = 0.84 V/rad、K_I = 5 V/(rad·s)、K_D = 0.02 V·s/rad。T_I = 0.168 s、T_D = 0.0238 s）。(a) ゲインは、低い角周波数では I の K_I/ω、中ほどでは P の K_P、高い角周波数では D の K_D ω にそって谷の形になり、位相は −90° から +90° へ進む。(b) s = jω を入れると、実部はいつも K_P で、虚部は K_D ω − K_I/ω なので、C(jω) は実部 K_P の縦の線の上を下から上へ動く。虚部が 0 になる ω_0 = 1/√(T_I T_D) でゲインは最小の K_P、位相は 0° になる。")
+F["e10_pid_bode"] = _f10_pid_bode_fig()
