@@ -39,7 +39,7 @@ def tw(s, sz=11.5, mono=False):
     w = 0.0
     for ch in str(s):
         o = ord(ch)
-        if o < 128:
+        if o < 128 or 0x1E00 <= o <= 0x1EFF:   # 0x1E00〜: ラテン文字の拡張追加（ỹ・ẽ など）は半角と同じ
             w += sz * (0.6 if mono else 0.56)
         elif 0xFF61 <= o <= 0xFF9F:
             w += sz * 0.55
@@ -625,18 +625,34 @@ def TIMEBAR(x, y, w, t0, t1, segs, h=26, sz=9.5, axis=True, tfmt=None, ticks=Non
 # ---- 添字付きの文字・加え合わせ点・線の見本つきの凡例（全章で同じ見た目にする） ----
 import re as _re_tx
 _TX_RE = None
+_TX_SUPSUB_RE = None
+def _tx_sup(c, out):
+    """上付きの中の添字（"e^{−sT_s}" の T_s など）を ("supsub", 添字) に分けて out に足す。"""
+    global _TX_SUPSUB_RE
+    if _TX_SUPSUB_RE is None:
+        _TX_SUPSUB_RE = _re_tx.compile(r"([A-Za-zα-ωΑ-Ω\u0080-\u024F\u1E00-\u1EFF][\u0300-\u036F]*)_(?:\{([^}]*)\}|([A-Za-z0-9∞%α-ωΑ-Ω]+))")
+    pos = 0
+    for m in _TX_SUPSUB_RE.finditer(c):
+        out.append(("sup", c[pos:m.start()] + m.group(1)))
+        out.append(("supsub", m.group(2) if m.group(2) is not None else m.group(3)))
+        pos = m.end()
+    if pos < len(c) or pos == 0:
+        out.append(("sup", c[pos:]))
+
 def _tx_tokens(s):
-    """TX の文字列を (種類, 文字) の並びに分ける。種類は "n"（普通）・"sub"・"sup"・"dot1"・"dot2"（上に点 1 つ・2 つ）。"""
+    """TX の文字列を (種類, 文字) の並びに分ける。種類は "n"（普通）・"sub"・"sup"・"supsub"（上付きの中の添字）・
+    "dot1"・"dot2"（上に点 1 つ・2 つ）。添字の前の文字には結合文字（波線 ̃・山形 ̂ など）が付いていてよい（"P̃_0"）。
+    _ の後の括弧なしの添字には、英数字のほかギリシャ文字も書ける（"C_θ"）。"""
     global _TX_RE
     if _TX_RE is None:
-        _TX_RE = _re_tx.compile(r"\\(d?dot)\{(.)\}|([A-Za-zα-ωΑ-Ω\u0080-\u024F])_\{([^}]*)\}|([A-Za-zα-ωΑ-Ω])_([A-Za-z0-9∞%]+)|\^\{([^}]*)\}|\^([A-Za-z0-9∞]+)")
+        _TX_RE = _re_tx.compile(r"\\(d?dot)\{(.)\}|([A-Za-zα-ωΑ-Ω\u0080-\u024F\u1E00-\u1EFF][\u0300-\u036F]*)_\{([^}]*)\}|([A-Za-zα-ωΑ-Ω\u1E00-\u1EFF][\u0300-\u036F]*)_([A-Za-z0-9∞%α-ωΑ-Ω]+)|\^\{([^}]*)\}|\^([A-Za-z0-9∞]+)")
     out, pos = [], 0
     for mm in _TX_RE.finditer(s):
         if mm.start() > pos:
             out.append(("n", s[pos:mm.start()]))
         if mm.group(1):
             out.append(("dot2" if mm.group(1) == "ddot" else "dot1", mm.group(2)))
-            m2 = _re_tx.match(r"_\{([^}]*)\}|_([A-Za-z0-9∞%]+)", s[mm.end():])   # 点の付いた文字の添字（\dot{θ}_m）
+            m2 = _re_tx.match(r"_\{([^}]*)\}|_([A-Za-z0-9∞%α-ωΑ-Ω]+)", s[mm.end():])   # 点の付いた文字の添字（\dot{θ}_m）
             if m2:
                 out.append(("sub", m2.group(1) if m2.group(1) is not None else m2.group(2)))
                 pos = mm.end() + m2.end()
@@ -646,7 +662,7 @@ def _tx_tokens(s):
         elif mm.group(5) is not None:
             out.append(("n", mm.group(5))); out.append(("sub", mm.group(6)))
         elif mm.group(7) is not None:
-            out.append(("sup", mm.group(7)))
+            _tx_sup(mm.group(7), out)
         else:
             out.append(("sup", mm.group(8)))
         pos = mm.end()
@@ -654,14 +670,17 @@ def _tx_tokens(s):
         out.append(("n", s[pos:]))
     return out
 
+_TX_SMALL = {"sub": 0.72, "sup": 0.72, "supsub": 0.72 * 0.8}   # 普通の文字に対する大きさ
+
 def TX(x, y, s, a="start", sz=10, c=INK, b=False, halo=False, rot=None):
     """添字・上付き・上の点を含む文字。
     "K_P" "u_0" "ω_gc"（1 文字の後の _ に続く英数字）・"t_{2%}"（_{…} で何でも添字）・"e^{−Ls}" "x^2"（上付き）・
-    "\\dot{θ}" "\\ddot{p}"（上に点。結合文字はフォントで位置がずれるので、点を小さな円で描く）。rot は回転の角度（縦軸の題に）。"""
+    "\\dot{θ}" "\\ddot{p}"（上に点。結合文字はフォントで位置がずれるので、点を小さな円で描く）。rot は回転の角度（縦軸の題に）。
+    "P̃_0"（結合文字の付いた文字の添字）・"C_θ"（ギリシャ文字の添字）・"e^{−sT_s}"（上付きの中の添字）も書ける。"""
     segs = _tx_tokens(s)
     ssz = sz * 0.72
     def wseg(kind, t):
-        return tw(t, ssz) if kind in ("sub", "sup") else tw(t, sz)
+        return tw(t, sz * _TX_SMALL[kind]) if kind in _TX_SMALL else tw(t, sz)
     w = sum(wseg(k, t) for k, t in segs)
     x0 = x - (w / 2 if a == "middle" else (w if a == "end" else 0))
     if _CHECK and rot is None:
@@ -671,13 +690,13 @@ def TX(x, y, s, a="start", sz=10, c=INK, b=False, halo=False, rot=None):
          % (round(x0, 2), round(y, 2), sz, c, "700" if b else "400", hs)]
     dots, xx, cur = [], x0, 0.0   # cur: 今の基線からのずれ（下が正）
     for kind, t in segs:
-        want = 3.0 if kind == "sub" else (-sz * 0.38 if kind == "sup" else 0.0)
+        want = 3.0 if kind == "sub" else (-sz * 0.38 if kind == "sup" else (-sz * 0.18 if kind == "supsub" else 0.0))
         dy = want - cur; cur = want
-        fs = ' font-size="%g"' % round(ssz, 2) if kind in ("sub", "sup") else ""
+        fs = ' font-size="%g"' % round(sz * _TX_SMALL[kind], 2) if kind in _TX_SMALL else ""
         o.append('<tspan%s%s>%s</tspan>' % ((' dy="%g"' % round(dy, 2)) if abs(dy) > 1e-9 else "", fs, E(t)))
         ww = wseg(kind, t)
         if t.count(" "):   # 点の位置だけは、空白を実際の幅（0.28 字ほど）で数える（文字の配置と重なり検査は今までどおり）
-            ww -= t.count(" ") * (ssz if kind in ("sub", "sup") else sz) * (0.56 - 0.28)
+            ww -= t.count(" ") * (sz * _TX_SMALL[kind] if kind in _TX_SMALL else sz) * (0.56 - 0.28)
         if kind in ("dot1", "dot2"):
             cx = xx + ww / 2; cy = y - sz * 0.86; r = max(1.1, sz * 0.11)
             if kind == "dot1": dots.append((cx, cy, r))
@@ -707,8 +726,7 @@ def SUMJ(x, y, signs, c=INK, r=15):
 # ---- ブロック線図の部品（07 章で作ったものを共通にした。見た目は 01 章の線図と同じ） ----
 def TXW(s, sz=10):
     """TX で書いた文字の幅（添字・上付きは 0.72 倍の大きさで数える）。"""
-    ssz = sz * 0.72
-    return sum(tw(t, ssz) if k in ("sub", "sup") else tw(t, sz) for k, t in _tx_tokens(s))
+    return sum(tw(t, sz * _TX_SMALL[k]) if k in _TX_SMALL else tw(t, sz) for k, t in _tx_tokens(s))
 
 def FRAC(xc, yc, num, den, sz=10.5, c=INK, b=False):
     """分数（xc は中心、yc は横線の高さ）。num・den は TX の書き方の文字。返り値 (svg, 幅)。"""
