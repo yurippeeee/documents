@@ -134,9 +134,12 @@ def _f18_fx(v, d=1):
 # =====================================================================
 # 描画の補助
 # =====================================================================
-_F18_CW = {" ": 0.28, "(": 0.33, ")": 0.33, "[": 0.3, "]": 0.3, "−": 0.58, "·": 0.28, "=": 0.58, "+": 0.58, ",": 0.28,
-           ".": 0.28, ":": 0.28, "/": 0.32, "i": 0.24, "l": 0.24, "j": 0.25, "t": 0.33, "f": 0.32, "r": 0.36, "m": 0.85,
-           "w": 0.75, "ᵀ": 0.4, "M": 0.85, "W": 0.95, "I": 0.28, "×": 0.58, "λ": 0.55, "ā": 0.55}
+# 文字の幅（font-size に対する割合）。図のページの var(--sans) で測った値（ブラウザとフォントで少し変わる）
+_F18_CW = {" ": 0.28, "(": 0.37, ")": 0.37, "[": 0.37, "]": 0.37, "−": 0.66, "·": 0.29, "=": 0.66, "+": 0.66, ",": 0.29,
+           ".": 0.29, ":": 0.29, "/": 0.36, "i": 0.24, "l": 0.24, "j": 0.24, "t": 0.34, "f": 0.37, "r": 0.39, "m": 0.88,
+           "w": 0.82, "M": 0.9, "W": 0.99, "I": 0.27, "×": 0.66, "λ": 0.64, "x": 0.55, "k": 0.55, "s": 0.53, "c": 0.57,
+           "a": 0.56, "e": 0.58, "u": 0.59, "n": 0.59, "y": 0.57, "1": 0.41, "ᵀ": 0.43, "°": 0.46, "φ": 0.72, "θ": 0.62,
+           "ω": 0.81, "ζ": 0.51, "σ": 0.63, "ṗ": 0.61, "ẋ": 0.55}
 
 
 def _f18_aw(s, sz):
@@ -149,11 +152,13 @@ def _f18_aw(s, sz):
             if ch in _F18_CW:
                 w += f * _F18_CW[ch]
             elif o_ < 128:
-                w += f * (0.62 if ch.isupper() else 0.55)
+                w += f * (0.66 if ch.isupper() else (0.61 if ch.isdigit() else 0.59))
             elif 0x370 <= o_ <= 0x3FF or 0x1E00 <= o_ <= 0x1EFF:
-                w += f * 0.56
+                w += f * 0.62
             elif 0x300 <= o_ <= 0x36F:
                 pass
+            elif 0x2080 <= o_ <= 0x209F:
+                w += f * 0.4
             else:
                 w += f * 1.0
     return w
@@ -316,7 +321,7 @@ def _f18_bd_fig():
     o.append(s)
     o.append(FBPATH(pos["ty"], pos["s"], yc, 44, c=SIG))
     o.append(T((pos["ty"] + pos["s"]) / 2, yc + 38, "測るのは位置 p だけ", "middle", 9.5, SIG, True, halo=True))
-    o.append(_f18_tx((pos["P"][0] + pos["P"][1]) / 2, yc - 30, "台車（状態は p と \\dot{p}）", "middle", 9.5, MUT))
+    o.append(T((pos["P"][0] + pos["P"][1]) / 2, yc - 30, "台車（状態は p と ṗ）", "middle", 9.5, MUT))
     # (b) 状態フィードバック
     yb = 156
     o.append(T(14, yb, "(b) 状態フィードバック: 状態をすべて測って戻す（太い線は状態ベクトル）", "start", 11.5, INK, True))
@@ -328,7 +333,7 @@ def _f18_bd_fig():
     o.append(W(xe2, yc2, xe2 + 96, yc2, c=SIG, lw=4))
     o.append(_head(xe2 + 80, yc2, xe2 + 104, yc2, SIG, 10))
     o.append(D(xt, yc2, SIG, 4.6))
-    o.append(_f18_tx(xe2 + 8, yc2 - 10, "x = [p, \\dot{p}]ᵀ", "start", 10, SIG, True, halo=True))
+    o.append(T(xe2 + 8, yc2 - 10, "x = [p, ṗ]ᵀ", "start", 10, SIG, True, halo=True))
     yfb = yc2 + 52
     o.append(W(xt, yc2, xt, yfb, c=SIG, lw=4))
     wF = TFBW("F = [f_1  f_2]")
@@ -339,7 +344,7 @@ def _f18_bd_fig():
     o.append(W(xm - wF / 2, yfb, p2["s"], yfb, c=GLD, lw=1.5))
     o.append(ARR(p2["s"], yfb, p2["s"], yc2 + 15, c=GLD, lw=1.5, head=6))
     o.append(TX((xm - wF / 2 + p2["s"]) / 2, yfb - 6, "Fx", "middle", 10, GLD, True, halo=True))
-    o.append(_f18_tx(20, yfb + 34, "u = −Fx = −f_1p − f_2\\dot{p}（目標値は 5 節で加える）", "start", 10.5, INK))
+    o.append(TX(20, yfb + 34, "u = −Fx = −f_1p − f_2ṗ（目標値は 5 節で加える）", "start", 10.5, INK))
     # (c) ばねとダンパを足したのと同じ
     xc = 480
     o.append(T(xc, 18, "(c) ばねとダンパを足したのと同じ", "start", 11.5, INK, True))
@@ -365,7 +370,7 @@ def _f18_bd_fig():
     o.append(TX((cx0 + cw + xr) / 2, gy - 80, "ばね f_1・ダンパ f_2", "middle", 9.5, SIG))
     o.append(ARR(cx0 + cw / 2, gy + 18, cx0 + cw / 2 + 36, gy + 18, c=SIG, lw=1.3, head=6))
     o.append(TX(cx0 + cw / 2 + 40, gy + 22, "p", "start", 10.5, SIG, True))
-    o.append(_f18_tx(xc, gy + 50, "m\\ddot{p} + (c + f_2)\\dot{p} + (k + f_1)p = 0", "start", 10.5, INK))
+    o.append(_f18_tx(xc, gy + 50, "m \\ddot{p} + (c + f_2)ṗ + (k + f_1)p = 0", "start", 10.5, INK))
     o.append(T(xc, gy + 68, "制御器のばね・ダンパは負の値にもできる", "start", 9.5, MUT))
     return SVG(700, 300, o,
                "比例制御と状態フィードバック。(a) 位置の比例制御は、台車の状態（位置と速度）のうち位置だけを測って戻す。(b) 状態フィードバックは、状態ベクトルのすべての要素にゲインを掛けて足し、符号を変えて入力にする。この節では目標値を 0 とし、外乱などでずれた状態を 0 へ戻す。(c) 台車とばね・ダンパでは、u = −f₁p − f₂ṗ は、ばね定数 f₁ のばねと減衰係数 f₂ のダンパを台車に足したのと同じ働きをする。")
@@ -410,9 +415,9 @@ def _f18_move_fig():
     o.append(TX(P.X(-0.6), P.Y(10.3), "f_1 だけ: 0 → 75", "start", 9.5, TEA, True, halo=True))
     o.append(TX(P.X(-9.2), P.Y(-2.0) + 12, "f_2 だけ: 0 → 18", "middle", 9.5, PUR, True, halo=True))
     o.append(T(P.X(-18.66), P.Y(0) - 8, "−18.66", "middle", 9, PUR, halo=True))
-    o.append(T(P.X(-1.6), P.Y(-6.6), "開ループの極 −1 ± j4.90", "end", 9, MUT, halo=True))
+    o.append(T(P.X(-1.6), P.Y(-7.4), "開ループの極 −1 ± j4.90", "end", 9, MUT, halo=True))
     o.append(TX(P.X(-5.6), P.Y(5.6) - 6, "F = [25  8]: −5 ± j5", "end", 9.5, SIG, True, halo=True))
-    o.append(T(P.X(-4.6), P.Y(-5.6) + 14, "半径 5 の円", "end", 9, FNT, halo=True))
+    o.append(T(P.X(-5.2), P.Y(-4.4), "半径 5 の円", "end", 9, FNT, halo=True))
     # (b) 10 cm ずらして放したときの位置
     o.append(T(392, 18, "(b) 10 cm ずらして放したときの位置 p [cm]", "start", 11.5, INK, True))
     cases = [([0, 0], MUT, "F = [0  0]（何もしない）", "3.92 s"),
