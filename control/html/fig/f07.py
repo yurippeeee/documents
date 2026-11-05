@@ -679,19 +679,19 @@ def _f07_type_grid_fig():
         p = Plot(ax, yp, aw, ph, (-25, 5), (-15, 15))
         o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.8))
         o.append(SPLANE(p))
-        o.append(p.axes(xl=None, yl=None, xt=[-20, -10, 0], yt=[-10, 0, 10], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=8.5, grid=False))
+        o.append(p.axes(xl=None, yl=None, xt=[-20, -10, 0], yt=[-10, 0, 10], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=9, grid=False))
         ol = [complex(r) for r in _f07_np.roots(ld)]
         zl = [complex(r) for r in _f07_np.roots(ln)] if len(ln) > 1 else []
         den = _f07_np.polyadd(ld, ln)
         cl = [complex(r) for r in _f07_np.roots(den)]
         o.append(PZ(p, ol, zl, MUT, 4.5))
         o.append(PZ(p, cl, [], SIG, 4.5))
-        o.append(T(p.X(0) + 5, p.y + 11, "原点に %d 個" % N, "start", 8.5, SIG, True, halo=True))
+        o.append(T(p.X(0) + 5, p.y + 11, "原点に %d 個" % N, "start", 9, SIG, True, halo=True))
         # (b) ステップ
         t = _f07_np.linspace(0, tend, 801)
         yv = _f07_lsim(ln, den, _f07_np.ones_like(t), t)
         q = Plot(bx, yp, bw, ph, (0, tend), (0, ys))
-        o.append(q.axes(xl=None, yl=None, xt=[0, tend / 2, tend], yt=[0, 0.5, 1], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=8.5))
+        o.append(q.axes(xl=None, yl=None, xt=[0, tend / 2, tend], yt=[0, 0.5, 1], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=9))
         o.append(q.line([(0, 1), (tend, 1)], c=MUT, lw=1.1, dash="4 3"))
         o.append(q.line(list(zip(t, yv)), c=SIG, lw=1.8))
         yf = yv[-1]
@@ -707,7 +707,7 @@ def _f07_type_grid_fig():
         # (c) ランプ
         yv = _f07_lsim(ln, den, t, t)
         q = Plot(cx, yp, cw, ph, (0, tend), (0, yr))
-        o.append(q.axes(xl=None, yl=None, xt=[0, tend / 2, tend], yt=[0, yr / 2, yr], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=8.5))
+        o.append(q.axes(xl=None, yl=None, xt=[0, tend / 2, tend], yt=[0, yr / 2, yr], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=9))
         o.append(q.line([(0, 0), (tend, tend)], c=MUT, lw=1.1, dash="4 3"))
         o.append(q.line(list(zip(t, yv)), c=SIG, lw=1.8))
         e_end = tend - yv[-1]
@@ -843,7 +843,7 @@ def _f07_dist_place_fig():
         for j, place in enumerate(("u", "y")):
             x = 90 + j * 330
             p = Plot(x, yy + 34, 250, 84, (0, tend), yrs[j])
-            o.append(p.axes(xl=None, yl=None, xt=[0, tend / 2, tend], yt=yts[j], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=8.5))
+            o.append(p.axes(xl=None, yl=None, xt=[0, tend / 2, tend], yt=yts[j], xfmt=_f07_fmt, yfmt=_f07_fmt, sz=9))
             o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
             y1 = _f07_dist_resp(case, place, False, t)
             y2 = _f07_dist_resp(case, place, True, t)
@@ -854,7 +854,7 @@ def _f07_dist_place_fig():
             o.append(T(p.x + p.w, yy + 27, labs[j], "end", 9.5, PUR, True))
             ylab = f1 + (yrs[j][1] - yrs[j][0]) * (0.16 if f1 < (yrs[j][0] + yrs[j][1]) / 2 else -0.12)
             o.append(T(p.x + p.w - 2, p.Y(ylab) + 4, txt, "end", 9, ALI, True, halo=True))
-            o.append(T(p.x - 34, p.y + p.h / 2, yls[j].split(" ")[0], "middle", 8.5, MUT, rot=-90))
+            o.append(T(p.x - 34, p.y + p.h / 2, yls[j].split(" ")[0], "middle", 9, MUT, rot=-90))
         yy += 140
     o.append(T(90 + 125, yy + 2, "時間 t [s]", "middle", 9.5, MUT))
     o.append(T(420 + 125, yy + 2, "時間 t [s]", "middle", 9.5, MUT))
@@ -1086,7 +1086,7 @@ def _f07_tradeoff_fig():
         for j, (yy, c, name) in enumerate(((yd, PUR, "外乱"), (yn, TEA, "ノイズ"))):
             x = 404 + j * 156
             pp = Plot(x, 66 + i * 98, 120, 56, (0, 2), (-1.15, 1.15))
-            o.append(pp.axes(xl=None, yl=None, xt=[0, 1, 2], yt=[-1, 0, 1], xfmt=(lambda v: "%g" % v) if i == 1 else (lambda v: ""), yfmt=_f07_fmt, sz=8.5))
+            o.append(pp.axes(xl=None, yl=None, xt=[0, 1, 2], yt=[-1, 0, 1], xfmt=(lambda v: "%g" % v) if i == 1 else (lambda v: ""), yfmt=_f07_fmt, sz=9))
             o.append(pp.line(list(zip(ts, u[sel])), c=c, lw=1.1, dash="4 2"))
             o.append(pp.line(list(zip(ts, yy[sel])), c=SIG, lw=1.9))
             amp = (yy[sel].max() - yy[sel].min()) / 2

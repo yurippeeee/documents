@@ -5,7 +5,11 @@
   function _w07_g(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v),s;
     if(a>=Math.pow(10,d))s=String(Math.round(v));else if(a<1e-4)s=v.toExponential(d-1);else s=(+v.toPrecision(d)).toString();return s.replace("-","−");}
   /* 極の文字（共役の組は ± でまとめる） */
-  function _w07_poles(ps){var out=[],used=[];ps.forEach(function(p,i){if(used[i])return;
+  function _w07_stab(ps){var mx=-Infinity;ps.forEach(function(p){mx=Math.max(mx,p.re/(1+Math.hypot(p.re,p.im)));});
+    return mx<-1e-7?'（<span class="ok">すべて左半平面: 安定</span>）':(mx>1e-7?'（<span class="warn">右半平面に極がある: 不安定</span>）':'（<span class="warn">虚軸の上に極がある: 安定限界</span>）');}
+  /* 読み出し（HTML）で、K_P・K_{P}・Ω_m のような添字を <sub> にする */
+  function _w07_h(s){return String(s).replace(/([A-Za-zΑ-Ωα-ω])_\{([^}]*)\}/g,"$1<sub>$2</sub>").replace(/([A-Za-zΑ-Ωα-ω])_([A-Za-z0-9]+)/g,"$1<sub>$2</sub>");}
+  function _w07_poles(ps){var out=[],used=[];ps=ps.map(function(p){return {re:Math.abs(p.re)<1e-7*(1+Math.abs(p.im))?0:p.re,im:p.im};});ps.forEach(function(p,i){if(used[i])return;
       if(Math.abs(p.im)>1e-9){for(var j=i+1;j<ps.length;j++)if(!used[j]&&Math.abs(ps[j].re-p.re)<1e-6*(1+Math.abs(p.re))&&Math.abs(ps[j].im+p.im)<1e-6*(1+Math.abs(p.im))){used[j]=true;break;}
         out.push(_w07_g(p.re,3)+" ± j"+_w07_g(Math.abs(p.im),3));}
       else out.push(_w07_g(p.re,3));used[i]=true;});
@@ -84,7 +88,7 @@
       sim:function(U){return _w07_ode(U,function(t,x){return [x[1],1-2*x[1]-25*x[0]];},[0,0],6,0.002,30).map(function(r){return [r[0],r[1][0]];});}});
     /* ② DC モータ */
     var V0=["a",30,"V(s)","gold"],WO=["a",50,"Ω_m(s)","signal"];
-    ex.push({name:"② DC モータ（L_a を含む。2 章 3 節）",tEnd:0.25,yl:"角速度 [rad/s]",inLab:"1 V のステップ",
+    ex.push({name:"② DC モータ（巻線のインダクタンスを含む。2 章 3 節）",tEnd:0.25,yl:"角速度 [rad/s]",inLab:"1 V のステップ",
       steps:[
         {rule:"元の線図（電圧 v と負荷トルク τ_L の 2 つの入力）",next:"重ね合わせ: τ_L = 0 として、電圧からの伝達関数を求める",
           items:[V0,["s",{l:"+",b:"−"},"sa"],["a",22,null,"ink"],["b",["1","L_a s + R_a"],"e"],["a",30,"I","teal"],["b","K_t","kt"],["a",30,null,"ink"],["s",{l:"+",t:"−"},"sb"],["a",22,null,"ink"],["b",["1","Js"],"j"],["a",40,null,"signal"],["t","tw","signal"],WO],
@@ -92,38 +96,38 @@
         {rule:"重ね合わせ: τ_L = 0 とすると、τ_L の加え合わせ点は信号をそのまま通す",next:"青い 3 つの箱を直列でまとめる",
           items:[V0,["s",{l:"+",b:"−"},"sa"],["a",22,null,"ink"],["b",["1","L_a s + R_a"],"e",1],["a",30,"I","teal"],["b","K_t","kt",1],["a",30,null,"ink"],["b",["1","Js"],"j",1],["a",40,null,"signal"],["t","tw","signal"],WO],
           fb:[["tw","sa",52,"K_t","signal"]]},
-        {rule:"直列結合: (1/(L_a s + R_a)) K_t (1/(Js)) = K_t/{Js(L_a s + R_a)}",next:"青い輪（逆起電力を戻す負帰還、H = K_t）をまとめる",
+        {rule:"直列結合: (1/(L_{a}s + R_{a}))K_{t}(1/(Js)) = K_{t}/{Js(L_{a}s + R_{a})}",next:"青い輪（逆起電力を戻す負帰還、H = K_t）をまとめる",
           items:[V0,["s",{l:"+",b:"−"},"sa"],["a",26,null,"ink"],["b",["K_t","Js(L_a s + R_a)"],"g"],["a",40,null,"signal"],["t","tw","signal"],WO],
           fb:[["tw","sa",50,"K_t","signal",1]]},
         {rule:"フィードバック結合（負帰還、H = K_t）",next:null,items:[V0,["b",["K_t","L_a Js^2 + R_a Js + K_t^2"],"g",1],WO],fb:[]}],
       tf:function(){return {num:[2e6],den:[1,2000,40000]};},
-      eq:function(){return "Ω_m(s)/V(s) = K_t/(L_aJs² + R_aJs + K_t²) = 2×10⁶/(s² + 2000s + 40000)（例の値。6 章 1 節）。v = 0 として同じ手順で、Ω_m/T_L = −(L_as + R_a)/(L_aJs² + R_aJs + K_t²)（s = 0 で −5000 (rad/s)/(N·m)）";},
+      eq:function(){return "Ω_m(s)/V(s) = K_{t}/(L_{a}Js² + R_{a}Js + K_{t}²) = 2×10⁶/(s² + 2000s + 40000)（例の値。6 章 1 節）。v = 0 として同じ手順で、Ω_m/T_L = −(L_{a}s + R_{a})/(L_{a}Js² + R_{a}Js + K_{t}²)（s = 0 で −5000 (rad/s)/(N·m)）";},
       sim:function(U){return _w07_ode(U,function(t,x){return [(1-2*x[0]-0.02*x[1])/1e-3,0.02*x[0]/1e-5];},[0,0],0.25,2.5e-5,200).map(function(r){return [r[0],r[1][1]];});}});
     /* ③ モータの位置の比例制御 */
     var R0=["a",30,"R(s)","muted"],TO=["a",40,"Θ_m(s)","signal"];
-    ex.push({name:"③ モータの位置の比例制御（L_a を含む。6 章 4 節）",tEnd:0.6,yl:"角度 [rad]",inLab:"目標値 1 rad のステップ",kp:true,
+    ex.push({name:"③ モータの位置の比例制御（インダクタンスを含む。6 章 4 節）",tEnd:0.6,yl:"角度 [rad]",inLab:"目標値 1 rad のステップ",kp:true,
       steps:[
         {rule:"元の線図（内側に逆起電力の輪、外側に角度を戻す輪）",next:"青い 3 つの箱を直列でまとめる",
           items:[R0,["s",{l:"+",b:"−"},"s0"],["a",18,null,"alias"],["b","K_P","kp"],["a",22,"V","gold"],["s",{l:"+",b:"−"},"sa"],["a",14,null,"ink"],["b",["1","L_a s + R_a"],"e",1],["a",14,null,"teal"],["b","K_t","kt",1],["a",14,null,"ink"],["b",["1","Js"],"j",1],["a",26,null,"signal"],["t","tw","signal"],["a",16,null,"signal"],["b",["1","s"],"i"],["a",22,null,"signal"],["t","tt","signal"],TO],
           fb:[["tw","sa",50,"K_t","ink"],["tt","s0",86,null,"signal"]]},
-        {rule:"直列結合: K_t/{Js(L_a s + R_a)}",next:"青い内側の輪（逆起電力、H = K_t）をまとめる",
+        {rule:"直列結合: K_{t}/{Js(L_{a}s + R_{a})}",next:"青い内側の輪（逆起電力、H = K_t）をまとめる",
           items:[R0,["s",{l:"+",b:"−"},"s0"],["a",18,null,"alias"],["b","K_P","kp"],["a",22,"V","gold"],["s",{l:"+",b:"−"},"sa"],["a",18,null,"ink"],["b",["K_t","Js(L_a s + R_a)"],"g"],["a",26,null,"signal"],["t","tw","signal"],["a",16,null,"signal"],["b",["1","s"],"i"],["a",22,null,"signal"],["t","tt","signal"],TO],
           fb:[["tw","sa",50,"K_t","signal",1],["tt","s0",86,null,"signal"]]},
-        {rule:"フィードバック結合（負帰還、H = K_t）: K_t/(L_aJs² + R_aJs + K_t²)",next:"青い 3 つの箱（K_P、モータ、積分）を直列でまとめる",
+        {rule:"フィードバック結合（負帰還、H = K_t）: K_{t}/(L_{a}Js² + R_{a}Js + K_{t}²)",next:"青い 3 つの箱（K_P、モータ、積分）を直列でまとめる",
           items:[R0,["s",{l:"+",b:"−"},"s0"],["a",18,null,"alias"],["b","K_P","kp",1],["a",22,"V","gold"],["b",["K_t","L_a Js^2 + R_a Js + K_t^2"],"g",1],["a",22,"Ω_m","signal"],["b",["1","s"],"i",1],["a",22,null,"signal"],["t","tt","signal"],TO],
           fb:[["tt","s0",56,null,"signal"]]},
-        {rule:"直列結合: K_PK_t/{s(L_aJs² + R_aJs + K_t²)}（一巡伝達関数）",next:"青い外側の輪（角度を戻す負帰還、H = 1）をまとめる",
+        {rule:"直列結合: K_{P}K_{t}/{s(L_{a}Js² + R_{a}Js + K_{t}²)}（輪を一周する伝達関数）",next:"青い外側の輪（角度を戻す負帰還、H = 1）をまとめる",
           items:[R0,["s",{l:"+",b:"−"},"s0"],["a",22,null,"alias"],["b",["K_P K_t","s(L_a Js^2 + R_a Js + K_t^2)"],"g"],["a",26,null,"signal"],["t","tt","signal"],TO],
           fb:[["tt","s0",56,null,"signal",1]]},
         {rule:"フィードバック結合（負帰還、H = 1）",next:null,items:[R0,["b",["K_P K_t","L_a Js^3 + R_a Js^2 + K_t^2 s + K_P K_t"],"g",1],TO],fb:[]}],
       tf:function(kp){return {num:[2e6*kp],den:[1,2000,40000,2e6*kp]};},
-      eq:function(kp){return "Θ_m(s)/R(s) = K_PK_t/(L_aJs³ + R_aJs² + K_t²s + K_PK_t)。L_aJ で割ると 2×10⁶K_P/(s³ + 2000s² + 40000s + 2×10⁶K_P)、K_P = "+kp+" V/rad で分母の定数項は "+_w07_g(2e6*kp,3);},
+      eq:function(kp){return "Θ_m(s)/R(s) = K_{P}K_{t}/(L_{a}Js³ + R_{a}Js² + K_{t}²s + K_{P}K_{t})。L_{a}J で割ると 2×10⁶K_{P}/(s³ + 2000s² + 40000s + 2×10⁶K_{P})。K_P = "+kp+" V/rad で分母の定数項は "+_w07_g(2e6*kp,3);},
       sim:function(U,kp,tEnd){var h=2.5e-5,every=Math.max(1,Math.round(tEnd/240/h));return _w07_ode(U,function(t,x){var v=kp*(1-x[2]);return [(v-2*x[0]-0.02*x[1])/1e-3,0.02*x[0]/1e-5,x[1]];},[0,0,0],tEnd,h,every).map(function(r){return [r[0],r[1][2]];});}});
     /* ④ 1 章の台車（決めた力の道） */
     var Rr=["a",22,"R(s)","muted"],YY=["a",40,"Y(s)","signal"],PB=["b",["0.5","0.5s + 1"],"p"],Dt=["s3",40,"D(s)","purple"];
-    ex.push({name:"④ 1 章の台車の速度（決めた力 u_0 = cr の道と坂）",tEnd:2,yl:"速度 [m/s]",inLab:"目標値 1 m/s、1 s に坂",kp2:true,
+    ex.push({name:"④ 1 章の台車の速度（決めた力の道と坂）",tEnd:2,yl:"速度 [m/s]",inLab:"目標値 1 m/s、1 s に坂",kp2:true,
       steps:[
-        {rule:"元の線図（1 章 4 節。u = cr + K_P(r − y)、坂の力 D）",next:"加え合わせ点を K_P の出力側へ移す（等価変換 ①）",
+        {rule:"元の線図（1 章 4 節。u = cr + K_{P}(r − y)、坂の力 D）",next:"加え合わせ点を K_P の出力側へ移す（等価変換 ①）",
           items:[Rr,["t","tr","muted"],["a",40,null,"muted"],["s",{l:"+",b:"−"},"s1"],["a",22,null,"alias"],["b","K_P","kp",1],["a",30,null,"gold"],["s",{l:"+",t:"+"},"s2"],["a",30,null,"gold"],["s",{l:"+",t:"+"},"s3"],["a",22,null,"ink"],PB,["a",40,null,"signal"],["t","ty","signal"],YY],
           fb:[["ty","s1",50,null,"signal"]],ff:[["tr","s2",60,"c","muted"]],top:[Dt]},
         {rule:"等価変換: 加え合わせ点を K_P の出力側へ移すと、戻る信号にも K_P が掛かる",next:"続けて並んだ 2 つの加え合わせ点の順を入れ替える",
@@ -135,11 +139,11 @@
         {rule:"並列結合: K_P + c",next:"加え合わせ点を入れ替えて、青い輪（P を K_P で戻す負帰還）をまとめる",
           items:[Rr,["a",30,null,"muted"],["b","c + K_P","kp"],["a",30,null,"gold"],["s",{l:"+",b:"−"},"s1"],["a",30,null,"gold"],["s",{l:"+",t:"+"},"s3"],["a",22,null,"ink"],["b",["0.5","0.5s + 1"],"p",1],["a",40,null,"signal"],["t","ty","signal"],YY],
           fb:[["ty","s1",50,"K_P","signal",1]],top:[Dt]},
-        {rule:"加え合わせ点の入れ替えと、フィードバック結合: P/(1 + K_P P)",next:null,
+        {rule:"加え合わせ点の入れ替えと、フィードバック結合: P/(1 + K_{P}P)",next:null,
           items:[Rr,["a",30,null,"muted"],["b","c + K_P","kp"],["a",30,null,"gold"],["s",{l:"+",t:"+"},"s3"],["a",22,null,"ink"],["b",["P(s)","1 + K_P P(s)"],"p",1],["a",40,null,"signal"],YY],
           fb:[],top:[Dt]}],
       tf:function(kp){var g=0.5*kp+1;return {num:[0.5*(2+kp)],den:[0.5,g],dnum:[0.5],dden:[0.5,g]};},
-      eq:function(kp){var g=1+0.5*kp;return "Y = (c + K_P)P/(1 + K_PP)·R + P/(1 + K_PP)·D。K_P = "+kp+" N/(m/s) では s = 0 で R の係数 "+_w07_g(0.5*(2+kp)/g,4)+"、D の係数 "+_w07_g(0.5/g,3)+" (m/s)/N、坂（D = −0.513 N）の上で "+_w07_f(0.5*(2+kp)/g-0.5134*0.5/g,3)+" m/s";},
+      eq:function(kp){var g=1+0.5*kp;return "Y = (c + K_{P})P/(1 + K_{P}P)·R + P/(1 + K_{P}P)·D。K_P = "+kp+" N/(m/s) では s = 0 で R の係数 "+_w07_g(0.5*(2+kp)/g,4)+"、D の係数 "+_w07_g(0.5/g,3)+" (m/s)/N、坂（D = −0.513 N）の上で "+_w07_f(0.5*(2+kp)/g-0.5134*0.5/g,3)+" m/s";},
       sim:function(U,kp){return _w07_ode(U,function(t,x){var u=2+kp*(1-x[0]),d=t>=1?-0.51342:0;return [(0.5*(u+d)-x[0])/0.5];},[0],2,0.001,8).map(function(r){return [r[0],r[1][0]];});}});
     return ex;
   }
@@ -167,9 +171,9 @@
       (sp.top||[]).forEach(function(f){o.push(_w07_top(U,ch.pos[f[0]],yc,f[1],f[2],f[3],!!f[4]));});
       var hgt=yc+Math.max(40,Math.max.apply(null,[30].concat((sp.fb||[]).map(function(f){return f[2]+24;}))));
       bd.set(S.svg(Math.max(700,ch.x+20),hgt,o));
-      var K=e.kp?kp.get():kp2.get(),h="<b>段 "+(st+1)+"</b>: "+sp.rule+"<br>";
-      if(sp.next)h+='次の段: '+sp.next+'（「次へ」を押す）';
-      else h+='<span class="ok">まとまった。</span> '+e.eq(K);
+      var K=e.kp?kp.get():kp2.get(),h="<b>段 "+(st+1)+"</b>: "+_w07_h(sp.rule)+"<br>";
+      if(sp.next)h+='次の段: '+_w07_h(sp.next)+'（「次へ」を押す）';
+      else h+='<span class="ok">まとまった。</span> '+_w07_h(e.eq(K));
       ro.innerHTML=h;
       /* 最後の段: 極と応答 */
       if(sp.next){box.set("");box.el.style.display="none";return;}
@@ -199,7 +203,7 @@
       q.push(S.LEGL(bx,B.y+B.h+48,[["signal",null,"線: まとめた伝達関数"]],9.5));
       q.push(S.CIRC(bx+(nar?150:170),B.y+B.h+44,2.8,"signal",1.3,"screen"));q.push(S.T(bx+(nar?158:178),B.y+B.h+48,"点: 元の線図のまま数値計算","start",9.5,"muted"));
       box.set(S.svg(Wd,B.y+B.h+58,q));
-      ro.innerHTML=h+"<br>極: "+_w07_poles(ps)+(stable?'（<span class="ok">すべて左半平面</span>）':'（<span class="warn">左半平面に無い極がある: 不安定</span>）');
+      ro.innerHTML=h+"<br>極: "+_w07_poles(ps)+_w07_stab(ps);
     }
     draw();
   };
@@ -268,8 +272,8 @@
       box.set(S.svg(Wd,C.y+C.h+54,o));
       /* 読み出し */
       var nm=["定常位置偏差","定常速度偏差","2 乗で増える目標値への定常偏差"][m],h="";
-      h+="一巡伝達関数 P(s)C(s) の原点の極: <b>"+N+" 個</b> → <b>型 "+N+"</b>。閉ループの極: "+_w07_poles(clp)+(stable?'（<span class="ok">安定</span>）':'（<span class="warn">不安定</span>）')+"<br>";
-      if(!stable)h+='<span class="warn">閉ループが不安定なので、最終値の定理は使えない（偏差は落ち着かない）。</span>';
+      h+="一巡伝達関数 P(s)C(s) の原点の極: <b>"+N+" 個</b> → <b>型 "+N+"</b>。閉ループの極: "+_w07_poles(clp)+_w07_stab(clp)+"<br>";
+      if(!stable)h+='<span class="warn">閉ループが安定でないので、最終値の定理は使えない（偏差は落ち着かない）。</span>';
       else{
         var lab=m===0?"1/(1 + lim<sub>s→0</sub> P(s)C(s))":(m===1?"1/lim<sub>s→0</sub> sP(s)C(s)":"1/lim<sub>s→0</sub> s²P(s)C(s)");
         if(!isFinite(pred))h+=nm+": 型 "+N+" では<b>増え続ける</b>（sE(s) の分母に s = 0 の根が残る）。"+_w07_f(tEnd,2)+" s で偏差 "+_w07_g(es[es.length-1],3)+" "+L.yu;
@@ -319,7 +323,7 @@
       o.push(S.T(14,18,"外乱の入る点（紫）と、制御器（"+(I?"比例 + 積分":"比例だけ")+"）","start",10.5,"ink",true));
       bd.set(S.svg(700,yc+60,o));
       /* 応答（目標値 0、時刻 0.2 s に外乱のステップ） */
-      var t0=0.2,tEnd=cart?1.6:2.5;if(stable){var sl=Math.min.apply(null,clp.map(function(p){return Math.abs(p.re);}));tEnd=Math.min(Math.max(tEnd,t0+6/sl),12);}
+      var t0=0.2,tEnd=cart?1.6:2.5;if(stable){var sl=Math.min.apply(null,clp.map(function(p){return Math.abs(p.re);}));tEnd=Math.min(Math.max(tEnd,t0+8/sl),12);}
       var G=U.ctl.tf(num,den),Rr=U.ctl.lsim(G,function(t){return t>=t0?1:0;},tEnd,800),ts=Rr.t,ys=Rr.y.map(function(v){return v*d;});
       var hh=ts[1]-ts[0],ip=[0],pp=[];for(var i=0;i<ts.length;i++){pp.push(-K*ys[i]);if(i>0)ip.push(ip[i-1]-KI*(ys[i]+ys[i-1])/2*hh);}
       if(!I)ip=ip.map(function(){return 0;});
@@ -349,7 +353,7 @@
       /* 読み出し */
       var uu=cart?"m/s":"rad",dl=cart?(inU?"坂の力 "+_w07_f(d,3)+" N（"+_w07_f(3*k,2)+"° の上り坂）":"歩道の速さ +"+_w07_f(d,2)+" m/s"):(inU?"負荷トルク "+_w07_f(0.01*k,3)+" N·m（電圧に換算して "+_w07_f(d,2)+" V）":"継ぎ手の滑り +"+_w07_f(d,2)+" rad");
       var hs="外乱: "+dl+"。外乱から制御量までの伝達関数: "+(inU?"P/(1 + PC)":"1/(1 + PC)")+"<br>";
-      hs+="閉ループの極: "+_w07_poles(clp)+(stable?'（<span class="ok">安定</span>）':'（<span class="warn">不安定</span>）')+"<br>";
+      hs+="閉ループの極: "+_w07_poles(clp)+_w07_stab(clp)+"<br>";
       if(stable){var fe=ys[ys.length-1];
         hs+="落ち着いたずれ: 式 lim<sub>s→0</sub>（伝達関数）× 外乱 = <b>"+_w07_g(pred,3)+" "+uu+"</b>、数値計算（"+_w07_f(tEnd,2)+" s）"+_w07_g(fe,3)+" "+uu;
         if(Math.abs(pred)<1e-9)hs+=' <span class="ok">（ずれは消える）</span>';
@@ -363,6 +367,16 @@
   };
 
   /* ---- 5・6 節: ばらつく対象・坂・観測ノイズ ---- */
+  /* 台車の一次遅れ T y' + y = K(u + d) を h 刻みで厳密に進める（刻みの間は u 一定）。u = cr + K_P(r − 測った値) + 積分（r = 1 m/s） */
+  function _w07_cart(o){var h=o.h||2e-4,n=Math.round(o.tEnd/h),y=0,ii=0,nzv=0,a=Math.exp(-h/o.T),hold=Math.max(1,Math.round(0.01/h)),ev=o.every||10,out={t:[],y:[],u:[]};
+    for(var k=0;k<=n;k++){var t=k*h;
+      if(o.rnd&&k%hold===0)nzv=0.02*o.rnd.normal();
+      var ym=y+(o.rnd?nzv:0),e=1-ym,u=2+(o.closed?o.Kp*e+ii:0),d=(o.slope!=null&&t>=o.slope)?-0.51342:0;
+      if(k%ev===0){out.t.push(t);out.y.push(y);out.u.push(u);}
+      if(o.closed&&o.I)ii+=25*e*h;
+      var yi=o.K*(u+d);y=yi+(y-yi)*a;}
+    return out;}
+  function _w07_sd(v){var m=v.reduce(function(s,x){return s+x;},0)/v.length;return Math.sqrt(v.reduce(function(s,x){return s+(x-m)*(x-m);},0)/v.length);}
   REG.w07_sens=function(el,U){
     var S=U.S;
     U.head(el,"SENSITIVITY","ばらつく対象の応答の束（開ループと閉ループ）と、坂・観測ノイズ");
@@ -371,8 +385,8 @@
     var rg=U.slider(r1,"ばらつきの幅（K と T）",{values:[0,10,20,30,40,50,60],value:50,fmt:function(v){return "± "+v+" %";},onInput:draw});
     var r2=U.ctrls(el);
     var ig=U.checkbox(r2,"積分を足す（K<sub>I</sub> = 25 N/m）",false,draw);
-    var sl=U.checkbox(r2,"1.5 s から上り坂 3°",false,draw);
-    var nz=U.checkbox(r2,"観測ノイズ（標準偏差 0.02 m/s）",false,draw);
+    var sl=U.checkbox(r2,"2 s から上り坂 3°",false,draw);
+    var nz=U.checkbox(r2,"観測ノイズ（0.01 s ごとに変わる、標準偏差 0.02 m/s）",false,draw);
     var br=U.btnrow(el),seed=1;
     function set(k,r,i,s,n){kp.set(k);rg.set(r);ig.set(i);sl.set(s);nz.set(n);draw();}
     U.button(br,"本文の例（K<sub>P</sub> = 8、±50 %）",function(){set(8,50,false,false,false);});
@@ -381,55 +395,42 @@
     U.button(br,"積分を足す",function(){set(8,50,true,true,false);});
     var sb=U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
     var box=U.svgbox(el),ro=U.readout(el);
-    /* 台車の一次遅れ T y' + y = K(u + d) を h 刻みで厳密に進める（刻みの間は u 一定）。u = c r + K_P(r − 測った値) + 積分 */
-    function sim(K,T,Kp,I,slope,noise,closed,rnd){
-      var h=2e-4,tEnd=3,n=Math.round(tEnd/h),y=0,ii=0,nzv=0,a=Math.exp(-h/T),out={t:[],y:[],u:[]};
-      for(var k=0;k<=n;k++){var t=k*h;
-        if(noise&&closed&&k%50===0)nzv=0.02*rnd.normal();
-        var ym=y+(noise&&closed?nzv:0),e=1-ym,u=2+(closed?Kp*e+ii:0),d=slope&&t>=1.5?-0.51342:0;
-        if(k%10===0){out.t.push(t);out.y.push(y);out.u.push(u);}
-        if(closed&&I)ii+=25*e*h;
-        var yi=K*(u+d);y=yi+(y-yi)*a;}
-      return out;}
     function draw(){
-      var Kp=kp.get(),r=rg.get()/100,I=ig.get(),slope=sl.get(),noise=nz.get();
+      var Kp=kp.get(),r=rg.get()/100,I=ig.get(),slope=sl.get()?2:null,noise=nz.get(),tEnd=4;
       sb.style.display=noise?"":"none";
-      var fs=[1-r,1,1+r],nar=_w07_nar(box),Wd=nar?400:700,o=[],res=[[],[]];
-      var cols=["teal","signal","gold"],dashes=["2 3",null,"7 3"];
+      var fs=[1-r,1,1+r],nar=_w07_nar(box),Wd=nar?400:700,o=[],cols=["teal","signal","gold"],dashes=["2 3",null,"7 3"],fin=[[],[]];
       for(var j=0;j<2;j++){
-        var x=nar?52:62+j*330,y0=nar?24+j*200:24,P=U.plot(x,y0,nar?330:270,nar?150:190,[0,3],[0,1.8]);
+        var x=nar?52:62+j*330,y0=nar?24+j*200:24,P=U.plot(x,y0,nar?330:270,nar?150:190,[0,tEnd],[0,1.8]);
         o.push(S.TX(x-40,y0-8,j===0?"(a) 開ループ（u = cr = 2 N で押すだけ）":"(b) 閉ループ（u = cr + K_P(r − y)"+(I?" + 積分":"")+"）","start",10,"ink",true));
-        if(slope)o.push(S.RECT(P.X(1.5),P.y,P.X(3)-P.X(1.5),P.h,0,U.soft("purple"),"none",0));
-        o.push(P.axes({xl:(nar&&j===0)?null:"時間 t [s]",yl:(nar||j===0)?"速度 y [m/s]":null,xt:[0,0.5,1,1.5,2,2.5,3],yt:[0,0.5,1,1.5],xfmt:function(v){return _w07_g(v,3);},yfmt:function(v){return _w07_g(v,3);},ylOff:38,sz:9}));
-        o.push(P.line([[0,1],[3,1]],"muted",1.1,"4 3"));
+        if(slope!=null)o.push(S.RECT(P.X(slope),P.y,P.X(tEnd)-P.X(slope),P.h,0,U.soft("purple"),"none",0));
+        o.push(P.axes({xl:(nar&&j===0)?null:"時間 t [s]",yl:(nar||j===0)?"速度 y [m/s]":null,xt:[0,1,2,3,4],yt:[0,0.5,1,1.5],xfmt:function(v){return _w07_g(v,3);},yfmt:function(v){return _w07_g(v,3);},ylOff:38,sz:9}));
+        o.push(P.line([[0,1],[tEnd,1]],"muted",1.1,"4 3"));
         for(var a=0;a<3;a++)for(var b=0;b<3;b++){
-          var rnd=U.rng(seed),R=sim(0.5*fs[a],0.5*fs[b],Kp,I,slope,noise,j===1,rnd);
-          res[j].push({K:0.5*fs[a],T:0.5*fs[b],R:R});
-          var nom=a===1&&b===1;
-          if(!nom||!noise||j===0)o.push(P.clip(R.t.map(function(t,i){return [t,R.y[i]];}),cols[a],nom?2.3:1.4,dashes[b]));}
-        if(noise&&j===1){var Rn=res[1][4].R;o.push(P.clip(Rn.t.map(function(t,i){return [t,Rn.y[i]];}),"signal",1.4));}
-        /* 坂が無いときに落ち着く値（最終値の定理: 開ループ 2K、閉ループ K(2 + K_P)/(1 + KK_P)、積分ありは 1） */
-        var fin=res[j].map(function(q){return j===0?2*q.K:(I?1:q.K*(2+Kp)/(1+q.K*Kp));}),lo=Math.min.apply(null,fin),hi=Math.max.apply(null,fin);
-        var bx=P.x+P.w+8;o.push(S.RECT(bx,P.Y(hi),8,Math.max(1,P.Y(lo)-P.Y(hi)),2,U.soft(j===0?"alias":"green"),j===0?"alias":"green",1.2));
-        res[j].lo=lo;res[j].hi=hi;}
+          var K=0.5*fs[a],T=0.5*fs[b],nom=a===1&&b===1;
+          var R=_w07_cart({K:K,T:T,Kp:Kp,I:I,slope:slope,closed:j===1,tEnd:tEnd,rnd:(noise&&j===1)?U.rng(seed+3*a+b):null});
+          o.push(P.clip(R.t.map(function(t,i){return [t,R.y[i]];}),cols[a],nom?2.3:1.3,dashes[b]));
+          fin[j].push(j===0?2*K:(I?1:K*(2+Kp)/(1+K*Kp)));}
+        /* 坂が無いときに落ち着く値の幅（最終値の定理） */
+        var lo=Math.min.apply(null,fin[j]),hi=Math.max.apply(null,fin[j]),bx=P.x+P.w+8;
+        o.push(S.RECT(bx,P.Y(hi),8,Math.max(1,P.Y(lo)-P.Y(hi)),2,U.soft(j===0?"alias":"green"),j===0?"alias":"green",1.2));}
       if(!nar){o.push(S.LEGL(62,256,[["teal",null,"K × "+_w07_g(fs[0],2)],["signal",null,"× 1（例の値）"],["gold",null,"× "+_w07_g(fs[2],2)]],9.5,12));
         o.push(S.LEGL(392,256,[["muted","2 3","T × "+_w07_g(fs[0],2)],["muted",null,"× 1"],["muted","7 3","× "+_w07_g(fs[2],2)]],9.5,12));}
       else{o.push(S.LEGL(52,446,[["teal",null,"K × "+_w07_g(fs[0],2)],["signal",null,"× 1"],["gold",null,"× "+_w07_g(fs[2],2)]],9.5,10));
         o.push(S.LEGL(52,462,[["muted","2 3","T × "+_w07_g(fs[0],2)],["muted",null,"× 1"],["muted","7 3","× "+_w07_g(fs[2],2)]],9.5,10));}
       box.set(S.svg(Wd,nar?472:266,o));
       /* 読み出し */
-      var g=1+0.5*Kp,h="";
-      h+="坂が無いときに落ち着く速度の幅（最終値の定理）: 開ループ <b>"+_w07_f(res[0].lo,3)+"〜"+_w07_f(res[0].hi,3)+" m/s</b>、閉ループ <b>"+_w07_f(res[1].lo,3)+"〜"+_w07_f(res[1].hi,3)+" m/s</b><br>";
+      var g=1+0.5*Kp,h="",lo0=Math.min.apply(null,fin[0]),hi0=Math.max.apply(null,fin[0]),lo1=Math.min.apply(null,fin[1]),hi1=Math.max.apply(null,fin[1]);
+      h+="坂が無いときに落ち着く速度の幅（最終値の定理）: 開ループ <b>"+_w07_f(lo0,3)+"〜"+_w07_f(hi0,3)+" m/s</b>、閉ループ <b>"+_w07_f(lo1,3)+"〜"+_w07_f(hi1,3)+" m/s</b><br>";
       if(!I){var Kl=0.5*(1-r),Kh=0.5*(1+r);
-        h+="5 節の式 δS'(0) = δ ÷ (1 + K'K<sub>P</sub>): 定常ゲインが "+_w07_f(-r*100,0)+" % なら "+_w07_f(-r/(1+Kl*Kp)*100,1)+" %、+"+_w07_f(r*100,0)+" % なら +"+_w07_f(r/(1+Kh*Kp)*100,1)+" %（例の値の対象の S(0) = 1/(1 + KK<sub>P</sub>) = "+_w07_g(1/g,3)+"）<br>";}
+        h+="5 節の式 δS'(0) = δ ÷ (1 + K'K<sub>P</sub>): 定常ゲインが −"+_w07_f(r*100,0)+" % なら "+_w07_f(-r/(1+Kl*Kp)*100,1)+" %、+"+_w07_f(r*100,0)+" % なら +"+_w07_f(r/(1+Kh*Kp)*100,1)+" %（例の値の対象の S(0) = 1/(1 + KK<sub>P</sub>) = "+_w07_g(1/g,3)+"）<br>";}
       else h+='<span class="ok">積分を足すと型 1 になり、S(0) = 0 なので、どの対象でも 1 m/s に落ち着く</span><br>';
-      if(slope){var nomc=res[1][4].R,nomo=res[0][4].R,ye=nomc.y[nomc.y.length-1],yo=nomo.y[nomo.y.length-1];
-        h+="坂の上（3 s、例の値の対象）: 開ループ "+_w07_f(yo,3)+" m/s、閉ループ <b>"+_w07_f(ye,3)+" m/s</b>"+(I?"（積分で 1 に戻る）":"（式: 1 − 0.513 × 0.5/(1 + 0.5K<sub>P</sub>) = "+_w07_f(1-0.51342*0.5/g,3)+" m/s）")+"<br>";}
-      if(noise){var Rn=res[1][4].R,i0=Math.round(1.0/2e-3),i1=Math.round(1.45/2e-3),ys=Rn.y.slice(i0,i1),us=Rn.u.slice(i0,i1);
-        function sd(v){var m=v.reduce(function(s,x){return s+x;},0)/v.length;return Math.sqrt(v.reduce(function(s,x){return s+(x-m)*(x-m);},0)/v.length);}
-        h+="観測ノイズによる揺れ（例の値の対象、1.0〜1.45 s の標準偏差）: 速度 <b>"+_w07_g(sd(ys),2)+" m/s</b>、力 <b>"+_w07_g(sd(us),2)+" N</b>（短い区間の値なので、乱数で変わる。1 章 4 節の長い時間の値は K<sub>P</sub> = 8 で 0.0035 m/s・0.16 N、30 で 0.0071 m/s・0.56 N）<br>";}
+      if(slope!=null){var Rc=_w07_cart({K:0.5,T:0.5,Kp:Kp,I:I,slope:slope,closed:true,tEnd:tEnd});
+        h+="坂の上で落ち着く速度（例の値の対象）: 開ループ（式）1 − 0.5 × 0.513 = 0.743 m/s、閉ループ "+(I?"<b>1.000 m/s</b>（積分で戻る。数値計算 "+_w07_f(Rc.y[Rc.y.length-1],3)+" m/s）":"（式）1 − 0.513 × 0.5/(1 + 0.5K<sub>P</sub>) = <b>"+_w07_f(1-0.51342*0.5/g,3)+" m/s</b>（ノイズ無しの数値計算 "+_w07_f(Rc.y[Rc.y.length-1],3)+" m/s）")+"<br>";}
+      if(noise){if(Kp>0){var Rn=_w07_cart({K:0.5,T:0.5,Kp:Kp,I:I,closed:true,tEnd:60,h:1e-3,every:1,rnd:U.rng(seed+100)}),i0=Math.round(2/1e-3);
+          h+="観測ノイズによる揺れ（例の値の対象、平らな道で 58 s の標準偏差）: 速度 <b>"+_w07_g(_w07_sd(Rn.y.slice(i0)),2)+" m/s</b>、押す力 <b>"+_w07_g(_w07_sd(Rn.u.slice(i0)),2)+" N</b>（1 章 4 節: K<sub>P</sub> = 8 で 0.0035 m/s・0.16 N、30 で 0.0071 m/s・0.56 N）<br>";}
+        else h+="K<sub>P</sub> = 0 では、測った値を使わないので、観測ノイズは速度に出ない<br>";}
       h+=(Kp>0?"比例ゲインを上げると、束は細くなり、坂によるずれも減る。その代わり、観測ノイズが速度と力に大きく出る（6 節）。":"K<sub>P</sub> = 0 では、閉ループも開ループと同じになる。");
-      ro.innerHTML=h+'<div class="wnote">台車の速度（例の値 K = 0.5 (m/s)/N、T = 0.5 s）の K と T を、それぞれ 3 通りに変えた 9 通り。決めた力 u<sub>0</sub> = cr = 2 N（c は例の値）はどちらにも足す。観測ノイズは閉ループだけに入る（開ループは測らない）。0.2 ms 刻みで計算した。</div>';
+      ro.innerHTML=h+'<div class="wnote">台車の速度（例の値 K = 0.5 (m/s)/N、T = 0.5 s）の K と T を、それぞれ 3 通りに変えた 9 通り（右の帯は、坂が無いときに落ち着く速度の幅）。決めた力 u<sub>0</sub> = cr = 2 N（c は例の値）はどちらにも足す。観測ノイズは閉ループだけに入る（開ループは測らない）。束は 0.2 ms 刻み、ノイズの揺れは 1 章と同じ 1 ms 刻みで計算した。</div>';
     }
     draw();
   };
