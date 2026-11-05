@@ -123,7 +123,7 @@
         h+="<br>";}
       if(sg<0)h+='<span class="ok">実部が負: 項は減り、応答は最終値に落ち着く</span>';
       else if(sg===0)h+=w>0?'<span class="warn">虚軸の上: 項は同じ振幅で揺れ続ける（ステップ応答は 0 と 2 の間を往復）</span>':'<span class="warn">原点: 項は減らず、ステップ応答は一定の速さで増え続ける（積分）</span>';
-      else h+='<span class="warn">実部が正: 項は '+_w06_sig(Math.LN2/sg,3)+' s ごとに 2 倍になり、応答は最終値から離れていく</span>';
+      else h+='<span class="warn">実部が正: 項は '+_w06_sig(Math.LN2/sg,3)+' s ごとに 2 倍になり、応答は 1 から離れていく</span>';
       ro.innerHTML=h+'<div class="wnote">極の組 σ<sub>0</sub> ± jω<sub>0</sub> をもち、G(0) = 1 の二次遅れ ω<sub>n</sub>²/(s² − 2σ<sub>0</sub>s + ω<sub>n</sub>²)（ω<sub>n</sub>² = σ<sub>0</sub>² + ω<sub>0</sub>²）の応答。虚部が 0 のときは、実の極 1 つの一次遅れ（原点では積分 1/s）として描く。応答は本文 3 節の式で計算した。</div>';
     }
     draw();
@@ -156,12 +156,15 @@
     U.button(br,"零点の組を足す",function(){add("z",true,-2,1.5);});
     U.button(br,"選んだものを消す",function(){msg="";if(sel>=0){items.splice(sel,1);sel=-1;while(nze()>Math.max(0,npo()-1)){for(var i=items.length-1;i>=0;i--)if(items[i].k==="z"){items.splice(i,1);break;}msg="極より少なくなるよう、零点も消した";}}draw();});
     var br2=U.btnrow(el);
-    function preset(a){items=a.map(function(x){return {k:x[0],pair:x[1],re:x[2],im:x[3]||0};});sel=-1;msg="";draw();}
+    function preset(a){items=a.map(function(x){return {k:x[0],pair:x[1],re:x[2],im:x[3]||0};});sel=-1;items.forEach(function(it,i){if(sel<0&&it.k==="p"&&it.pair)sel=i;});msg="";draw();}
     U.button(br2,"本文の例（2 節の例）",function(){preset([["p",false,-3],["p",true,-1,2],["z",false,-2]]);});
     U.button(br2,"安定限界（±j3 と −1）",function(){preset([["p",true,0,3],["p",false,-1]]);inp.set(1);swu.set(3);draw();});
     U.button(br2,"右半平面の極 +0.3 を足す",function(){preset([["p",false,-3],["p",true,-1,2],["z",false,-2],["p",false,0.3]]);});
     U.button(br2,"虚軸の上に重なった極",function(){preset([["p",true,0,2],["p",true,0,2],["p",false,-2]]);});
     U.button(br2,"零点を右半平面へ",function(){preset([["p",false,-3],["p",true,-1,2],["z",false,1.5]]);});
+    var r2=U.ctrls(el);
+    var sre=U.slider(r2,"選んだ極・零点の実部 σ",{min:-6,max:3,step:0.05,value:-1,fmt:function(v){return _w06_f(v,2)+" /s";},onInput:function(v){if(sel<0||sel>=items.length)return;items[sel].re=v;draw();}});
+    var sim=U.slider(r2,"選んだ組の虚部 ω",{min:0,max:6,step:0.05,value:2,fmt:function(v){return _w06_f(v,2)+" rad/s";},onInput:function(v){if(sel<0||sel>=items.length||!items[sel].pair)return;items[sel].im=v;draw();}});
     var box=U.svgbox(el),ro=U.readout(el),PP=null,drag=-1;
     U.ctl.drag(box,function(type,x,y){
       if(type==="up"){drag=-1;return;}
@@ -178,6 +181,8 @@
       it.re=+re.toFixed(4);if(it.pair)it.im=+it.im.toFixed(4);draw();});
     function draw(){
       swu.el.style.display=inp.get()===1?"":"none";
+      var has=sel>=0&&sel<items.length;sre.input.disabled=!has;sim.input.disabled=!(has&&items[sel].pair);
+      if(has){sre.set(items[sel].re);if(items[sel].pair)sim.set(items[sel].im);}
       var ps=[],zs=[],owner=[];
       items.forEach(function(it,i){var arr=it.k==="p"?ps:zs;arr.push(_w06_c(it.re,it.im));if(it.k==="p")owner.push(i);if(it.pair){arr.push(_w06_c(it.re,-it.im));if(it.k==="p")owner.push(i);}});
       var nar=_w06_nar(box),Wd=nar?400:700,o=[];
@@ -198,7 +203,7 @@
         o.push(it.k==="p"?U.ctl.pz(P,pts,[],c,6):U.ctl.pz(P,[],pts,c,5.5));
         if(i===sel)pts.forEach(function(q){o.push(S.CIRC(P.X(q.re),P.Y(q.im),11,"ink",1.2,null,"3 2"));});});
       gs.forEach(function(g){if(g.m>1&&g.p.im>=0)o.push(S.T(P.X(g.p.re)+9,P.Y(g.p.im)-8,"×"+g.m,"start",9.5,"ink",true,false,null,true));});
-      o.push(S.T(P.x+P.w,P.y-6,"押して選び、ドラッグで動かす","end",9,"muted"));
+      o.push(S.T(P.x+P.w,P.y-6,"押して選び、ドラッグかつまみで動かす","end",9,"muted"));
       /* インパルス応答 */
       var qx=nar?52:350,qw=nar?330:330,qy=nar?20+P.h+58:24;
       var yr=ok?_w06_yr(T,tot):[-1,1];terms.forEach(function(tm){var r=_w06_yr(T,tm.Y);yr=[Math.min(yr[0],Math.max(r[0],-3*(yr[1]-yr[0]))),Math.max(yr[1],Math.min(r[1],3*(yr[1]-yr[0])))];});
@@ -231,7 +236,7 @@
       else if(ax)h+='<span class="warn">安定限界: 虚軸の上に極がある。インパルス応答は減らず、同じ角周波数の正弦波で応答が増え続ける</span>';
       else h+='<span class="ok">安定: すべての極が左半平面にある</span>';
       h+="<br>この範囲の ∫|g| dt = "+_w06_sig(area,3)+(rhp||ax?"（範囲を延ばすと増え続ける）":"（範囲を延ばしても有限の値に近づく）")+"、"+(isS?"正弦波":"ステップ")+"への応答の |y| の最大 = "+_w06_sig(ymax,3);
-      ro.innerHTML=h+(msg?'<br><span class="warn">'+msg+'</span>':"")+'<div class="wnote">極ごとの項は、部分分数分解（重なった極は t<sup>k</sup>e<sup>pt</sup> の項も）で求めた式の値。有界な入力への応答は、伝達関数を零次ホールドで離散化して求めた。実軸の近く・虚軸の近く・ほかの実の極の近くに動かすと、その上に吸い付く。零点をどこに置いても、安定かどうかの判定は変わらない。</div>';
+      ro.innerHTML=h+(msg?'<br><span class="warn">'+msg+'</span>':"")+'<div class="wnote">極ごとの項は、部分分数分解（重なった極は te<sup>pt</sup> などの項も）で求めた式の値。有界な入力への応答は、伝達関数を零次ホールドで離散化して求めた。実軸の近く・虚軸の近く・ほかの実の極の近くに動かすと、その上に吸い付く。零点をどこに置いても、安定かどうかの判定は変わらない。</div>';
     }
     preset([["p",false,-3],["p",true,-1,2],["z",false,-2]]);
   };
