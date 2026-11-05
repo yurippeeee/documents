@@ -26,102 +26,14 @@ def _f07_fmt(v):
     return ("%g" % v).replace("-", "−")
 
 
-def _f07_txw(s, sz):
-    """TX で書いた文字の幅。"""
-    ssz = sz * 0.72
-    return sum(tw(t, ssz) if k in ("sub", "sup") else tw(t, sz) for k, t in _tx_tokens(s))
-
-
-def _f07_frac(xc, yc, num, den, sz=10.5, c=INK, b=False):
-    """分数（xc は中心、yc は横線の高さ）。num・den は TX の書き方の文字。返り値 (svg, 幅)。"""
-    w = max(_f07_txw(num, sz), _f07_txw(den, sz)) + 6
-    s = (TX(xc, yc - 4, num, "middle", sz, c, b) + W(xc - w / 2, yc, xc + w / 2, yc, c=c, lw=1.0)
-         + TX(xc, yc + sz + 1.5, den, "middle", sz, c, b))
-    return s, w
-
-
-def _f07_bw(s, sz=10.5):
-    """箱の幅（中身に合わせる）。s が (分子, 分母) なら分数。"""
-    if isinstance(s, tuple):
-        return max(40, max(_f07_txw(s[0], sz), _f07_txw(s[1], sz)) + 18)
-    return max(40, _f07_txw(s, sz + 1) + 18)
-
-
-def _f07_box(x, yc, s, w=None, c=LIN, fill=PAN, sz=10.5, h=None):
-    """ブロック線図の箱（左端 x、中心の高さ yc）。s が (分子, 分母) なら分数で書く。返り値 (svg, 幅)。"""
-    w = w or _f07_bw(s, sz)
-    if isinstance(s, tuple):
-        h = h or 44
-        f, _ = _f07_frac(x + w / 2, yc - 1, s[0], s[1], sz)
-        return RECT(x, yc - h / 2, w, h, 6, fill, c, 1.4) + f, w
-    h = h or 34
-    return RECT(x, yc - h / 2, w, h, 6, fill, c, 1.4) + TX(x + w / 2, yc + (sz + 1) * 0.36, s, "middle", sz + 1, INK), w
-
-
-def _f07_chain(x, yc, items, R=_F07_SR):
-    """横一列のブロック線図。items は左から順に
-       ("a", 長さ, 文字, 色)            矢印（文字は矢印の上）
-       ("b", 中身, 名前, 枠の色, 塗り)   箱（中身が (分子, 分母) なら分数。幅は中身に合わせる）
-       ("s", 符号の辞書, 名前)           加え合わせ点
-       ("t", 名前, 色)                   引き出し点（幅 0）
-       ("w", 長さ, 色)                   矢じりの無い線
-    返り値 (svg, 位置の辞書, 右端の x)。箱の位置は (左, 右)、加え合わせ点と引き出し点は中心の x。"""
-    o, pos = [], {}
-    for it in items:
-        k = it[0]
-        if k == "a":
-            L, lab, c = it[1], it[2], it[3]
-            o.append(ARR(x, yc, x + L, yc, c=c, lw=1.6))
-            if lab:
-                o.append(TX(x + L / 2, yc - 8, lab, "middle", 10, c, True, halo=True))
-            x += L
-        elif k == "b":
-            s = it[1]
-            c = it[3] if len(it) > 3 else LIN
-            fill = it[4] if len(it) > 4 else PAN
-            svg, w = _f07_box(x, yc, s, None, c, fill)
-            o.append(svg)
-            if it[2]:
-                pos[it[2]] = (x, x + w)
-            x += w
-        elif k == "s":
-            o.append(SUMJ(x + R, yc, it[1]))
-            pos[it[2]] = x + R
-            x += 2 * R
-        elif k == "t":
-            o.append(D(x, yc, it[2] if len(it) > 2 else INK, 3.6))
-            pos[it[1]] = x
-        elif k == "w":
-            o.append(W(x, yc, x + it[1], yc, c=it[2], lw=1.6))
-            x += it[1]
-    return "".join(o), pos, x
-
-
-def _f07_fb(xf, xt, yc, depth, c=SIG, box=None, bc=LIN, bfill=PAN, R=_F07_SR, lab=None, lc=None, bh=None):
-    """引き出し点 xf から depth だけ下がり、左へ戻って、加え合わせ点（中心 xt）の下から入る線。
-    box が中身（文字か (分子, 分母)）なら、戻る線の真ん中に箱を置く。"""
-    yb = yc + depth
-    o = [W(xf, yc, xf, yb, c=c, lw=1.5)]
-    if box is not None:
-        w = _f07_bw(box)
-        xm = (xf + xt) / 2
-        o.append(ARR(xf, yb, xm + w / 2, yb, c=c, lw=1.5, head=6))
-        o.append(_f07_box(xm - w / 2, yb, box, w, bc, bfill, h=bh)[0])
-        o.append(W(xm - w / 2, yb, xt, yb, c=c, lw=1.5))
-    else:
-        o.append(W(xf, yb, xt, yb, c=c, lw=1.5))
-    o.append(ARR(xt, yb, xt, yc + R, c=c, lw=1.5, head=6))
-    if lab:
-        o.append(TX((xf + xt) / 2 if box is None else xf - 8, yb - 6, lab, "middle" if box is None else "end", 9.5, lc or c, True, halo=True))
-    return "".join(o)
-
-
-def _f07_top(x, yc, h, lab, c=PUR, R=_F07_SR, a="start", dash=None):
-    """上から加え合わせ点（中心 x）に入る矢印（外乱など）。"""
-    o = [ARR(x, yc - h, x, yc - R, c=c, lw=1.6, dash=dash)]
-    if lab:
-        o.append(TX(x + (8 if a == "start" else -8), yc - h + 10, lab, a, 10, c, True, halo=True))
-    return "".join(o)
+# ブロック線図の部品は figures.py の共通部品（TXW・FRAC・TFBW・TFBOX・CHAIN・FBPATH・TOPIN）を使う
+_f07_txw = TXW
+_f07_frac = FRAC
+_f07_bw = TFBW
+_f07_box = TFBOX
+_f07_chain = CHAIN
+_f07_fb = FBPATH
+_f07_top = TOPIN
 
 
 def _f07_rk4(f, x0, t):
@@ -145,11 +57,7 @@ def _f07_lsim(num, den, u, t):
     return _f07_sig.lsim((num, den), u, t)[1]
 
 
-def _f07_cl(Pn, Pd, Cn, Cd):
-    """閉ループ: 返り値 (Gyr, Gyd（操作量に入る外乱）, S) をそれぞれ (分子, 分母) で。"""
-    pm, pa = _f07_np.polymul, _f07_np.polyadd
-    den = pa(pm(Pd, Cd), pm(Pn, Cn))
-    return (pm(Pn, Cn), den), (pm(Pn, Cd), den), (pm(Pd, Cd), den)
+_f07_cl = CLOOP
 
 
 def _f07_sp(p, xt, yt, xl="実部", yl="虚部", sz=9, rhp=True):
