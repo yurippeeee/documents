@@ -515,13 +515,10 @@ def _f12_ex3_fig():
             o.append(q.clip(list(zip(t, y)), c=c, lw=1.7))
         o.append(LEGL(x - 40, 412, [(c, None, "%g" % K) for K, c in zip(ks, cols)], 9, 10))
         o.append(TX(x + 172, 412, unit, "end", 9, MUT))
-    # 注記（各列）
-    o.append(TX(56 + 4, 56, "σ_a = 分岐点 = −1000", "start", 9, GLD, True, halo=True))
-    o.append(TX(56 + 4, 70, "（K_c = 0.48）", "start", 9, GLD, False, halo=True))
-    o.append(TX(290 + 4, 56, "σ_a = 分岐点 = −10", "start", 9, GLD, True, halo=True))
-    o.append(TX(290 + 4, 70, "（K_c = 0.1）", "start", 9, GLD, False, halo=True))
-    o.append(TX(524 + 4, 56, "σ_a = −1", "start", 9, GLD, True, halo=True))
-    o.append(TX(524 + 4, 70, "実軸の上に無い", "start", 9, GLD, False, halo=True))
+    # 注記（各列。s 平面の左下）
+    for x, l1, l2 in ((56, "σ_a = 分岐点 = −1000", "（K_c = 0.48）"), (290, "σ_a = 分岐点 = −10", "（K_c = 0.1）"), (524, "σ_a = −1", "実軸の上に無い")):
+        o.append(TX(x + 4, 42 + 160 - 20, l1, "start", 9, GLD, True, halo=True))
+        o.append(TX(x + 4, 42 + 160 - 7, l2, "start", 9, GLD, False, halo=True))
     return SVG(700, 420, o, "比例制御の根軌跡（上。灰の線は数値で求めた根軌跡、× は開ループの極、金の点は漸近線の出る点 σ<sub>a</sub>）と、3 つの比例ゲインでの閉ループの極（色の ×）と目標値の単位ステップに対する応答（下）。どれも n − m = 2 で、漸近線は σ<sub>a</sub> を通る縦の線である。(a) L<sub>a</sub> を含むモータの角速度: 極 −20.2 と −1980 が −1000 で出会い、縦の線を上下に離れる。目標値に届かないのは型 0 のため（7 章 3 節）。(b) モータの位置: −10 で出会う。(c) 台車とばね・ダンパの位置: 極の組が真上・真下へ進み、実部は −1 のまま。比例ゲインはばねを強くするだけで、揺れは減らない（目標値に届かないのは型 0 のため）。凡例の数字は K<sub>c</sub>。")
 F["e12_ex3"] = _f12_ex3_fig()
 
@@ -569,3 +566,313 @@ def _f12_motor3_fig():
     o.append(TX(r.X(19), r.Y(-235), "数字は K_c [V/rad]", "end", 9, MUT, False, halo=True))
     return SVG(700, 372, o, "L<sub>a</sub> を含むモータの位置の比例制御の根軌跡（n = 3、m = 0）。(a) 全体: −1980 から出た枝は負の実軸を左へ進み、0 と −20.2 から出た 2 本の枝は、σ<sub>a</sub> = −666.7 から ±60° に出る漸近線に、K<sub>c</sub> が大きい所で近づく。漸近線は虚軸を ±j1155 で横切るが、枝はずっと原点に近い ±j200 で横切る。(b) 原点の近く: 2 本の枝は −10.08（K<sub>c</sub> = 0.1005 V/rad）で実軸を離れ、上へ進みながら右へ曲がり、40 V/rad で ±j200 の虚軸を横切って右半平面へ入る（6 章 4 節・9 章 2 節の安定限界）。")
 F["e12_motor3"] = _f12_motor3_fig()
+
+
+# =====================================================================
+# 4 節: 零点を足す（PD・不完全微分の PD）
+# =====================================================================
+_F12_PDN = ([_F12_TD / 10, 20 * _F12_TD / 10 + 1.0, 20.0, 0.0], [1000 * 1.1 * _F12_TD, 1000.0])   # (s^2 + 20s)(1 + 0.1 T_D s)、1000(1 + 1.1 T_D s)
+
+
+def _f12_zero_fig():
+    o = []
+    o.append(TX(14, 18, "(a) PD: C_0(s) = 1 + T_{D}s（零点 −42）", "start", 11, INK, True))
+    p = Plot(56, 32, 330, 220, (-110, 10), (-40, 40))
+    o.append(_f12_sp(p, [-100, -80, -60, -40, -20, 0], [-40, -20, 0, 20, 40], xl="実部 σ [1/s]", yl="虚部 ω [rad/s]"))
+    # 比例だけの根軌跡（比べるための元の線）
+    o.append(W(p.X(-20), p.Y(0), p.X(0), p.Y(0), c=MUT, lw=3))
+    o.append(W(p.X(-10), p.y, p.X(-10), p.y + p.h, c=MUT, lw=1.6, dash="5 4"))
+    Ks = _f12_kgrid(-4, 4, 200, extra=(0.13462, 5.2414, 0.84))
+    R = _f12_track(_F12_PD[0], _F12_PD[1], Ks)
+    o.append(_f12_branches(p, R, c=SIG, lw=2.4))
+    o.append(_f12_heads(p, R, Ks, 0.4, SIG))
+    R2 = _f12_track(_F12_PDN[0], _F12_PDN[1], Ks)
+    o.append(_f12_branches(p, R2, c=TEA, lw=1.6, dash="5 3"))
+    o.append(PZ(p, [complex(0, 0), complex(-20, 0)], [complex(-42, 0)], MUT, 5.5))
+    for z in _f12_cl(_F12_PD[0], _F12_PD[1], 0.84):
+        o.append(PZ(p, [z], [], GLD, 6))
+    o.append(TX(p.X(-20) - 9, p.Y(21) - 7, "K_c = 0.84: −20 ± j21.0", "end", 9.5, GLD, True, halo=True))
+    o.append(TX(p.X(-9), p.Y(36), "比例だけ: 実部 −10", "start", 9, MUT, True, halo=True))
+    o.append(TX(p.X(-42), p.Y(0) + 17, "零点 −42", "middle", 9, MUT, False, halo=True))
+    o.append(TX(p.X(-106), p.Y(-34), "青: PD（−42 を中心とする半径 30.4 の円）", "start", 9, SIG, True, halo=True))
+    o.append(TX(p.X(-106), p.Y(-24), "青緑の破線: 不完全微分（N = 10）の PD", "start", 9, TEA, True, halo=True))
+    # (b) 不完全微分の PD を遠くまで
+    o.append(TX(418, 18, "(b) 不完全微分の PD（零点 −38.2・極 −420）", "start", 11, INK, True))
+    r = Plot(452, 32, 234, 150, (-460, 40), (-300, 300))
+    o.append(_f12_sp(r, [-400, -200, 0], [-300, 0, 300], xl="実部 σ [1/s]", yl="虚部 ω [rad/s]"))
+    o.append(W(r.X(-200.9), r.y, r.X(-200.9), r.y + r.h, c=GLD, lw=1.2, dash="6 4"))
+    o.append(_f12_branches(r, R2, c=TEA, lw=2))
+    o.append(PZ(r, [complex(0, 0), complex(-20, 0), complex(-420, 0)], [complex(-38.18, 0)], MUT, 4.5))
+    o.append(TX(r.X(-200.9) + 4, r.y + 12, "σ_a = −200.9", "start", 9, GLD, True, halo=True))
+    o.append(TX(r.X(-420), r.Y(0) + 16, "−420", "middle", 9, MUT, False, halo=True))
+    # (c) ステップ応答
+    o.append(TX(418, 234, "(c) 目標値の単位ステップ（減衰比 0.690）", "start", 11, INK, True))
+    q = Plot(452, 246, 234, 96, (0, 0.6), (0, 1.2))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.2, 0.4, 0.6], yt=[0, 0.5, 1], xfmt=_f12_fmt, yfmt=_f12_fmt, sz=9))
+    t = _f12_np.linspace(0, 0.6, 2401)
+    o.append(q.line([(0, 1), (0.6, 1)], c=MUT, lw=1, dash="4 3"))
+    o.append(q.line(list(zip(t, _f12_step([210.0], [1, 20, 210.0], t))), c=MUT, lw=1.8))
+    o.append(q.line(list(zip(t, _f12_step([840.0], [1, 40, 840.0], t))), c=SIG, lw=2))
+    o.append(TX(q.X(0.215), q.Y(0.45), "PD 0.84 V/rad: 0.21 s", "start", 9, SIG, True, halo=True))
+    o.append(TX(q.X(0.43), q.Y(0.78), "比例 0.21: 0.41 s", "middle", 9, MUT, True, halo=True))
+    return SVG(700, 396, o, "零点を足すと根軌跡が左へ曲がる（モータの位置、P(s) = 1000/{s(s + 20)}）。(a) PD 制御（T<sub>D</sub> = 0.0238 s、零点 −42）の根軌跡は、比例だけの縦の線（灰の破線）から左へ曲がり、零点 −42 を中心とする半径 30.4 の円を描いて −72.4 で実軸に戻る。10 章 3 節の K<sub>c</sub> = 0.84 V/rad の極は −20 ± j21.0 で、減衰比は比例だけの 0.21 V/rad と同じ 0.690 のまま、実部が −10 から −20 へ動いた。不完全微分（N = 10）の PD（青緑の破線）は、原点の近くでは同じ円に沿う。(b) 不完全微分では極 −420 も足すので、K<sub>c</sub> を大きくすると枝は σ<sub>a</sub> = −200.9 の縦の漸近線へ向かう（縦と横の目盛は違う）。(c) 同じ行き過ぎ量 5.0 % で、2 % 整定時間は 0.41 s から 0.21 s に縮む（PD は測定値微分）。")
+F["e12_zero"] = _f12_zero_fig()
+
+
+# =====================================================================
+# 4 節: 極を足す（PI・積分だけ）
+# =====================================================================
+def _f12_pole_fig():
+    o = []
+    Ks = _f12_kgrid(-5, 4, 200, extra=(0.21, 0.5))
+    rows = [("(a) PI（極 0・零点 −2.38）", _F12_PI, 0.21, (-8.81, [90, -90]), "K_c = 0.21: −3.20、−8.40 ± j9.26"),
+            ("(b) 積分だけ（極 0）", ([1.0, 20.0, 0.0, 0.0], [1000.0]), 0.5, (-20.0 / 3, [60, -60, 180]), "K_c = 0.5: 0.56 ± j4.83（右半平面）")]
+    for k, (title, (a, b), K0, (sa, angs), lab) in enumerate(rows):
+        x = 52 + k * 232
+        o.append(TX(x - 38, 16, title, "start", 10.5, INK, True))
+        o.append(TX(x - 38, 30, "C_0(s) = 1 + 1/(T_{I}s)" if k == 0 else "C_0(s) = 1/s", "start", 9.5, MUT))
+        p = Plot(x, 40, 196, 250, (-24, 6), (-24, 24))
+        o.append(_f12_sp(p, [-20, -10, 0], [-20, -10, 0, 10, 20], xl="実部 σ [1/s]", yl=("虚部 ω [rad/s]" if k == 0 else None)))
+        o.append(W(p.X(-20), p.Y(0), p.X(0), p.Y(0), c=MUT, lw=3))
+        o.append(W(p.X(-10), p.y, p.X(-10), p.y + p.h, c=MUT, lw=1.6, dash="5 4"))
+        for ang in angs:
+            o.append(p.clip([(sa, 0), (sa + 60 * math.cos(math.radians(ang)), 60 * math.sin(math.radians(ang)))], c=GLD, lw=1.2, dash="6 4"))
+        R = _f12_track(a, b, Ks)
+        o.append(_f12_branches(p, R, c=SIG, lw=2.4))
+        o.append(_f12_heads(p, R, Ks, 0.05 if k == 0 else 0.2, SIG))
+        zs = [complex(r) for r in _f12_np.roots(b)] if len(b) > 1 else []
+        o.append(PZ(p, [complex(r) for r in _f12_np.roots(a)], zs, MUT, 5))
+        for z in _f12_cl(a, b, K0):
+            if _f12_inside(p, z):
+                o.append(PZ(p, [z], [], GLD, 6))
+        o.append(D(p.X(sa), p.Y(0), GLD, 3.6))
+        o.append(TX(p.X(sa), p.Y(0) + 16, "σ_a = %s" % _f12_n(sa, 2), "middle", 9, GLD, True, halo=True))
+        o.append(TX(p.X(-23.3), p.Y(-21.5), lab, "start", 9, GLD, True, halo=True))
+        o.append(TX(p.X(-9.4), p.Y(22), "比例だけ: −10", "start", 9, MUT, True, halo=True))
+    # (c) ステップ応答
+    o.append(TX(512, 16, "(c) 目標値の単位ステップ", "start", 10.5, INK, True))
+    q = Plot(540, 40, 150, 250, (0, 1.5), (0, 2.0))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.5, 1, 1.5], yt=[0, 0.5, 1, 1.5, 2], xfmt=_f12_fmt, yfmt=_f12_fmt, sz=9))
+    t = _f12_np.linspace(0, 1.5, 3001)
+    o.append(q.line([(0, 1), (1.5, 1)], c=MUT, lw=1, dash="4 3"))
+    o.append(q.line(list(zip(t, _f12_step([210.0], [1, 20, 210.0], t))), c=MUT, lw=1.8))
+    o.append(q.line(list(zip(t, _f12_step([210.0, 500.0], [1, 20, 210.0, 500.0], t))), c=SIG, lw=2))
+    o.append(q.clip(list(zip(t, _f12_step([500.0], [1, 20, 0.0, 500.0], t))), c=ALI, lw=1.6))
+    o.append(TX(q.X(0.32), q.Y(1.38), "PI: 26.0 %", "start", 9, SIG, True, halo=True))
+    o.append(TX(q.X(0.75), q.Y(0.82), "比例: 5.0 %", "start", 9, MUT, True, halo=True))
+    o.append(TX(q.X(0.75), q.Y(1.86), "積分だけ: 発散", "start", 9, ALI, True, halo=True))
+    return SVG(700, 338, o, "極を足すと根軌跡が右へ押される（モータの位置）。灰の太線と破線は比例だけの根軌跡、金の破線は漸近線。(a) PI 制御（T<sub>I</sub> = 0.42 s）は原点に極を、−2.38 に零点を足す。n − m = 2 のままで閉ループの極の和は −20 で一定だが、−20 から零点へ向かう枝の極が和の一部を受け持つので、極の組は −10 の線より右（漸近線は −8.81）を進む。K<sub>c</sub> = 0.21 V/rad の極は −3.20 と −8.40 ± j9.26 で、7 章 3 節・10 章 2 節の値と同じ。(b) 積分だけでは n − m = 3 になり、原点の重根から出た 2 本の枝は ±60° の漸近線へ向かって、どの K<sub>c</sub> でも右半平面にある。(c) 比例だけ（0.21 V/rad）の 5.0 % に対し、PI では 26.0 % 行き過ぎ、積分だけ（K<sub>c</sub> = 0.5）では揺れが大きくなり続ける。")
+F["e12_pole"] = _f12_pole_fig()
+
+
+# =====================================================================
+# 5 節: 減衰比の線との交点からゲインを決める
+# =====================================================================
+_F12_ZETA = 0.690
+_F12_TPSI = math.tan(math.acos(_F12_ZETA))     # 46.4° の正接 1.049
+
+
+def _f12_region(p, sig_max, c=GRN):
+    """仕様の領域（実部 ≤ sig_max かつ減衰比 ≥ 0.690）を枠の中で塗る。"""
+    y1 = max(abs(p.yr[0]), abs(p.yr[1])); x0 = p.xr[0]
+    pts = [(sig_max, -sig_max * _F12_TPSI)]
+    xe = -y1 / _F12_TPSI
+    if xe > x0:
+        pts += [(xe, y1), (x0, y1), (x0, -y1), (xe, -y1)]
+    else:
+        pts += [(x0, -x0 * _F12_TPSI), (x0, x0 * _F12_TPSI)]
+    pts += [(sig_max, sig_max * _F12_TPSI)]
+    return PL([(p.X(a), p.Y(b)) for a, b in pts], c="none", lw=0, fill=soft(c))
+
+
+def _f12_zline_fig():
+    o = []
+    o.append(TX(14, 18, "(a) 仕様の領域と、比例制御の根軌跡", "start", 11, INK, True))
+    p = Plot(58, 32, 282, 282, (-25, 5), (-15, 15))
+    o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.8))
+    o.append(_f12_region(p, -4.0))
+    o.append(SPLANE(p, zeta=[_F12_ZETA]))
+    o.append(p.axes(xl="実部 σ [1/s]", yl="虚部 ω [rad/s]", xt=[-20, -10, 0], yt=[-10, 0, 10], xfmt=_f12_fmt, yfmt=_f12_fmt, sz=9))
+    o.append(SPLANE(p, rhp=False))
+    o.append(W(p.X(-4), p.y, p.X(-4), p.y + p.h, c=GRN, lw=1.2, dash="5 3"))
+    o.append(W(p.X(-16), p.y, p.X(-16), p.y + p.h, c=ALI, lw=1.2, dash="2 3"))
+    # 比例制御の根軌跡と、領域の中の部分
+    o.append(W(p.X(-20), p.Y(0), p.X(0), p.Y(0), c=SIG, lw=2.2))
+    o.append(W(p.X(-10), p.y, p.X(-10), p.y + p.h, c=SIG, lw=2.2))
+    o.append(W(p.X(-16), p.Y(0), p.X(-4), p.Y(0), c=GRN, lw=4.4))
+    o.append(W(p.X(-10), p.Y(-10.49), p.X(-10), p.Y(10.49), c=GRN, lw=4.4))
+    o.append(PZ(p, [complex(0, 0), complex(-20, 0)], [], MUT, 5))
+    s1 = complex(-10, 10 * _F12_TPSI)
+    o.append(W(p.X(0), p.Y(0), p.X(s1.real), p.Y(s1.imag), c=TEA, lw=1.1, dash="3 2"))
+    o.append(W(p.X(-20), p.Y(0), p.X(s1.real), p.Y(s1.imag), c=PUR, lw=1.1, dash="3 2"))
+    o.append(T(p.X(-4.2), p.Y(6.3), "14.49", "middle", 9, TEA, False, halo=True))
+    o.append(T(p.X(-16.2), p.Y(6.3), "14.49", "middle", 9, PUR, False, halo=True))
+    o.append(PZ(p, [s1, s1.conjugate()], [], GLD, 6))
+    o.append(TX(p.X(-10) + 8, p.Y(10.49) - 6, "K_c = 0.21", "start", 9.5, GLD, True, halo=True))
+    for v in (-4, -16):
+        o.append(D(p.X(v), p.Y(0), GLD, 4))
+    o.append(TX(p.X(-4) + 3, p.Y(0) + 15, "0.064", "start", 9, GLD, True, halo=True))
+    o.append(TX(p.X(-16) - 3, p.Y(0) + 15, "0.064", "end", 9, GLD, True, halo=True))
+    o.append(TX(p.X(-24.5), p.Y(13.6), "緑: 行き過ぎ量 5 % 以下・t_{2%} 1 s 以下", "start", 9, GRN, True, halo=True))
+    o.append(TX(p.X(-24.5), p.Y(-13.9), "赤の点線: t_{2%} 0.25 s の線（実部 −16）", "start", 9, ALI, True, halo=True))
+    o.append(TX(p.X(-14.5), p.Y(-11.6), "ζ = 0.690", "middle", 9, MUT, False, halo=True))
+    # (b) ステップ応答
+    o.append(TX(392, 18, "(b) 目標値の単位ステップ", "start", 11, INK, True))
+    q = Plot(430, 32, 256, 200, (0, 1.5), (0, 1.3))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.5, 1, 1.5], yt=[0, 0.5, 1], xfmt=_f12_fmt, yfmt=_f12_fmt, sz=9))
+    o.append(RECT(q.X(1), q.Y(1.02), q.X(1.5) - q.X(1), q.Y(0.98) - q.Y(1.02), 0, soft(GRN), "none", 0))
+    o.append(q.line([(0, 1.05), (1.5, 1.05)], c=GRN, lw=1.1, dash="5 3"))
+    o.append(W(q.X(1), q.y, q.X(1), q.y + q.h, c=GRN, lw=1.1, dash="5 3"))
+    t = _f12_np.linspace(0, 1.5, 3001)
+    rows = []
+    for K, c in ((0.064, TEA), (0.21, SIG), (0.5, ALI)):
+        y = _f12_step([1000 * K], [1, 20, 1000 * K], t)
+        o.append(q.line(list(zip(t, y)), c=c, lw=1.9))
+        rows.append((K, c) + _f12_info(t, y, 1.0))
+    o.append(TX(q.X(1.48), q.Y(1.05) - 5, "5 %", "end", 9, GRN, True, halo=True))
+    o.append(TX(q.X(1) + 4, q.Y(0.3), "1 s", "start", 9, GRN, True, halo=True))
+    for i, (K, c, mp, t2) in enumerate(rows):
+        o.append(TX(392, 282 + i * 15, "K_c = %g V/rad: 行き過ぎ %.1f %%、t_{2%%} = %.2f s" % (K, mp, t2), "start", 9.5, c, True))
+    return SVG(700, 356, o, "減衰比の線との交点からゲインを決める（モータの位置の比例制御）。(a) 緑の領域は、行き過ぎ量 5 % 以下（減衰比 0.690 の 2 本の線の間）かつ 2 % 整定時間 1 s 以下（実部 −4 の線より左）。根軌跡（青）のうち、太い緑の部分が領域の中にあり、K<sub>c</sub> = 0.064〜0.21 V/rad にあたる。減衰比の線との交点 −10 ± j10.49 の K<sub>c</sub> は、極からの距離の積 14.49 × 14.49 ÷ 1000 = 0.21 V/rad。実部 −16（2 % 整定時間 0.25 s）の線より左には、根軌跡は届かない。(b) 0.21 V/rad は仕様（行き過ぎ 5 % の線と、1 s 以降の ±2 % の帯）を満たし、0.5 V/rad は行き過ぎ量の仕様を満たさない。領域の端の 0.064 V/rad は、2 % 整定時間が 1.05 s で、わずかに仕様を外れる（領域は目安の式 t<sub>2%</sub> ≈ 4/(ζω<sub>n</sub>) で描いたため）。")
+F["e12_zline"] = _f12_zline_fig()
+
+
+def _f12_pdes_fig():
+    o = []
+    o.append(TX(14, 18, "(a) 望む極 s_d = −20 + j20.98 を通るように零点を置く", "start", 11, INK, True))
+    p = Plot(58, 32, 372, 228, (-56, 6), (-4, 34))
+    o.append(_f12_sp(p, [-50, -40, -30, -20, -10, 0], [0, 10, 20, 30], xl="実部 σ [1/s]", yl="虚部 ω [rad/s]", zeta=[_F12_ZETA]))
+    sd = complex(-20, 20 * _F12_TPSI)
+    z = sd.real - sd.imag / math.tan(math.radians(43.63))
+    # できあがった PD の根軌跡（円）
+    Ks = _f12_kgrid(-4, 4, 200, extra=(0.13462, 5.2414))
+    o.append(_f12_branches(p, _f12_track(_F12_PD[0], _F12_PD[1], Ks), c=SIG, lw=1.6))
+    o.append(_f12_vec(p, complex(0, 0), sd, TEA, "133.6°", None, r=16, la=100))
+    o.append(_f12_vec(p, complex(-20, 0), sd, PUR, "90°", None, r=14, la=45))
+    o.append(_f12_vec(p, complex(z, 0), sd, GLD, "43.6°", None, r=22, la=22))
+    o.append(PZ(p, [complex(0, 0), complex(-20, 0)], [complex(z, 0)], MUT, 5.5))
+    o.append(D(p.X(sd.real), p.Y(sd.imag), GRN, 5))
+    o.append(TX(p.X(sd.real) + 9, p.Y(sd.imag) - 6, "s_d（ζ = 0.690、実部 −20）", "start", 9.5, GRN, True, halo=True))
+    o.append(TX(p.X(z), p.Y(0) + 17, "零点 −42.0", "middle", 9, GLD, True, halo=True))
+    o.append(TX(p.X(-55), p.Y(31.5), "零点からの角度 = 133.6° + 90° − 180° = 43.6°", "start", 9, GLD, True, halo=True))
+    o.append(TX(p.X(-55), p.Y(28.3), "零点 = −20 − 20.98 ÷ tan 43.6° = −42.0", "start", 9, GLD, False, halo=True))
+    o.append(TX(p.X(-55), p.Y(25.1), "K_c = 28.99 × 20.98 ÷ (23.8 × 30.41) = 0.840", "start", 9, INK, False, halo=True))
+    o.append(TX(p.X(-13), p.Y(31.5), "青: できた PD の根軌跡", "start", 9, SIG, True, halo=True))
+    # (b) ステップ応答
+    o.append(TX(470, 18, "(b) 目標値の単位ステップ", "start", 11, INK, True))
+    q = Plot(500, 32, 188, 180, (0, 0.6), (0, 1.3))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.2, 0.4, 0.6], yt=[0, 0.5, 1], xfmt=_f12_fmt, yfmt=_f12_fmt, sz=9))
+    o.append(RECT(q.X(0.25), q.Y(1.02), q.X(0.6) - q.X(0.25), q.Y(0.98) - q.Y(1.02), 0, soft(GRN), "none", 0))
+    o.append(q.line([(0, 1.05), (0.6, 1.05)], c=GRN, lw=1.1, dash="5 3"))
+    o.append(W(q.X(0.25), q.y, q.X(0.25), q.y + q.h, c=GRN, lw=1.1, dash="5 3"))
+    t = _f12_np.linspace(0, 0.6, 2401)
+    yp = _f12_step([210.0], [1, 20, 210.0], t)
+    yd = _f12_step([840.0], [1, 40, 840.0], t)
+    o.append(q.line(list(zip(t, yp)), c=MUT, lw=1.8))
+    o.append(q.line(list(zip(t, yd)), c=SIG, lw=2))
+    o.append(TX(q.X(0.25) + 4, q.Y(0.25), "0.25 s", "start", 9, GRN, True, halo=True))
+    mp1, t21 = _f12_info(t, yd, 1.0); mp0, t20 = _f12_info(t, yp, 1.0)
+    o.append(TX(470, 262, "PD（0.84 V/rad）: %.1f %%、%.3f s" % (mp1, t21), "start", 9.5, SIG, True))
+    o.append(TX(470, 277, "比例（0.21 V/rad）: %.1f %%、%.3f s" % (mp0, t20), "start", 9.5, MUT, True))
+    o.append(TX(470, 291, "（行き過ぎ量、2 % 整定時間）", "start", 9, MUT))
+    return SVG(700, 300, o, "角度の条件から PD 制御の零点を決める（モータの位置）。(a) 減衰比 0.690 の線（破線）の上で実部 −20 の点 s<sub>d</sub> を望む極に選ぶ。開ループの極 0 と −20 からの矢印の角度の和は 223.6° なので、零点からの角度が 43.6° になれば左辺が −180° になる。その零点は −42.0（T<sub>D</sub> = 0.0238 s）で、大きさの条件から K<sub>c</sub> = 0.840 V/rad。できた PD の根軌跡（青）は、確かに s<sub>d</sub> を通る。(b) 2 % 整定時間 0.25 s 以下・行き過ぎ量 5 % 以下の仕様（緑の線と帯）を、PD（D 動作は測った制御量に掛ける）は満たし、比例制御は満たさない。")
+F["e12_pdes"] = _f12_pdes_fig()
+
+
+# =====================================================================
+# 6 節: 根軌跡の限界 — 零点・支配極
+# =====================================================================
+def _f12_limits_fig():
+    o = []
+    # (a) 同じ極、違う零点（PD: 測定値微分と偏差の微分）
+    o.append(TX(14, 18, "(a) 同じ極 −20 ± j20.98、違う零点（PD）", "start", 11, INK, True))
+    p = Plot(56, 32, 270, 110, (-50, 5), (-25, 25))
+    o.append(_f12_sp(p, [-40, -20, 0], [-20, 0, 20], xl="実部 σ [1/s]", yl="虚部"))
+    o.append(PZ(p, [complex(-20, 20.98), complex(-20, -20.98)], [], SIG, 5.5))
+    o.append(PZ(p, [], [complex(-42, 0)], GLD, 5.5))
+    o.append(TX(p.X(-42), p.Y(0) - 9, "偏差の微分だけにある零点 −42", "middle", 9, GLD, True, halo=True))
+    q = Plot(56, 190, 270, 120, (0, 0.4), (0, 1.2))
+    o.append(q.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.1, 0.2, 0.3, 0.4], yt=[0, 0.5, 1], xfmt=_f12_fmt, yfmt=_f12_fmt, sz=9))
+    t = _f12_np.linspace(0, 0.4, 2001)
+    o.append(q.line([(0, 1), (0.4, 1)], c=MUT, lw=1, dash="4 3"))
+    ym = _f12_step([840.0], [1, 40, 840.0], t)
+    ye = _f12_step([20.0, 840.0], [1, 40, 840.0], t)
+    o.append(q.line(list(zip(t, ym)), c=SIG, lw=2))
+    o.append(q.line(list(zip(t, ye)), c=GLD, lw=2))
+    o.append(TX(q.X(0.155), q.Y(1.12), "偏差の微分: 7.5 %", "start", 9, GLD, True, halo=True))
+    o.append(TX(q.X(0.2), q.Y(0.78), "測定値微分: 5.0 %", "start", 9, SIG, True, halo=True))
+    # (b) PI: 極の組は支配極でない
+    o.append(TX(372, 18, "(b) PI（K_c = 0.21）: 組より虚軸に近い極がある", "start", 11, INK, True))
+    r = Plot(414, 32, 270, 110, (-12, 2), (-12, 12))
+    o.append(_f12_sp(r, [-10, -5, 0], [-10, 0, 10], xl="実部 σ [1/s]", yl="虚部"))
+    cl = _f12_np.roots([1, 20, 210, 500])
+    o.append(PZ(r, [complex(z) for z in cl if abs(z.imag) > 1], [], SIG, 5.5))
+    o.append(PZ(r, [complex(z) for z in cl if abs(z.imag) <= 1], [], TEA, 5.5))
+    o.append(PZ(r, [], [complex(-1 / _F12_TIPI, 0)], GLD, 5))
+    o.append(TX(r.X(-3.2), r.Y(0) + 17, "−3.20", "end", 9, TEA, True, halo=True))
+    o.append(TX(r.X(-2.38), r.Y(0) - 9, "零点 −2.38", "start", 9, GLD, True, halo=True))
+    o.append(TX(r.X(-8.4) + 8, r.Y(9.26) + 4, "−8.40 ± j9.26", "start", 9, SIG, True, halo=True))
+    g = Plot(414, 190, 270, 120, (0, 1.5), (0, 1.4))
+    o.append(g.axes(xl="時間 t [s]", yl="角度 [rad]", xt=[0, 0.5, 1, 1.5], yt=[0, 0.5, 1], xfmt=_f12_fmt, yfmt=_f12_fmt, sz=9))
+    t2 = _f12_np.linspace(0, 1.5, 3001)
+    o.append(g.line([(0, 1), (1.5, 1)], c=MUT, lw=1, dash="4 3"))
+    ya = _f12_step([210.0, 500.0], [1, 20, 210.0, 500.0], t2)
+    pr = [z for z in cl if z.imag > 1][0]
+    wn2 = abs(pr) ** 2
+    yp = _f12_step([wn2], [1, -2 * pr.real, wn2], t2)
+    o.append(g.line(list(zip(t2, yp)), c=MUT, lw=1.8, dash="5 3"))
+    o.append(g.line(list(zip(t2, ya)), c=SIG, lw=2))
+    o.append(g.line([(v, 0.477 * math.exp(-3.2003 * v)) for v in t2], c=TEA, lw=1.6))
+    o.append(TX(g.X(0.33), g.Y(1.3), "実際: 26.0 %、1.00 s", "start", 9, SIG, True, halo=True))
+    o.append(TX(g.X(0.62), g.Y(0.84), "組だけ: 5.8 %、0.48 s", "start", 9, MUT, True, halo=True))
+    o.append(TX(g.X(0.5), g.Y(0.2), "極 −3.20 の項 0.48e^{−3.20t}", "start", 9, TEA, True, halo=True))
+    return SVG(700, 356, o, "根軌跡が示すのは閉ループの極だけである。(a) 5 節の PD 制御で、D 動作を測った制御量に掛けると零点は無く、行き過ぎ量は 5.0 % だが、偏差に掛けると閉ループの伝達関数に零点 −42 が加わり、極は同じでも 7.5 % 行き過ぎる。(b) PI 制御の極の組 −8.40 ± j9.26 だけの二次遅れ（灰の破線）なら行き過ぎ量 5.8 %・2 % 整定時間 0.48 s だが、実際の応答（青）は 26.0 %・1.00 s。組より虚軸に近い極 −3.20 の項（青緑、部分分数分解で求めた）がゆっくり減りながら応答を持ち上げる。零点 −2.38 は極 −3.20 と一致しないので、この項を消さない。")
+F["e12_limits"] = _f12_limits_fig()
+
+
+# =====================================================================
+# 6 節: むだ時間（測った速度が 0.1 s 遅れる台車の比例制御）
+# =====================================================================
+def _f12_delay_fig():
+    from scipy.special import lambertw as _lw
+    from scipy.optimize import brentq as _bq
+    o = []
+    L = 0.1
+    Ks = _f12_np.logspace(-1, 2.3, 1200)
+    o.append(TX(14, 18, "(a) 本当の根: s + 2 + K_ce^{−0.1s} = 0", "start", 11, INK, True))
+    p = Plot(56, 32, 270, 270, (-60, 40), (-100, 100))
+    o.append(_f12_sp(p, [-60, -40, -20, 0, 20, 40], [-100, -50, 0, 50, 100], xl="実部 σ [1/s]", yl="虚部 ω [rad/s]"))
+    for kb in (-2, -1, 0, 1):
+        zs = [-2 + _lw(-L * K * math.exp(2 * L), kb) / L for K in Ks]
+        o.append(p.clip([(complex(z).real, complex(z).imag) for z in zs], c=SIG, lw=2))
+        o.append(_f12_heads(p, [_f12_np.array(zs)], Ks, 40.0, SIG))
+    o.append(PZ(p, [complex(-2, 0)], [], MUT, 5))
+    w1 = _bq(lambda w: math.atan(w / 2) + L * w - math.pi, 1, 30); K1 = math.hypot(w1, 2)
+    w2 = _bq(lambda w: math.atan(w / 2) + L * w - 3 * math.pi, 40, 120); K2 = math.hypot(w2, 2)
+    for w, K, c in ((w1, K1, ALI), (w2, K2, ALI)):
+        o.append(D(p.X(0), p.Y(w), c, 4)); o.append(D(p.X(0), p.Y(-w), c, 4))
+    o.append(TX(p.X(0) + 6, p.Y(w1) - 4, "K_c = %.1f: ±j%.1f" % (K1, w1), "start", 9, ALI, True, halo=True))
+    o.append(TX(p.X(0) + 6, p.Y(w2) - 4, "K_c = %.0f: ±j%.0f" % (K2, w2), "start", 9, ALI, True, halo=True))
+    o.append(TX(p.X(-58), p.Y(-92), "枝は無限にある（図はその 4 本）", "start", 9, SIG, True, halo=True))
+    # (b) パデ近似
+    o.append(TX(372, 18, "(b) パデ近似した根軌跡", "start", 11, INK, True))
+    r = Plot(414, 32, 270, 270, (-60, 40), (-100, 100))
+    o.append(_f12_sp(r, [-60, -40, -20, 0, 20, 40], [-100, -50, 0, 50, 100], xl="実部 σ [1/s]", yl=None))
+    Kg = _f12_kgrid(-3, 4, 200)
+    a1 = list(_f12_np.polymul([1, 2], [L / 2, 1])); b1 = [-L / 2, 1.0]
+    R1 = _f12_track(a1, b1, Kg)
+    nP = [L * L / 12, -L / 2, 1.0]; dP = [L * L / 12, L / 2, 1.0]
+    a2 = list(_f12_np.polymul([1, 2], dP)); b2 = nP
+    R2 = _f12_track(a2, b2, Kg)
+    o.append(_f12_branches(r, R2, c=TEA, lw=1.8, dash="6 3"))
+    o.append(_f12_branches(r, R1, c=GLD, lw=2))
+    o.append(PZ(r, [complex(-2, 0), complex(-20, 0)], [complex(20, 0)], GLD, 5))
+    o.append(PZ(r, [complex(z) for z in _f12_np.roots(dP)], [complex(z) for z in _f12_np.roots(nP)], TEA, 4.5))
+    o.append(D(r.X(0), r.Y(21.9), GLD, 4)); o.append(D(r.X(0), r.Y(-21.9), GLD, 4))
+    o.append(TX(r.X(0) + 6, r.Y(21.9) - 4, "1 次: 22.0（±j21.9）", "start", 9, GLD, True, halo=True))
+    o.append(D(r.X(0), r.Y(17.04), TEA, 3.6))
+    o.append(TX(r.X(0) - 6, r.Y(17.04) - 6, "2 次: 17.2（±j17.0）", "end", 9, TEA, True, halo=True))
+    o.append(TX(r.X(-58), r.Y(-80), "金: 1 次（零点 +20、極 −20）", "start", 9, GLD, True, halo=True))
+    o.append(TX(r.X(-58), r.Y(-92), "青緑の破線: 2 次（零点と極が 2 つずつ）", "start", 9, TEA, True, halo=True))
+    return SVG(700, 344, o, "むだ時間のあるループの根軌跡（台車の速度、測った値が 0.1 s 遅れる。9 章 1 節）。(a) 特性方程式は多項式にならず、根は無限にある（ランベルトの W 関数という特別な関数で求めた。図は虚部の小さい 4 本の枝）。K<sub>c</sub> を上げると、どの枝も右へ進み、17.0 N/(m/s) で ±j16.9 を、さらに 80 N/(m/s) ほどで次の組が虚軸を横切る。(b) e<sup>−0.1s</sup> を多項式の分数で近似すると根軌跡を描けるが、1 次の近似では虚軸を横切るゲインが 22.0 N/(m/s) と 3 割ずれる。2 次の近似では 17.2 N/(m/s) まで近づくが、近似の極と零点の数だけ枝が増え、本当には無い根も現れる。")
+F["e12_delay"] = _f12_delay_fig()
