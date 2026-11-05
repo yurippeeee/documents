@@ -433,8 +433,9 @@ def _f10_d_predict_fig():
     k2 = int(round((t1 + TD) / (t[1] - t[0])))
     o.append(D(p.X(t1 + TD), p.Y(eD[k2]), SIG, 3))
     o.append(TX(p.X(t1) - 8, p.Y(e1) + 14, "t_1 = 0.04 s", "end", 9.5, SIG, True, halo=True))
-    o.append(TX(p.X(t1 + TD) + 6, p.Y(e1 + de1 * TD) + 12, "接線で K_D/K_P 先を予想: e + (K_D/K_P) de/dt = %s" % _f10_f(e1 + de1 * TD, 3), "start", 9.5, _F10_CD, True, halo=True))
-    o.append(TX(p.X(t1 + TD) + 6, p.Y(e1 + de1 * TD) + 26, "（K_D/K_P 後の本当の偏差は %s rad）" % _f10_f(eD[k2], 3), "start", 9.5, SIG, halo=True))
+    o.append(W(p.X(t1 + TD) + 4, p.Y(e1 + de1 * TD) - 3, p.X(0.098), p.Y(0.6) + 4, c=_F10_CD, lw=0.9))
+    o.append(TX(p.X(0.1), p.Y(0.6), "接線で K_D/K_P 先を予想: e + (K_D/K_P) de/dt = %s" % _f10_f(e1 + de1 * TD, 3), "start", 9.5, _F10_CD, True, halo=True))
+    o.append(TX(p.X(0.1), p.Y(0.6) + 15, "（K_D/K_P 後の本当の偏差は %s rad）" % _f10_f(eD[k2], 3), "start", 9.5, SIG, halo=True))
     o.append(TX(p.X(0.13), p.Y(-0.33), "比例だけ（K_P = 0.84 V/rad）の偏差: 0 を大きく行き過ぎる", "start", 9.5, MUT, True, halo=True))
     o.append(T(p.X(0.24), p.Y(0.2), "PD の偏差", "middle", 9.5, SIG, True, halo=True))
     # (b) 電圧の内訳
@@ -523,7 +524,7 @@ def _f10_d_noise_fig():
     o.append(q.line([(1, 0.84), (3162, 0.84)], c=_F10_CP, lw=2))
     o.append(q.clip([(wv, 0.02 * wv) for wv in w], c=_F10_CD, lw=2))
     o.append(D(q.X(42), q.Y(0.84), INK, 3.4))
-    o.append(TX(q.X(42) - 4, q.Y(0.84) + 16, "1/T = 42 rad/s", "end", 9.5, INK, True, halo=True))
+    o.append(TX(q.X(42) + 8, q.Y(0.84) + 16, "K_P/K_D = 42 rad/s", "start", 9.5, INK, True, halo=True))
     o.append(TX(q.X(1.2), q.Y(0.84) - 6, "P: K_P = 0.84（どの角周波数でも同じ）", "start", 9.5, _F10_CP, True, halo=True))
     o.append(TX(q.X(1.2), q.Y(0.13), "D: K_D ω（+20 dB/dec）", "start", 9.5, _F10_CD, True, halo=True))
     o.append(T(q.X(1800), q.y + 14, "速い揺れ", "middle", 9.5, TEA, True, halo=True))
@@ -743,7 +744,7 @@ def _f10_cmp_pos_fig():
     o.append(TX(p.X(1.02), p.y + p.h - 8, "比例だけ: −3.76 rad へ（枠の外。ずれ 4.76 rad）", "start", 9.5, TEA, True, halo=True))
     o.append(TX(p.X(1.98), p.Y(1 - 1.0 / 0.84) - 6, "PD: ずれ 1.19 rad が残る", "end", 9.5, SIG, True, halo=True))
     o.append(TX(p.X(1.42), p.Y(1.0) + 15, "PID: 0.56 s で ±0.02 rad に戻る", "start", 9.5, GRN, True, halo=True))
-    o.append(TX(p.X(0.17), p.Y(1.30) + 4, "PID: 行き過ぎ %s %%" % _f10_f(mp, 0), "start", 9.5, GRN, True, halo=True))
+    o.append(TX(p.X(0.17), p.Y(1.30) + 4, "PID: 行き過ぎ %s %%" % _f10_f(mp, 1), "start", 9.5, GRN, True, halo=True))
     o.append(TX(p.X(0.42), p.Y(0.62), "PD: 5.0 %・0.21 s", "start", 9.5, SIG, True, halo=True))
     o.append(TX(p.X(0.42), p.Y(0.47), "比例だけ: 5.0 %・0.41 s", "start", 9.5, TEA, True, halo=True))
     o.append(T(14, 232, "(b) 電圧（PID は I の分も示す）", "start", 11, INK, True))
@@ -759,7 +760,7 @@ def _f10_cmp_pos_fig():
     o.append(T(q.X(1.98), q.Y(1.0) + 14, "負荷を支える 1 V", "end", 9.5, PUR, True, halo=True))
     o.append(T(q.X(1.98), q.Y(0.55), "PID の I の分 → 1 V", "end", 9.5, _F10_CI, True, halo=True))
     o.append(LEGL(70, 408, [(TEA, None, cs[0][5]), (SIG, None, cs[1][5]), (GRN, None, cs[2][5]), (_F10_CI, "5 3", "PID の I の分")], 9.5, 12))
-    return _f10_svg(700, 418, o, "モータの角度（積分を含む 1000/(s(s + 20))）。D 動作は測った角度の変わる速さに掛けた（3 節）。(a) PD は、比例だけと同じ 5.0 % の行き過ぎで 2 倍速く落ち着くが、負荷トルクを支える 1 V を偏差から作るので、1/0.84 = 1.19 rad ずれる。I 動作を足した PID は、負荷のずれを 0 に戻す。代わりに、目標値への行き過ぎが 30 % に増える（6 節で減らし方を述べる）。(b) PID の I の分が、負荷を支える 1 V を出すようになる。")
+    return _f10_svg(700, 418, o, "モータの角度（積分を含む 1000/(s(s + 20))）。D 動作は測った角度の変わる速さに掛けた（3 節）。(a) PD は、比例だけと同じ 5.0 % の行き過ぎで 2 倍速く落ち着くが、負荷トルクを支える 1 V を偏差から作るので、1/0.84 = 1.19 rad ずれる。I 動作を足した PID は、負荷のずれを 0 に戻す。代わりに、目標値への行き過ぎが 30.4 % に増える（6 節で減らし方を述べる）。(b) PID の I の分が、負荷を支える 1 V を出すようになる。")
 F["e10_cmp_pos"] = _f10_cmp_pos_fig()
 
 
@@ -833,7 +834,8 @@ def _f10_filter_fig():
     for N, c in ((10, _F10_CD), (3, SIG)):
         y = KP * N * _f10_np.exp(-N * t / TD)
         o.append(p.line([(-0.002, 0), (0, 0)] + list(zip(t, y)), c=c, lw=2))
-        o.append(TX(p.X(TD / N) + 6, p.Y(KP * N * math.exp(-1)) + 4, "N = %d: 山 K_P N = %s V" % (N, _f10_f(KP * N, 2)), "start", 9.5, c, True, halo=True))
+        lx, ly = (p.X(TD / N) + 6, p.Y(KP * N * math.exp(-1)) + 4) if N == 10 else (p.X(0.0095), p.Y(1.75))
+        o.append(TX(lx, ly, "N = %d: 山 K_P N = %s V" % (N, _f10_f(KP * N, 2)), "start", 9.5, c, True, halo=True))
     o.append(T(390, 18, "(b) 微分する信号が一定の速さ 1 rad/s で増えるとき", "start", 11, INK, True))
     q = Plot(430, 34, 250, 130, (-0.01, 0.08), (0, 0.025))
     o.append(q.axes(xl="時間 t [s]", yl="D の分 [V]", xt=[0, 0.02, 0.04, 0.06, 0.08], yt=[0, 0.01, 0.02], xfmt=_f10_n, yfmt=_f10_n, sz=9))
@@ -894,9 +896,13 @@ def _f10_noise_n_fig():
     o.append(_f10_band(q, 100, 1100))
     o.append(q.axes(xl="時間 t [s]", yl="温度 [°C]", xt=[0, 100, 300, 500, 700, 900, 1100], yt=[59.4, 59.6, 59.8, 60, 60.2], xfmt=_f10_n, yfmt=_f10_n, sz=9))
     o.append(W(q.x, q.Y(60), q.x + q.w, q.Y(60), c=MUT, lw=1.2, dash="5 3"))
-    for k, (N, c, lab) in enumerate([(None, ALI, "N なし: 52 s"), (10, _F10_CD, "N = 10: 50 s"), (2, SIG, "N = 2: 163 s"), (1, GLD, "N = 1: 揺れが続く")]):
-        r = _f10_plate_run(24.0, 0.6, 240.0, N=N)
-        o.append(q.clip(list(zip(r["t"], r["y"])), c=c, lw=1.8))
+    for k, (N, c, nm) in enumerate([(None, ALI, "N なし"), (10, _F10_CD, "N = 10"), (2, SIG, "N = 2"), (1, GLD, "N = 1")]):
+        r = _f10_plate_run(24.0, 0.6, 240.0, N=N, every=1)
+        m = r["t"] >= 100.0
+        tt, yy = r["t"][m], r["y"][m]
+        out = _f10_np.where(_f10_np.abs(yy - 60.0) > 0.1)[0]
+        lab = ("%s: %s s" % (nm, _f10_f(tt[out[-1] + 1] - 100.0, 0))) if len(out) and out[-1] + 1 < len(tt) else "%s: 揺れが続く" % nm
+        o.append(q.clip(list(zip(r["t"][::20], r["y"][::20])), c=c, lw=1.8))
         o.append(T(q.x + q.w + 12, q.y + 18 + k * 16, lab, "start", 10, c, True))
     o.append(T(q.x + q.w + 12, q.y + 88, "±0.1 K に戻るまで", "start", 9, MUT))
     return _f10_svg(700, yb + 180, o, "温度の板の PID（24 W/K・T_I = 40 s・T_D = 10 s）で、不完全微分の N を変える。(a) 理想の微分では、読みのわずかなノイズが、ヒータが出せない負の電力や 80 W を超える電力になって現れる。N を小さくするほど電力の揺れは小さくなる。(b) 一方で、N を小さくしすぎると、D 動作の先読みが遅れて効かなくなり、外乱の後に揺れが長く続く。N は、ノイズへの弱さと D 動作の効き目の釣り合いで選ぶ。")

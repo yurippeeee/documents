@@ -273,7 +273,7 @@
         if(R.ps)hs+="閉ループの極: "+_w10_poles(R.ps)+(_w10_rhp(R.ps)?' <span class="warn">不安定</span>':"")+"<br>";}
       var umax=Math.max.apply(null,R.u),umin=Math.min.apply(null,R.u);hs+=P.ulab+"の範囲: "+_w10_g(umin,3)+"〜"+_w10_g(umax,3)+" "+uu;
       if(umax>P.uhi+1e-9||umin<P.ulo-1e-9)hs+=' <span class="warn">出せる範囲（'+_w10_g(P.ulo,3)+"〜"+_w10_g(P.uhi,3)+" "+uu+"）を超える。実際にはこのとおりには動かない（11 章 4 節）</span>";
-      if(R.M>=2&&key==="mspd")hs+="<br>一次遅れの対象に D 動作を足すと、閉ループの時定数が (T + KK<sub>D</sub>)/(1 + KK<sub>P</sub>) = "+_w10_g((0.05+50*R.KD)/(1+50*R.KP),3)+" s に延びる";
+      if(R.M>=2&&key==="mspd")hs+="<br>一次遅れの対象に D 動作を足すと、式の dω<sub>m</sub>/dt の係数が T = 0.05 s から T + KK<sub>D</sub> = "+_w10_g(0.05+50*R.KD,3)+" s に増え、慣性を増やしたのと同じ働きをする"+(R.M===2?"（閉ループの時定数は (T + KK<sub>D</sub>)/(1 + KK<sub>P</sub>) = "+_w10_g((0.05+50*R.KD)/(1+50*R.KP),3)+" s）":"");
       ro.innerHTML=hs+'<div class="wnote">D 動作は測った制御量の変わる速さに掛け（3 節）、理想の微分として計算した。刻み '+_w10_g(c.h,2)+' s の数値計算。操作量の上限・下限は考えていない。値はどれも例の値。</div>';
     }
     relabel();preset(_W10_PD.mpos.pre[_W10_PD.mpos.def]);
@@ -306,7 +306,7 @@
       var base={KP:KP,KI:KI,KD:KD,N:N,dmode:"y",deriv:"diff",tEnd:tEnd};
       if(p===0)base.r=function(){return 1;};else{base.r=function(){return 35;};base.d=function(t){return t>=100?-8:0;};base.x0=[35];base.I0=28;}
       var Rn=_w10_sim(U,P,_w10_mix(base,{h:dt,noise:function(k){return nz[k]||0;}}));
-      var Rc=_w10_sim(U,P,_w10_mix(base,{h:p===0?1e-4:0.05,every:p===0?10:20}));
+      var Rc=_w10_sim(U,P,_w10_mix(base,{h:p===0?1e-4:0.05,every:p===0?10:2}));
       var nar=_w10_nar(box),Wd=nar?400:700,x0=nar?52:62,pw=nar?330:610,o=[],off=p===1?25:0;
       /* (a) 操作量 */
       var ul=Rn.u.filter(function(v){return isFinite(v);}),ulo=Math.min.apply(null,ul),uhi=Math.max.apply(null,ul);
@@ -375,10 +375,10 @@
     var box=U.svgbox(el),ro=U.readout(el);
     function run(){
       var p=pl.get(),N=Ns[nn.get()],b=Bs[bb.get()],D=ds.get(),key=p===0?"mpos":"plate",P=_W10_PL[key];
-      var KP=p===0?0.84:24,KI=p===0?5:0.6,KD=p===0?0.02:240,ts=p===0?0.1:100,dz=p===0?1.1:900,tEnd=p===0?(D?2.1:1.2):(D?1500:900),h=p===0?1e-5:0.05;
+      var KP=p===0?0.84:24,KI=p===0?5:0.6,KD=p===0?0.02:240,ts=p===0?0.1:100,dz=p===0?1.1:900,tEnd=p===0?(D?2.1:1.2):(D?1500:900),h=p===0?1e-5:0.005;
       var off=p===0?0:25,r0=p===0?0:35,r1v=p===0?1:37,dv=p===0?-1:-8;
       var cases=[["偏差の微分（b = 1）","e",1,"alias"],["測定値の微分（b = 1）","y",1,"signal"],["測定値の微分（b = "+b+"）","y",b,"green"]];
-      var res=cases.map(function(cs){var o={KP:KP,KI:KI,KD:KD,N:N,dmode:cs[1],b:cs[2],deriv:"diff",h:h,tEnd:tEnd,every:p===0?10:1,
+      var res=cases.map(function(cs){var o={KP:KP,KI:KI,KD:KD,N:N,dmode:cs[1],b:cs[2],deriv:"diff",h:h,tEnd:tEnd,every:10,
         r:function(t){return t>=ts-1e-12?r1v:r0;},d:function(t){return D&&t>=dz?dv:0;}};
         if(p===1){o.x0=[35];o.I0=28+KP*(1-cs[2])*35;}return _w10_sim(U,P,o);});
       var nar=_w10_nar(box),Wd=nar?400:700,x0=nar?52:62,pw=nar?330:610,o=[],stp=Math.max(1,Math.round(res[0].t.length/2500));
@@ -403,8 +403,9 @@
       if(D)o.push(S.RECT(Bp.X(dz),Bp.y,Bp.X(tEnd)-Bp.X(dz),Bp.h,0,U.soft("purple"),"none",0));
       res.forEach(function(r,k){var q=thin(r,function(i){return r.u[i];});var im=0;for(var i3=0;i3<r.t.length;i3++)if(r.u[i3]>r.u[im])im=i3;q.push([r.t[im],r.u[im]]);q.sort(function(a,b2){return a[0]-b2[0];});
         o.push(Bp.clip(q,cases[k][3],k===0?1.4:1.8));});
-      o.push(S.LEGL(x0-30,Bp.y+Bp.h+46,cases.map(function(cs){return [cs[3],null,cs[0]];}),9,10));
-      box.set(S.svg(Wd,Bp.y+Bp.h+54,o));
+      var lgi=cases.map(function(cs){return [cs[3],null,cs[0]];}),lgy=Bp.y+Bp.h+46;
+      if(nar){o.push(S.LEGL(x0-30,lgy,lgi.slice(0,2),9,10));o.push(S.LEGL(x0-30,lgy+15,lgi.slice(2),9,10));}else o.push(S.LEGL(x0-30,lgy,lgi,9,10));
+      box.set(S.svg(Wd,lgy+(nar?23:8),o));
       /* 読み出し */
       var rows=res.map(function(r,k){var yy=r.y.map(function(v){return v+off;}),yf=r1v+off,mx=-Infinity,last=-1,band=p===0?0.02:0.1;
         for(var i=0;i<r.t.length;i++){if(r.t[i]<ts||(D&&r.t[i]>=dz))continue;mx=Math.max(mx,yy[i]);if(Math.abs(yy[i]-yf)>(p===0?band*1:band))last=i;}
@@ -412,7 +413,7 @@
         var dd="";if(D){var mn=Infinity;for(var j=0;j<r.t.length;j++)if(r.t[j]>=dz)mn=Math.min(mn,yy[j]);dd=_w10_g(mn-yf,3)+(p===0?" rad":" K");}
         var row=['<span style="color:'+U.col(cases[k][3])+'">■</span> '+cases[k][0],_w10_g(Math.max.apply(null,r.u),3)+" "+P.uu+(p===1?"（最小 "+_w10_g(Math.min.apply(null,r.u),3)+"）":""),ovs,isFinite(tsv)?_w10_g(tsv,3)+" s":"—"];if(D)row.push(dd);return row;});
       var hd=["微分の掛け方",(p===0?"電圧":"電力")+"の最大","行き過ぎ",p===0?"2 % 整定時間":"±0.1 K に入る時間"];if(D)hd.push("外乱で最も下がる量");
-      var hs=U.tbl(hd,rows,["left","right","right","right","right"]);
+      var hs=nar?rows.map(function(r){return r[0]+"<br>　"+hd.slice(1).map(function(h,i){return h+" "+r[i+1];}).join("、");}).join("<br>")+"<br>":U.tbl(hd,rows,["left","right","right","right","right"]);
       if(N==null)hs+='<span class="warn">理想の微分では、偏差の微分の山の高さは、計算の刻み '+_w10_g(h,2)+' s に反比例する（刻みを細かくするほど高い）。</span><br>';
       if(p===1)hs+="ヒータが出せるのは 0〜80 W。山がこれを超えると、実際にはそのとおりには出せない。<br>";
       ro.innerHTML=hs+'<div class="wnote">3 つとも同じ PID（極も同じ）で、違うのは目標値の通り道だけである。外乱を入れると、3 つの外乱への応答が同じことを確かめられる。刻み '+_w10_g(h,2)+' s の数値計算。値はどれも例の値。</div>';
