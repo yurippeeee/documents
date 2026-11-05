@@ -4,9 +4,13 @@
   function _w17_f(v,d){v=+v;if(!isFinite(v))return v>0?"∞":"−∞";if(Math.abs(v)<0.5*Math.pow(10,-d))v=0;return v.toFixed(d).replace("-","−");}
   function _w17_sig(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v),s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();
     if(s.indexOf("e")>=0){var e=Math.floor(Math.log10(a)),m=v/Math.pow(10,e);s=(+m.toPrecision(d))+" × 10^"+e;}return s.replace(/^-/,"−").replace("^-","^−");}
+  function _w17_h(v,d){return _w17_sig(v,d).replace(/10\^(−?\d+)/,"10<sup>$1</sup>");}
   /* 複素数の文字（a ± jb の上側、または a + jb） */
-  function _w17_cs(re,im,d){d=d||3;if(Math.abs(im)<1e-9*(1+Math.abs(re)))return _w17_sig(re,d);var r=Math.abs(re)<1e-9*(1+Math.abs(im))?"":_w17_sig(re,d);
-    return (r?r+(im<0?" − ":" + "):(im<0?"−":""))+"j"+_w17_sig(Math.abs(im),d);}
+  /* 有効数字 d 桁で、末尾の 0 も残す（4.90 など） */
+  function _w17_p(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);if(a>=Math.pow(10,d))return String(Math.round(v)).replace(/^-/,"−");
+    var s=(+v).toPrecision(d);if(s.indexOf("e")>=0)return _w17_sig(v,d);return s.replace(/^-/,"−");}
+  function _w17_cs(re,im,d){d=d||3;if(Math.abs(im)<1e-9*(1+Math.abs(re)))return _w17_p(re,d);var r=Math.abs(re)<1e-9*(1+Math.abs(im))?"":_w17_p(re,d);
+    return (r?r+(im<0?" − ":" + "):(im<0?"−":""))+"j"+_w17_p(Math.abs(im),d);}
   /* 2 行 2 列の固有値と固有ベクトル。返り値 {real, l:[λ1, λ2]（実数なら大きい順）, re, im, v:[[..],[..]]（実数のとき。成分の大きい方を 1）} */
   function _w17_eig2(A){var tr=A[0][0]+A[1][1],det=A[0][0]*A[1][1]-A[0][1]*A[1][0],disc=tr*tr/4-det,r={tr:tr,det:det};
     var sc=Math.max(1e-12,Math.abs(A[0][0])+Math.abs(A[0][1])+Math.abs(A[1][0])+Math.abs(A[1][1]));
@@ -15,7 +19,7 @@
     r.v=r.l.map(function(l){var a=A[0][1],b=l-A[0][0],c=l-A[1][1],d=A[1][0],v;
       if(Math.abs(a)+Math.abs(b)>=Math.abs(c)+Math.abs(d)&&Math.abs(a)+Math.abs(b)>1e-12*sc)v=[a,b];
       else if(Math.abs(c)+Math.abs(d)>1e-12*sc)v=[c,d];else v=[1,0];
-      var m=Math.abs(v[0])>=Math.abs(v[1])?v[0]:v[1];return [v[0]/m,v[1]/m];});
+      var m=Math.abs(v[0])>1e-9*Math.abs(v[1])?v[0]:v[1];return [v[0]/m,v[1]/m];});
     if(r.rep&&Math.abs(A[0][1])<1e-12*sc&&Math.abs(A[1][0])<1e-12*sc)r.v=[[1,0],[0,1]];
     return r;}
   /* 入力 0 の動き x(t) = e^{At} x0 を、e^{A dt} を掛けて進める。返り値 [[x1, x2], ...]（n+1 点） */
@@ -79,7 +83,7 @@
       var x0=[0,sv.get(),sph.get()*D2R,sw.get()*D2R],xn=x0.slice(),xl=x0.slice(),n=Math.round(TE/H),T=[],N=[],L=[],fallN=null,t;
       for(var k=0;k<=n;k++){t=k*H;if(k%EV===0){T.push(t);N.push(xn.slice());L.push(xl.slice());}
         if(k===n)break;var u=uf(t+H/2);
-        if(fallN===null){xn=U.ctl.rk4(function(tt,x){return _w17_pnl(tt,x,u);},t,xn,H);if(Math.abs(xn[2])>=Math.PI/2){fallN=t+H;xn[2]=Math.sign(xn[2])*Math.PI/2;xn[3]=0;xn[1]=0;}}
+        if(fallN===null){xn=U.ctl.rk4(function(tt,x){return _w17_pnl(tt,x,u);},t,xn,H);if(Math.abs(xn[2])>=Math.PI/2)fallN=t+H;}
         if(Math.abs(xl[2])<50)xl=U.ctl.rk4(function(tt,x){return _w17_plin(tt,x,u);},t,xl,H);}
       function cross(arr,deg){var th=deg*D2R;for(var i=1;i<arr.length;i++){var a=Math.abs(arr[i-1][2]),b=Math.abs(arr[i][2]);if(a<th&&b>=th)return T[i-1]+(T[i]-T[i-1])*(th-a)/(b-a);}return null;}
       R={T:T,N:N,L:L,fall:fallN,t10:[cross(N,10),cross(L,10)],t30:[cross(N,30),cross(L,30)]};
@@ -114,7 +118,7 @@
         if(lo<0&&hi>0)o.push(S.L(P.x,P.Y(0),P.x+P.w,P.Y(0),"faint",1));
         o.push(S.TX(P.x,P.y-5,d[0],"start",9.5,"ink",true));
         o.push(P.clip(R.T.map(function(tt,j){return [tt,R.L[j][d[1]]*d[2]];}),"muted",1.5,"5 3"));
-        var nn=[];R.T.forEach(function(tt,j){if(R.fall===null||tt<=R.fall)nn.push([tt,R.N[j][d[1]]*d[2]]);});o.push(P.clip(nn,"signal",1.9));
+        var nn=[];R.T.forEach(function(tt,j){if(R.fall===null||tt<=R.fall+1e-9)nn.push([tt,R.N[j][d[1]]*d[2]]);});o.push(P.clip(nn,"signal",1.9));
         if(R.fall!==null&&R.fall<=TE)o.push(S.X(P.X(R.fall),P.Y(nn[nn.length-1][1]),4,"alias",1.8));
         o.push(S.L(P.X(tc),P.y,P.X(tc),P.y+P.h,"alias",1,"3 3"));});
       box.set(S.svg(Wd,nar?gy0+2*dy+12:gy0+2*dy+14,o));
@@ -140,7 +144,7 @@
       {name:"モータの電流と角速度（止まった所に 12 V を加える）",A:[[-2000,-20],[2000,0]],eq:[0,600],xr:[-1,7],yr:[-50,650],xl:"電流 i [A]",yl:"角速度 ω_m [rad/s]",nm:["i","ω_m"],un:["A","rad/s"],x0:[0,0],tE:0.3,log:true,ml:["遅いモード","速いモード"],eqn:"落ち着く状態 (0 A, 600 rad/s) からのずれを分ける。"}];
     U.head(el,"MODES","初めの状態をモードに分ける — 固有ベクトルの向きに伸び縮みする成分");
     var r1=U.ctrls(el);
-    var ss=U.select(r1,"例",SYS.map(function(s){return s.name;}),0,function(){var s=SYS[ss.get()];setX(s.x0[0],s.x0[1]);sx.refresh();sy.refresh();st.set(0.5);run();});
+    var ss=U.select(r1,"例",SYS.map(function(s){return s.name;}),0,function(){var s=SYS[ss.get()];setX(s.x0[0],s.x0[1]);sx.refresh();sy.refresh();st.set(0);run();});
     var r2=U.ctrls(el);
     function cur(){return SYS[ss.get()];}
     function fx(v){var s=cur();return s.xr[0]+v*(s.xr[1]-s.xr[0]);}
@@ -150,19 +154,19 @@
     function setX(a,b){var s=cur();sx.set((a-s.xr[0])/(s.xr[1]-s.xr[0]));sy.set((b-s.yr[0])/(s.yr[1]-s.yr[0]));}
     var r3=U.ctrls(el);
     function tOf(f){var s=cur();if(f<=0)return 0;if(!s.log)return f*s.tE;var a=Math.log10(1e-5),b=Math.log10(s.tE);return Math.pow(10,a+f*(b-a));}
-    var st=U.slider(r3,"時刻 t",{min:0,max:1,step:0.002,value:0.5,fmt:function(v){return _w17_sig(tOf(v),3)+" s";},onInput:function(){tk.stop();draw();}});
+    var st=U.slider(r3,"時刻 t",{min:0,max:1,step:0.002,value:0,fmt:function(v){return _w17_sig(tOf(v),3)+" s";},onInput:function(){tk.stop();draw();}});
     var br=U.btnrow(el);
     var tk=U.ticker(function(){var v=st.get()+0.006;if(v>=1){v=1;tk.stop();}st.set(v);draw();},40);
     U.button(br,"▶ 再生",function(){if(st.get()>=0.999)st.set(0);tk.start();});
     U.button(br,"■ 止める",function(){tk.stop();});
-    U.button(br,"本文の例",function(){tk.stop();var s=cur();setX(s.x0[0],s.x0[1]);st.set(0.5);run();});
+    U.button(br,"本文の例",function(){tk.stop();var s=cur();setX(s.x0[0],s.x0[1]);st.set(0);run();});
     var b1=U.button(br,"1 番目のモードだけ",function(){tk.stop();onlyMode(0);});
     var b2=U.button(br,"2 番目のモードだけ",function(){tk.stop();onlyMode(1);});
     var box=U.svgbox(el),ro=U.readout(el),PP=null,E=null;
     function onlyMode(i){var s=cur(),v=E.v[i],k=Infinity;
       /* 固有ベクトルの向きで、枠の 7 割に収まる大きさ */
       [[s.xr,v[0],s.eq[0]],[s.yr,v[1],s.eq[1]]].forEach(function(q){if(Math.abs(q[1])>1e-12){var lim=q[1]>0?(q[0][1]-q[2]):(q[2]-q[0][0]);k=Math.min(k,0.7*Math.abs(lim/q[1]));}});
-      var sg=(s.eq[1]>0&&v[1]>0)?-1:1;setX(s.eq[0]+sg*k*v[0],s.eq[1]+sg*k*v[1]);st.set(0.5);run();}
+      var sg=(s.eq[1]>0&&v[1]>0)?-1:1;setX(s.eq[0]+sg*k*v[0],s.eq[1]+sg*k*v[1]);st.set(0);run();}
     U.ctl.drag(box,function(type,x,y){if(type==="up"||x==null||!PP)return;
       if(type==="down"&&!(x>=PP.x-6&&x<=PP.x+PP.w+6&&y>=PP.y-6&&y<=PP.y+PP.h+6))return false;
       var s=cur();setX(Math.max(s.xr[0],Math.min(s.xr[1],PP.ux(x))),Math.max(s.yr[0],Math.min(s.yr[1],PP.uy(y))));run();});
@@ -214,9 +218,9 @@
       h+=s.ml[0]+": λ<sub>1</sub> = <b>"+_w17_sig(l0,4)+"</b> /s（"+(l0<0?"1/|λ| = "+_w17_sig(-1/l0,3)+" s で 1/e に縮む":_w17_sig(Math.LN2/l0,3)+" s ごとに 2 倍に増える")+"）、v<sub>1</sub> = "+vs(v0)+"<br>";
       h+=s.ml[1]+": λ<sub>2</sub> = <b>"+_w17_sig(l1,4)+"</b> /s（"+(l1<0?"1/|λ| = "+_w17_sig(-1/l1,3)+" s で 1/e に縮む":_w17_sig(Math.LN2/l1,3)+" s ごとに 2 倍に増える")+"）、v<sub>2</sub> = "+vs(v1)+"<br>";
       h+="初めの状態の分け方: α<sub>1</sub> = <b>"+_w17_sig(a0,3)+"</b>、α<sub>2</sub> = <b>"+_w17_sig(a1,3)+"</b>（x(0)"+(s.eqn?" − 落ち着く状態":"")+" = α<sub>1</sub>v<sub>1</sub> + α<sub>2</sub>v<sub>2</sub>）<br>";
-      h+="t = "+_w17_sig(t,3)+" s: x = ["+_w17_sig(A_.x[0],4)+" "+s.un[0]+", "+_w17_sig(A_.x[1],4)+" "+s.un[1]+"]（"+s.ml[0]+"の成分 × "+_w17_sig(Math.exp(l0*t),3)+"、"+s.ml[1]+"の成分 × "+_w17_sig(Math.exp(l1*t),3)+"）<br>";
+      h+="t = "+_w17_sig(t,3)+" s: x = ["+_w17_h(A_.x[0],4)+" "+s.un[0]+", "+_w17_h(A_.x[1],4)+" "+s.un[1]+"]（初めと比べて"+s.ml[0]+"の成分は "+_w17_h(Math.exp(l0*t),3)+" 倍、"+s.ml[1]+"の成分は "+_w17_h(Math.exp(l1*t),3)+" 倍）<br>";
       if(l0>0){var sc=Math.abs(a0)/(Math.abs(a0)+Math.abs(a1)+1e-300);h+=(sc<1e-3?'<span class="ok">増えるモードの成分がほぼ 0: 線形化した式では真上へ戻る（少しでもずれると、やがて倒れる）</span>':'<span class="warn">増えるモードの成分があるので、傾きはやがて大きくなり続ける</span>')+"<br>";}
-      ro.innerHTML=h+'<div class="wnote">本文 4 節の式 x(t) = α<sub>1</sub>e<sup>λ₁t</sup>v<sub>1</sub> + α<sub>2</sub>e<sup>λ₂t</sup>v<sub>2</sub> で計算した。固有ベクトルは、大きい方の成分を 1 にした。色の太い矢印は、時刻 t の各モードの成分（固有ベクトルの向きのまま伸び縮みする）。'+(s.log?"モータは 2 つのモードの速さが 100 倍違うので、時間の軸を対数にした。":"")+'</div>';
+      ro.innerHTML=h+'<div class="wnote">本文 4 節の式 x(t) = α<sub>1</sub>e<sup>λ₁t</sup>v<sub>1</sub> + α<sub>2</sub>e<sup>λ₂t</sup>v<sub>2</sub> で計算した。固有ベクトルは、本文と同じく 1 番目の成分を 1 にした。色の太い矢印は、時刻 t の各モードの成分（固有ベクトルの向きのまま伸び縮みする）。'+(s.log?"モータは 2 つのモードの速さが 100 倍違うので、時間の軸を対数にした。":"")+'</div>';
     }
     run();
   };
@@ -285,12 +289,12 @@
         if(nn>1e-9)o.push(S.ARR(P.X(xt[0]),P.Y(xt[1]),P.X(xt[0])+sx/nn*30,P.Y(xt[1])+sy/nn*30,"gold",2,6));}
       o.push(S.T(P.x+4,P.y+13,"位相平面（ドラッグで初めの状態）","start",9,"muted",false,false,null,true));
       /* s 平面 */
-      var lam=E.real?[[E.l[0],0],[E.l[1],0]]:[[E.re,E.im],[E.re,-E.im]],m=0;lam.forEach(function(z){m=Math.max(m,Math.abs(z[0]),Math.abs(z[1]));});
-      var sR=[1,2,5,10,20,50,100].filter(function(v){return v>=1.15*m;})[0]||200;
-      var sx0=nar?52:410,sw=nar?330:270,sh=nar?110:120,sy0=nar?P.y+P.h+52:22;
-      var Q=U.plot(sx0,sy0,sw,sh,[-sR,sR],[-sR*sh/sw,sR*sh/sw]);
+      var lam=E.real?[[E.l[0],0],[E.l[1],0]]:[[E.re,E.im],[E.re,-E.im]],sx0=nar?52:410,sw=nar?330:270,sh=nar?110:120,sy0=nar?P.y+P.h+52:22,m=0;
+      lam.forEach(function(z){m=Math.max(m,Math.abs(z[0]),Math.abs(z[1])*sw/sh);});
+      var sR=[1,2,5,10,20,50,100,200].filter(function(v){return v>=1.15*m;})[0]||500,iR=sR*sh/sw;
+      var Q=U.plot(sx0,sy0,sw,sh,[-sR,sR],[-iR,iR]);
       o.push(S.RECT(Q.x,Q.y,Q.w,Q.h,0,"var(--screen)","line",0.8));o.push(U.ctl.splane(Q));
-      o.push(Q.axes({xl:"実部 [1/s]",yl:null,xt:[-sR,-sR/2,0,sR/2,sR],yt:[],xfmt:function(v){return _w17_sig(v,3);}}));
+      o.push(Q.axes({xl:"実部 [1/s]",yl:null,xt:[-sR,-sR/2,0,sR/2,sR],yt:U.nice(-iR,iR,2).filter(function(v){return Math.abs(v)<=iR;}),xfmt:function(v){return _w17_sig(v,3);},yfmt:function(v){return _w17_sig(v,2);},sz:8.5}));
       o.push(U.ctl.pz(Q,lam.map(function(z){return {re:z[0],im:z[1]};}),[],"signal",5.5));
       o.push(S.T(Q.x+4,Q.y+12,"s 平面: A の固有値","start",9,"muted",false,false,null,true));
       /* 時間の波形 */
@@ -308,7 +312,7 @@
       var h="",kind;
       if(!E.real){h+="固有値: <b>"+_w17_cs(E.re,E.im,3)+"</b> と <b>"+_w17_cs(E.re,-E.im,3)+"</b>（共役な複素数の組）<br>";
         kind=Math.abs(E.re)<1e-6?'<span class="warn">楕円: 回り続ける（安定限界）</span>':(E.re<0?'<span class="ok">渦巻き: 回りながら原点へ縮む（安定）</span>':'<span class="warn">広がる渦巻き: 回りながら外へ広がる（不安定）</span>');
-        h+=kind+"（回る速さ "+_w17_sig(E.im,3)+" rad/s、縮み方・広がり方 e<sup>"+_w17_sig(E.re,3)+"t</sup>）<br>";}
+        h+=kind+"（回る速さは虚部の "+_w17_sig(E.im,3)+" rad/s、振幅の変わり方は実部の "+_w17_sig(E.re,3)+" /s で決まる）<br>";}
       else{h+="固有値: <b>"+_w17_sig(E.l[0],4)+"</b> と <b>"+_w17_sig(E.l[1],4)+"</b>（実数）";
         if(!E.rep)h+="、固有ベクトル ["+_w17_sig(E.v[0][0],3)+", "+_w17_sig(E.v[0][1],3)+"]ᵀ と ["+_w17_sig(E.v[1][0],3)+", "+_w17_sig(E.v[1][1],3)+"]ᵀ";
         h+="<br>";var a=E.l[0],b=E.l[1];
@@ -351,7 +355,7 @@
       var A=[],B=[],C=[[]],i,j;for(i=0;i<n;i++){var row=[];for(j=0;j<n;j++)row.push(i<n-1?(j===i+1?1:0):-dn[n-j]);A.push(row);B.push([i===n-1?1:0]);}
       for(j=0;j<n;j++)C[0].push(bp[n-1-j]);
       /* 固有値（分母の根）と、相殺の後の極 */
-      var ev=ctl.poly.roots(dn),zs=ctl.poly.trim(nm).length>1?ctl.poly.roots(ctl.poly.trim(nm)):[],used=[],poles=[];
+      var ev=ctl.poly.roots(dn).sort(function(a,b){return b.re-a.re||b.im-a.im;}),zs=ctl.poly.trim(nm).length>1?ctl.poly.roots(ctl.poly.trim(nm)):[],used=[],poles=[];
       var scl=1;ev.forEach(function(z){scl=Math.max(scl,cx.abs(z));});
       ev.forEach(function(p){var hit=-1;zs.forEach(function(z,k){if(hit<0&&used.indexOf(k)<0&&cx.abs(cx.sub(z,p))<1e-6*(1+cx.abs(p)))hit=k;});if(hit>=0)used.push(hit);else poles.push(p);});
       var distinct=true;for(i=0;i<n;i++)for(j=i+1;j<n;j++)if(cx.abs(cx.sub(ev[i],ev[j]))<1e-6*scl)distinct=false;
@@ -380,7 +384,7 @@
       o.push(S.T(10,yD,"対角正準形（固有ベクトルの大きさは b̃ᵢ = 1 にそろえた）","start",10.5,"green",true));
       if(res){var mL=_w17_mat(S,34,yD+8,ev.map(function(l,q){return ev.map(function(_,r){return r===q?_w17_cs(l.re,l.im,4):"0";});}),sz);
         o.push(S.TX(8,yD+8+mL.h/2+4,"Λ =","start",sz,"ink"));o.push(mL.svg);
-        var yR=yD+8+mL.h+12,mR=_w17_mat(S,34,yR,[res.map(function(r){return _w17_cs(r.re,r.im,4);})],sz);
+        var yR=yD+8+mL.h+12,mR=_w17_mat(S,34,yR,[res.map(function(r){return _w17_cs(r.re,r.im,5);})],sz);
         o.push(S.TX(8,yR+mR.h/2+4,"C̃ =","start",sz,"ink"));o.push(mR.svg);
         o.push(S.T(34,yR+mR.h+16,"（C̃ の要素が留数。B̃ = [1 … 1]ᵀ）","start",9,"muted"));var yEnd=yR+mR.h+22;}
       else{o.push(S.T(14,yD+24,"固有値が重なり、固有ベクトルが足りないので、","start",9.5,"alias",true));o.push(S.T(14,yD+40,"対角正準形にできない","start",9.5,"alias",true));var yEnd2=yD+48;}
@@ -403,21 +407,23 @@
       o.push(G.clip(T.map(function(t,k){return [t,Ycc[k]];}),"signal",4));
       if(res)o.push(G.clip(T.map(function(t,k){return [t,Ydg[k]];}),"green",2,"6 4"));
       o.push(G.clip(T.map(function(t,k){return [t,Ytf[k]];}),"ink",1.2,"2 3"));
-      /* 状態変数（大きさをそろえた） */
-      var g2=gy+gh+46,H2=U.plot(px,g2,pw,gh,[0,tE],[-1.1,1.1]),cols=["signal","teal","purple","gold"];
-      o.push(S.RECT(H2.x,H2.y,H2.w,H2.h,0,"var(--screen)","line",0.6));
-      o.push(H2.axes({xl:"時間 t [s]",xt:U.nice(0,tE,4),yt:[-1,0,1],xfmt:function(v){return String(+v.toPrecision(3));},yfmt:function(v){return String(v);},sz:8.5}));
-      o.push(S.T(H2.x,H2.y-6,"状態変数（それぞれの最大で割った）: 実線 可制御正準形"+(res&&allReal?"、破線 対角正準形":""),"start",9,"ink",true));
-      for(i=0;i<n;i++){var mxv=0;Xcc.forEach(function(v){mxv=Math.max(mxv,Math.abs(v[i]));});mxv=mxv||1;o.push(H2.clip(T.map(function(t,k){return [t,Xcc[k][i]/mxv];}),cols[i],1.7));
-        if(res&&allReal){var mxd=0;Xdg.forEach(function(v){mxd=Math.max(mxd,Math.abs(v[i]));});mxd=mxd||1;o.push(H2.clip(T.map(function(t,k){return [t,Xdg[k][i]/mxd];}),cols[i],1.4,"5 3"));}}
-      var Hh=Math.max(leftH,g2+gh+40);box.set(S.svg(Wd,Hh,o));
+      /* 状態変数（それぞれの最大の大きさで割って、形だけを比べる） */
+      var cols=["signal","teal","purple","gold"],gh2=nar?70:74,g2=gy+gh+40,yb2=g2;
+      function stPlot(yy,X,title,xl){var Hp=U.plot(px,yy,pw,gh2,[0,tE],[-1.15,1.15]);
+        o.push(S.RECT(Hp.x,Hp.y,Hp.w,Hp.h,0,"var(--screen)","line",0.6));
+        o.push(Hp.axes({xl:xl?"時間 t [s]":null,xt:U.nice(0,tE,4),yt:[-1,0,1],xfmt:function(v){return String(+v.toPrecision(3));},yfmt:function(v){return String(v);},sz:8.5}));
+        o.push(S.T(Hp.x,Hp.y-6,title,"start",9,"ink",true));
+        for(var q=0;q<n;q++){var mx=0;X.forEach(function(v){mx=Math.max(mx,Math.abs(v[q]));});mx=mx||1;o.push(Hp.clip(T.map(function(t,k){return [t,X[k][q]/mx];}),cols[q],1.7));}}
+      stPlot(g2,Xcc,"可制御正準形の状態変数（それぞれの最大で割った）",!(res&&allReal));
+      if(res&&allReal){yb2=g2+gh2+46;stPlot(yb2,Xdg,"対角正準形の状態変数（それぞれの最大で割った。色は Λ の対角の順）",true);}
+      var Hh=Math.max(leftH,yb2+gh2+40);box.set(S.svg(Wd,Hh,o));
       /* 読み出し */
       var hh="";
       hh+="固有値（分母 = 0 の根）: <b>"+ev.map(function(z){return _w17_cs(z.re,z.im,4);}).join("、")+"</b><br>";
       hh+="伝達関数の極（相殺の後）: <b>"+(poles.length?poles.map(function(z){return _w17_cs(z.re,z.im,4);}).join("、"):"なし")+"</b>"+(poles.length<n?'　<span class="warn">相殺で消えた固有値がある（出力に現れないモード）</span>':"")+"<br>";
-      if(res)hh+="留数 c̃ᵢb̃ᵢ: "+res.map(function(r,q){return _w17_cs(r.re,r.im,4)+"（λ = "+_w17_cs(ev[q].re,ev[q].im,3)+"）";}).join("、")+"<br>";
-      hh+="3 通りの計算の出力の差の最大: "+_w17_sig(dmax,2)+"（出力の大きさ "+_w17_sig(ymax,3)+" に対して）"+(dmax<=1e-6*Math.max(ymax,1e-12)?' <span class="ok">一致</span>':'')+"<br>";
-      ro.innerHTML=hh+'<div class="wnote">可制御正準形は本文 6 節の形（A の最後の行が −a₀, …, −a_{n−1}、B = [0 … 0 1]ᵀ、C = [b₀ … b_{n−1}]）。分母の最も高い次の係数で全体を割ってから作る。可制御正準形の応答は零次ホールドで厳密に離散化して、対角正準形の応答は各モードの式 (e<sup>λt</sup> − 1)/λ の和で、伝達関数の応答は共通部品の step で計算した。</div>';
+      if(res)hh+="留数 c̃ᵢb̃ᵢ: "+res.map(function(r,q){return _w17_cs(r.re,r.im,5)+"（λ = "+_w17_cs(ev[q].re,ev[q].im,3)+"）";}).join("、")+"<br>";
+      hh+="3 通りの計算の出力の差の最大: "+_w17_h(dmax,2)+"（出力の大きさ "+_w17_sig(ymax,3)+" に対して）"+(dmax<=1e-6*Math.max(ymax,1e-12)?' <span class="ok">一致</span>':'')+"<br>";
+      ro.innerHTML=hh+'<div class="wnote">可制御正準形は本文 6 節の形（A の最後の行が −a<sub>0</sub>, …, −a<sub>n−1</sub>、B = [0 … 0 1]ᵀ、C = [b<sub>0</sub> … b<sub>n−1</sub>]）。分母の最も高い次の係数で全体を割ってから作る。可制御正準形の応答は零次ホールドで厳密に離散化して、対角正準形の応答は各モードの式 (e<sup>λt</sup> − 1)/λ の和で、伝達関数の応答は共通部品の step で計算した。</div>';
     }
     run();
   };
