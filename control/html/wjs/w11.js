@@ -310,7 +310,7 @@
     var S=U.S,keys=["plate","mspd","cart"];
     U.head(el,"WINDUP","飽和とワインドアップ — 張り付いている間の積分と、2 つの対策");
     var r1=U.ctrls(el);
-    var obj=U.select(r1,"対象",["温度の板（ヒータ 0〜80 W、PI 10 W/K・160 s）","モータの速度（±12 V、10 章の PI）","台車の速度（力 ±4 N、遅れ 0.1 s、PI 5 N/(m/s)・0.5 s）"],0,function(){var z=_W11_WU[keys[obj.get()]];lim.set(z.l0);rr.set(z.r0);tt.set(z.t0);draw();});
+    var obj=U.select(r1,"対象",["温度の板（PI 10 W/K・160 s）","モータの速度（10 章の PI）","台車の速度（PI 5 N/(m/s)・0.5 s）"],0,function(){var z=_W11_WU[keys[obj.get()]];lim.set(z.l0);rr.set(z.r0);tt.set(z.t0);draw();});
     var aw=U.select(r1,"対策",["なし","クランプ（積分を止める）","バックカリキュレーション"],0,draw);
     var r2=U.ctrls(el);
     var lim=U.slider(r2,"操作量の上限",{min:2.5,max:200,log:true,value:80,fmt:function(v){var z=_W11_WU[keys[obj.get()]];return (z.sym?"±":"0〜")+_w11_g(v,3)+" "+z.uu;},onInput:draw});
