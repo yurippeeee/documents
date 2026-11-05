@@ -667,10 +667,10 @@ def _f11_relay_fig():
     o.append(TX((q.X(ups[0]) + q.X(ups[1])) / 2, q.Y(61.35) - 4, "T_osc = %s s" % _f11_f(A["T"], 1), "middle", 9.5, INK, True, halo=True))
     ymax = 25 + A["ym"] + A["a"]
     k = int(_f11_np.argmax(_f11_np.where(m, y, -1e9)))
-    tk = [x for x in A["up"] if t0 <= x <= t1][0] + A["T"] / 4 + 20
+    tk = [x for x in A["up"] if t0 <= x <= t1][0] + A["T"] / 2 + 20
     o.append(DARR(q.X(tk), q.Y(25 + A["ym"]), q.X(tk), q.Y(ymax), c=SIG, lw=1.1, head=4))
     o.append(TX(q.X(tk) + 4, q.Y(25 + A["ym"] + A["a"] / 2) + 4, "a = %s K" % _f11_f(A["a"], 2), "start", 9.5, SIG, True, halo=True))
-    o.append(T(q.X(t1) - 2, q.y + q.h - 6, "破線: 基本波（振れ幅 a_1 = %s K）" % _f11_f(A["a1"], 2), "end", 9, SIG, halo=True))
+    o.append(TX(q.X(t1) - 2, q.y - 4, "破線: 基本波（振れ幅 a_1 = %s K）" % _f11_f(A["a1"], 2), "end", 9, SIG, True, halo=True))
     # (c) ナイキスト線図
     o.append(T(470, 152, "(c) 負の実軸の近くの線図", "start", 11.5, INK, True))
     s3, c3 = _f11_cplane(490, 170, 190, 150, (-0.05, 0.01), (-0.03, 0.02), [-0.04, -0.02, 0], [-0.02, 0, 0.02], sz=8.5)
@@ -820,3 +820,267 @@ def _f11_imc_dist_fig():
 
 
 F["e11_imc_dist"] = _f11_imc_dist_fig()
+
+
+# =====================================================================
+# 4 節: 飽和と積分のワインドアップ
+# =====================================================================
+def _f11_heat(KP=10.0, TI=160.0, aw="none", Tt=None, tE=1500.0, n=15000, **k):
+    """25 °C の板を 60 °C に温める（ヒータ 0〜80 W）。"""
+    return _f11_sim(_F11_PLATE, KP, TI, tEnd=tE, n=n, r=35.0, umin=0.0, umax=80.0, aw=aw, Tt=Tt, every=1, **k)
+
+
+def _f11_settle(t, y, yf, band):
+    out = _f11_np.where(_f11_np.abs(_f11_np.asarray(y) - yf) > band)[0]
+    return float(t[out[-1] + 1]) if len(out) and out[-1] + 1 < len(t) else None
+
+
+def _f11_windup_fig():
+    o = []
+    a = _f11_heat(tE=3000, n=30000)
+    t, y, u, uc, uI, e = a["t"], a["y"], a["u"], a["uc"], a["I"], a["e"]
+    ep = float(_f11_np.trapezoid(_f11_np.clip(e, 0, None), t)); en = float(_f11_np.trapezoid(_f11_np.clip(-e, 0, None), t))
+    m = t <= 1000
+    o.append(TX(14, 18, "(a) 板の温度（PI 10 W/K・160 s、対策なし。目標 60 °C）", "start", 11.5, INK, True))
+    p = Plot(62, 32, 610, 150, (0, 1000), (20, 80))
+    o.append(p.axes(xl=None, yl="温度 [°C]", xt=[0, 200, 400, 600, 800, 1000], yt=[20, 40, 60, 80], sz=9, xfmt=lambda v: ""))
+    tt, ee = t[m], e[m]
+    o.append(_f11_area(Plot(p.x, p.y, p.w, p.h, (0, 1000), (-55, 5)), tt, ee, SIG, 1).replace("", "") if False else "")
+    # 正と負の面積（目標値の線と温度の間）
+    for sg, c in ((1, SIG), (-1, ALI)):
+        run = []
+        for a_, b_ in zip(tt, 25 + y[m]):
+            if sg * (60 - b_) > 0:
+                run.append((a_, b_))
+            elif run:
+                if len(run) > 1:
+                    o.append(PL([(p.X(run[0][0]), p.Y(60))] + [(p.X(x), p.Y(v)) for x, v in run] + [(p.X(run[-1][0]), p.Y(60))], c="none", lw=0, fill=soft(c)))
+                run = []
+        if len(run) > 1:
+            o.append(PL([(p.X(run[0][0]), p.Y(60))] + [(p.X(x), p.Y(v)) for x, v in run] + [(p.X(run[-1][0]), p.Y(60))], c="none", lw=0, fill=soft(c)))
+    o.append(W(p.X(0), p.Y(60), p.X(1000), p.Y(60), c=MUT, lw=1.1, dash="5 3"))
+    o.append(p.line(list(zip(tt, 25 + y[m])), c=SIG, lw=2.1))
+    k = int(_f11_np.argmax(y))
+    o.append(T(p.X(t[k]) + 8, p.Y(25 + y[k]) + 4, "%s °C（%s s）" % (_f11_f(25 + y[k], 1), _f11_f(t[k], 0)), "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(120), p.Y(48), "正の面積 %s K·s" % _f11_f(ep, 0), "middle", 10, SIG, True, halo=True))
+    o.append(T(p.X(420), p.Y(66), "負の面積 %s K·s" % _f11_f(en, 0), "start", 10, ALI, True, halo=True))
+    o.append(TX(p.X(990), p.Y(30), "差 %s K·s ＝ 28 W ÷ K_I（0.0625 W/(K·s)）" % _f11_f(ep - en, 0), "end", 10, INK, True, halo=True))
+    ix = int(_f11_np.argmax(y >= 35.0))
+    o.append(W(p.X(t[ix]), p.Y(20), p.X(t[ix]), p.Y(80), c=FNT, lw=1, dash="3 3"))
+    o.append(T(p.X(t[ix]) - 4, p.Y(76), "%s s: 60 °C に届く" % _f11_f(t[ix], 0), "end", 9.5, MUT, halo=True))
+    # (b) 操作量
+    o.append(TX(14, 214, "(b) 計算した操作量 u_c・実際の操作量 u・I の分 u_I", "start", 11.5, INK, True))
+    q = Plot(62, 228, 610, 150, (0, 1000), (-50, 400))
+    o.append(q.axes(xl="時間 t [s]", yl="[W]", xt=[0, 200, 400, 600, 800, 1000], yt=[0, 80, 200, 300, 400], sz=9, yfmt=_f11_g))
+    o.append(W(q.X(0), q.Y(80), q.X(1000), q.Y(80), c=ALI, lw=1, dash="4 3"))
+    o.append(W(q.X(0), q.Y(28), q.X(1000), q.Y(28), c=MUT, lw=1, dash="2 3"))
+    o.append(q.clip(list(zip(tt, uc[m])), c=GLD, lw=1.4, dash="5 3"))
+    o.append(q.line(list(zip(tt, u[m])), c=GLD, lw=2.1))
+    o.append(q.line(list(zip(tt, uI[m])), c=GRN, lw=1.9))
+    ks = int(_f11_np.where(u >= 80 - 1e-9)[0][-1])
+    o.append(T(q.X(t[ks]) + 6, q.Y(80) - 6, "%s s まで 80 W に張り付く" % _f11_f(t[ks], 0), "start", 9.5, GLD, True, halo=True))
+    kI = int(_f11_np.argmax(uI))
+    o.append(TX(q.X(t[kI]) + 8, q.Y(uI[kI]) - 4, "u_I = %s W（%s s）" % (_f11_f(uI[kI], 0), _f11_f(t[kI], 0)), "start", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(990), q.Y(80) + 13, "上限 80 W", "end", 9, ALI, halo=True))
+    o.append(T(q.X(990), q.Y(28) + 13, "保つのに要る 28 W", "end", 9, MUT, halo=True))
+    o.append(LEGL(62, 436, [(GLD, "5 3", "計算した操作量 u_c"), (GLD, None, "実際の操作量 u"), (GRN, None, "I の分 u_I")], 9.5, 14))
+    return SVG(700, 444, o, "25 °C の板を 60 °C に温める（ヒータは 0〜80 W、アンチワインドアップなし）。温める間、計算した操作量は 80 W を大きく越え、ヒータは張り付く。その間も I の分は正の偏差をため続け、目標に届いた %s s には %s W になっている。I の分は負の偏差の面積の分しか減らないので、ヒータは %s s まで 80 W のままで、温度は %s °C まで上がる。偏差の面積の合計（正 − 負）は、I の分の始め 0 W と終わり 28 W の差を K<sub>I</sub> で割った 448 K·s に決まっている。" % (_f11_f(t[ix], 0), _f11_f(uI[kI], 0), _f11_f(t[ks], 0), _f11_f(25 + y[k], 1)))
+
+
+F["e11_windup"] = _f11_windup_fig()
+
+
+_F11_AW = [("none", None, ALI, "対策なし"), ("clamp", None, SIG, "クランプ"), ("back", 80.0, GRN, "バックカリキュレーション（T_t = 80 s）")]
+
+
+def _f11_aw_cmp_fig():
+    o = []
+    res = [(_f11_heat(aw=aw, Tt=Tt, tE=1500, n=15000), c, lab) for aw, Tt, c, lab in _F11_AW]
+    o.append(T(14, 18, "(a) 板の温度（同じ PI 10 W/K・160 s）", "start", 11.5, INK, True))
+    p = Plot(62, 32, 610, 130, (0, 1000), (20, 80))
+    o.append(p.axes(xl=None, yl="温度 [°C]", xt=[0, 200, 400, 600, 800, 1000], yt=[20, 40, 60, 80], sz=9, xfmt=lambda v: ""))
+    o.append(W(p.X(0), p.Y(60), p.X(1000), p.Y(60), c=MUT, lw=1.1, dash="5 3"))
+    o.append(T(14, 192, "(b) 実際の操作量", "start", 11.5, INK, True))
+    q = Plot(62, 204, 610, 80, (0, 1000), (0, 90))
+    o.append(q.axes(xl=None, yl="u [W]", xt=[0, 200, 400, 600, 800, 1000], yt=[0, 28, 80], sz=9, xfmt=lambda v: ""))
+    o.append(TX(14, 312, "(c) I の分 u_I", "start", 11.5, INK, True))
+    z = Plot(62, 324, 610, 90, (0, 1000), (-150, 300))
+    o.append(z.axes(xl="時間 t [s]", yl="u_I [W]", xt=[0, 200, 400, 600, 800, 1000], yt=[-100, 0, 100, 200, 300], sz=9, yfmt=_f11_g))
+    o.append(W(z.X(0), z.Y(28), z.X(1000), z.Y(28), c=MUT, lw=1, dash="2 3"))
+    o.append(T(z.X(990), z.Y(28) - 4, "28 W", "end", 9, MUT, halo=True))
+    for i, (a, c, lab) in enumerate(res):
+        t = a["t"]; m = t <= 1000
+        o.append(p.line(list(zip(t[m], 25 + a["y"][m])), c=c, lw=2.0))
+        o.append(q.line(list(zip(t[m], a["u"][m])), c=c, lw=1.7))
+        o.append(z.clip(list(zip(t[m], a["I"][m])), c=c, lw=1.7))
+        ts = _f11_settle(t, 25 + a["y"], 60.0, 0.5)
+        mx = 25 + float(a["y"].max())
+        txt = ("最高 %s °C、" % _f11_f(mx, 1) if mx > 60.5 else "行き過ぎなし、") + "±0.5 K に入るのは %s s" % _f11_f(ts, 0)
+        o.append(TX(p.X(990), p.Y(36) - (2 - i) * 14, lab + ": " + txt, "end", 9.5, c, True, halo=True))
+    return SVG(700, 454, o, "アンチワインドアップの比較。クランプは、ヒータが上限に張り付いていて偏差が正の間、積分を止める。バックカリキュレーションは、計算した操作量と実際の操作量の差を時定数 T<sub>t</sub> で積分に戻すので、張り付いている間 I の分が下がる。どちらも行き過ぎを無くし、±0.5 K に入るまでの時間を対策なしの半分ほどにする。I の分は張り付きが解けてから 28 W までためるので、最後はゆっくり近づく。")
+
+
+F["e11_aw_cmp"] = _f11_aw_cmp_fig()
+
+
+# =====================================================================
+# 5 節: 手動と自動の切り替え・ゲインの変更
+# =====================================================================
+def _f11_bump_fig():
+    o = []
+    man = lambda t: 30.0 if t < 300 else None
+    A = _f11_sim(_F11_PLATE, 10.0, 160.0, tEnd=1500, n=15000, r=35.0, u0=30.0, I0=0.0, manual=man, track="none", umin=0, umax=80, aw="clamp", every=1)
+    B = _f11_sim(_F11_PLATE, 10.0, 160.0, tEnd=1500, n=15000, r=35.0, u0=30.0, I0=0.0, manual=man, track="track", umin=0, umax=80, aw="clamp", every=1)
+    g = lambda t: (10.0, 160.0, 0.0) if t < 300 else (20.0, 80.0, 0.0)
+    C = _f11_sim(_F11_PLATE, 10.0, 160.0, tEnd=1500, n=15000, r=35.0, u0=28.0, gains=g, gin=False, umin=0, umax=80, aw="clamp", every=1)
+    D_ = _f11_sim(_F11_PLATE, 10.0, 160.0, tEnd=1500, n=15000, r=35.0, u0=28.0, gains=g, gin=True, umin=0, umax=80, aw="clamp", every=1)
+    for j, (title, X, Y, labs) in enumerate((("(a) 手動 30 W から、300 s に自動へ切り替える", A, B, ("I の分が 0 のまま", "I の分を合わせておく")),
+                                            ("(b) 60 °C で、300 s にゲインを強くする", C, D_, ("I の分 = (K_P/T_I)∫e dt", "I の分 = ∫K_I e dt")))):
+        x0 = 62 + j * 340
+        o.append(TX(x0 - 48, 18, title, "start", 11, INK, True))
+        p = Plot(x0, 34, 280, 130, (0, 1200), (56, 66))
+        o.append(p.axes(xl=None, yl="温度 [°C]", xt=[0, 300, 600, 900, 1200], yt=[56, 58, 60, 62, 64, 66], sz=9, xfmt=lambda v: ""))
+        q = Plot(x0, 186, 280, 100, (0, 1200), (0, 90))
+        o.append(q.axes(xl="時間 t [s]", yl="u [W]", xt=[0, 300, 600, 900, 1200], yt=[0, 28, 80], sz=9))
+        if j == 0:
+            o.append(RECT(p.X(0), p.y, p.X(300) - p.X(0), p.h, 0, MSOFT, "none", 0))
+            o.append(RECT(q.X(0), q.y, q.X(300) - q.X(0), q.h, 0, MSOFT, "none", 0))
+            o.append(T(p.X(150), p.y + 12, "手動", "middle", 9.5, MUT, True))
+            o.append(T(p.X(310), p.y + 12, "自動", "start", 9.5, MUT, True))
+        else:
+            o.append(W(p.X(300), p.y, p.X(300), p.y + p.h, c=MUT, lw=1, dash="3 3"))
+            o.append(W(q.X(300), q.y, q.X(300), q.y + q.h, c=MUT, lw=1, dash="3 3"))
+            o.append(T(p.X(294), p.y + 12, "ゲインを変える", "end", 9.5, MUT, True))
+        o.append(W(p.X(0), p.Y(60), p.X(1200), p.Y(60), c=MUT, lw=1, dash="5 3"))
+        for R_, c, lab, k in ((X, ALI, labs[0], 0), (Y, GRN, labs[1], 1)):
+            t = R_["t"]; m = t <= 1200
+            o.append(p.line(list(zip(t[m], 25 + R_["y"][m])), c=c, lw=2.0))
+            o.append(q.line(list(zip(t[m], R_["u"][m])), c=c, lw=1.8))
+        a, b = (A, B) if j == 0 else (C, D_)
+        ka = int(_f11_np.argmin(a["y"])) if j == 0 else int(_f11_np.argmax(a["y"]))
+        o.append(T(p.X(a["t"][ka]) + 10, p.Y(25 + a["y"][ka]) + (12 if j == 0 else 4), "%s °C" % _f11_f(25 + a["y"][ka], 1), "start", 9.5, ALI, True, halo=True))
+        if j == 1:
+            o.append(TX(p.X(1190), p.Y(57.2), "10 W/K・160 s → 20 W/K・80 s", "end", 9, MUT, halo=True))
+        o.append(LEGL(x0 - 48, 326, [(ALI, None, labs[0])], 9.5))
+        o.append(LEGL(x0 - 48, 342, [(GRN, None, labs[1])], 9.5))
+    return SVG(700, 350, o, "(a) 手動で 30 W を出して 62.5 °C で落ち着いている板を、300 s に自動（目標 60 °C、PI 10 W/K・160 s）へ切り替える。I の分が 0 のままだと、切り替えた瞬間の操作量は 10 × (−2.5) = −25 W でヒータは 0 W に落ち、板は 57.4 °C まで下がる。I の分を手動の操作量に合わせておくと、30 W から跳ねずに 28 W へ移る。(b) 60 °C で落ち着いた板で、運転中にゲインを強くする。I の分を ∫e dt に K<sub>P</sub>/T<sub>I</sub> を掛けて作る形では、それまでの面積に新しいゲインが掛かって I の分が 28 W から 112 W に跳ね、板は 64.9 °C まで上がる。ゲインを積分の中に入れる形では跳ねない。")
+
+
+F["e11_bump"] = _f11_bump_fig()
+
+
+# =====================================================================
+# 6 節: 調整の手順と温度の板の例
+# =====================================================================
+def _f11_steps_fig():
+    o = []
+    steps = [("1. 仕様", "評価指標で決める", "", "（1 節）"), ("2. 測る", "ステップ・リレー", "・周波数掃引", "（2 節、3・8 章）"),
+             ("3. モデル", "K・T・L を求める", "", "（3 章 4・5 節）"), ("4. 初期値", "λ = 2L から", "ノイズなら PI", "（3 節）"),
+             ("5. 試す", "目標値・外乱・", "ノイズ・余裕", "（1 節）"), ("6. 直す", "λ を変える", "", "（3 節）")]
+    xs = [14 + i * 114 for i in range(6)]
+    y0 = 40
+    for i, (a_, b_, c_, d_) in enumerate(steps):
+        c = SIG if i < 4 else (GRN if i == 4 else GLD)
+        o.append(RECT(xs[i], y0, 100, 86, 8, soft(c), c, 1.4))
+        o.append(T(xs[i] + 50, y0 + 20, a_, "middle", 11, c, True))
+        o.append(TX(xs[i] + 50, y0 + 41, b_, "middle", 9.5, INK))
+        if c_:
+            o.append(TX(xs[i] + 50, y0 + 56, c_, "middle", 9.5, INK))
+        o.append(T(xs[i] + 50, y0 + 76, d_, "middle", 9, MUT))
+        if i < 5:
+            o.append(ARR(xs[i] + 100, y0 + 43, xs[i + 1], y0 + 43, c=MUT, lw=1.5, head=6))
+    yl = y0 + 108
+    o.append(W(xs[5] + 50, y0 + 86, xs[5] + 50, yl, xs[4] + 50, yl, c=GLD, lw=1.6))
+    o.append(ARR(xs[4] + 50, yl, xs[4] + 50, y0 + 88, c=GLD, lw=1.6, head=6))
+    o.append(T((xs[4] + xs[5]) / 2 + 50, yl + 16, "満たすまで 5 と 6 を繰り返す", "middle", 9.5, GLD, True))
+    o.append(T(14, 18, "調整の手順", "start", 11.5, INK, True))
+    o.append(RECT(14, 196, 672, 52, 6, GSOFT, GRN, 1.1))
+    o.append(T(24, 216, "最初から入れておくもの: 操作量の範囲とアンチワインドアップ（4 節）、手動と自動のバンプレス切り替え（5 節）、", "start", 10, INK))
+    o.append(T(24, 234, "測定値微分と目標値の重み（10 章 6 節）。調整の試験を、実際の機器で安全に繰り返せるようにする。", "start", 10, INK))
+    return SVG(700, 256, o, "調整の手順。仕様を評価指標で決め、対象を測ってモデルを作り、穏やかな初期値から始めて、試しては直す。試すときは、モデルの値をずらしたときの余裕も確かめる。")
+
+
+F["e11_steps"] = _f11_steps_fig()
+
+
+def _f11_final_run(lam, Ktrue=1.25, Ttrue=500.0, Ltrue=20.0, tE=3000, n=30000):
+    Km, Tm, Lm = 1.249, 502.0, 18.0
+    KP = Tm / (Km * (lam + Lm)); TI = min(Tm, 4 * (lam + Lm))
+    P = ([Ktrue], [Ttrue, 1.0], Ltrue)
+    a = _f11_sim(P, KP, TI, tEnd=tE, n=n, r=35.0, umin=0.0, umax=80.0, aw="clamp", d=lambda t: -10.0 if t >= 1500 else 0.0,
+                 noise=_f11_noise(_F11_SEED, 0.3, tE + 2), every=1)
+    return a, KP, TI
+
+
+def _f11_plate_final_fig():
+    o = []
+    runs = [(36.0, TEA, "λ = 36 s（7.44 W/K・216 s）"), (18.0, SIG, "λ = 18 s（11.2 W/K・144 s）")]
+    res = [(_f11_final_run(lam)[0], c, lab) for lam, c, lab in runs]
+    o.append(T(14, 18, "(a) 板の温度（観測ノイズ 0.3 K。1500 s に逃げる熱が 10 W 増える）", "start", 11.5, INK, True))
+    p = Plot(62, 32, 400, 140, (0, 3000), (20, 66))
+    o.append(p.axes(xl=None, yl="温度 [°C]", xt=[0, 500, 1000, 1500, 2000, 2500, 3000], yt=[20, 30, 40, 50, 60], sz=9, xfmt=lambda v: ""))
+    o.append(W(p.X(1500), p.y, p.X(1500), p.y + p.h, c=PUR, lw=1, dash="3 3"))
+    o.append(T(p.X(1510), p.y + 12, "外乱", "start", 9.5, PUR, True))
+    q = Plot(62, 196, 400, 90, (0, 3000), (0, 90))
+    o.append(q.axes(xl="時間 t [s]", yl="u [W]", xt=[0, 500, 1000, 1500, 2000, 2500, 3000], yt=[0, 40, 80], sz=9))
+    o.append(T(486, 18, "(b) 外乱の前後を拡大", "start", 11.5, INK, True))
+    z = Plot(516, 32, 166, 140, (1400, 2000), (58.6, 60.8))
+    o.append(z.axes(xl=None, yl=None, xt=[1400, 1700, 2000], yt=[59, 59.5, 60, 60.5], sz=9, xfmt=lambda v: ""))
+    o.append(RECT(z.x, z.Y(60.5), z.w, z.Y(59.5) - z.Y(60.5), 0, GSOFT, "none", 0))
+    o.append(W(z.X(1400), z.Y(59), z.X(2000), z.Y(59), c=ALI, lw=1, dash="4 3"))
+    o.append(T(z.X(1995), z.Y(59) + 12, "下がりの仕様 1 K", "end", 9, ALI, halo=True))
+    o.append(T(z.X(1995), z.Y(60.5) - 4, "±0.5 K", "end", 9, GRN, halo=True))
+    zq = Plot(516, 196, 166, 90, (1400, 2000), (0, 90))
+    o.append(zq.axes(xl="時間 t [s]", yl=None, xt=[1400, 1700, 2000], yt=[0, 40, 80], sz=9))
+    for a, c, lab in res:
+        t = a["t"]
+        o.append(p.line(list(zip(t[::5], 25 + a["y"][::5])), c=c, lw=1.8))
+        o.append(q.line(list(zip(t[::10], a["u"][::10])), c=c, lw=1.0))
+        m = (t >= 1400) & (t <= 2000)
+        o.append(z.line(list(zip(t[m], 25 + a["y"][m])), c=c, lw=1.8))
+        o.append(zq.line(list(zip(t[m], a["u"][m])), c=c, lw=1.0))
+        k = int(_f11_np.argmin(_f11_np.where(t >= 1500, a["y"], 1e9)))
+        o.append(T(z.X(t[k]) + 4, z.Y(25 + a["y"][k]) + 12, "−%s K" % _f11_f(35 - a["y"][k], 2), "start", 9, c, True, halo=True))
+    o.append(LEGL(62, 340, [(TEA, None, runs[0][2] + ": 外乱の下がりが仕様を越える")], 9.5, 14))
+    o.append(LEGL(62, 356, [(SIG, None, runs[1][2] + ": 仕様を満たす")], 9.5, 14))
+    return SVG(700, 364, o, "3 章 5 節で読んだモデル（1.249 K/W・502 s・18 s）から決めた PI を、本当の板（1.25 K/W・500 s・20 s、ヒータ 0〜80 W、クランプのアンチワインドアップ、観測ノイズ 0.3 K）で試す。λ = 36 s では、逃げる熱が 10 W 増えたときの下がりが 1.07 K で、仕様の 1 K を越える。λ を 18 s に下げると 0.84 K に収まり、±0.5 K に戻るまでの時間も 267 s から 126 s に縮む。")
+
+
+F["e11_plate_final"] = _f11_plate_final_fig()
+
+
+def _f11_diag_fig():
+    o = []
+    cells = [("振れが続く・大きく行き過ぎる", "強すぎる。むだ時間が延びた", "→ K_P を下げ T_I を延ばす（λ を上げる）", ALI),
+             ("外乱の後、戻るのが遅い", "I が弱い（T_I = T のまま）", "→ T_I を短く（4(λ + L) まで）", SIG),
+             ("温めた後に大きく行き過ぎる", "ワインドアップ", "→ アンチワインドアップ（4 節）", ALI),
+             ("操作量がばたつく", "D 動作がノイズを大きくする", "→ N・T_D を下げる、PI にする", GLD),
+             ("切り替えた瞬間に跳ねる", "積分と操作量の食い違い", "→ バンプレス切り替え（5 節）", GLD),
+             ("小さな振れがいつまでも続く", "摩擦・量子化などの非線形", "→ 16 章（ゲインでは消えない）", TEA)]
+    # 小さな波形（その症状が出る計算）
+    w1 = _f11_sim(_F11_PLATE, 14.37, 65.62, tEnd=600, n=6000, r=1.0)
+    w2 = _f11_sim(_F11_PLATE, 10.0, 500.0, tEnd=2500, n=12500, r=0.0, d=lambda t: -10.0)
+    w3 = _f11_heat(tE=1200, n=6000)
+    w4 = _f11_sim(_F11_PLATE, 19.16, 39.37, 9.84, N=10.0, tEnd=300, n=3000, r=35.0, u0=28.0, noise=_f11_noise(_F11_SEED, 0.3, 302))
+    w5 = _f11_sim(_F11_PLATE, 10.0, 160.0, tEnd=900, n=4500, r=35.0, u0=30.0, I0=0.0, manual=lambda t: 30.0 if t < 300 else None, umin=0, umax=80, aw="clamp")
+    tt6 = _f11_np.linspace(0, 600, 300)
+    waves = [(w1["t"], w1["y"], (0, 600), (-0.1, 1.8), 1.0), (w2["t"], w2["y"], (0, 2500), (-1.0, 0.2), 0.0),
+             (w3["t"], 25 + w3["y"], (0, 1200), (20, 80), 60.0), (w4["t"], w4["u"], (0, 300), (-150, 200), 28.0),
+             (w5["t"], w5["u"], (0, 900), (-5, 40), None), (tt6, 60 + 0.25 * _f11_np.sin(2 * math.pi * tt6 / 90) * (1 - _f11_np.exp(-tt6 / 60)), (0, 600), (59.4, 60.6), 60.0)]
+    for i, ((sy, cause, act, c), (tw_, yw, xr, yr, ref)) in enumerate(zip(cells, waves)):
+        col, row = i % 3, i // 3
+        x0, y0 = 14 + col * 228, 34 + row * 172
+        o.append(RECT(x0, y0, 216, 160, 8, PAN, LIN, 1.0))
+        o.append(T(x0 + 10, y0 + 18, sy, "start", 10.5, c, True))
+        p = Plot(x0 + 12, y0 + 28, 192, 62, xr, yr)
+        o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.6))
+        if ref is not None:
+            o.append(W(p.X(xr[0]), p.Y(ref), p.X(xr[1]), p.Y(ref), c=MUT, lw=1, dash="4 3"))
+        o.append(p.clip(list(zip(tw_, yw)), c=c, lw=1.5))
+        o.append(TX(x0 + 10, y0 + 112, "疑う: " + cause, "start", 9.5, INK))
+        o.append(TX(x0 + 10, y0 + 132, act, "start", 9.5, INK, True))
+    o.append(T(14, 18, "調整の途中で見る症状と、まず疑うこと（小さな図は、その症状が出る例の計算）", "start", 11.5, INK, True))
+    return SVG(700, 384, o, "よく見る症状と、まず疑うこと。上段は、強さ・積分・ワインドアップの問題で、ゲインと対策で直せる。下段の操作量のばたつき・切り替えの跳ねは、微分とバンプレス切り替えの問題である。一定の振れ幅の小さな振れが続くのは、摩擦や量子化のような非線形が原因のことが多く、ゲインを変えても消えない（16 章 3 節）。")
+
+
+F["e11_diag"] = _f11_diag_fig()
