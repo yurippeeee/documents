@@ -94,18 +94,18 @@
       if(rk===2)o.push(S.PL(poly.map(function(q){return [P.X(Math.max(-30,Math.min(30,q[0]))),P.Y(Math.max(-30,Math.min(30,q[1])))];}),"signal",1.2,"signal",null,0.15));
       else{var mx=0,ix=0;poly.forEach(function(q,k2){var d2=q[0]*q[0]+q[1]*q[1];if(d2>mx){mx=d2;ix=k2;}});var q0=poly[ix];
         o.push(P.clip([[-q0[0],-q0[1]],[q0[0],q0[1]]],"alias",3));}
-      /* 可制御性行列の 2 つの列（向きだけ。長さをそろえる） */
+      /* 閉ループの動き（板 1 だけが 10 K 高い状態から） */
+      var nt=300,tE=1500,E=mat.expm(mat.scale(Acl,tE/nt)),x=[[10],[0]],tr=[],tt=[],x1=[],x2=[],dq=[];
+      for(i=0;i<=nt;i++){tt.push(tE*i/nt);x1.push(x[0][0]);x2.push(x[1][0]);dq.push(-(F[0][0]*x[0][0]+F[0][1]*x[1][0]));tr.push([x[0][0],x[1][0]]);x=mat.mul(E,x);}
+      o.push(P.clip(tr,"ink",1.8));o.push(S.D(P.X(10),P.Y(0),"ink",3.4));
+      /* 可制御性行列の 2 つの列（向きだけ。長さをそろえる）。動きの軌跡の上に描く */
       function unit(v){var n2=Math.hypot(v[0],v[1])||1;return [v[0]/n2*12,v[1]/n2*12];}
       var cb=unit([Wc[0][0],Wc[1][0]]),cab=unit([Wc[0][1],Wc[1][1]]);
       if(rk===2)o.push(S.PL([[P.X(0),P.Y(0)],[P.X(cb[0]),P.Y(cb[1])],[P.X(cb[0]+cab[0]),P.Y(cb[1]+cab[1])],[P.X(cab[0]),P.Y(cab[1])]],"none",0,"gold",null,0.25));
       o.push(S.ARR(P.X(0),P.Y(0),P.X(cb[0]),P.Y(cb[1]),"gold",2.4));o.push(S.ARR(P.X(0),P.Y(0),P.X(cab[0]),P.Y(cab[1]),"purple",2.4));
       o.push(S.T(P.X(cb[0])+(cb[0]>=0?4:-4),P.Y(cb[1])-5,"B","start",10,"gold",true,false,null,true));
       o.push(S.T(P.X(cab[0])+(cab[0]>=0?4:-4),P.Y(cab[1])+14,"AB","start",10,"purple",true,false,null,true));
-      /* 閉ループの動き（板 1 だけが 10 K 高い状態から） */
-      var nt=300,tE=1500,E=mat.expm(mat.scale(Acl,tE/nt)),x=[[10],[0]],tr=[],tt=[],x1=[],x2=[],dq=[];
-      for(i=0;i<=nt;i++){tt.push(tE*i/nt);x1.push(x[0][0]);x2.push(x[1][0]);dq.push(-(F[0][0]*x[0][0]+F[0][1]*x[1][0]));tr.push([x[0][0],x[1][0]]);x=mat.mul(E,x);}
-      o.push(P.clip(tr,"ink",1.8));o.push(S.D(P.X(10),P.Y(0),"ink",3.4));
-      o.push(S.T(P.X(10)+5,P.Y(0)-6,"始め","start",9,"ink",false,false,null,true));
+      o.push(S.T(P.X(10)+2,P.Y(0)+16,"始め","middle",9,"ink",false,false,null,true));
       /* (b) s 平面 */
       var lo=-6;evo.concat(evc.map(function(z){return z.re;})).forEach(function(v){lo=Math.min(lo,v*1000*1.25);});
       evc.forEach(function(z){lo=Math.min(lo,-Math.abs(z.im)*1000*2.2);});
@@ -134,7 +134,7 @@
       else if(Math.abs(det)<5e-10)h+="可制御だが行列式が小さい: 500 s のうちに届く範囲は細く、差の向きへ動かすには大きな電力が要る<br>";
       var dm=_w18_max(dq,Math.abs);
       h+="板 1 だけが 10 K 高い状態から放したとき: 1500 s 後の差 "+_w18_f(x1[nt]-x2[nt],2)+" K、ヒータの電力の変化は最大 "+_w18_f(dm.v,1)+" W"+(dm.v>40?'（<span class="warn">±40 W を超える</span>）':"")+"<br>";
-      ro.innerHTML=h+'<div class="wnote">本文 2 節の例の値（熱容量 400 J/K、周りへの熱抵抗 1.25 K/W）。状態は、ヒータ 40 W のときの釣り合いの温度からのずれで、ヒータの電力の変化 δq = −f₁ × (板 1 のずれ) − f₂ × (板 2 のずれ) を加える（上限は考えない）。(a) の矢印は可制御性行列の 2 つの列の向き、青い範囲は ±40 W の電力で 500 s のうちに届く状態、黒い線は (c) の動きの軌跡。</div>';
+      ro.innerHTML=h+'<div class="wnote">本文 2 節の例の値（熱容量 400 J/K、周りへの熱抵抗 1.25 K/W）。状態は、ヒータ 40 W のときの釣り合いの温度からのずれで、ヒータの電力の変化 δq = −f₁ × (板 1 のずれ) − f₂ × (板 2 のずれ) を加える（上限は考えない）。(a) の矢印は可制御性行列の 2 つの列の向き、青い範囲（可制御でないときは赤い線分）は ±40 W の電力で 500 s のうちに届く状態、「始め」からの線は (c) の動きの軌跡。</div>';
     }
     draw();
   };
@@ -185,7 +185,9 @@
       var sg=Math.min(-0.3,Math.max(PP.xr[0],PP.ux(x))),om=Math.min(PP.yr[1],Math.abs(PP.uy(y))),z0=zt.get(),z,w;
       if(z0<1||om>0.6){if(om>0.6){w=Math.hypot(sg,om);z=-sg/w;}else{w=-sg;z=1;}}
       else{var ps2=desired(),other=ps2[1-grab].re;w=Math.sqrt(sg*other);z=-(sg+other)/(2*w);}
-      zt.set(Math.max(0.1,Math.min(3,z)));wn.set(Math.max(1,Math.min(30,w)));draw();});
+      zt.set(Math.max(0.1,Math.min(3,z)));wn.set(Math.max(1,Math.min(30,w)));
+      /* 実軸の上で 2 つの極が入れ替わっても、つかんでいる極を見失わないように選び直す */
+      var ps3=desired();grab=Math.abs(ps3[0].re-sg)<=Math.abs(ps3[1].re-sg)?0:1;draw();});
     function draw(){
       var s=SYS[sy.get()],m=mode.get();
       r1.style.display=m===0?"":"none";r2.style.display=m===1?"":"none";
@@ -334,7 +336,7 @@
       var a1=stats(rn),h="";
       h+="F = [<b>"+R.F.map(function(v){return _w18_g(v,4);}).join("  ")+"</b>]（N/m、N/(m/s)、N/rad、N/(rad/s)）。極 −"+R.a+"・−"+R.a+"・−"+R.b+"・−"+R.b+" /s<br>";
       if(rn.fell)h+='<span class="warn">線形でない式: '+_w18_s(rn.tf,3)+" s に倒れた</span>"+(R.umax!=null?"（力が上限 "+R.umax+" N に張り付いて、傾きが増えるのを止められなかった）":"（傾きが大きく、線形化した式で決めた F では戻せない）")+"<br>";
-      else h+="線形でない式: 傾きは右へ最大 "+_w18_f(a1.php,1)+"°・左へ最大 "+_w18_f(-a1.phn,1)+"°、台車が動く最大の距離 <b>"+_w18_f(a1.p,1)+" cm</b>、最大の力 <b>"+_w18_s(a1.u,3)+" N</b>"+(a1.sat>0?"（上限に張り付いた時間 "+_w18_s(a1.sat,2)+" s）":"")+"、±0.2° に収まる時刻 "+(a1.ts!==null?_w18_s(a1.ts,3)+" s":"—")+"<br>";
+      else h+="線形でない式: 傾きは右へ最大 "+_w18_f(a1.php,1)+"°・左へ最大 "+_w18_f(-a1.phn,1)+"°、台車が動く最大の距離 <b>"+_w18_f(a1.p,1)+" cm</b>、最大の力 <b>"+_w18_s(a1.u,3)+" N</b>"+(a1.sat>0?"（上限に張り付いた時間 "+_w18_s(a1.sat,2)+" s）":"")+"、±0.2° に収まる時刻 "+(a1.ts!==null?_w18_s(a1.ts,3)+" s"+(R.push&&a1.ts>R.push[0]?"（押し始めから "+_w18_s(a1.ts-R.push[0],3)+" s）":""):"—")+"<br>";
       if(rl){var a2=stats(rl);h+="線形化した式: "+(rl.fell?"倒れた（"+_w18_s(rl.tf,3)+" s）":"台車が動く最大の距離 "+_w18_f(a2.p,1)+" cm、最大の力 "+_w18_s(a2.u,3)+" N")+"<br>";}
       if(R.umax!=null)h+="力の上限 "+R.umax+" N で、どんな制御器でも傾きが増えるのを止められなくなる角度: tan φ = "+R.umax+" ÷ ((M + m)g) から <b>"+_w18_f(Math.atan(R.umax/(0.7*9.81))*180/Math.PI,1)+"°</b>";
       ro.innerHTML=h+'<div class="wnote">本文 4 節の倒立振子（台車 0.5 kg、おもり 0.2 kg、長さ 0.3 m）。F は線形化した式からアッカーマンの式で求め、線形でない式（17 章 2 節）を 4 次のルンゲ・クッタ法（刻み 2 ms）で解いた。押す力は、1 s から 0.1 s の間、おもりに水平に加える（紫の矢印）。金の矢印は台車を押す力。</div>';
@@ -419,7 +421,7 @@
       h+="　初めの力 "+_w18_f(a.u0,2)+" N、先に逆へ <b>"+_w18_f(a.rev*100,1)+" cm</b>、目標の ±1 cm に <b>"+(a.t1!==null?_w18_s(a.t1,3)+" s":"—")+"</b>"+(R.d!==0?"、外乱の後の最大のずれ "+_w18_f(a.ex*100,1)+" cm":"")+"、14 s の位置 "+_w18_f(a.fin,3)+" m（ずれ <b>"+_w18_f((a.fin-R.r)*100,1)+" cm</b>）<br>";
       h+="積分なし: F = ["+R.F4.map(function(v){return _w18_g(v,4);}).join("  ")+"]、初めの力 "+_w18_f(b.u0,2)+" N、先に逆へ "+_w18_f(b.rev*100,1)+" cm、±1 cm に "+(b.t1!==null?_w18_s(b.t1,3)+" s":"—")+"、14 s の位置 "+_w18_f(b.fin,3)+" m（ずれ <b>"+_w18_f((b.fin-R.r)*100,1)+" cm</b>"+(R.d!==0?"。式 d ÷ f<sub>1</sub> = "+_w18_f(R.d/R.F4[0]*100,1)+" cm":"")+"）<br>";
       if(R.ri.fell||R.rn.fell)h+='<span class="warn">倒れた: '+(R.ri.fell?"積分型サーボ系 ":"")+(R.rn.fell?"積分なし":"")+"</span><br>";
-      ro.innerHTML=h+'<div class="wnote">本文 5 節の例。外乱は 6 s から台車に加わる一定の力。積分なしは u = −F(x − x_r)（4 つの極 −σ）、積分型サーボ系は u = −Fx − f<sub>I</sub>w（w は偏差 r − p の積分、5 つの極 −σ）。どちらも線形でない式を 4 次のルンゲ・クッタ法（刻み 2 ms）で解いた。</div>';
+      ro.innerHTML=h+'<div class="wnote">本文 5 節の例。外乱は 6 s から台車に加わる一定の力。積分なしは u = −F(x − x<sub>r</sub>)（4 つの極 −σ）、積分型サーボ系は u = −Fx − f<sub>I</sub>w（w は偏差 r − p の積分、5 つの極 −σ）。どちらも線形でない式を 4 次のルンゲ・クッタ法（刻み 2 ms）で解いた。</div>';
     }
     run();
   };
