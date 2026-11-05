@@ -43,9 +43,9 @@ def _f14_settle(t, y, yf, band):
 _F14_K, _F14_T, _F14_L = 1.25, 500.0, 20.0
 
 
-def _f14_plate(KP=10.0, TI=160.0, b=1.0, r=None, d=None, tEnd=1500.0, h=0.1, Lt=20.0, Kt=1.25, Tt=500.0,
-               smith=False, Lm=20.0, Km=1.25, Tm=500.0, ref=None, dff=None, every=10, umin=None, umax=None):
-    """温度の板を刻み h で数値計算する。y: 60 °C からの温度のずれ [K]、u: 28 W からの電力のずれ [W]。
+def _f14_plate(KP=10.0, TI=160.0, b=1.0, r=None, d=None, tEnd=1500.0, h=0.025, Lt=20.0, Kt=1.25, Tt=500.0,
+               smith=False, Lm=20.0, Km=1.25, Tm=500.0, ref=None, dff=None, every=40, umin=None, umax=None):
+    """温度の板を刻み h で数値計算する（h = 0.1 s では零次ホールドの遅れ h/2 などで行き過ぎ量が 0.1 ポイントほど大きく出るので、0.025 s にした）。y: 60 °C からの温度のずれ [K]、u: 28 W からの電力のずれ [W]。
     対象は一次遅れを零次ホールドで厳密に離散化し、むだ時間は入力（u + d）を刻みの数だけ遅らせる。
     制御器は PI（P の分は K_P(b r − y_f)、I の分は K_P/T_I ∫(r − y_f)）。y_f は戻す値:
       smith=False なら測った値 y、smith=True ならスミス予測器の y_p = y + ỹ0 − ỹ0(t − Lm)（モデル Km・Tm・Lm）。
@@ -263,7 +263,7 @@ def _f14_casc(mode, tEnd=0.6, h=1e-5, r=None, tau=None, vs=None, every=20, Kth=N
 # =====================================================================
 # ヒータの電力のループ（温度の板、周りとの差 y、目標 35 K）
 # =====================================================================
-def _f14_heater(inner=False, KP=10.0, TI=160.0, Vd=90.0, tD=200.0, tEnd=1200.0, h=0.1, taup=2.0, every=10):
+def _f14_heater(inner=False, KP=10.0, TI=160.0, Vd=90.0, tD=200.0, tEnd=1200.0, h=0.025, taup=2.0, every=40):
     np = _f14_np
     n = int(round(tEnd / h)); nd = int(round(_F14_L / h))
     a = math.exp(-h / _F14_T); bb = _F14_K * (1 - a)
@@ -437,8 +437,8 @@ def _f14_2dof_cmp_fig():
     for k, (lab, KP, TI, b, c) in enumerate(cases):
         yy = y0 + k * 124
         o.append(TX(14, yy + 14, lab, "start", 10.5, c, True))
-        A = _f14_plate(KP, TI, b, r=lambda t: 1.0, tEnd=700.0, every=10)
-        B = _f14_plate(KP, TI, 1.0, d=lambda t: -10.0, tEnd=1800.0, every=10)
+        A = _f14_plate(KP, TI, b, r=lambda t: 1.0, tEnd=700.0, every=40)
+        B = _f14_plate(KP, TI, 1.0, d=lambda t: -10.0, tEnd=1800.0, every=40)
         mp, ts = _f14_stepm(A)
         iae = 10.0 * TI / KP
         mn = float(B["y"].min())
@@ -459,7 +459,7 @@ def _f14_2dof_cmp_fig():
         o.append(q.line(pts, c=c, lw=2))
         o.append(T(q.X(1780), q.Y(-0.62), "最大 %s K" % _f14_f(-mn, 2), "end", 9.5, c, True, halo=True))
         o.append(T(q.X(1780), q.Y(-0.88), "IAE %s K·s" % _f14_g(iae, 3), "end", 9.5, c, True, halo=True))
-    return SVG(700, y0 + 3 * 124 + 26, o, "温度の板（60 °C で落ち着いた所から）を 3 つの制御器で比べる。左は目標値を 1 K 上げたときの温度のずれ、右はヒータの電力に −10 W の外乱が入ったときの温度のずれ（塗った面積が IAE）。(a) は目標値によいが外乱に弱く、(b) は外乱に強いが目標値に 19.3 % 行き過ぎる。(c) は (b) と同じ C<sub>y</sub> なので外乱への応答は (b) と同じで、目標値への応答だけが前置フィルタで (a) と同じくらいに整う。")
+    return SVG(700, y0 + 3 * 124 + 26, o, "温度の板（60 °C で落ち着いた所から）を 3 つの制御器で比べる。左は目標値を 1 K 上げたときの温度のずれ、右はヒータの電力に −10 W の外乱が入ったときの温度のずれ（塗った面積が IAE）。(a) は目標値によいが外乱に弱く、(b) は外乱に強いが目標値に 19.2 % 行き過ぎる。(c) は (b) と同じ C<sub>y</sub> なので外乱への応答は (b) と同じで、目標値への応答だけが前置フィルタで (a) と同じくらいに整う。")
 
 
 F["e14_2dof_cmp"] = _f14_2dof_cmp_fig()
@@ -537,7 +537,7 @@ def _f14_ff_cmp_fig():
         o.append(p.line(_f14_pts(R["t"], R["e"]), c=c, lw=2, dash=dash))
         o.append(q.line(_f14_pts(R["t"], R["v"]), c=c, lw=1.8, dash=dash))
     o.append(T(p.X(0.155), p.Y(1.39) - 6, "1.39 rad", "middle", 9.5, MUT, True, halo=True))
-    o.append(T(p.X(0.33), p.Y(-0.595) + 4, "−0.595 rad", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(0.33), p.Y(-0.591) + 4, "最大 −0.591 rad", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(0.58), p.Y(0.12), "両方: 0", "end", 9.5, GRN, True, halo=True))
     o.append(T(p.X(0.15), p.y + p.h - 4, "目標値が動く間", "middle", 9, MUT, halo=True))
     o.append(LEGL(62, 194, [(MUT, None, "フィードバックだけ"), (SIG, None, "＋角速度の分 \\dot{r}/K"), (GRN, None, "＋角加速度の分 T\\ddot{r}/K（両方）")], 10, 22))
@@ -564,7 +564,7 @@ def _f14_ff_cmp_fig():
             o.append(T(P_.X(0.59), P_.Y(1.65), "フィードフォワードだけ: %s rad 残る" % _f14_f(float(B["e"][-1]), 2), "end", 9.5, ALI, True, halo=True))
         o.append(T(P_.X(0.59), P_.Y(-0.35), "両方: 最大 %s rad" % _f14_f(mc, 2), "end", 9.5, GRN, True, halo=True))
     o.append(LEGL(62, yb + 162, [(ALI, None, "フィードフォワードだけ（開ループ）"), (GRN, None, "フィードフォワード＋フィードバック"), (MUT, "4 3", "フィードバックだけ")], 10, 22))
-    return SVG(700, yb + 172, o, "モータの角度を 10 rad 回す（灰色の帯は目標値が動いている 0〜0.3 s）。(a) フィードバックだけでは、回っている間に要る電圧を偏差から作るので 1.19 rad 以上遅れる。角速度の分を足すと、加速と減速の間だけ角加速度の分が足りずに ±0.595 rad 残り、両方を足すと偏差は 0 になる。(b)・(c) モデルが違うと、フィードフォワードだけ（赤）では偏差が残るが、フィードバックを合わせる（緑）と、その偏差が感度関数の分だけ縮み、止まった後は 0 に戻る。")
+    return SVG(700, yb + 172, o, "モータの角度を 10 rad 回す（灰色の帯は目標値が動いている 0〜0.3 s）。(a) フィードバックだけでは、回っている間に要る電圧を偏差から作るので 1.19 rad 以上遅れる。角速度の分を足すと、加速と減速の間だけ角加速度の分が足りずに、最大 0.591 rad の偏差が残る（0.5 V ÷ 0.84 V/rad = 0.595 rad に向かって増える）。両方を足すと偏差は 0 になる。(b)・(c) モデルが違うと、フィードフォワードだけ（赤）では偏差が残るが、フィードバックを合わせる（緑）と、その偏差が感度関数の分だけ縮み、止まった後は 0 に戻る。")
 
 
 F["e14_ff_cmp"] = _f14_ff_cmp_fig()
@@ -580,10 +580,10 @@ def _f14_ff_plate_fig():
     p, ax = _f14_plot(62, 32, 270, 120, (0, 500), (0, 1.3), xt, [0, 0.5, 1], yl="温度のずれ [K]", xl="時間 t [s]")
     o.append(ax)
     o.append(W(p.X(0), p.Y(1), p.X(500), p.Y(1), c=MUT, lw=1, dash="5 3"))
-    A = _f14_plate(10, 160, 1.0, r=lambda t: 1.0, tEnd=500, every=5)
-    Bb = _f14_plate(10, 160, 0.8, r=lambda t: 1.0, tEnd=500, every=5)
-    C20 = _f14_plate(10, 160, 1.0, r=lambda t: 1.0, tEnd=500, every=5, ref=20.0)
-    C10 = _f14_plate(10, 160, 1.0, r=lambda t: 1.0, tEnd=500, every=5, ref=10.0)
+    A = _f14_plate(10, 160, 1.0, r=lambda t: 1.0, tEnd=500, every=20)
+    Bb = _f14_plate(10, 160, 0.8, r=lambda t: 1.0, tEnd=500, every=20)
+    C20 = _f14_plate(10, 160, 1.0, r=lambda t: 1.0, tEnd=500, every=20, ref=20.0)
+    C10 = _f14_plate(10, 160, 1.0, r=lambda t: 1.0, tEnd=500, every=20, ref=10.0)
     o.append(p.line(_f14_pts(A["t"], A["y"]), c=ALI, lw=1.6))
     o.append(p.line(_f14_pts(Bb["t"], Bb["y"]), c=SIG, lw=1.6, dash="5 3"))
     o.append(p.line(_f14_pts(C20["t"], C20["y"]), c=GRN, lw=2.2))
@@ -602,7 +602,7 @@ def _f14_ff_plate_fig():
     o.append(W(q.X(0), q.Y(1), q.X(500), q.Y(1), c=MUT, lw=1, dash="5 3"))
     cs = [(dict(), GRN, None, "モデルどおり"), (dict(Lt=25.0), SIG, None, "むだ時間 25 s"), (dict(Kt=1.625), PUR, "5 3", "定常ゲイン 1.3 倍")]
     for k, (kw, c, dash, lab) in enumerate(cs):
-        Rr = _f14_plate(10, 160, 1.0, r=lambda t: 1.0, tEnd=500, every=5, ref=20.0, **kw)
+        Rr = _f14_plate(10, 160, 1.0, r=lambda t: 1.0, tEnd=500, every=20, ref=20.0, **kw)
         mp, ts = _f14_stepm(Rr)
         o.append(q.line(_f14_pts(Rr["t"], Rr["y"]), c=c, lw=1.9, dash=dash))
         o.append(LEGL(q.X(150), q.Y(0.5) + k * 14, [(c, dash, "%s: %s %%・%s s" % (lab, _f14_f(mp, 1), _f14_g(ts, 3)))], 9.5, 10))
@@ -719,9 +719,9 @@ def _f14_dff_plate_fig():
         Rerr = kw.get("ff"); fb = kw.get("fb", True)
         dff = (lambda t, _e=Rerr: (10.0 / (1.25 * _e)) if t >= 100 else 0.0) if Rerr else None
         if fb:
-            Rr = _f14_plate(10, 160, 1.0, d=lambda t: -8.0 if t >= 100 else 0.0, dff=dff, tEnd=800, every=5)
+            Rr = _f14_plate(10, 160, 1.0, d=lambda t: -8.0 if t >= 100 else 0.0, dff=dff, tEnd=800, every=20)
         else:
-            Rr = _f14_plate(0.0, None, 1.0, d=lambda t: -8.0 if t >= 100 else 0.0, dff=dff, tEnd=800, every=5)
+            Rr = _f14_plate(0.0, None, 1.0, d=lambda t: -8.0 if t >= 100 else 0.0, dff=dff, tEnd=800, every=20)
         o.append(p.line(_f14_pts(Rr["t"], Rr["y"]), c=c, lw=2 if dash is None else 1.7, dash=dash))
         o.append(q.line(_f14_pts(Rr["t"], Rr["u"]), c=c, lw=1.8 if dash is None else 1.5, dash=dash))
         mn = -float(Rr["y"].min())
@@ -994,8 +994,8 @@ def _f14_smith_resp_fig():
     q, ax = _f14_plot(418, 32, 270, 120, (0, 2000), (-1.0, 0.15), [0, 500, 1000, 1500, 2000], [-1, -0.5, 0], xl="時間 t [s]")
     o.append(ax)
     for k, (lab, kw, c, dash) in enumerate(cs):
-        A = _f14_plate(r=lambda t: 1.0, tEnd=400, every=5, **kw)
-        B = _f14_plate(d=lambda t: -10.0, tEnd=4000, every=10, **kw)
+        A = _f14_plate(r=lambda t: 1.0, tEnd=400, every=20, **kw)
+        B = _f14_plate(d=lambda t: -10.0, tEnd=4000, every=40, **kw)
         mp, ts = _f14_stepm(A)
         iae = _f14_iae(B)
         o.append(p.line(_f14_pts(A["t"], A["y"]), c=c, lw=2 if c != MUT else 1.6))
@@ -1006,8 +1006,8 @@ def _f14_smith_resp_fig():
     # (c) 予測器の中の信号（λ = 10 s、外乱）
     yc = 278
     o.append(TX(14, yc, "(c) λ = 10 s の外乱への応答: 制御器が見る y_p と、本当の y", "start", 11, INK, True))
-    S = _f14_plate(KP=40, TI=500, smith=True, d=lambda t: -10.0, tEnd=1500, every=5)
-    SL = _f14_plate(KP=40, TI=500, smith=True, d=lambda t: -10.0, tEnd=8000, every=10)
+    S = _f14_plate(KP=40, TI=500, smith=True, d=lambda t: -10.0, tEnd=1500, every=20)
+    SL = _f14_plate(KP=40, TI=500, smith=True, d=lambda t: -10.0, tEnd=8000, every=40)
     z, ax = _f14_plot(62, yc + 14, 626, 110, (0, 1500), (-0.8, 0.12), [0, 250, 500, 750, 1000, 1250, 1500], [-0.75, -0.5, -0.25, 0], yl="[K]", xl="時間 t [s]")
     o.append(ax)
     pts = _f14_pts(S["t"], S["y"]); ptp = _f14_pts(S["t"], S["yp"])
@@ -1050,7 +1050,7 @@ def _f14_smith_robust_fig():
     cs = [(10.0, 20.0, GRN, None, "λ = 10 s、本当のむだ時間 20 s"), (10.0, 30.0, SIG, None, "λ = 10 s、本当のむだ時間 30 s"),
           (10.0, 45.0, GLD, None, "λ = 10 s、本当のむだ時間 45 s"), (5.0, 10.0, ALI, None, "λ = 5 s、本当のむだ時間 10 s（短い）")]
     for k, (lam, Lt, c, dash, lab) in enumerate(cs):
-        Rr = _f14_plate(KP=500 / (1.25 * lam), TI=500, smith=True, Lt=Lt, r=lambda t: 1.0, tEnd=600, every=2)
+        Rr = _f14_plate(KP=500 / (1.25 * lam), TI=500, smith=True, Lt=Lt, r=lambda t: 1.0, tEnd=600, every=8)
         t_, y_ = Rr["t"], Rr["y"]
         bad = _f14_np.where(_f14_np.abs(y_) > 2.5)[0]
         if len(bad):

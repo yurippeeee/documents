@@ -13,8 +13,8 @@
      smith なら、戻す値は y_p = y + ỹ0 − ỹ0(t − Lm)。ref なら、目標値を e^{−Lm s}/(λs + 1) に通し、Q r を足す。
      飽和するときは、積分をクランプで止める。返り値 {t, y, u, yp, y0, blow} */
   function _w14_plate(o){
-    var h=o.h||0.1,n=Math.round(o.tEnd/h),Lt=o.Lt==null?20:o.Lt,Lm=o.Lm==null?20:o.Lm,nd=Math.round(Lt/h),ndm=Math.round(Lm/h);
-    var Tt=o.Tt||500,Kt=o.Kt==null?1.25:o.Kt,Tm=o.Tm||500,Km=o.Km||1.25,KP=o.KP||0,TI=o.TI||0,b=o.b==null?1:o.b,ev=o.every||10;
+    var h=o.h||0.025,n=Math.round(o.tEnd/h),Lt=o.Lt==null?20:o.Lt,Lm=o.Lm==null?20:o.Lm,nd=Math.round(Lt/h),ndm=Math.round(Lm/h);
+    var Tt=o.Tt||500,Kt=o.Kt==null?1.25:o.Kt,Tm=o.Tm||500,Km=o.Km||1.25,KP=o.KP||0,TI=o.TI||0,b=o.b==null?1:o.b,ev=o.every||40;
     var a=Math.exp(-h/Tt),bb=Kt*(1-a),am=Math.exp(-h/Tm),bm=Km*(1-am),al=o.ref?Math.exp(-h/o.ref):0,alh=o.ref?Math.exp(-h/(2*o.ref)):0;
     var x=0,I=0,buf=new Float64Array(Math.max(nd,1)),bi=0,xm=0,bufm=new Float64Array(Math.max(ndm,1)),bim=0,z=0,zb=new Float64Array(Math.max(ndm,1)),zi=0;
     var out={t:[],y:[],u:[],yp:[],y0:[],blow:false};
@@ -46,10 +46,10 @@
      Jr: 本当の慣性モーメント ÷ モデル（T が Jr 倍）、kr: 本当の電圧の効き ÷ モデル、fric: 摩擦トルク [N·m]（回る向きと逆）。 */
   function _w14_mff(tr,ff,fb,Jr,kr,fric,tEnd){
     var K=50*kr,T=0.05*Jr,Km=50,Tm=0.05,KP=fb===2?0.84:(fb===1?0.21:0),KD=fb===2?0.02:0,h=1e-4,n=Math.round(tEnd/h),a=Math.exp(-h/T);
-    var th=0,w=0,out={t:[],th:[],r:[],e:[],v:[],vff:[],sat:false};
+    var th=0,w=0,out={t:[],th:[],r:[],e:[],v:[],vff:[],sat:false,vmax:0};
     for(var k=0;k<=n;k++){var t=k*h,R=tr.f(t+0.5*h),R0=tr.f(t);
       var vff=(ff>=1?R[1]/Km:0)+(ff>=2?Tm*R[2]/Km:0),e=R0[0]-th,v=vff+KP*e+KD*(R0[1]-w);
-      if(v>12){v=12;out.sat=true;}if(v<-12){v=-12;out.sat=true;}
+      if(v>12){v=12;out.sat=true;}if(v<-12){v=-12;out.sat=true;}if(Math.abs(v)>out.vmax)out.vmax=Math.abs(v);   /* 最大は刻みごとに見る（記録は 10 刻みごと） */
       if(k%10===0){out.t.push(t);out.th.push(th);out.r.push(R0[0]);out.e.push(e);out.v.push(v);out.vff.push(vff);}
       var tq=fric*Math.tanh(w/2),wi=K*v-100*tq*K/50;           /* 摩擦は電圧 −(R_a/K_t)τ にあたる（K = 50 のとき 100 V/(N·m)） */
       th=th+wi*h+(w-wi)*T*(1-a);w=wi+(w-wi)*a;}
@@ -135,7 +135,7 @@
       box.set(S.svg(Wd,py+2*gap+ph+40,o));
       /* 読み出し */
       var mx=0,ix0=0;R.e.forEach(function(v,i){if(Math.abs(v)>mx){mx=Math.abs(v);ix0=i;}});
-      var ts=_w14_settle(t,R.e,0,0.01,R.tr.tf),eEnd=R.e[R.e.length-1],vm2=0;R.v.forEach(function(v){vm2=Math.max(vm2,Math.abs(v));});
+      var ts=_w14_settle(t,R.e,0,0.01,R.tr.tf),eEnd=R.e[R.e.length-1],vm2=R.vmax;
       var hs="目標値: "+_w14_g(mv.get(),3)+" rad を "+_w14_g(R.tr.tf,3)+" s で（最高の角速度 "+_w14_g(R.tr.v,3)+" rad/s、角加速度 "+_w14_g(R.tr.a,3)+" rad/s²）。モデルの逆の電圧は最大 "+_w14_g((R.tr.v+0.05*R.tr.a)/50,3)+" V<br>";
       hs+="偏差の最大 "+(mx<1e-4?"<b>0.0001 rad 未満</b>":"<b>"+_w14_g(mx,3)+" rad</b>（"+_w14_g(t[ix0],3)+" s）")+(R.ref?"、フィードバックだけなら "+_w14_g(Math.max.apply(null,R.ref.e.map(Math.abs)),3)+" rad":"")+"<br>";
       hs+="目標値が止まった後: "+(ts!=null?(ts<=R.tr.tf+1e-9?'<span class="ok">止まった時点で 0.01 rad 以内</span>':"0.01 rad 以内に入るのは止まってから "+_w14_g(ts-R.tr.tf,3)+" s 後"):'<span class="warn">表示した時間の中で 0.01 rad 以内に入らない</span>')+"、最後の偏差 "+_w14_f(eEnd,3)+" rad<br>";
@@ -180,7 +180,7 @@
       }else{
         var dT=PLATE.d[dz.get()],Re=PLATE.e[er.get()];tEnd=1200;tD=100;
         cs.forEach(function(c){var R=_w14_plate({KP:c[3].fb?10:0,TI:(c[3].fb&&PI)?160:0,d:function(t){return t>=tD?dT/1.25:0;},
-          dff:c[3].ff?function(t){return t>=tD?-dT/(1.25*Re):0;}:null,tEnd:tEnd,h:0.1,every:5});
+          dff:c[3].ff?function(t){return t>=tD?-dT/(1.25*Re):0;}:null,tEnd:tEnd,h:0.025,every:20});
           R.y=R.y.map(function(v){return v;});res.push(R);});
         yl="温度のずれ [K]";ul="電力のずれ [W]";
       }
@@ -369,7 +369,7 @@
       lm.el.style.display=C===0?"none":"";
       if(C===0){KP=10;TI=160;}else if(C===1){KP=T/(K*(lam+L));TI=T;}else{KP=T/(K*lam);TI=T;}
       var tD=700,tEnd=1400;
-      var R=_w14_plate({KP:KP,TI:TI,smith:smith,Lt:Lt,Kt:K*Kr,r:function(){return 1;},d:function(t){return t>=tD?-10:0;},tEnd:tEnd,h:0.1,every:5,umin:-28,umax:52});
+      var R=_w14_plate({KP:KP,TI:TI,smith:smith,Lt:Lt,Kt:K*Kr,r:function(){return 1;},d:function(t){return t>=tD?-10:0;},tEnd:tEnd,h:0.025,every:20,umin:-28,umax:52});
       var unstable=R.blow||_w14_unst(U,C,KP,TI,lam,Lt,Kr);
       var nar=_w14_nar(box),Wd=nar?400:700,o=[];
       var x0=nar?54:62,pw=nar?330:380;
