@@ -972,8 +972,8 @@ def _f17_modes_fig():
     o.append(P.clip(list(zip(xs[:, 0], xs[:, 1])), c=SIG, lw=2.0))
     o.append(D(P.X(4), P.Y(0), ALI, 3.8))
     o.append(T(P.X(4) + 4, P.Y(0) - 7, "初め (4, 0)", "start", 9.5, ALI, True, halo=True))
-    o.append(TX(P.X(m1[0]) - 2, P.Y(m1[1]) + 15, "α_1v_1", "end", 10, GRN, True, halo=True))
-    o.append(TX(P.X(m2[0]) + 6, P.Y(m2[1]) - 2, "α_2v_2", "start", 10, TEA, True, halo=True))
+    o.append(TX(P.X(m1[0]) - 2, P.Y(m1[1]) + 15, "α_{1}v_1", "end", 10, GRN, True, halo=True))
+    o.append(TX(P.X(m2[0]) + 6, P.Y(m2[1]) - 2, "α_{2}v_2", "start", 10, TEA, True, halo=True))
     # 時間の波形
     q = Plot(380, 32, 300, 170, (0, 3), (-0.5, 4.5))
     o.append(q.axes(xl="時間 t [s]", yl="位置 p [cm]", xt=[0, 0.5, 1, 1.5, 2, 2.5, 3], yt=[0, 1, 2, 3, 4]))
@@ -982,7 +982,7 @@ def _f17_modes_fig():
     o.append(q.line([(a, al[1] * math.exp(ev[1] * a)) for a in tt], c=TEA, lw=1.8, dash="6 3"))
     o.append(q.line([(a, al[0] * math.exp(ev[0] * a) + al[1] * math.exp(ev[1] * a)) for a in tt], c=SIG, lw=2.4))
     o.append(TX(q.X(1.0), q.Y(1.35) - 6, "遅いモード 4.31e^{−1.34t}", "start", 10, GRN, True, halo=True))
-    o.append(TX(q.X(0.3), q.Y(-0.31) + 15, "速いモード −0.31e^{−18.66t}", "start", 10, TEA, True, halo=True))
+    o.append(TX(q.X(0.35), q.Y(0.22), "速いモード −0.31e^{−18.66t}", "start", 10, TEA, True, halo=True))
     o.append(T(q.X(0.5), q.Y(3.4), "和（位置）", "start", 10, SIG, True, halo=True))
     # (b) 振子の角度
     yb = 254
@@ -1020,9 +1020,9 @@ def _f17_modes_fig():
     o.append(q2.clip([(a, math.exp(-_F17_W0 * a)) for a in tt], c=GRN, lw=2.4))
     o.append(TX(q2.X(0.2), q2.Y(8.5), "和 = cosh(6.77t)（倒れる）", "start", 10, SIG, True, halo=True))
     o.append(TX(q2.X(0.34), q2.Y(3.6), "0.5e^{6.77t}", "start", 10, ALI, True, halo=True))
-    o.append(TX(q2.X(0.12), q2.Y(1.6), "e^{−6.77t}（縮むモードだけ。真上へ戻る）", "start", 10, GRN, True, halo=True))
+    o.append(TX(q2.X(0.19), q2.Y(0.75), "e^{−6.77t}（縮むモードだけ。真上へ戻る）", "start", 10, GRN, True, halo=True))
     return SVG(700, yb + 14 + 170 + 44, o,
-               "初めの状態を、固有ベクトルの向きの 2 つの成分（α₁v₁ と α₂v₂。破線は平行四辺形）に分けると、それぞれが e^{λt} 倍で伸び縮みする。(a) 過減衰の台車では、速いモードは 0.25 s で 1 % に縮み、その後は遅いモードの直線に沿って原点に入る。(b) 振子を 1° 傾けて放すと、2 つのモードに 0.5° ずつ分かれ、増えるモードが支配して倒れる。縮むモードの固有ベクトルの上（1° に −6.77 °/s）から放すと、真上へ戻っていく。")
+               "初めの状態を、固有ベクトルの向きの 2 つの成分（α₁v₁ と α₂v₂。破線は平行四辺形）に分けると、それぞれが向きを変えずに、固有値で決まる指数関数の倍率で伸び縮みする。(a) 過減衰の台車では、速いモードは 0.25 s で 1 % に縮み、その後は遅いモードの直線に沿って原点に入る。(b) 振子を 1° 傾けて放すと、2 つのモードに 0.5° ずつ分かれ、増えるモードが支配して倒れる。縮むモードの固有ベクトルの上（1° に −6.77 °/s）から放すと、真上へ戻っていく。")
 
 
 F["e17_modes"] = _f17_modes_fig()
@@ -1054,7 +1054,7 @@ def _f17_hidden_fig():
     o.append(TX(14, 232, "A = [0 1; 2 −1]、B = [0 1]ᵀ、C = [−1 1]: 固有値は +1 と −2、伝達関数は (s − 1)/{(s − 1)(s + 2)} = 1/(s + 2)", "start", 10, INK))
     o.append(TX(14, 250, "+1 の固有ベクトル [1 1]ᵀ に C を掛けると −1 + 1 = 0: このモードは出力に現れない", "start", 10, ALI, True))
     return SVG(700, 262, o,
-               "極零相殺で伝達関数から消えた固有値。伝達関数 1/(s + 2) は安定で、出力は 0.5 に静かに近づくが、A は右半平面の固有値 +1 をもち、2 つの状態変数は e^t の形で増え続ける。+1 のモードは出力に現れないので、出力だけを見ていると気づけない。")
+               "極零相殺で伝達関数から消えた固有値。伝達関数 1/(s + 2) は安定で、出力は 0.5 に静かに近づくが、A は右半平面の固有値 +1 をもち、2 つの状態変数は eᵗ の形で増え続ける。+1 のモードは出力に現れないので、出力だけを見ていると気づけない。")
 
 
 F["e17_hidden"] = _f17_hidden_fig()
