@@ -251,8 +251,8 @@ def _f07_three_fig():
     o.append(T(xe4 + 16, yc + 5, "⇒", "middle", 15, INK, True))
     s, P5, xe5 = _f07_chain(xe4 + 32, yc, [("a", 22, None, GLD), ("b", ("1", "0.5s ± 1"), "g", SIG, SSOFT), ("a", 26, None, SIG)])
     o.append(s)
-    o.append(TX(xe4 + 32, yc + 44, "負帰還 G/(1 + GH): 0.5s + 1", "start", 9.5, GRN, True))
-    o.append(TX(xe4 + 32, yc + 58, "正帰還 G/(1 − GH): 0.5s − 1", "start", 9.5, ALI, True))
+    o.append(TX(xe4 + 32, yc + 44, "負帰還 G/(1 + GH) = 1/(0.5s + 1)", "start", 9.5, GRN, True))
+    o.append(TX(xe4 + 32, yc + 58, "正帰還 G/(1 − GH) = 1/(0.5s − 1)", "start", 9.5, ALI, True))
     t = _f07_np.linspace(0, 2.5, 251)
     p = plot_frame(y0 + 2, (0, 2.5), (0, 2), [0, 1, 2], [0, 1, 2], "出力 y", last=True)
     yn = 1 - _f07_np.exp(-2 * t)
@@ -556,7 +556,7 @@ def _f07_recalc_fig():
     o.append(p.line([(0, 1), (2, 1)], c=MUT, lw=1.1, dash="4 3"))
     o.append(p.line(list(zip(t, yy)), c=SIG, lw=1.8))
     o.append(T(p.X(1.95), p.Y(0.949) + 14, "0.949", "end", 9, SIG, True, halo=True))
-    o.append(T(p.X(1.5), p.y + 11, "坂", "middle", 9, PUR, True, halo=True))
+    o.append(T(p.X(1.25), p.Y(0.42), "坂", "middle", 9.5, PUR, True, halo=True))
     # 3. 4 章 6 節
     y += 92
     row(y, "4 章 6 節", "モータの位置の比例制御（K_P = 0.21 V/rad）",
@@ -1071,7 +1071,7 @@ def _f07_tradeoff_fig():
     o.append(T(q.x + q.w, q.y + q.h + 48, "揺れは標準偏差（1 章 4 節と同じ値）", "end", 9, MUT))
     # (b) 正弦波
     o.append(TX(366, 18, "(b) 正弦波を入れる（K_P = 8 N/(m/s)）", "start", 11, INK, True))
-    o.append(T(366, 36, "入れた正弦波の振幅に対する、制御量の揺れの振幅の比", "start", 9.5, MUT))
+    o.append(T(366, 36, "制御量に入れた外乱・ノイズの振幅に対する、制御量の揺れの振幅の比", "start", 9.5, MUT))
     Pn, Pd = [0.5], [0.5, 1.0]
     Gyr, Gyd, S = _f07_cl(Pn, Pd, [8.0], [1.0])
     specs = [(1.0, "1 rad/s"), (50.0, "50 rad/s")]
@@ -1092,5 +1092,5 @@ def _f07_tradeoff_fig():
             amp = (yy[sel].max() - yy[sel].min()) / 2
             o.append(T(x + 60, pp.y - 5, "%s %s: %.2f 倍" % (name, lab, amp), "middle", 9.5, c, True))
     o.append(T(554, 270, "横軸: 周期を単位にした時間（細い破線が入れた正弦波）", "middle", 9, MUT))
-    return SVG(700, 280, o, "外乱を抑えることと、ノイズを通さないことの釣り合い。(a) 比例ゲインを上げると、坂による速度のずれは減るが、観測ノイズによる速度の揺れは増える（1 章 4 節の数値）。(b) 同じ角周波数の正弦波で比べると、遅い 1 rad/s では外乱は 0.22 倍に縮み、ノイズは 0.80 倍が制御量に出る。速い 50 rad/s では外乱はほとんど縮まないが、ノイズは 0.16 倍しか出ない。")
+    return SVG(700, 280, o, "外乱を抑えることと、ノイズを通さないことの釣り合い。(a) 比例ゲインを上げると、坂による速度のずれは減るが、観測ノイズによる速度の揺れは増える（1 章 4 節の数値）。(b) 制御量に入る外乱と観測ノイズを同じ角周波数の正弦波にして比べると、遅い 1 rad/s では外乱は 0.22 倍に縮み、ノイズは 0.80 倍が制御量に出る。速い 50 rad/s では外乱はほとんど縮まないが、ノイズは 0.16 倍しか出ない。")
 F["e07_tradeoff"] = _f07_tradeoff_fig()
