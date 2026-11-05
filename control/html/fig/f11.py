@@ -86,6 +86,7 @@ def _f11_sim(P, KP=0.0, TI=None, TD=0.0, N=10.0, b=1.0, dmode="y", tEnd=1.0, n=2
                     I = kp / ti * S
         if relay is not None:
             hh, eps, ub = relay
+            eps = max(eps, 1e-9)          # 偏差がちょうど 0 のときは向きを変えない（丸めの誤差で始めの向きが変わらないように）
             if e > eps:
                 rs = 1
             elif e < -eps:
