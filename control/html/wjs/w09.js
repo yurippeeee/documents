@@ -39,14 +39,20 @@
       if(prev!==null){var d=a-prev;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;tot+=d;}prev=a;});
     return {cw:Math.round(-tot/(2*Math.PI)),raw:-tot/(2*Math.PI),minD:minD,olrhp:o.rhp};}
   /* 閉ループ（u = ff·r + K(r − 測った値)、測った値は L 遅れる）の目標値のステップ（r = 1）への応答。零次ホールドで厳密に離散化 */
-  function _w09_sim(U,pl,K,L,tEnd,nstep){nstep=nstep||15000;var h=tEnd/nstep,G=U.ctl.tf(pl.num,pl.den),S=U.ctl.ss(G),n=S.A.length,
-      dd=U.ctl.mat.c2d(S.A,S.B,h),Ad=dd.A,Bd=dd.B,C=S.C[0],nd=Math.round((L||0)/h),x=new Float64Array(n),buf=new Float64Array(nstep+1),t=[],y=[],st=Math.max(1,Math.round(nstep/700)),blow=false;
-    for(var k=0;k<=nstep;k++){var yy=0;for(var i=0;i<n;i++)yy+=C[i]*x[i];buf[k]=yy;
+  function _w09_sim(U,pl,K,L,tEnd,nstep){nstep=nstep||15000;var t=[],y=[],st=Math.max(1,Math.round(nstep/700)),blow=false,peak=-Infinity,k;
+    if(!L){/* むだ時間が無ければ、閉ループの伝達関数 (ff + K)P/(1 + KP) のステップ応答を厳密に求める */
+      var Gc=U.ctl.tf(U.ctl.poly.scale(pl.num,pl.ff+K),U.ctl.poly.add(pl.den,U.ctl.poly.scale(pl.num,K))),r=U.ctl.step(Gc,tEnd,nstep);
+      for(k=0;k<r.y.length;k++){var v=r.y[k];if(!isFinite(v)||Math.abs(v)>1e6){blow=true;break;}if(v>peak)peak=v;if(k%st===0){t.push(r.t[k]);y.push(v);}}
+      return {t:t,y:y,blow:blow,peak:peak};}
+    var h=tEnd/nstep,G=U.ctl.tf(pl.num,pl.den),S=U.ctl.ss(G),n=S.A.length,
+      dd=U.ctl.mat.c2d(S.A,S.B,h),Ad=dd.A,Bd=dd.B,C=S.C[0],nd=Math.max(1,Math.round(L/h)),x=new Float64Array(n),buf=new Float64Array(nstep+1);
+    for(k=0;k<=nstep;k++){var yy=0;for(var i=0;i<n;i++)yy+=C[i]*x[i];buf[k]=yy;if(yy>peak)peak=yy;
       if(k%st===0){t.push(k*h);y.push(yy);}
       if(!isFinite(yy)||Math.abs(yy)>1e6){blow=true;break;}
-      var ym=k>=nd?buf[k-nd]:0,u=pl.ff+K*(1-ym),nx=new Float64Array(n);
-      for(var i2=0;i2<n;i2++){var s=Bd[i2][0]*u;for(var j=0;j<n;j++)s+=Ad[i2][j]*x[j];nx[i2]=s;}x=nx;}
-    return {t:t,y:y,blow:blow};}
+      /* 操作量は刻みの間一定なので、平均で h/2 遅れる。L − h/2 前の値（隣り合う 2 つの平均）を使って打ち消す */
+      var ym=k>=nd?0.5*(buf[k-nd]+buf[k-nd+1]):(k===nd-1?0.5*buf[0]:0),u=pl.ff+K*(1-ym),nx=new Float64Array(n);
+      for(var i2=0;i2<n;i2++){var sm=Bd[i2][0]*u;for(var j=0;j<n;j++)sm+=Ad[i2][j]*x[j];nx[i2]=sm;}x=nx;}
+    return {t:t,y:y,blow:blow,peak:peak};}
   /* 応答の最終値（安定なとき）: 型 0 なら ff 込みの比、型 1 以上なら 1 */
   function _w09_final(U,pl,K){var d0=pl.den[pl.den.length-1],n0=pl.num[pl.num.length-1];if(d0===0)return 1;var P0=n0/d0;return (pl.ff+K)*P0/(1+K*P0);}
   /* 揺れが収まるか: 後ろ 1/4 と、その前の 1/4 の |y − 最終値| の最大を比べる */
@@ -128,13 +134,13 @@
       var bx=cxp+sc*B.re,by=cyp-sc*B.im;
       if(Math.hypot(bx-cxp,by-cyp)>3)o.push(S.ARR(cxp,cyp,bx,by,"signal",3.4,9));
       o.push(S.ARR(cxp,cyp,cxp+sc,cyp,"gold",1.6,7));
-      o.push(S.T(cxp+sc+4,cyp+13,"A","start",10,"gold",true,false,null,true));
-      o.push(S.T(bx+(B.re>=0?6:-6),by+(B.im>=0?-6:14),"B","middle",10,"signal",true,false,null,true));
+      o.push(S.T(cxp+sc-4,cyp+15,"A","middle",10,"gold",true,false,null,true));
+      o.push(S.T(bx+(B.re>=0?8:-8),by+(B.im>=0?-7:16)-(Math.abs(B.im)<0.05?14:0),"B","middle",10,"signal",true,false,null,true));
       o.push(S.T(cxp,cyp+rad+22,"A と B を回る矢印で表した図（点線は半径 1）","middle",9,"muted"));
       /* (d) 閉ループの応答 */
       var tEnd=mot?Math.max(0.05,Math.min(2,12*2*Math.PI/Math.max(w,1)/2)):3,tw0=nar?44:56,ty=nar?wy+wh+240:wy+wh+70,tww=nar?340:620;
       if(mot){var mm=U.ctl.margins(_w09_tf(U,pl,K,0),0.05,1e4);tEnd=mm.wgc?Math.max(0.08,Math.min(3,25/mm.wgc)):0.5;}
-      var sim=_w09_sim(U,pl,K,L,tEnd,mot?20000:15000),yf=_w09_final(U,pl,K),tr=_w09_trend(sim,yf);
+      var sim=_w09_sim(U,pl,K,L,tEnd,mot?30000:60000),yf=_w09_final(U,pl,K),tr=_w09_trend(sim,yf);
       var tp=_w09_tplot(U,tw0,ty,tww,100,sim,tEnd,yf,{yl:mot?"角度 [rad]":"速度 [m/s]",cap:3,c:tr===2?"alias":(tr===1?"signal":"green")});
       o.push(S.T(tw0,ty-8,"ループを閉じたときの制御量（目標値 1 へのステップ）","start",10,"ink",true));
       o.push(tp.svg);
@@ -232,7 +238,7 @@
       box.set(S.svg(Wd,Hh,o));
       /* 読み出し */
       var h="1 列目: "+R.rows.map(function(r){return r.eps&&!r.aux?"ε":U.htx(_w09_e(r.v[0],3));}).join(", ")+" → 符号の変化 <b>"+R.changes+" 回</b><br>";
-      var parts=[];rts.forEach(function(z){if(z.im>1e-9*Math.max(1,Math.abs(z.re)))parts.push(_w09_p(z.re,3)+" ± j"+_w09_p(z.im,4));else if(Math.abs(z.im)<=1e-9*Math.max(1,Math.abs(z.re)))parts.push(_w09_p(z.re,4));});
+      var parts=[];rts.forEach(function(z){var mg2=Math.hypot(z.re,z.im),re=Math.abs(z.re)<1e-7*Math.max(1,mg2)?0:z.re;if(z.im>1e-9*Math.max(1,Math.abs(z.re)))parts.push((re===0?"":_w09_p(re,3)+" ")+"± j"+_w09_p(z.im,4));else if(Math.abs(z.im)<=1e-9*Math.max(1,Math.abs(z.re)))parts.push(_w09_p(re,4));});
       h+="根（数値で求めた値）: "+parts.join("、")+" → 右半平面 <b>"+nr+" 個</b>"+(ni?"・虚軸の上 "+ni+" 個":"")+"<br>";
       var aux=R.rows.filter(function(r){return r.aux;});
       if(aux.length)h+='<span class="warn">行がすべて 0 になった</span>: 1 つ上の行の式 = 0 の根（虚軸の上か、原点に対称な組）が Δ(s) の根に含まれる。その式を微分した係数で置き換えて表を続けた<br>';
@@ -241,6 +247,151 @@
       if(e===0)h+="<br>安定な範囲: 0 < "+U.htx("K_P")+" < 40 V/rad（s"+"<sup>1</sup> の行 40000 − 1000"+U.htx("K_P")+" > 0）";
       if(e===1){var K=kp.get();h+="<br>"+(K<40?U.htx("K_I")+" の上限 "+U.htx("K_P")+"(40 − "+U.htx("K_P")+")/2 = "+_w09_p(K*(40-K)/2,3)+" V/(rad·s)":U.htx("K_P")+" ≥ 40 では、どの "+U.htx("K_I")+" でも不安定");}
       ro.innerHTML=h+'<div class="wnote">モータの式は 6 章 4 節と同じ Δ(s) = s³ + 2000s² + 40000s + 2×10⁶K<sub>P</sub>（PI 制御では 4 次）。根はアバース法で数値的に求めた（共通部品 U.ctl.poly.roots）。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 4 節: ナイキスト線図と閉ループの応答 ---- */
+  /* ナイキスト線図の点の並び（ω > 0）。型 0 なら ω = 0 の点を先頭に足す */
+  function _w09_npts(U,pl,K,L,n){var o=_w09_olp(U,pl),ws=U.ctl.logspace(Math.log10(pl.wr[0]),Math.log10(pl.wr[1]),n||1600),pts=[];
+    if(o.origin===0){var v0=_w09_L(U,pl,K,L,U.ctl.c(0,0));pts.push([v0.re,v0.im,0]);}
+    ws.forEach(function(w){var v=_w09_jw(U,pl,K,L,w);pts.push([v.re,v.im,w]);});return pts;}
+  /* 曲線の上の矢じりを置く位置: |P(jω)C(jω)| が a を下回る最初の点 */
+  function _w09_pick(pts,a){for(var i=2;i<pts.length-2;i++)if(Math.hypot(pts[i][0],pts[i][1])<a)return i;return -1;}
+  /* 境目の比例ゲイン（位相が −180° になる最初の角周波数で |P C| = 1 になる K） */
+  function _w09_kb(U,pl,L){if(pl===_W09_PL.unst)return {K:1,w:0};var m=U.ctl.margins(_w09_tf(U,pl,1,L),pl.wr[0],pl.wr[1]);return m.wpc?{K:m.gm,w:m.wpc}:null;}
+  function _w09_tend(U,pl,K,L){if(pl.tEnd)return pl.tEnd;var m=U.ctl.margins(_w09_tf(U,pl,K,L),pl.wr[0],pl.wr[1]);return m.wgc?Math.max(0.06,Math.min(4,25/m.wgc)):0.5;}
+  REG.w09_nyquist=function(el,U){
+    var S=U.S,cx=U.ctl.cx,keys=["cart","motor","plate","unst"];
+    U.head(el,"NYQUIST","ナイキスト線図と −1 の点 — 回る回数と閉ループの応答");
+    var r1=U.ctrls(el);
+    var obj=U.select(r1,"対象",["台車の速度（測った値が遅れて届く）","モータの位置（巻線のインダクタンスを含む）","温度の板（むだ時間 20 s）","不安定な一次の対象 1/(s − 1)"],0,function(){var pl=_W09_PL[keys[obj.get()]];kp.set(obj.get()===0?14:pl.K0);draw();});
+    var kp=U.slider(r1,"比例ゲイン",{min:0.05,max:100,log:true,value:14,fmt:function(v){return _w09_p(v,3)+" "+_W09_PL[keys[obj.get()]].Ku;},onInput:draw});
+    var r2=U.ctrls(el);
+    var ld=U.slider(r2,"測った値の遅れ L",{values:[0,0.02,0.05,0.1,0.15,0.2,0.3],value:0.1,fmt:function(v){return v+" s";},onInput:draw});
+    var zm=U.select(r2,"表示の範囲",["−1 のまわり","広く"],0,draw);
+    var mir=U.checkbox(r2,"ω < 0 の鏡像も描く",true,draw);
+    var br=U.btnrow(el);
+    function kbound(){var pl=_W09_PL[keys[obj.get()]],L=obj.get()===0?ld.get():(pl===_W09_PL.plate?20:0);return _w09_kb(U,pl,L);}
+    U.button(br,"本文の例",function(){var i=obj.get(),pl=_W09_PL[keys[i]];kp.set(i===0?14:pl.K0);if(i===0)ld.set(0.1);draw();});
+    U.button(br,"境目の比例ゲイン",function(){var b=kbound();if(b)kp.set(b.K);draw();});
+    U.button(br,"境目の 0.8 倍",function(){var b=kbound();if(b)kp.set(b.K*0.8);draw();});
+    U.button(br,"境目の 1.2 倍",function(){var b=kbound();if(b)kp.set(b.K*1.2);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var i=obj.get(),pl=_W09_PL[keys[i]],K=kp.get(),L=i===0?ld.get():(i===2?20:0);
+      ld.el.style.display=i===0?"":"none";
+      var nar=_w09_nar(box),Wd=nar?400:700,o=[];
+      var pts=_w09_npts(U,pl,K,L,1600);
+      /* 表示の範囲 */
+      var xr,yr;
+      if(zm.get()===0){xr=[-2.6,1.4];yr=[-2,2];}
+      else{var R=1.5;pts.forEach(function(p){var r=Math.hypot(p[0],p[1]);if(r<40)R=Math.max(R,r);});R=Math.min(R*1.1,40);xr=[-R,R];yr=[-R,R];}
+      var ns=nar?300:320,nx=nar?60:50,ny=24;
+      var cp=_w09_cplane(U,nx,ny,ns,ns*(yr[1]-yr[0])/(xr[1]-xr[0]),xr,yr);o.push(cp.svg);var P=cp.P;
+      var main=pts.map(function(p){return [p[0],p[1]];}),mirr=pts.map(function(p){return [p[0],-p[1]];});
+      if(mir.get())o.push(P.clip(mirr,"signal",1.4,"5 3"));
+      o.push(P.clip(main,"signal",2.4));
+      [1.6,0.9,0.45].forEach(function(a){var k=_w09_pick(pts,a);if(k>0)o.push(_w09_head(U,P,main,k,"signal"));});
+      if(mir.get()){[0.45,0.9,1.6].forEach(function(a){var k=_w09_pick(pts,a);if(k>0){var rv=mirr.slice().reverse(),kk=rv.length-1-k;o.push(_w09_head(U,P,rv,kk,"signal"));}});}
+      o.push(S.T(nx,ny-8,"ナイキスト線図（実線 ω > 0、破線は鏡像）","start",10,"ink",true));
+      /* 回る回数 */
+      var wd=_w09_wind(U,pl,K,L),zcl=wd.cw+wd.olrhp,b=kbound(),mg=U.ctl.margins(_w09_tf(U,pl,K,L),pl.wr[0],pl.wr[1]);
+      var cross=null;if(mg.wpc){cross=-1/mg.gm;o.push(S.D(P.X(cross),P.Y(0),zcl>0?"alias":"green",4.2));}
+      if(i===3){cross=-K;}
+      /* 閉ループの応答 */
+      var tEnd=_w09_tend(U,pl,K,L),sim=_w09_sim(U,pl,K,L,tEnd,[60000,30000,15000,20000][i]),yf=_w09_final(U,pl,K),tr=_w09_trend(sim,yf);
+      var tx0=nar?60:430,ty0=nar?ny+ns+56:44,tw=nar?320:250,th=nar?130:170;
+      var tp=_w09_tplot(U,tx0,ty0,tw,th,sim,tEnd,yf,{yl:"制御量",cap:3,c:zcl>0?"alias":"green",yf:true});
+      o.push(tp.svg);o.push(S.T(tx0,ty0-10,"閉ループのステップ応答（目標値 1）","start",10,"ink",true));
+      var H=nar?ty0+th+50:Math.max(ny+ns+20,ty0+th+50);
+      box.set(S.svg(Wd,H,o));
+      /* 読み出し */
+      var h="";
+      if(cross!==null)h+="負の実軸を横切る点: <b>"+_w09_p(cross,3)+"</b>"+(mg.wpc?"（ω = "+_w09_p(mg.wpc,3)+" rad/s）":"（ω = 0）")+"<br>";
+      else h+="線図は負の実軸を横切らない<br>";
+      if(wd.minD<0.01)h+='<span class="warn">線図が −1 の点のすぐ近くを通る（安定限界）</span><br>';
+      h+="−1 を時計回りに回る回数（鏡像を含む）: <b>"+String(wd.cw).replace("-","−")+"</b>　＋　開ループの右半平面の極: <b>"+wd.olrhp+"</b>　＝　閉ループの右半平面の極: <b>"+zcl+"</b> → "+(zcl===0?'<span class="ok">安定</span>':'<span class="warn">不安定</span>')+"<br>";
+      if(!L){var den=pl.den.slice(),num=pl.num.map(function(x){return x*K;});var cl=U.ctl.poly.add(den,num),rr=U.ctl.poly.roots(cl),nr=rr.filter(function(z){return z.re>1e-9*Math.max(1,Math.hypot(z.re,z.im));}).length;
+        h+="確かめ: 特性方程式の根を数値で求めると、右半平面に "+nr+" 個（";
+        var ps=[];rr.forEach(function(z){var re=Math.abs(z.re)<1e-7*Math.max(1,Math.hypot(z.re,z.im))?0:z.re;if(z.im>1e-9)ps.push((re===0?"":_w09_p(re,3)+" ")+"± j"+_w09_p(z.im,3));else if(Math.abs(z.im)<=1e-9)ps.push(_w09_p(re,4));});h+=ps.join("、")+"）<br>";}
+      else h+="確かめ: 数値計算の応答は"+(tr===2?'<span class="warn">大きくなり続ける</span>':(tr===1?"同じ振れ幅で続く":'<span class="ok">収まる</span>'))+"<br>";
+      if(b)h+="この対象の境目の比例ゲイン: "+_w09_p(b.K,3)+" "+pl.Ku+(i===3?"（これより大きいと安定）":"（これより大きいと不安定）");
+      ro.innerHTML=h+'<div class="wnote">回る回数は、虚軸に沿って 1 + P(jω)C(jω) の偏角の変化を足し合わせて数えた（原点の極は右側の小さな半円で迂回）。台車は 1 章と同じく決めた力 2 N を足す。応答は零次ホールドで細かい刻みに離散化して計算した。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: ゲイン余裕と位相余裕・むだ時間 ---- */
+  function _w09_pmz(z){var x=Math.sqrt(Math.sqrt(1+4*Math.pow(z,4))-2*z*z);return Math.atan(2*z/x)*180/Math.PI;}
+  /* 位相余裕から、二次遅れの形のときの行き過ぎ量 [%]（目安） */
+  function _w09_mp_from_pm(pm){if(pm<=0)return null;if(pm>=_w09_pmz(0.999))return 0;var a=1e-4,b=0.999;for(var i=0;i<60;i++){var m=(a+b)/2;if(_w09_pmz(m)<pm)a=m;else b=m;}var z=(a+b)/2;return 100*Math.exp(-Math.PI*z/Math.sqrt(1-z*z));}
+  REG.w09_margin=function(el,U){
+    var S=U.S,cx=U.ctl.cx,keys=["cart","motor","motor2","plate"];
+    var BR={cart:{wr:[0.5,100],dbr:[-30,30],phr:[-360,0]},motor:{wr:[1,3000],dbr:[-60,60],phr:[-360,-90]},motor2:{wr:[1,3000],dbr:[-60,60],phr:[-360,-90]},plate:{wr:[0.001,1],dbr:[-40,30],phr:[-360,0]}};
+    U.head(el,"MARGINS","ゲイン余裕と位相余裕 — ボード線図とナイキスト線図で同じ余裕を読む");
+    var r1=U.ctrls(el);
+    var obj=U.select(r1,"対象",["台車の速度（測った値が遅れて届く）","モータの位置（巻線のインダクタンスを含む）","モータの位置（インダクタンスを無視。二次遅れの形）","温度の板"],0,function(){var pl=_W09_PL[keys[obj.get()]];kp.set(obj.get()===0?8:pl.K0);draw();});
+    var kp=U.slider(r1,"比例ゲイン",{min:0.05,max:100,log:true,value:8,fmt:function(v){return _w09_p(v,3)+" "+_W09_PL[keys[obj.get()]].Ku;},onInput:draw});
+    var r2=U.ctrls(el);
+    var lc=U.slider(r2,"むだ時間 L",{values:[0,0.02,0.05,0.1,0.15,0.2,0.25,0.3],value:0.1,fmt:function(v){return v+" s";},onInput:draw});
+    var lm=U.slider(r2,"むだ時間 L（計算の遅れなど）",{values:[0,0.0002,0.0005,0.001,0.002,0.005],value:0,fmt:function(v){return (v*1000)+" ms";},onInput:draw});
+    var lp=U.slider(r2,"むだ時間 L",{values:[0,5,10,20,30,40,60],value:20,fmt:function(v){return v+" s";},onInput:draw});
+    var br=U.btnrow(el);
+    function setc(i,K,L){obj.set(i);kp.set(K);if(i===0)lc.set(L);else if(i===3)lp.set(L);else lm.set(L);draw();}
+    U.button(br,"本文の例（台車）",function(){setc(0,8,0.1);});
+    U.button(br,"台車、遅れ 0.2 s",function(){setc(0,8,0.2);});
+    U.button(br,"モータ 10 V/rad",function(){setc(1,10,0);});
+    U.button(br,"モータ 0.21 V/rad",function(){setc(1,0.21,0);});
+    U.button(br,"温度の板 12 W/K",function(){setc(3,12,20);});
+    U.button(br,"温度の板 24 W/K",function(){setc(3,24,20);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var i=obj.get(),key=keys[i],pl=_W09_PL[key],K=kp.get(),L=i===0?lc.get():(i===3?lp.get():lm.get());
+      lc.el.style.display=i===0?"":"none";lp.el.style.display=i===3?"":"none";lm.el.style.display=(i===1||i===2)?"":"none";
+      var G=_w09_tf(U,pl,K,L),mg=U.ctl.margins(G,pl.wr[0],pl.wr[1]),b=BR[key];
+      var nar=_w09_nar(box),Wd=nar?400:700,o=[];
+      /* ボード線図 */
+      var ws=U.ctl.logspace(Math.log10(b.wr[0]),Math.log10(b.wr[1]),900),B=U.ctl.bode(G,ws);
+      var bx=nar?56:58,bw=nar?320:330;
+      var bd=U.ctl.bodeSvg([{w:ws,db:B.db,ph:B.ph,c:"signal"}],{x:bx,y:22,w:bw,hm:nar?100:110,hp:nar?100:110,gap:26,wr:b.wr,dbr:b.dbr,phr:b.phr});
+      o.push(bd.svg);o.push(S.T(bx,12,"ボード線図","start",10,"ink",true));
+      var Pm=bd.Pm,Pp=bd.Pp,inR=function(w){return w&&w>=b.wr[0]&&w<=b.wr[1];};
+      if(inR(mg.wgc)){o.push(S.L(Pm.X(mg.wgc),Pm.y,Pm.X(mg.wgc),Pp.y+Pp.h,"green",1.1,"3 3"));
+        if(mg.pm>0)o.push(S.ARR(Pp.X(mg.wgc),Pp.Y(-180),Pp.X(mg.wgc),Pp.Y(-180+mg.pm),"green",2,6));
+        o.push(S.TX(Pp.X(mg.wgc)-4,Pp.Y(-180+mg.pm/2)+4,"φ_m","end",10,"green",true,true));}
+      if(inR(mg.wpc)){o.push(S.L(Pm.X(mg.wpc),Pm.y,Pm.X(mg.wpc),Pp.y+Pp.h,"alias",1.1,"3 3"));
+        if(mg.gmDb>0)o.push(S.ARR(Pm.X(mg.wpc),Pm.Y(-mg.gmDb),Pm.X(mg.wpc),Pm.Y(0),"alias",2,6));
+        o.push(S.TX(Pm.X(mg.wpc)+4,Pm.Y(-mg.gmDb/2)+4,"g_m","start",10,"alias",true,true));}
+      /* ナイキスト線図 */
+      var ns=nar?260:250,nx=nar?80:430,ny=nar?bd.h+30:30;
+      var cp=_w09_cplane(U,nx,ny,ns,ns,[-2.2,1.2],[-2.2,1.2]);o.push(cp.svg);var P=cp.P;
+      o.push(S.T(nx,ny-8,"ナイキスト線図（ω > 0）","start",10,"ink",true));
+      var pts=_w09_npts(U,pl,K,L,1600),main=pts.map(function(p){return [p[0],p[1]];});
+      o.push(P.clip(main,"signal",2.4));
+      [1.6,0.9,0.45].forEach(function(a){var k=_w09_pick(pts,a);if(k>0)o.push(_w09_head(U,P,main,k,"signal"));});
+      if(mg.wgc){var g1=_w09_jw(U,pl,K,L,mg.wgc),a1=Math.atan2(g1.im,g1.re),arc=[],a0=-Math.PI;var a2=a1;while(a2>0)a2-=2*Math.PI;
+        if(mg.pm>0){for(var q=0;q<=30;q++){var aa=a0+(a2-a0)*q/30;arc.push([0.55*Math.cos(aa),0.55*Math.sin(aa)]);}o.push(P.line(arc,"green",2));}
+        o.push(S.L(P.X(0),P.Y(0),P.X(g1.re),P.Y(g1.im),"green",1.2));o.push(S.D(P.X(g1.re),P.Y(g1.im),"green",4));}
+      if(mg.wpc){var xc=-1/mg.gm;if(xc>-2.2)o.push(S.D(P.X(xc),P.Y(0),"alias",4.2));}
+      /* 閉ループの応答 */
+      var tEnd=pl.tEnd||(mg.wgc?Math.max(0.06,Math.min(4,25/mg.wgc)):0.5),sim=_w09_sim(U,pl,K,L,tEnd,[60000,30000,30000,30000][i]),yf=_w09_final(U,pl,K),tr=_w09_trend(sim,yf);
+      var ty=nar?ny+ns+56:Math.max(bd.h,ny+ns+30)+24,tp=_w09_tplot(U,bx,ty,nar?320:620,110,sim,tEnd,yf,{yl:"制御量",cap:3,c:(mg.pm!=null&&mg.pm<=0)?"alias":"green",yf:true});
+      o.push(tp.svg);o.push(S.T(bx,ty-10,"閉ループのステップ応答（目標値 1）","start",10,"ink",true));
+      box.set(S.svg(Wd,ty+110+44,o));
+      /* 読み出し */
+      var h="",unst=(mg.pm!=null&&mg.pm<=0)||(mg.gmDb!=null&&mg.gmDb<=0);
+      if(mg.wgc)h+="ゲイン交差角周波数 "+U.htx("ω_gc")+" = "+_w09_p(mg.wgc,3)+" rad/s、位相余裕 "+U.htx("φ_m")+" = <b>"+_w09_f(mg.pm,1)+"°</b><br>";
+      else h+="ゲインが 0 dB を横切らない（どの角周波数でも 1 より小さい）<br>";
+      if(mg.wpc)h+="位相交差角周波数 "+U.htx("ω_pc")+" = "+_w09_p(mg.wpc,3)+" rad/s、ゲイン余裕 "+U.htx("g_m")+" = <b>"+_w09_f(mg.gmDb,2)+" dB</b>（"+_w09_p(mg.gm,3)+" 倍。比例ゲインを "+_w09_p(K*mg.gm,3)+" "+pl.Ku+" にすると安定限界）<br>";
+      else h+="位相が −180° まで遅れない: ゲイン余裕は無限大<br>";
+      if(mg.wgc&&mg.pm>0){var add=mg.pm*Math.PI/180/mg.wgc;h+="許されるむだ時間: いまの "+_w09_p(L,3)+" s に、あと "+U.fmt.time(add,3)+" 足せる（"+U.htx("φ_m/ω_gc")+"。合計 "+U.fmt.time(L+add,3)+"）<br>";}
+      if(unst)h+='<span class="warn">余裕が負: 閉ループは不安定</span><br>';
+      else{var mx=sim.peak;var mp=Math.max(0,(mx-yf)/Math.abs(yf)*100),pr=mg.pm?_w09_mp_from_pm(mg.pm):null;
+        h+="行き過ぎ量（数値計算）: <b>"+_w09_f(mp,1)+" %</b>"+(pr!=null?"、二次遅れの形の表から読む目安: "+_w09_f(pr,1)+" %":"")+"<br>";}
+      var md=Infinity;ws.forEach(function(w){var v=_w09_jw(U,pl,K,L,w);md=Math.min(md,Math.hypot(1+v.re,v.im));});
+      h+="−1 の点との最も近い距離: "+_w09_p(md,3)+"（感度関数の大きさの最大値 "+_w09_p(1/md,3)+" の逆数）";
+      ro.innerHTML=h+'<div class="wnote">余裕は共通部品 U.ctl.margins で求めた（ゲインが 1 を、位相が −180° を最初に横切る角周波数）。台車は 1 章と同じく決めた力 2 N を足し、測った値が L 遅れる。モータと温度の板のむだ時間は、測った値の遅れとして入れた。応答は零次ホールドで細かい刻みに離散化して計算した。</div>';
     }
     draw();
   };

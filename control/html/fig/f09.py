@@ -298,7 +298,8 @@ def _f09_cartsim_fig():
     for j, (K, c, nm) in enumerate(cases):
         r = _f09_cart_root(K, 0.1, (-0.5, 16.5))
         o.append(PZ(p, [r, r.conjugate()], [], c))
-        o.append(TX(476, 286 + j * 16, "K_P = %s: %s ± j%s" % ("17.0" if j == 1 else "%g" % K, _f09_f(r.real, 2), _f09_f(r.imag, 1)), "start", 9.5, c, True))
+        rs = ("±j%s（虚軸の上）" % _f09_f(r.imag, 1)) if abs(r.real) < 0.005 else ("%s ± j%s" % (_f09_f(r.real, 2), _f09_f(r.imag, 1)))
+        o.append(TX(476, 286 + j * 16, "K_P = %s: %s" % ("17.0" if j == 1 else "%g" % K, rs), "start", 9.5, c, True))
     return SVG(700, 356, o, "測った速度が 0.1 s 遅れて届く台車の比例制御（1 章 5 節と同じ。目標値 1 m/s、決めた力 2 N を足す）。比例ゲインが 17.0 N/(m/s) より小さいと揺れは収まり、ちょうど 17.0 では同じ振れ幅のまま続き、大きいと大きくなり続ける。揺れの周期は 0.391 s・0.372 s・0.359 s で、境目の周期は 2π/16.9 = 0.372 s である。右は、閉ループの特性方程式 s + 2 + K<sub>P</sub>e<sup>−0.1s</sup> = 0 の根のうち虚軸に最も近い組で、K<sub>P</sub> = 17.0 でちょうど虚軸の上の ±j16.9 にある。")
 
 
