@@ -112,51 +112,16 @@ def _f09_sim_tf(num, den, K, L=0.0, tend=1.0, dt=1e-4, r=1.0, ff=0.0):
 
 
 # ---- 複素平面の地 ----
-def _f09_cplane(x, y, w, h, xr, yr, xt, yt, unit=True, m1=True, sz=9, lab=True, grid=True):
-    """複素平面（ナイキスト線図の地）。縦と横の目盛の間隔をそろえる（w/(xr 幅) = h/(yr 幅) にする）。返り値 (svg, Plot)。"""
-    p = Plot(x, y, w, h, xr, yr)
-    o = [RECT(x, y, w, h, 0, SCR, LIN, 0.8)]
-    if grid:
-        for v in xt:
-            o.append(W(p.X(v), y, p.X(v), y + h, c=GRD, lw=1))
-        for v in yt:
-            o.append(W(x, p.Y(v), x + w, p.Y(v), c=GRD, lw=1))
-    for v in xt:
-        o.append(W(p.X(v), y + h, p.X(v), y + h + 4, c=MUT, lw=1))
-        o.append(T(p.X(v), y + h + 14, _f09_n(v), "middle", sz, MUT))
-    for v in yt:
-        o.append(W(x - 4, p.Y(v), x, p.Y(v), c=MUT, lw=1))
-        o.append(T(x - 6, p.Y(v) + 3.2, _f09_n(v), "end", sz, MUT))
-    if yr[0] < 0 < yr[1]:
-        o.append(W(x, p.Y(0), x + w, p.Y(0), c=MUT, lw=1))
-    if xr[0] < 0 < xr[1]:
-        o.append(W(p.X(0), y, p.X(0), y + h, c=MUT, lw=1))
-    if unit:
-        pts = [(math.cos(a), math.sin(a)) for a in _f09_np.linspace(0, 2 * math.pi, 181)]
-        o.append(p.clip(pts, c=FNT, lw=1.1, dash="4 3"))
-    if lab:
-        o.append(T(x + w - 3, p.Y(0) - 5 if yr[0] < 0 < yr[1] else y + h - 4, "実部", "end", sz, MUT, halo=True))
-        o.append(T(p.X(0) + 4 if xr[0] < 0 < xr[1] else x + 4, y + 11, "虚部", "start", sz, MUT, halo=True))
-    return "".join(o), p
-
-
-def _f09_m1(p, lab=True, a="above"):
-    """−1 の点（赤い ×）。"""
-    xx, yy = p.X(-1), p.Y(0)
-    o = [W(xx - 5, yy - 5, xx + 5, yy + 5, c=ALI, lw=2.2), W(xx - 5, yy + 5, xx + 5, yy - 5, c=ALI, lw=2.2)]
-    if lab:
-        o.append(T(xx, yy - 9 if a == "above" else yy + 18, "−1", "middle", 10, ALI, True, halo=True))
-    return "".join(o)
+# 複素平面の地・−1 の点・曲線の矢じりは figures.py の共通部品（CPLANE・M1・CURVEHEAD）を使う
+_f09_cplane = CPLANE
+_f09_m1 = M1
 
 
 def _f09_cpts(vals):
     return [(float(v.real), float(v.imag)) for v in vals]
 
 
-def _f09_arrow_mid(p, vals, k, c, head=7):
-    """曲線 vals（複素数の並び）の k 番目の点に、進む向きの矢じりを置く。"""
-    a, b = vals[k - 1], vals[k + 1]
-    return _head(p.X(a.real), p.Y(a.imag), p.X(b.real), p.Y(b.imag), c, head)
+_f09_arrow_mid = CURVEHEAD
 
 
 def _f09_bode(x, y, w, wr, dbr, phr, hm=110, hp=110, gap=30, dbt=None, pht=None, xl="角周波数 ω [rad/s]"):

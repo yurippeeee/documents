@@ -875,6 +875,49 @@ def BODE(x, y, w, curves, wr, dbr, phr, hm=140, hp=110, gap=34, dbt=None, pht=No
         o.append(pm.clip(a, c=c, dash=dash)); o.append(pp.clip(b, c=c, dash=dash))
     return "".join(o), pm, pp, y + hm + gap + hp + 40
 
+def CPLANE(x, y, w, h, xr, yr, xt, yt, unit=True, m1=True, sz=9, lab=True, grid=True):
+    """複素平面（ナイキスト線図の地。09 章で作ったものを共通にした）。格子・目盛・実軸と虚軸・単位円（破線）を描く。
+    縦と横の目盛の間隔をそろえるには、w/(xr の幅) = h/(yr の幅) にする。m1 は使わない（−1 の点は M1 で描く）。返り値 (svg, Plot)。"""
+    p = Plot(x, y, w, h, xr, yr)
+    fm = lambda v: ("%g" % v).replace("-", "−")
+    o = [RECT(x, y, w, h, 0, SCR, LIN, 0.8)]
+    if grid:
+        for v in xt:
+            o.append(W(p.X(v), y, p.X(v), y + h, c=GRD, lw=1))
+        for v in yt:
+            o.append(W(x, p.Y(v), x + w, p.Y(v), c=GRD, lw=1))
+    for v in xt:
+        o.append(W(p.X(v), y + h, p.X(v), y + h + 4, c=MUT, lw=1))
+        o.append(T(p.X(v), y + h + 14, fm(v), "middle", sz, MUT))
+    for v in yt:
+        o.append(W(x - 4, p.Y(v), x, p.Y(v), c=MUT, lw=1))
+        o.append(T(x - 6, p.Y(v) + 3.2, fm(v), "end", sz, MUT))
+    if yr[0] < 0 < yr[1]:
+        o.append(W(x, p.Y(0), x + w, p.Y(0), c=MUT, lw=1))
+    if xr[0] < 0 < xr[1]:
+        o.append(W(p.X(0), y, p.X(0), y + h, c=MUT, lw=1))
+    if unit:
+        import numpy as _np
+        pts = [(math.cos(a), math.sin(a)) for a in _np.linspace(0, 2 * math.pi, 181)]
+        o.append(p.clip(pts, c=FNT, lw=1.1, dash="4 3"))
+    if lab:
+        o.append(T(x + w - 3, p.Y(0) - 5 if yr[0] < 0 < yr[1] else y + h - 4, "実部", "end", sz, MUT, halo=True))
+        o.append(T(p.X(0) + 4 if xr[0] < 0 < xr[1] else x + 4, y + 11, "虚部", "start", sz, MUT, halo=True))
+    return "".join(o), p
+
+def M1(p, lab=True, a="above"):
+    """複素平面の −1 の点（赤い ×）。p は CPLANE の Plot。"""
+    xx, yy = p.X(-1), p.Y(0)
+    o = [W(xx - 5, yy - 5, xx + 5, yy + 5, c=ALI, lw=2.2), W(xx - 5, yy + 5, xx + 5, yy - 5, c=ALI, lw=2.2)]
+    if lab:
+        o.append(T(xx, yy - 9 if a == "above" else yy + 18, "−1", "middle", 10, ALI, True, halo=True))
+    return "".join(o)
+
+def CURVEHEAD(p, vals, k, c, head=7):
+    """曲線（複素数の並び vals。Plot p の座標）の k 番目の点に、進む向き（番号が増える向き）の矢じりを置く。"""
+    a, b = vals[k - 1], vals[k + 1]
+    return _head(p.X(a.real), p.Y(a.imag), p.X(b.real), p.Y(b.imag), c, head)
+
 def SIMLOOP(Pn, Pd, Cn, Cd, tEnd, L=0.0, n=20000, r=1.0, d=None, dy=None, noise=None, umin=None, umax=None, every=None):
     """フィードバック系（07 章の基本の形、センサは 1）を時間の刻みで数値計算する（widgets.js の U.ctl.simLoop と同じ計算）。
     制御対象 Pn/Pd（むだ時間 L [s] を含んでよい）、制御器 Cn/Cd（プロパー）。r は目標値（数か t の関数）、d は操作量に入る外乱、
