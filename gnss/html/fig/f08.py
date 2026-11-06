@@ -146,7 +146,7 @@ def _f08_mom(width, xs_list, vt, N=240):
     return Hs + Hj
 
 
-_F08_GPS = [30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300]   # 地板の一辺 [mm]
+_F08_GPS = [30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 175, 200]   # 地板の一辺 [mm]（デモの値と同じ）
 _F08_GPC = {}
 
 
@@ -217,6 +217,11 @@ def _f08_sat(x, y, c=SIG, s=1.0):
     return (RECT(x - 4 * s, y - 4 * s, 8 * s, 8 * s, 1.5, c, c, 1.0)
             + RECT(x - 15 * s, y - 2.6 * s, 9 * s, 5.2 * s, 1, soft(c), c, 1.0)
             + RECT(x + 6 * s, y - 2.6 * s, 9 * s, 5.2 * s, 1, soft(c), c, 1.0))
+
+
+def _f08_arc(cx, cy, r, a0, a1, n=40):
+    """中心 (cx, cy)、半径 r の円弧の点（角度は x 軸から反時計回りの度、画面の上が正）。"""
+    return [(cx + r * math.cos(math.radians(a0 + (a1 - a0) * i / n)), cy - r * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
 
 
 # =====================================================================
@@ -835,7 +840,7 @@ def _f08_patch_fig():
     o.append(p.line([(x, math.cos(math.pi * x)) for x in xs], c=TEA, lw=2.0, dash="5 3"))
     o.append(p.line([(x, math.sin(math.pi * x) ** 2) for x in xs], c=ALI, lw=1.8, dash="2 2"))
     o.append(D(p.X(1 / 6.0), p.Y(0.25), ALI, 4.2))
-    o.append(T(p.X(1 / 6.0) + 6, p.Y(0.25) + 14, "50 Ω（R_縁 = 200 Ω の例）", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(1 / 6.0) + 6, p.Y(0.25) + 14, "50 Ω（縁で 200 Ω の例）", "start", 9.5, ALI, True, halo=True))
     o.append(T(p.X(0.49), p.Y(1.0) + 14, "電界", "end", 9.5, PUR, True, halo=True))
     o.append(T(p.X(-0.02), p.Y(0.98) - 6, "電流", "end", 9.5, TEA, True, halo=True))
     o.append(T(p.X(-0.32), p.Y(0.35) - 6, "入力の抵抗 ∝ 電界²", "middle", 9.5, ALI, True, halo=True))
@@ -867,9 +872,10 @@ def _f08_epsr_fig():
         el, DR, DL = _f08_cav(er)
         o.append(p.line([(e, 10 * math.log10(max(d, 1e-9))) for e, d in zip(el, DR) if e >= 0.5], c=c, lw=2.2))
         dz = 10 * math.log10(DR[-1]); i10 = int(_f08_np.argmin(_f08_np.abs(el - 10)))
-        o.append(T(p.X(88), p.Y(dz) - 6, "εr = %g: %.1f" % (er, dz), "end", 9.5, c, True, halo=True))
+        dy_ = {1.0: -6, 4.4: -7, 20.0: 15}[er]
+        o.append(T(p.X(88), p.Y(dz) + dy_, "εr = %g: %.1f" % (er, dz), "end", 9.5, c, True, halo=True))
         o.append(D(p.X(10), p.Y(10 * math.log10(DR[i10])), c, 3.6))
-    o.append(T(p.X(12), p.Y(-6.5), "点: 仰角 10°", "start", 9.5, MUT, False, halo=True))
+    o.append(T(p.X(20), p.Y(-6.8), "点: 仰角 10° の値", "start", 9.5, MUT, False, halo=True))
     o.append(T(xb - 14, 268, "比誘電率が高い → 小さい・上の半分を広く見る", "start", 10, SIG, True))
     o.append(T(xb - 14, 286, "その代わり、帯域が狭く、効率が下がりやすい（emsim/17）", "start", 9.5, INK))
     return SVG(700, 300, o, "誘電体の比誘電率とパッチ。(a) L1（波長 190.3 mm）のパッチの一辺を、簡単な式 λ/(2√εr) で計算し、同じ縮尺で並べた。比誘電率 20 のセラミックでは 21.3 mm になる（縁の電界で、実際は少し短い）。(b) 地板が無限に大きいとしたときの、右旋の指向性（方位で平均。空洞のモデルの計算）。比誘電率が高く小さいパッチほど、真上の指向性が下がり、地平線に近い向きが上がる。")
@@ -884,15 +890,16 @@ def _f08_cpfeed_fig():
     o.append(RECT(cx - E / 2, cy - E / 2, E, E, 2, SSOFT, SIG, 1.6))
     f1 = (cx + E / 4, cy); f2 = (cx, cy - E / 4)
     o.append(D(f1[0], f1[1], ALI, 4)); o.append(D(f2[0], f2[1], ALI, 4))
-    o.append(ARR(cx - E / 2 + 8, cy + E / 2 - 10, cx + E / 2 - 8, cy + E / 2 - 10, c=PUR, lw=1.6, head=6))
-    o.append(ARR(cx - E / 2 + 10, cy + E / 2 - 8, cx - E / 2 + 10, cy - E / 2 + 8, c=TEA, lw=1.6, head=6))
-    o.append(T(cx + E / 2 - 8, cy + E / 2 - 14, "モード x", "end", 9.5, PUR, True, halo=True))
-    o.append(T(cx - E / 2 + 16, cy - E / 2 + 18, "モード y", "start", 9.5, TEA, True, halo=True))
-    hx, hy = cx - 40, cy + E / 2 + 30
+    o.append(DARR(cx - E / 2 - 2, cy + E / 2 + 10, cx + E / 2 + 2, cy + E / 2 + 10, c=PUR, lw=1.4, head=6))
+    o.append(DARR(cx + E / 2 + 10, cy - E / 2 - 2, cx + E / 2 + 10, cy + E / 2 + 2, c=TEA, lw=1.4, head=6))
+    o.append(T(cx - E / 2, cy + E / 2 + 24, "モード x（横の定在波）", "start", 9.5, PUR, True))
+    o.append(T(cx + E / 2 + 16, cy - E / 2 + 6, "モード y", "start", 9.5, TEA, True))
+    hx, hy = cx - 40, cy + E / 2 + 34
     o.append(BOX(hx, hy, 80, 34, "90° の遅れ", None, GLD, GOSOFT, sz=10))
-    o.append(W(f1[0], f1[1], f1[0], hy, c=ALI, lw=1.2, dash="3 2"))
-    o.append(W(f2[0] - 30, f2[1], f2[0] - 30 - 10, f2[1], c=ALI, lw=1.2, dash="3 2"))
-    o.append(W(f2[0], f2[1], cx - E / 2 - 14, f2[1], cx - E / 2 - 14, hy + 17, hx, hy + 17, c=ALI, lw=1.2, dash="3 2"))
+    o.append(W(f1[0], f1[1], f1[0], cy + E / 2 - 2, c=ALI, lw=1.2, dash="3 2"))
+    o.append(W(f2[0], f2[1], cx - E / 2 + 6, f2[1], c=ALI, lw=1.2, dash="3 2"))
+    o.append(W(cx - E / 2 - 12, f2[1], cx - E / 2 - 12, hy + 17, hx, hy + 17, c=ALI, lw=1.2, dash="3 2"))
+    o.append(W(f1[0], cy + E / 2 + 18, f1[0], hy, c=ALI, lw=1.2, dash="3 2"))
     o.append(ARR(cx, hy + 34, cx, hy + 54, c=ALI, lw=1.4))
     o.append(T(cx, hy + 68, "受信機へ", "middle", 9.5, ALI, True))
     # (b) 1 点で給電し、角を切る
@@ -906,36 +913,157 @@ def _f08_cpfeed_fig():
     d = E / 2 + 18
     o.append(DARR(cx2 - d * 0.707, cy2 - d * 0.707, cx2 + d * 0.707, cy2 + d * 0.707, c=TEA, lw=1.3))
     o.append(DARR(cx2 - d * 0.707, cy2 + d * 0.707, cx2 + d * 0.707, cy2 - d * 0.707, c=PUR, lw=1.3))
-    o.append(T(cx2 - d * 0.707 - 4, cy2 - d * 0.707 - 4, "モード v（高い）", "start", 9.5, TEA, True, halo=True))
-    o.append(T(cx2 + d * 0.707 + 2, cy2 - d * 0.707 - 4, "モード u（低い）", "end", 9.5, PUR, True, halo=True))
+    o.append(T(cx2 + d * 0.707 + 2, cy2 + d * 0.707 + 6, "モード v（高い）", "start", 9.5, TEA, True, halo=True))
+    o.append(T(cx2 + d * 0.707 + 2, cy2 - d * 0.707 + 2, "モード u（低い）", "start", 9.5, PUR, True, halo=True))
     o.append(T(cx2, cy2 + E / 2 + 40, "切った角を結ぶ対角（v）は短い", "middle", 9.5, INK))
     o.append(T(cx2, cy2 + E / 2 + 56, "→ その向きのモードの周波数が高い", "middle", 9.5, INK))
     o.append(T(cx2, cy2 + E / 2 + 74, "この切り方と給電点で右旋", "middle", 10, SIG, True))
-    # (c) 2 つのモードの振幅と位相、軸比
+    # (c) 2 つのモードの振幅と、軸比
     xc = 460
     o.append(T(xc - 8, 18, "(c) 2 つのモードと軸比（Q = 100）", "start", 11.5, INK, True))
     f0 = _F08_F1; Q = _F08_Q; Dl = 1 / (2 * Q)
-    fs = np.linspace(-25e6, 25e6, 401)
+    fs = np.linspace(-25e6, 25e6, 501)
     def Hm(f, fk):
         return 1 / (1 + 1j * Q * (f / fk - fk / f))
-    Hu = np.array([Hm(f0 + d_, f0 * (1 - Dl)) for d_ in fs]); Hv = np.array([Hm(f0 + d_, f0 * (1 + Dl)) for d_ in fs])
-    p = Plot(xc + 30, 40, 200, 82, (-25, 25), (-180, 0))
-    o.append(p.axes(xl=None, yl="位相 [°]", xt=[-20, -10, 0, 10, 20], yt=[-180, -90, 0], xfmt=lambda v: "", yfmt=_f08_m))
-    ph = np.degrees(np.angle(Hv / Hu))
-    o.append(p.line([(a / 1e6, -abs(b)) for a, b in zip(fs, ph)], c=GLD, lw=2.2))
-    o.append(D(p.X(0), p.Y(-90), GLD, 4))
-    o.append(T(p.X(1.5), p.Y(-90) - 6, "差 90°", "start", 9.5, GLD, True, halo=True))
-    q = Plot(xc + 30, 140, 200, 96, (-25, 25), (0, 20))
+    fu, fv = f0 * (1 - Dl), f0 * (1 + Dl)
+    p = Plot(xc + 30, 40, 200, 84, (-25, 25), (0, 1.1))
+    o.append(p.axes(xl=None, yl="振幅", xt=[-20, -10, 0, 10, 20], yt=[0, 0.5, 1], xfmt=lambda v: "", yfmt=_f08_m))
+    o.append(W(p.x, p.Y(1 / math.sqrt(2)), p.x + p.w, p.Y(1 / math.sqrt(2)), c=MUT, lw=1, dash="3 3"))
+    o.append(p.line([(a / 1e6, abs(Hm(f0 + a, fu))) for a in fs], c=PUR, lw=2.0))
+    o.append(p.line([(a / 1e6, abs(Hm(f0 + a, fv))) for a in fs], c=TEA, lw=2.0))
+    o.append(D(p.X(0), p.Y(1 / math.sqrt(2)), INK, 3.6))
+    o.append(T(p.X((fu - f0) / 1e6) - 3, p.Y(1.0) - 4, "u", "end", 10, PUR, True, halo=True))
+    o.append(T(p.X((fv - f0) / 1e6) + 3, p.Y(1.0) - 4, "v", "start", 10, TEA, True, halo=True))
+    o.append(T(p.X(0), p.Y(0.2), "L1: どちらも 0.71、", "middle", 9.5, INK, True, halo=True))
+    o.append(T(p.X(0), p.Y(0.2) + 13, "位相 −45° と +45°", "middle", 9.5, INK, True, halo=True))
+    q = Plot(xc + 30, 146, 200, 92, (-25, 25), (0, 20))
     o.append(q.axes(xl="L1 からの周波数 [MHz]", yl="軸比 [dB]", xt=[-20, -10, 0, 10, 20], yt=[0, 3, 10, 20], xfmt=_f08_m, yfmt=_f08_m))
     def arr(f):
-        Ex = Hm(f, f0 * (1 - Dl)) + Hm(f, f0 * (1 + Dl)); Ey = Hm(f, f0 * (1 - Dl)) - Hm(f, f0 * (1 + Dl))
+        Ex = Hm(f, fu) + Hm(f, fv); Ey = Hm(f, fu) - Hm(f, fv)
         aR = abs(Ex + 1j * Ey) / math.sqrt(2); aL = abs(Ex - 1j * Ey) / math.sqrt(2)
         return 20 * math.log10((aR + aL) / max(abs(aR - aL), 1e-12))
-    o.append(RECT(q.X(-2.7), q.y, q.X(2.7) - q.X(-2.7), q.h, 0, GSOFT, "none", 0, op=0.7))
+    fine = np.linspace(-6e6, 6e6, 2401)
+    ok = [a for a in fine if arr(f0 + a) <= 3.0]
+    b0, b1 = min(ok) / 1e6, max(ok) / 1e6
+    o.append(RECT(q.X(b0), q.y, q.X(b1) - q.X(b0), q.h, 0, GSOFT, "none", 0, op=0.7))
     o.append(q.clip([(a / 1e6, arr(f0 + a)) for a in fs], c=SIG, lw=2.2))
     o.append(W(q.x, q.Y(3), q.x + q.w, q.Y(3), c=MUT, lw=1, dash="3 3"))
-    o.append(T(q.X(0), q.y + 13, "3 dB 以下: 5.4 MHz", "middle", 9.5, GRN, True, halo=True))
-    o.append(T(xc - 8, 290, "2 つのモードの周波数を f₀/Q だけ離すと、", "start", 9.5, INK))
+    o.append(T(q.X(0), q.y + 13, "3 dB 以下: %.1f MHz" % (b1 - b0), "middle", 9.5, GRN, True, halo=True))
+    o.append(TX(xc - 8, 290, "2 つのモードの周波数を f_0/Q だけ離すと、", "start", 9.5, INK))
     o.append(T(xc - 8, 306, "L1 で振幅が等しく位相が 90° ずれる", "start", 9.5, INK))
-    return SVG(700, 316, o, "パッチを円偏波にする 2 つの方法（形は例）。(a) 縦と横の 2 つのモード（定在波の向き）を 2 つの給電点で別々に起こし、一方を 90° 遅らせる。(b) 1 点で給電し、パッチの 2 つの角を切ると、対角の向きの 2 つのモードの周波数がわずかに離れ、L1 で 90° ずれる。(c) 共振の鋭さ Q = 100（例の値）のとき、2 つのモードの周波数を f₀/Q = 15.75 MHz 離すと、L1 で位相の差が 90° になり、軸比が 0 dB になる。L1 から離れると軸比が悪くなり、3 dB 以下に保てるのは 5.4 MHz の幅である。")
+    return SVG(700, 316, o, "パッチを円偏波にする 2 つの方法（形は例）。(a) 縦と横の 2 つのモード（定在波の向き）を 2 つの給電点で別々に起こし、一方を 90° 遅らせる。(b) 1 点で給電し、パッチの 2 つの角を切ると、対角の向きの 2 つのモードの共振周波数がわずかに離れる。(c) 共振の鋭さ Q = 100（例の値）のとき、2 つのモードの共振周波数を f<sub>0</sub>/Q = 15.75 MHz 離すと、L1 はどちらのモードにとっても振幅が 1/√2 になる周波数で、位相が −45° と +45°（差 90°）になり、軸比が 0 dB になる。L1 から離れると軸比が悪くなり、3 dB 以下に保てるのは %.1f MHz の幅である。" % (b1 - b0))
 F["e08_cpfeed"] = _f08_cpfeed_fig()
+
+
+def _f08_gpidea_fig():
+    o = []
+    np = _f08_np
+    # (a) 無限の地板
+    o.append(T(14, 18, "(a) 無限に大きい地板", "start", 11.5, INK, True))
+    yg, cx = 150, 180
+    o.append(W(34, yg, 326, yg, c=MUT, lw=2.4))
+    o.append(W(16, yg, 34, yg, c=MUT, lw=2.4, dash="2 4")); o.append(W(326, yg, 344, yg, c=MUT, lw=2.4, dash="2 4"))
+    for r in (34, 60, 86, 112):
+        o.append(PL(_f08_arc(cx, yg - 4, r, 2, 178), c=SIG, lw=1.3))
+    o.append(_f08_patchicon(cx, yg - 2, 36))
+    for sx in (-1, 1):
+        x_ = cx + sx * 132
+        o.append(DARR(x_, yg - 30, x_, yg - 4, c=PUR, lw=2.0, head=5))
+    o.append(T(cx + 132, yg - 38, "残る", "middle", 9.5, PUR, True, halo=True))
+    o.append(T(cx, 40, "電波は上の半分だけに出る", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(cx, yg + 26, "地板（どこまでも続く）", "middle", 9.5, MUT, True))
+    o.append(T(cx, yg + 46, "下の半分には出ない", "middle", 9.5, MUT))
+    o.append(T(30, yg - 38, "地平線の向きでも", "start", 9.5, PUR, True, halo=True))
+    o.append(T(30, yg - 24, "垂直の成分は", "start", 9.5, PUR, True, halo=True))
+    # (b) 有限の地板
+    xb = 362
+    o.append(W(352, 30, 352, 196, c=LIN, lw=0.8))
+    o.append(T(xb, 18, "(b) 有限の地板: 縁で回り込む（回折）", "start", 11.5, INK, True))
+    cxb, x0, x1 = 525, 455, 595
+    o.append(W(x0, yg, x1, yg, c=MUT, lw=2.4))
+    for r in (34, 60):
+        o.append(PL(_f08_arc(cxb, yg - 4, r, 2, 178), c=SIG, lw=1.3))
+    for xe, a0, a1 in ((x0, 95, 355), (x1, -175, 85)):
+        for r in (14, 28, 42):
+            o.append(PL(_f08_arc(xe, yg, r, a0, a1), c=ALI, lw=1.2, dash="4 3"))
+        o.append(D(xe, yg, ALI, 3.2))
+    o.append(_f08_patchicon(cxb, yg - 2, 36))
+    o.append(T(cxb, 40, "上へ出る電波（直接）", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(x0 - 6, yg + 62, "縁で回り込んだ電波", "middle", 9.5, ALI, True, halo=True))
+    o.append(T(x0 - 6, yg + 76, "（下へも漏れる）", "middle", 9.5, ALI, True, halo=True))
+    o.append(T(x1 + 52, yg - 26, "地平線: 約半分", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(x1 + 52, yg - 12, "（−6 dB）", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(cxb + 6, yg + 26, "地板", "middle", 9.5, MUT, True))
+    # (c) 地平線の前後の電界
+    yc = 238
+    o.append(T(14, yc - 14, "(c) 地平線の前後の、垂直の成分の電界（2 次元の近似）", "start", 11.5, INK, True))
+    p = Plot(60, yc, 290, 100, (-40, 40), (0, 1.25))
+    o.append(p.axes(xl="仰角 θ [°]", yl="電界", xt=[-40, -20, 0, 20, 40], yt=[0, 0.5, 1], xfmt=_f08_m, yfmt=_f08_m))
+    elI, dI = _f08_gp(None); el7, d7 = _f08_gp(70)
+    ref = dI[list(elI).index(1.0)]
+    def amp(dv):
+        return 10 ** ((dv - ref) / 20)
+    pin = [(e, 0.0) for e in range(-40, 0)] + [(0, 0.0)] + [(e, amp(v)) for e, v in zip(elI, dI) if 0 <= e <= 40]
+    o.append(p.line(pin, c=MUT, lw=2.0, dash="5 3"))
+    o.append(p.line([(e, amp(v)) for e, v in zip(el7, d7) if -40 <= e <= 40], c=SIG, lw=2.4))
+    a0 = amp(d7[list(el7).index(0.0)])
+    o.append(D(p.X(0), p.Y(a0), GLD, 4.2))
+    o.append(T(p.X(0) + 7, p.Y(a0) + 4, "%.2f（%s dB）" % (a0, _f08_f(20 * math.log10(a0), 1)), "start", 9.5, GLD, True, halo=True))
+    o.append(LEGL(390, yc + 6, [(MUT, "5 3", "無限の地板（地平線で段差）"), (SIG, None, "地板 70 mm（なめらか）")], 9.5, 16))
+    o.append(T(390, yc + 56, "縁で回り込んだ電波が段差をならし、", "start", 9.5, INK))
+    o.append(T(390, yc + 72, "境目（地平線）でほぼ半分になる。", "start", 9.5, INK))
+    o.append(T(390, yc + 92, "下の半分にも電波が回り込む", "start", 9.5, ALI, True))
+    o.append(T(390, yc + 108, "→ 真下の向きの後ろのローブ", "start", 9.5, ALI, True))
+    return SVG(700, 380, o, "地板の働き。(a) 地板が無限に大きいと、下へ向かう電波は地板で跳ね返り、電波は上の半分だけに出る。地平線の向き（地板に沿う向き）でも、地板に垂直な成分は残る（1 節）。(b) 地板が有限だと、地板に沿って進む電波が縁で回り込み（回折）、縁を中心に広がる。(c) 地平線の前後の、垂直の成分の電界（地板が無限のときの、地平線のすぐ上の値を 1 とした。パッチは例の比誘電率 20 のもの。地板の奥行きを無限とした 2 次元の計算で、モーメント法による）。無限の地板では地平線を境に電界が急に 0 になるが、有限の地板では縁で回り込んだ電波が段差をならし、地平線でほぼ半分（約 −6 dB）になる。")
+F["e08_gpidea"] = _f08_gpidea_fig()
+
+
+def _f08_gpsize_fig():
+    o = []
+    np = _f08_np
+    o.append(T(14, 18, "(a) 地板の大きさとパターン（2 次元の近似）", "start", 11.5, INK, True))
+    cx, cy, R = 186, 180, 128
+    gmin, gmax = -25.0, 5.0
+    o.append(_f08_polar(cx, cy, R, gmin, gmax, [-20, -10, 0], full=True, lab=True, unit="[dB]"))
+    o.append(T(cx, cy - R - 16, "真上", "middle", 9.5, INK, True))
+    o.append(T(cx, cy + R + 16, "真下", "middle", 9.5, INK, True))
+    o.append(T(cx - R - 10, cy + 4, "地平線", "end", 9.5, INK, True))
+    o.append(T(cx + R + 10, cy + 4, "地平線", "start", 9.5, INK, True))
+    sets = [(None, MUT, "5 3", "無限"), (50, ALI, None, "50 mm"), (70, GLD, None, "70 mm"), (150, GRN, None, "150 mm")]
+    for sz, c, da, nm in sets:
+        els, dv = _f08_gp(sz)
+        if sz is None:
+            sel = [(e, v) for e, v in zip(els, dv) if e >= 0]
+        else:
+            sel = list(zip(els, dv))
+        ee = [a for a, _ in sel]; vv = [b for _, b in sel]
+        for side in (1, -1):
+            o.append(PL(_f08_ppts(cx, cy, R, gmin, gmax, ee, vv, side), c=c, lw=2.0 if sz else 1.6, dash=da))
+    o.append(LEGL(30, 342, [(MUT, "5 3", "無限"), (ALI, None, "50 mm"), (GLD, None, "70 mm"), (GRN, None, "150 mm")], 9.5, 14))
+    o.append(T(30, 366, "地板の一辺。無限の地板の真上を 0 dB にした", "start", 9.5, MUT))
+    # (b) 大きさと、真上・地平線・真下
+    xb = 392
+    o.append(T(xb, 18, "(b) 地板の一辺と、向きごとの値", "start", 11.5, INK, True))
+    p = Plot(xb + 46, 44, 230, 210, (30, 200), (-16, 5))
+    o.append(p.axes(xl="地板の一辺 [mm]", yl="[dB]（無限の地板の真上を 0）", xt=[30, 50, 70, 100, 150, 200], yt=[-15, -10, -5, 0, 5], xfmt=_f08_m, yfmt=_f08_m))
+    rows = []
+    for s in _F08_GPS:
+        els, dv = _f08_gp(s); L = list(els)
+        rows.append((s, dv[L.index(90.0)], dv[L.index(0.0)], dv[L.index(-90.0)]))
+    o.append(W(p.X(70), p.y, p.X(70), p.y + p.h, c=MUT, lw=1, dash="3 3"))
+    o.append(T(p.X(70) + 4, p.y + 12, "70 mm", "start", 9.5, MUT, False, halo=True))
+    for k, c, nm, dy in ((1, SIG, "真上", -8), (2, GLD, "地平線", -8), (3, ALI, "真下", 14)):
+        o.append(p.line([(r[0], r[k]) for r in rows], c=c, lw=2.2))
+        for r in rows:
+            o.append(D(p.X(r[0]), p.Y(r[k]), c, 2.6))
+        o.append(T(p.X(200) - 2, p.Y(rows[-1][k]) + dy, nm, "end", 9.5, c, True, halo=True))
+    for s in (50, 150):
+        r = [q for q in rows if q[0] == s][0]
+        o.append(DARR(p.X(s), p.Y(r[1]) + 3, p.X(s), p.Y(r[3]) - 3, c=INK, lw=1.0, head=5))
+        o.append(T(p.X(s) + 5, (p.Y(r[1]) + p.Y(r[3])) / 2 + 4, "前後比 %.1f dB" % (r[1] - r[3]), "start", 9.5, INK, True, halo=True))
+    o.append(T(xb, 300, "大きい地板ほど真下へ漏れる電波（後ろのローブ）が", "start", 9.5, INK))
+    o.append(T(xb, 316, "小さく、真上が強い。地平線は大きさによらず約 −6 dB", "start", 9.5, INK))
+    o.append(T(xb, 336, "（1 波長 = 190 mm より大きいと、大きさの効き方が", "start", 9.5, MUT))
+    o.append(T(xb, 352, "小さくなる）", "start", 9.5, MUT))
+    return SVG(700, 376, o, "地板の大きさによるパターンの違い（例の比誘電率 20 のパッチを、正方形の地板の中心に置いた。地板の奥行きを無限とした 2 次元のモーメント法の計算で、パッチの 2 つの縁を通る切り口の、地板に垂直な成分。値は無限の地板の真上に対する [dB]）。(a) 地板が小さいほど、真下へ漏れる電波（後ろのローブ）が大きく、真上が弱い。(b) 真上・地平線・真下の値と、地板の一辺。真上と真下の差（前後比）は、地板 50 mm で 3.1 dB、150 mm で 13.7 dB。地平線の値は、地板の大きさによらず、無限の地板のときより約 6 dB 低い。実際の 3 次元の地板では値が変わるので、傾向として見る。")
+F["e08_gpsize"] = _f08_gpsize_fig()
