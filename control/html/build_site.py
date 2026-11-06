@@ -79,6 +79,8 @@ def fix_href(h):
     m = re.match(r"^(\d\d)_[^#)]*\.md(#.*)?$", h)
     if m: return m.group(1) + ".html" + (m.group(2) or "")
     m = re.match(r"^\.\./(\w+)/(\d\d)_[^#)]*\.md(#.*)?$", h)
+    if m and m.group(2) == "00" and not os.path.exists(os.path.join(SRC, "..", m.group(1), "html", "00.html")):
+        return "../../%s.html%s" % (m.group(1), m.group(3) or "")   # シリーズの目次は入口ページ（例 periph.html）
     if m: return "../../%s/html/%s.html%s" % (m.group(1), m.group(2), m.group(3) or "")
     return h
 
