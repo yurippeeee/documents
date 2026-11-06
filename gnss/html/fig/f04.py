@@ -267,7 +267,7 @@ def _f04_image_fig():
     o.append(T(s_.X(4.092), s_.Y(1.0) - 6, "L1 → +4.092", "middle", 9, SIG, True))
     o.append(T(s_.X(-4.092), s_.Y(1.0) - 6, "イメージ → −4.092", "middle", 9, TEA, True))
     o.append(T(s_.X(-4.092), s_.Y(0.45), "取り除ける", "middle", 9, TEA, False, halo=True))
-    return SVG(700, 400, o, "イメージ周波数（例の値: 局部発振器 1571.328 MHz、中間周波数 4.092 MHz）。(a) 局部発振器を挟んで L1 の反対側 4.092 MHz にある 1567.236 MHz が、イメージ周波数である。そこに信号は無いが、雑音は L1 のまわりと同じ密度で入る。(b) cos だけで混合すると、L1 の雑音とイメージの雑音が同じ中間周波数に重なり、雑音の密度が 2 倍（+3.0 dB）になる。(c) 混合器の前でイメージを A dB 弱めると、C/N0 の減りは 10 log₁₀(1 + 10^(−A/10)) dB で、20 dB 弱めれば 0.04 dB になる。(d) cos と sin の 2 つの出力を複素数とみなすと、L1 は正の周波数、イメージは負の周波数に分かれる。")
+    return SVG(700, 400, o, "イメージ周波数（例の値: 局部発振器 1571.328 MHz、中間周波数 4.092 MHz）。(a) 局部発振器を挟んで L1 の反対側 4.092 MHz にある 1567.236 MHz が、イメージ周波数である。そこに信号は無いが、雑音は L1 のまわりと同じ密度で入る。(b) cos だけで混合すると、L1 の雑音とイメージの雑音が同じ中間周波数に重なり、雑音の密度が 2 倍（+3.0 dB）になる。(c) 混合器の前でイメージを A dB 弱めると、C/N0 の減りは 10 log₁₀(1 + 10<sup>−A/10</sup>) dB で、20 dB 弱めれば 0.04 dB になる。(d) cos と sin の 2 つの出力を複素数とみなすと、L1 は正の周波数、イメージは負の周波数に分かれる。")
 F["e04_image"] = _f04_image_fig()
 
 
@@ -397,7 +397,7 @@ def _f04_alias_fig():
         o.append(TX(r.x, r.y - 4, lab, "start", 9.5, c, True))
         o.append(TX(r.X(fsv / 2) + 3, r.y + r.h - 4, "f_s/2", "start", 9, MUT, False, True) if fsv != 8.184 else "")
     o.append(TX(680, 238 + 2 * 76 + 80, "周波数 [MHz]（灰色: 0〜f_s/2、破線: f_s/2 の整数倍）", "end", 9.5, MUT))
-    return SVG(700, 482, o, "標本をとると周波数が折り返す（例の値: 中間周波数 4.092 MHz、帯域の幅 2.046 MHz）。(a) 4.092 MHz の正弦波を 5.456 MHz で標本にした点は、1.364 MHz の正弦波の上にも乗り、標本の列では区別できない。(b) 帯域が f_s/2 ごとの 1 つの区間に入るサンプリング周波数（緑）なら、折り返しても帯域は自分と重ならない。(c) 16.368 MHz ではそのまま、5.456 MHz では裏返って低い周波数に見える。8.184 MHz では、中間周波数が f_s/2 に来て、帯域の上と下の半分が重なる。")
+    return SVG(700, 482, o, "標本をとると周波数が折り返す（例の値: 中間周波数 4.092 MHz、帯域の幅 2.046 MHz）。(a) 4.092 MHz の正弦波を 5.456 MHz で標本にした点は、1.364 MHz の正弦波の上にも乗り、標本の列では区別できない。(b) 帯域が f<sub>s</sub>/2 ごとの 1 つの区間に入るサンプリング周波数（緑）なら、折り返しても帯域は自分と重ならない。(c) 16.368 MHz ではそのまま、5.456 MHz では裏返って低い周波数に見える。8.184 MHz では、中間周波数が f<sub>s</sub>/2 に来て、帯域の上と下の半分が重なる。")
 F["e04_alias"] = _f04_alias_fig()
 
 
@@ -555,7 +555,7 @@ F["e04_qloss"] = _f04_qloss_fig()
 # =====================================================================
 def _f04_nco_fig():
     o = []
-    o.append(T(14, 17, "(a) 位相のレジスタ（1 周期 = 2^32）", "start", 11, INK, True))
+    o.append(TX(14, 17, "(a) 位相のレジスタ（1 周期 = 2^{32}）", "start", 11, INK, True))
     p = Plot(56, 40, 196, 150, (0, 20), (0, 1.05))
     o.append(p.axes(xl="標本の番号 k", yl="位相 [周期]", xt=[0, 4, 8, 12, 16, 20], yt=[0, 0.25, 0.5, 0.75, 1], yfmt=_f04_m))
     for frac, c in ((0.25, SIG), (0.3, PUR)):
@@ -568,8 +568,8 @@ def _f04_nco_fig():
             a, b = pts[k], pts[k + 1]
             if b[1] > a[1]:
                 o.append(W(p.X(a[0]), p.Y(a[1]), p.X(b[0]), p.Y(b[1]), c=c, lw=1.2))
-    o.append(T(p.x + 2, p.y + p.h + 44, "青: K = 2^30（1/4 周期ずつ）", "start", 9.5, SIG, True))
-    o.append(T(p.x + 2, p.y + p.h + 58, "紫: K = 0.3 × 2^32（0.3 周期ずつ）", "start", 9.5, PUR, True))
+    o.append(TX(p.x + 2, p.y + p.h + 44, "青: K = 2^{30}（1/4 周期ずつ）", "start", 9.5, SIG, True))
+    o.append(TX(p.x + 2, p.y + p.h + 58, "紫: K = 0.3 × 2^{32}（0.3 周期ずつ）", "start", 9.5, PUR, True))
     # (b) cos の表を引いた値
     o.append(T(290, 17, "(b) 位相で cos の表を引く", "start", 11, INK, True))
     q = Plot(312, 40, 176, 150, (0, 20), (-1.2, 1.2))
@@ -582,7 +582,7 @@ def _f04_nco_fig():
     o.append(TX(q.x + 2, q.y + q.h + 44, "青: 4.092 MHz（f_s/4）", "start", 9.5, SIG, True))
     o.append(TX(q.x + 2, q.y + q.h + 58, "紫: 4.910 MHz（0.3 f_s）", "start", 9.5, PUR, True))
     # (c) 符号の NCO
-    o.append(T(512, 17, "(c) 符号の NCO（K = 2^28）", "start", 11, INK, True))
+    o.append(TX(512, 17, "(c) 符号の NCO（K = 2^{28}）", "start", 11, INK, True))
     r = Plot(540, 40, 140, 150, (0, 48), (0, 3.2))
     o.append(r.axes(xl="標本の番号 k", yl=None, xt=[0, 16, 32, 48], yt=[0, 1, 2, 3], yfmt=_f04_m))
     o.append(r.steps([(k, (k // 16)) for k in range(49)], c=GLD, lw=2.0))
@@ -601,7 +601,7 @@ def _f04_nco_fig():
         yy = y0 + 28 + i * 17
         o.append(T(30, yy, a, "start", 9.5, MUT))
         o.append(TX(300, yy, b, "start", 9.5, INK, True))
-    return SVG(700, 352, o, "NCO（数値制御発振器、f_s = 16.368 MHz の例）。(a) 標本ごとにレジスタに K を足し、あふれた桁を捨てると、位相が一定の速さで増える。K が大きいほど速く回り、周波数が高い。(b) 位相で cos と sin の表を引いた値が、局部の搬送波になる。(c) 符号の NCO は、位相の整数部をチップの番号として数え、C/A 符号の表を引く（PRN 1 の最初の 3 チップ）。")
+    return SVG(700, 352, o, "NCO（数値制御発振器、f<sub>s</sub> = 16.368 MHz の例）。(a) 標本ごとにレジスタに K を足し、あふれた桁を捨てると、位相が一定の速さで増える。K が大きいほど速く回り、周波数が高い。(b) 位相で cos と sin の表を引いた値が、局部の搬送波になる。(c) 符号の NCO は、位相の整数部をチップの番号として数え、C/A 符号の表を引く（PRN 1 の最初の 3 チップ）。")
 F["e04_nco"] = _f04_nco_fig()
 
 
@@ -707,7 +707,7 @@ def _f04_iq_fig():
     dfs = _f04_np.linspace(0, 1000, 201)
     cur = [(float(_f04_np.sinc(f * 1e-3)) * math.cos(math.pi * f * 1e-3), -float(_f04_np.sinc(f * 1e-3)) * math.sin(math.pi * f * 1e-3)) for f in dfs]
     o.append(q.line(cur, c=PUR, lw=1.8))
-    for f, off in ((0, (6, -8)), (250, (8, -6)), (500, (8, 16)), (750, (-8, 14))):
+    for f, off in ((0, (-4, -10)), (250, (8, -6)), (500, (8, 16)), (750, (-8, 14))):
         sc = float(_f04_np.sinc(f * 1e-3)); I_ = sc * math.cos(math.pi * f * 1e-3); Q_ = -sc * math.sin(math.pi * f * 1e-3)
         o.append(D(q.X(I_), q.Y(Q_), PUR, 4))
         o.append(T(q.X(I_) + off[0], q.Y(Q_) + off[1], "%d Hz（%.2f）" % (f, sc), "start" if off[0] > 0 else "end", 9, PUR, True, halo=True))
@@ -725,7 +725,7 @@ def _f04_iq_fig():
     o.append(T(r.X(0.0), r.Y(-0.5), "L", "middle", 9, GLD, True, halo=True))
     o.append(T(530, 284, "Δτ = +0.25 チップ、Δψ = 30°、60 回", "start", 9, MUT))
     o.append(T(530, 298, "○: 式の値、点: 標本からの計算", "start", 9, MUT))
-    return SVG(700, 312, o, "相関器の出力 I・Q を平面の点として見る（√(2C) = 1、積分の時間 1 ms）。(a) 搬送波の位相のずれ Δψ は点を回し、データのビットが −1 になると点は原点の反対側に移る。(b) 周波数のずれは、点を sinc(Δf T_coh) 倍に縮め、平均の位相 πΔf T_coh だけ回す。1 kHz で 0 になる。(c) C/N0 = 45 dB-Hz の雑音を足した中間周波数の標本（16.368 MHz、PRN 1）から計算した E・P・L の点（局部の符号が 0.25 チップ遅れ、位相が 30° ずれている場合）。雑音の散らばりの標準偏差は、I と Q のそれぞれで √(N₀/T_coh) = 0.126 である。")
+    return SVG(700, 312, o, "相関器の出力 I・Q を平面の点として見る（√(2C) = 1、積分の時間 1 ms）。(a) 搬送波の位相のずれ Δψ は点を回し、データのビットが −1 になると点は原点の反対側に移る。(b) 周波数のずれは、点を sinc(Δf T<sub>coh</sub>) 倍に縮め、平均の位相 πΔf T<sub>coh</sub> だけ回す。1 kHz で 0 になる。(c) C/N0 = 45 dB-Hz の雑音を足した中間周波数の標本（16.368 MHz、PRN 1）から計算した E・P・L の点（局部の符号が 0.25 チップ遅れ、位相が 30° ずれている場合）。雑音の散らばりの標準偏差は、I と Q のそれぞれで √(N₀/T<sub>coh</sub>) = 0.126 である。")
 F["e04_iq"] = _f04_iq_fig()
 
 
@@ -908,19 +908,20 @@ def _f04_bank_fig():
             o.append(T(253 + k * 68, yy + 24, lab, "middle", 9, INK))
         o.append(ARR(430, yy + 20, 470, yy + 20, c=SIG, lw=1.4))
     o.append(T(450, 36, "6 つの数", "middle", 9.5, SIG, True))
-    o.append(T(450, 290, "1 ms ごと", "middle", 9.5, SIG, True))
+    o.append(T(484, 298, "1 ms ごと", "start", 9.5, SIG, True))
     o.append(RECT(470, 44, 8, 240, 2, SSOFT, SIG, 1.0))
     o.append(ARR(478, 160, 520, 160, c=SIG, lw=2.0))
     _f04_box(o, 520, 116, 166, 88, "CPU のプログラム", "追尾・擬似距離・位置", PUR, "5・6 章")
-    o.append(W(603, 204, 603, 236, 400, 236, c=GLD, lw=1.5, dash="5 3"))
-    o.append(T(596, 230, "NCO の K を書き込む", "end", 9.5, GLD, True, halo=True))
+    o.append(W(603, 116, 603, 18, 330, 18, c=GLD, lw=1.5, dash="5 3"))
+    o.append(ARR(330, 18, 330, 42, c=GLD, lw=1.5, head=6))
+    o.append(T(600, 13, "全部のチャネルの NCO の K を書き込む", "end", 9.5, GLD, True, halo=True))
     # 計算の量
     y0 = 318
     o.append(W(14, y0 - 12, 686, y0 - 12, c=LIN, lw=0.8))
     o.append(T(14, y0 + 4, "1 秒あたりの計算（16.368 MHz、12 チャネル）", "start", 10.5, INK, True))
     o.append(T(30, y0 + 24, "相関器（回路）: 6 × 1636.8 万 × 12 ≈ 12 億回の「掛けて足す」", "start", 9.5, PUR, True))
     o.append(T(30, y0 + 42, "プログラム: 6 × 1000 × 12 = 7.2 万個の数から、ずれと擬似距離を計算する", "start", 9.5, GRN, True))
-    return SVG(700, 372, o, "チャネルの並び。全部のチャネルが、A/D 変換の同じ標本の列を使う。チャネルごとに、搬送波の NCO・符号の NCO（PRN 番号）・E・P・L の相関器を持ち、1 ms ごとに 6 つの数（I_E・Q_E・I_P・Q_P・I_L・Q_L）を CPU のプログラムに渡す。プログラムはずれを計算して、NCO の K を書き込む。回数の多い単純な計算は回路で、回数の少ない複雑な計算はプログラムで行う。")
+    return SVG(700, 372, o, "チャネルの並び。全部のチャネルが、A/D 変換の同じ標本の列を使う。チャネルごとに、搬送波の NCO・符号の NCO（PRN 番号）・E・P・L の相関器を持ち、1 ms ごとに 6 つの数（I<sub>E</sub>・Q<sub>E</sub>・I<sub>P</sub>・Q<sub>P</sub>・I<sub>L</sub>・Q<sub>L</sub>）を CPU のプログラムに渡す。プログラムはずれを計算して、NCO の K を書き込む。回数の多い単純な計算は回路で、回数の少ない複雑な計算はプログラムで行う。")
 F["e04_bank"] = _f04_bank_fig()
 
 
@@ -931,7 +932,7 @@ def _f04_module_fig():
     o = []
     o.append(RECT(10, 10, 680, 330, 12, "none", MUT, 1.2, dash="6 4"))
     o.append(T(22, 30, "機器の基板（自分で設計する）", "start", 10.5, INK, True))
-    o.append(RECT(130, 44, 420, 250, 10, SOFT[GLD], GLD, 1.4))
+    o.append(RECT(130, 44, 420, 264, 10, SOFT[GLD], GLD, 1.4))
     o.append(T(142, 64, "モジュール（例）", "start", 10.5, GLD, True))
     o.append(RECT(146, 76, 286, 206, 8, PAN, SIG, 1.5))
     o.append(T(158, 96, "受信用のチップ", "start", 10.5, SIG, True))
@@ -949,7 +950,7 @@ def _f04_module_fig():
         o.append(RECT(442, yy, 98, 34, 6, PAN, GLD, 1.1))
         o.append(T(491, yy + 15, a, "middle", 9.5, INK, True))
         o.append(T(491, yy + 28, b, "middle", 8.5, MUT))
-    o.append(T(345, 288, "金属のふた（シールド）をかぶせる", "middle", 9, GLD))
+    o.append(T(289, 300, "金属のふた（シールド）をかぶせる", "middle", 9, GLD))
     # 外
     o.append(_f04_ant(64, 70))
     o.append(T(64, 112, "アンテナ", "middle", 9.5, GLD, True))
@@ -972,12 +973,14 @@ F["e04_module"] = _f04_module_fig()
 # =====================================================================
 def _f04_split_fig():
     o = []
-    cols = ["アンテナ", "LNA・フィルタ", "RF フロントエンド・A/D", "相関器・追尾", "位置の計算", "出力・設定"]
+    cols = ["アンテナ", "LNA・|フィルタ", "RF フロント|エンド・A/D", "相関器・|追尾", "位置の|計算", "出力・|設定"]
     rows = [("アンテナ付きのモジュール", [1, 1, 1, 1, 1, 0]), ("モジュール + 外付けのアンテナ", [0, 0, 1, 1, 1, 0]),
             ("受信用のチップを載せる", [0, 0, 1, 1, 1, 0]), ("ソフトウェア受信機", [0, 0, 1, 2, 2, 2])]
-    x0, cw, rh, y0 = 190, 82, 34, 40
+    x0, cw, rh, y0 = 190, 82, 34, 46
     for j, c in enumerate(cols):
-        o.append(T(x0 + j * cw + cw / 2, y0 - 8, c, "middle", 9, INK, True))
+        ls = c.split("|")
+        for q, ln in enumerate(ls):
+            o.append(T(x0 + j * cw + cw / 2, y0 - 8 - (len(ls) - 1 - q) * 13, ln, "middle", 9, INK, True))
     col = {0: (GLD, "設計する"), 1: (SIG, "部品に任せる"), 2: (PUR, "プログラム")}
     for i, (nm, v) in enumerate(rows):
         yy = y0 + i * (rh + 8)
