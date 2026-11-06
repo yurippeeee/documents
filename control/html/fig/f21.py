@@ -973,14 +973,18 @@ F["e21_fixed"] = _f21_fixed_fig()
 # =====================================================================
 # 5 節: 力の上限で立て直せる傾き
 # =====================================================================
-def _f21_maxtilt(**kw):
-    """力の上限 5 N で、静かに放して立て直せる初めの傾き [°]（2 分法。6 s 後に角度 1° 以内・台車 5 cm 以内なら立て直せた）。"""
-    lo, hi = 15.0, 36.0
-    for _ in range(13):
+def _f21_maxtilt(rail=None, **kw):
+    """力の上限 5 N で、静かに放して立て直せる初めの傾き [°]（2 分法。6 s 後に角度 1° 以内・台車 5 cm 以内なら立て直せた。
+    rail を与えると、台車がその位置 [m] に届いた場合も立て直せなかったとする）。"""
+    lo, hi = 10.0, 36.0
+    for _ in range(14):
         mid = (lo + hi) / 2
         r = _f21_run(T=6.0, x0=(0, 0, mid * _F21_D, 0), stop_deg=89.0, **kw)
         xe = r["x"][-1]
-        if r["fell"] is None and abs(xe[2]) < _F21_D and abs(xe[0]) < 0.05:
+        ok = r["fell"] is None and abs(xe[2]) < _F21_D and abs(xe[0]) < 0.05
+        if rail is not None and abs(r["x"][:, 0]).max() >= rail:
+            ok = False
+        if ok:
             lo = mid
         else:
             hi = mid
@@ -994,34 +998,40 @@ def _f21_sat_fig():
     vals = [("どんな制御器でも（18 章 4 節）", lim, MUT),
             ("極配置・すべてを測る", _f21_maxtilt(F=_F21_FPP, est="true", timing="A"), MUT),
             ("19 章の F・すべてを測る", _f21_maxtilt(est="true", timing="A"), SIG),
-            ("19 章の F・推定・1 ms (B)", _f21_maxtilt(H=H, Ad=Ad, Bd=Bd), ALI)]
+            ("4 節の制御器（推定・1 ms (B)）", _f21_maxtilt(H=H, Ad=Ad, Bd=Bd), SIG),
+            ("同じ・台車が 0.45 m に届かない", _f21_maxtilt(rail=0.45, H=H, Ad=Ad, Bd=Bd), GRN)]
     o.append(T(12, 18, "(a) 力の上限 5 N で立て直せる初めの傾き", "start", 11.5, INK, True))
-    x0, w = 210, 150
+    x0, w = 214, 300
     for i, (lab, v, c) in enumerate(vals):
-        y = 34 + i * 30
+        y = 30 + i * 26
         o.append(T(x0 - 8, y + 14, lab, "end", 9.5, INK))
-        o.append(RECT(x0, y + 2, w * v / 40, 18, 3, soft(c), c, 1.2))
+        o.append(RECT(x0, y + 2, w * v / 40, 17, 3, soft(c), c, 1.2))
         o.append(T(x0 + w * v / 40 + 5, y + 15, "%.1f°" % v, "start", 9.5, c, True))
-    o.append(W(x0 + w * 20 / 40, 30, x0 + w * 20 / 40, 34 + 4 * 30, c=GRN, lw=1.2, dash="4 3"))
-    o.append(T(x0 + w * 20 / 40, 34 + 4 * 30 + 12, "仕様 2: 20°", "middle", 9.5, GRN, True))
-    vmax = vals[3][1]
-    # (b) 推定・1 ms で、限界の前後から放す
-    o.append(T(12, 196, "(b) 19 章の F・推定・1 ms で、%.0f° と %.0f° から放す" % (math.floor(vmax - 1), math.ceil(vmax + 1)), "start", 11.5, INK, True))
-    Pa = Plot(66, 210, 270, 110, (0, 3), (-40, 90))
-    Pu = Plot(424, 210, 260, 110, (0, 3), (-6, 6))
-    o.append(Pa.axes(xl="時間 t [s]", yl="角度 φ [°]", xt=[0, 1, 2, 3], yt=[-30, 0, 30, 60, 90], yfmt=lambda v: ("%g" % v).replace("-", "−")))
-    o.append(Pu.axes(xl="時間 t [s]", yl="力 u [N]", xt=[0, 1, 2, 3], yt=[-5, 0, 5], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    yb = 30 + 5 * 26
+    o.append(W(x0 + w * 20 / 40, 28, x0 + w * 20 / 40, yb + 2, c=GRN, lw=1.2, dash="4 3"))
+    o.append(T(x0 + w * 20 / 40, yb + 14, "仕様 2: 20°", "middle", 9.5, GRN, True))
+    # (b) 4 節の制御器で、3 つの傾きから放す
+    yy = yb + 40
+    o.append(T(12, yy, "(b) 4 節の制御器で、20°・25°・28° から放す", "start", 11.5, INK, True))
+    Pa = Plot(56, yy + 14, 180, 110, (0, 3), (-40, 90))
+    Pp = Plot(286, yy + 14, 180, 110, (0, 3), (-0.2, 0.8))
+    Pu = Plot(516, yy + 14, 176, 110, (0, 3), (-6, 6))
+    fm = lambda v: ("%g" % v).replace("-", "−")
+    o.append(Pa.axes(xl="時間 t [s]", yl="角度 φ [°]", xt=[0, 1, 2, 3], yt=[-30, 0, 30, 60, 90], yfmt=fm))
+    o.append(Pp.axes(xl="時間 t [s]", yl="台車の位置 p [m]", xt=[0, 1, 2, 3], yt=[0, 0.25, 0.5, 0.75], yfmt=fm))
+    o.append(Pu.axes(xl="時間 t [s]", yl="力 u [N]", xt=[0, 1, 2, 3], yt=[-5, 0, 5], yfmt=fm))
     for v in (5, -5):
         o.append(W(Pu.x, Pu.Y(v), Pu.x + Pu.w, Pu.Y(v), c=ALI, lw=1, dash="4 3"))
-    for ang, c, dash in ((math.floor(vmax - 1), GRN, None), (math.ceil(vmax + 1), ALI, "5 3")):
+    o.append(W(Pp.x, Pp.Y(0.45), Pp.x + Pp.w, Pp.Y(0.45), c=ALI, lw=1, dash="4 3"))
+    o.append(T(Pp.x + Pp.w - 4, Pp.Y(0.45) - 5, "0.45 m: 安全のための停止", "end", 9, ALI, halo=True))
+    cases = ((20, GRN, None), (25, GLD, "6 3"), (28, ALI, "2 3"))
+    for ang, c, dash in cases:
         r = _f21_run(T=3.0, x0=(0, 0, ang * _F21_D, 0), H=H, Ad=Ad, Bd=Bd, stop_deg=89.0)
-        o.append(Pa.clip(list(zip(r["t"], r["x"][:, 2] / _F21_D)), c=c, lw=2, dash=dash))
-        o.append(Pu.clip(list(zip(r["t"], r["u"])), c=c, lw=1.6, dash=dash))
-        if r["fell"] is None:
-            o.append(T(Pa.X(3) - 4, Pa.Y(r["x"][-1, 2] / _F21_D) + 14, "%d°: 立て直す" % ang, "end", 9.5, c, True, halo=True))
-        else:
-            o.append(T(Pa.X(0.62), Pa.Y(-30), "%d°: 戻しすぎて反対側へ倒れる" % ang, "start", 9.5, c, True, halo=True))
-    return SVG(704, 362, o, cap="(a) 力の上限 5 N の下で、静かに放して立て直せる初めの傾き（線形でない式。「すべてを測る」は、測ってすぐ力を出す連続の計算とほぼ同じもの）。どんな制御器でも、傾きが (M + m) g tan φ = 5 N を超える角度からは戻せない。推定と 1 ms ごとの計算を入れても、すべての状態を測った連続の計算とほとんど変わらない。(b) 限界の前後の 2 つの傾きから放したときの角度と力。力は上限に張り付き、戻せない方は、張り付いている間に振子が勢いを付けて真上を通り過ぎ、反対側へ倒れる。")
+        o.append(Pa.clip(list(zip(r["t"], r["x"][:, 2] / _F21_D)), c=c, lw=1.8, dash=dash))
+        o.append(Pp.clip(list(zip(r["t"], r["x"][:, 0])), c=c, lw=1.8, dash=dash))
+        o.append(Pu.clip(list(zip(r["t"], r["u"])), c=c, lw=1.5, dash=dash))
+    o.append(LEGL(56, yy + 168, [(c, dash, "%d° から放す" % ang) for ang, c, dash in cases], sz=9.5, gap=14))
+    return SVG(704, yy + 178, o, cap="(a) 力の上限 5 N の下で、静かに放して立て直せる初めの傾き（線形でない式。「すべてを測る」は、測ってすぐ力を出す連続の計算とほぼ同じもの）。どんな制御器でも、傾きが (M + m) g tan φ = 5 N を超える角度からは戻せない。推定と 1 ms ごとの計算を入れても、すべての状態を測った計算とほとんど変わらない。上の 4 本は台車がどこまで動いてもよいとした値で、台車が 0.45 m に届く前に立て直すには、もっと小さい傾きでなければならない。(b) 3 つの傾きから放したときの角度・台車の位置・力。25° では台車がレールの端を越える。28° では、力が上限に張り付いている間に振子が真上を通り越し、反対側へ倒れる。")
 
 
 F["e21_sat"] = _f21_sat_fig()
@@ -1046,7 +1056,7 @@ def _f21_friction_fig():
     o.append(T(Pa.X(0.004), Pa.Y(0.12), "止まっている間は", "start", 9, ALI, halo=True))
     o.append(T(Pa.X(0.004), Pa.Y(0.12) + 12, "±0.3 N まで打ち消す", "start", 9, ALI, halo=True))
     o.append(T(Pa.X(0.098), Pa.Y(-0.3) - 6, "動いている間は 0.3 N", "end", 9, ALI, True, halo=True))
-    o.append(T(Pa.X(-0.098), Pa.Y(-0.43), "破線: 粘性摩擦", "start", 9, MUT, halo=True))
+    o.append(T(Pa.X(-0.098), Pa.Y(-0.43), "破線: 速さに比例する摩擦", "start", 9, MUT, halo=True))
     # (b) リミットサイクル
     o.append(T(370, 18, "(b) 摩擦 0.3 N で、2° から放す", "start", 11.5, INK, True))
     r = _f21_run(T=12.0, x0=(0, 0, 2 * _F21_D, 0), H=H, Ad=Ad, Bd=Bd, Fc=_F21_FC, every=5)
@@ -1088,7 +1098,7 @@ def _f21_friction_fig():
         amp = (rr["x"][sel, 0].max() - rr["x"][sel, 0].min()) / 2 * 1000
         o.append(D(Pe.X(fc), Pe.Y(amp), SIG, 3.6))
     o.append(T(Pe.x + 6, Pe.y + 12, "点: 数値計算　破線: 摩擦 ÷ |f₁|", "start", 9, MUT, halo=True))
-    return SVG(704, 392, o, cap="(a) クーロン摩擦は、動いている間は速さによらない一定の大きさで動きを妨げ、止まっている間は、その大きさまでの力を打ち消す。粘性摩擦（破線）は、遅いほど小さい。(b) 4 節の制御器（19 章の F と 20 章のカルマンフィルタ、1 ms）で、台車は止まっては動くことを繰り返し、振子も揺れ続ける。(c) 推定した速さの向きに、見込んだ摩擦を足すと、揺れは小さくなるが、多すぎると振子の揺れが増える。(d) 揺れの幅は摩擦の大きさにほぼ比例し、摩擦 ÷ 状態フィードバックの位置のゲインの 1.1 倍ほどである。")
+    return SVG(704, 392, o, cap="(a) クーロン摩擦は、動いている間は速さによらない一定の大きさで動きを妨げ、止まっている間は、その大きさまでの力を打ち消す。速さに比例する摩擦（2 章 2 節のダンパの力。破線）は、遅いほど小さい。(b) 4 節の制御器（19 章の F と 20 章のカルマンフィルタ、1 ms）で、台車は止まっては動くことを繰り返し、振子も揺れ続ける。(c) 推定した速さの向きに、見込んだ摩擦を足すと、揺れは小さくなるが、多すぎると振子の揺れが増える。(d) 揺れの幅は摩擦の大きさにほぼ比例し、摩擦 ÷ 状態フィードバックの位置のゲインの 1.1 倍ほどである。")
 
 
 F["e21_friction"] = _f21_friction_fig()
