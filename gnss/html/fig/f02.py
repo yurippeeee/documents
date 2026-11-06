@@ -275,8 +275,7 @@ def _f02_lfsr_fig():
     # ---- G1 ----
     y1 = 46
     _f02_reg(o, x0, y1, [1] * 10, hl=(3, 10), c=SIG)
-    o.append(T(60, y1 + 13, "G1", "start", 12, SIG, True))
-    o.append(TX(60, y1 + 28, "1 + x^3 + x^{10}", "start", 9.5, SIG))
+    o.append(T(60, y1 + 17, "G1", "start", 12, SIG, True))
     yb = y1 + 40
     for j in (3, 10):
         o.append(W(cx(j), y1 + 24, cx(j), yb, c=SIG, lw=1.4))
@@ -286,12 +285,12 @@ def _f02_lfsr_fig():
     o.append(W(138, yb - 8, 138, y1 + 12, c=SIG, lw=1.4))
     o.append(ARR(138, y1 + 12, x0, y1 + 12, c=SIG, lw=1.4, head=6))
     o.append(T(cx(6), yb + 13, "帰還のタップ: 3・10 段目", "middle", 9.5, SIG, False, halo=True))
+    o.append(TX(470, yb + 13, "規格の書き方 1 + x^3 + x^{10}", "start", 9.5, SIG))
     o.append(T(x0 + 10 * cw, y1 - 16, "1 クロックごとに 1 段ずつ右へ送る →", "end", 9, MUT))
     # ---- G2 ----
     y2 = 156
     _f02_reg(o, x0, y2, [1] * 10, hl=(2, 3, 6, 8, 9, 10), c=GRN)
-    o.append(T(60, y2 + 13, "G2", "start", 12, GRN, True))
-    o.append(TX(18, y2 + 50, "1 + x^2 + x^3 + x^6 + x^8 + x^9 + x^{10}", "start", 9.5, GRN))
+    o.append(T(60, y2 + 17, "G2", "start", 12, GRN, True))
     yb2 = y2 + 40
     for j in (2, 3, 6, 8, 9, 10):
         o.append(W(cx(j), y2 + 24, cx(j), yb2, c=GRN, lw=1.4))
@@ -301,6 +300,7 @@ def _f02_lfsr_fig():
     o.append(W(138, yb2 - 8, 138, y2 + 12, c=GRN, lw=1.4))
     o.append(ARR(138, y2 + 12, x0, y2 + 12, c=GRN, lw=1.4, head=6))
     o.append(T(cx(7) + 8, yb2 + 13, "帰還のタップ: 2・3・6・8・9・10 段目", "middle", 9.5, GRN, False, halo=True))
+    o.append(TX(470, yb2 + 13, "1 + x^2 + x^3 + x^6 + x^8 + x^9 + x^{10}", "start", 9.5, GRN))
     # ---- PRN 1 の 2 つの段（2・6）----
     ys = y2 - 22
     for j in (2, 6):
@@ -423,7 +423,8 @@ def _f02_chips_fig():
         if n > 0:
             o.append(RECT(p.X(L) - 9, p.Y(n), 18, p.Y(0.4) - p.Y(n), 2, SSOFT, SIG, 1.1))
             o.append(T(p.X(L), p.Y(n) - 4, str(n), "middle", 9, SIG, True, halo=True))
-        o.append(D(p.X(L), p.Y(256 / 2 ** (L - 1)), GLD, 3.0))
+        if 256 / 2 ** (L - 1) >= 0.4:
+            o.append(D(p.X(L), p.Y(256 / 2 ** (L - 1)), GLD, 3.0))
     o.append(T(p.x + p.w - 2, p.y + 10, "● 半分ずつ減る数（256, 128, 64, …）", "end", 9, GLD, True, halo=True))
     # 1 と 0 の数
     xr = 430
@@ -437,3 +438,344 @@ def _f02_chips_fig():
     o.append(T(xr, yd + 126, "コインを投げた列のように、ほぼ半々", "start", 9.5, MUT))
     return SVG(700, yd + 160, o, "C/A 符号（IS-GPS-200 の作り方で計算）。(a) PRN 1 と PRN 2 の最初の 18 チップ。0 を +1、1 を −1 として描いた。(b) 最初の 10 チップを 8 進数で書いた値は、規格の表の値と一致する。(c) 1 周期の 1023 チップには、目で分かる規則が見えない。(d) 同じ値が続く区間（連）の数は、長さが 1 増えるごとにほぼ半分になる。表と裏が等しく出るコインを投げた列と同じ傾向である。")
 F["e02_chips"] = _f02_chips_fig()
+
+
+# =====================================================================
+# 3 節: チップごとに掛けて足す（ずれ 0 とずれ 3）
+# =====================================================================
+def _f02_cellrow(o, x0, y, vals, cw=26, ch=18, kind="code", dashed=()):
+    for j, v in enumerate(vals):
+        if kind == "code":
+            fill, c, s, tc = (SSOFT, SIG, "+", SIG) if v > 0 else (PAN, LIN, "−", INK)
+        else:
+            fill, c, s, tc = (GSOFT, GRN, "+1", GRN) if v > 0 else (ASOFT, ALI, "−1", ALI)
+        o.append(RECT(x0 + j * cw, y, cw - 2, ch, 2, fill, c, 1.0, dash="3 2" if j in dashed else None))
+        o.append(T(x0 + j * cw + (cw - 2) / 2, y + ch / 2 + 4.2, s, "middle", 10.5 if kind == "code" else 9.5, tc, True))
+
+
+def _f02_corrcalc_fig():
+    o = []
+    a = _f02_pm(1)
+    nshow, x0, cw = 20, 176, 25.6
+    for panel, (k, y0) in enumerate(((0, 0), (3, 150))):
+        loc = [int(a[(n - k) % 1023]) for n in range(nshow)]
+        prod = [int(a[n]) * loc[n] for n in range(nshow)]
+        tot = int(sum(int(a[n]) * int(a[(n - k) % 1023]) for n in range(1023)))
+        agree = (1023 + tot) // 2
+        ttl = "(a) ずれ k = 0: 手元の符号を遅らせない" if k == 0 else "(b) ずれ k = 3: 手元の符号を 3 チップ遅らせる"
+        o.append(T(14, y0 + 18, ttl, "start", 11.5, INK, True))
+        for j in range(nshow):
+            o.append(T(x0 + j * cw + (cw - 2) / 2, y0 + 34, str(j), "middle", 8.5, MUT))
+        o.append(TX(x0 - 8, y0 + 34, "n", "end", 9.5, MUT))
+        o.append(TX(x0 - 8, y0 + 52, "受けた符号 a_1[n]", "end", 10, SIG, True))
+        _f02_cellrow(o, x0, y0 + 39, [int(v) for v in a[:nshow]], cw)
+        o.append(TX(x0 - 8, y0 + 74, "手元の符号 a_1[n − %d]" % k, "end", 10, SIG, True))
+        _f02_cellrow(o, x0, y0 + 61, loc, cw, dashed=(0, 1, 2) if k else ())
+        o.append(T(x0 - 8, y0 + 96, "積", "end", 10, INK, True))
+        _f02_cellrow(o, x0, y0 + 83, prod, cw, kind="prod")
+        o.append(T(x0 - 8, y0 + 117, "積の和（n = 0 から）", "end", 9.5, MUT))
+        acc = 0
+        for j in range(nshow):
+            acc += prod[j]
+            o.append(T(x0 + j * cw + (cw - 2) / 2, y0 + 117, ("%d" % acc).replace("-", "−"), "middle", 9, GLD, True))
+        if k == 0:
+            msg = "1023 チップの全部で一致するので、和は R_{11}(0) = 1023"
+        else:
+            msg = "1023 チップの全部では、一致 %d・不一致 %d で、和は R_{11}(3) = %s" % (agree, 1023 - agree, ("%d" % tot).replace("-", "−"))
+        o.append(TX(x0, y0 + 138, msg, "start", 10, INK, True))
+    o.append(T(686, 150 + 18, "破線の 3 チップは、周期の終わりの 1020〜1022 番", "end", 9.5, MUT))
+    return SVG(700, 150 + 148, o, "相関の計算（PRN 1 の最初の 20 チップ）。受けた符号と手元の符号を、チップごとに掛けて足す。(a) ずれが合っていると、どのチップでも積は +1 で、和は 1 チップごとに 1 ずつ増え、1023 チップで 1023 になる。(b) 3 チップずれていると、積の +1 と −1 が混ざって打ち消し合い、1023 チップの和は −1 になる。符号は 1023 チップごとに繰り返すので、遅らせて前にはみ出した分には、周期の終わりのチップが来る。")
+F["e02_corrcalc"] = _f02_corrcalc_fig()
+
+
+# =====================================================================
+# 3 節: 自己相関・相互相関がとる値（全部のずれ）
+# =====================================================================
+def _f02_ticks(p, vals, c, x0=1, h=3.0, lw=1.0):
+    """値の列を、ずれ k ごとの短い縦線として描く（同じ値は横に並んで線のように見える）。"""
+    d = []
+    for i, v in enumerate(vals):
+        x = p.X(x0 + i)
+        y = p.Y(max(min(v, p.yr[1]), p.yr[0]))
+        d.append("M%.1f,%.1fv%.1f" % (x, y - h / 2, h))
+    return PATH("".join(d), c=c, lw=lw)
+
+
+def _f02_acf_fig():
+    o = []
+    a1, a2 = _f02_pm(1), _f02_pm(2)
+    r11 = _f02_circ(a1, a1)
+    r12 = _f02_circ(a1, a2)
+    rg = _f02_np.random.default_rng(3)
+    xr = rg.choice([-1, 1], 1023)
+    rrr = _f02_circ(xr, xr)
+    # (a) 2 周期分
+    o.append(T(14, 18, "(a) PRN 1 の自己相関（ずれ 0〜2046 チップ）", "start", 11.5, INK, True))
+    p = Plot(70, 40, 260, 112, (-30, 2076), (-150, 1150))
+    o.append(p.axes(xl="ずれ k [チップ]", yl="相関", xt=[0, 1023, 2046], yt=[0, 500, 1000], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%d" % v))
+    pts = [(k, int(r11[k % 1023])) for k in range(0, 2047)]
+    o.append(p.line(pts, c=SIG, lw=1.0))
+    o.append(T(p.X(0) + 6, p.Y(1023) + 4, "1023（ずれ 0）", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(1023) + 6, p.Y(1023) + 4, "1023 チップごとに", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(1023) + 6, p.Y(1023) + 17, "同じ山", "start", 9.5, SIG, True, halo=True))
+    def zoom(px, py, vals, c, ttl, labels, rnd=False):
+        q = Plot(px, py, 250, 112, (0, 1023), (-110, 110))
+        o.append(T(px - 56, py - 22, ttl, "start", 11.5, INK, True))
+        o.append(q.axes(xl="ずれ k [チップ]", yl="相関", xt=[0, 256, 512, 768, 1023], yt=[-100, -65, 0, 63, 100], xfmt=lambda v: "%d" % v, yfmt=lambda v: ("%d" % v).replace("-", "−")))
+        if rnd:
+            o.append(RECT(q.x, q.Y(32), q.w, q.Y(-32) - q.Y(32), 0, TSOFT, "none", 0, op=0.7))
+        o.append(_f02_ticks(q, vals, c, x0=1 if len(vals) == 1022 else 0))
+        for yv, s in labels:
+            o.append(T(q.x + q.w + 4, q.Y(yv) + 3.5, s, "start", 9, c, True))
+        return q
+    zoom(416, 40, r11[1:], SIG, "(b) (a) の山以外（ずれ 1〜1022）", [(63, "63"), (-1, "−1"), (-65, "−65")])
+    o.append(T(416, 200, "−1: 782 通り、63: 120 通り、−65: 120 通り", "start", 9.5, SIG, True))
+    zoom(70, 248, r12, GRN, "(c) PRN 1 と PRN 2 の相互相関", [(63, "63"), (-1, "−1"), (-65, "−65")])
+    o.append(T(70, 408, "−1: 751 通り、63: 144 通り、−65: 128 通り", "start", 9.5, GRN, True))
+    zoom(416, 248, rrr[1:], ALI, "(d) でたらめな ±1 の列の自己相関", [], rnd=True)
+    off = rrr[1:]
+    o.append(T(416, 408, "山以外の値は ±100 近くまでばらつく", "start", 9.5, ALI, True))
+    o.append(T(416, 422, "（帯は標準偏差 ±32。この列では %s〜%s）" % (("%d" % off.min()).replace("-", "−"), "%d" % off.max()), "start", 9.5, MUT))
+    return SVG(700, 432, o, "C/A 符号の相関を、1023 通りの全部のずれで計算した値。(a) 自己相関は、ずれ 0（と、その 1023 チップごと）で 1023 になる。(b) 山以外では −1・63・−65 の 3 つの値しかとらない。(c) PRN 1 と PRN 2 の相互相関も、同じ 3 つの値しかとらない（PRN 1〜32 のどの組でも同じ）。(d) +1 と −1 をでたらめに選んだ長さ 1023 の列では、山以外の値が広くばらつく。")
+F["e02_acf"] = _f02_acf_fig()
+
+
+# =====================================================================
+# 3 節: 相関の山は幅 ±1 チップの三角形・頂点を 2 点から読む・3 機の衛星
+# =====================================================================
+def _f02_rcont(R, tau):
+    """整数のずれの値 R[k]（周期 1023）を直線で結んだ、連続のずれの相関。"""
+    k = math.floor(tau)
+    f = tau - k
+    return (1 - f) * R[k % 1023] + f * R[(k + 1) % 1023]
+
+
+def _f02_tri_fig():
+    o = []
+    a = {p: _f02_pm(p) for p in (1, 2, 3)}
+    r11 = _f02_circ(a[1], a[1])
+    cm = _F02_C * _F02_TC
+    # (a) 三角形
+    o.append(T(14, 18, "(a) PRN 1 の自己相関（ずれをチップの端数まで）", "start", 11.5, INK, True))
+    p = Plot(70, 56, 270, 130, (-3, 3), (-120, 1120))
+    o.append(p.axes(xl="ずれ τ [チップ]", yl="相関", xt=[-3, -2, -1, 0, 1, 2, 3], yt=[0, 500, 1000], xfmt=_f02_fmt, yfmt=lambda v: "%d" % v))
+    for t in (-2, -1, 0, 1, 2):
+        o.append(T(p.X(t), p.y - 6, ("%d" % round(t * cm)).replace("-", "−"), "middle", 9, MUT))
+    o.append(T(p.x + p.w, p.y - 18, "距離にして [m]", "end", 9, MUT))
+    taus = _f02_np.linspace(-3, 3, 601)
+    o.append(p.line([(t, _f02_rcont(r11, t)) for t in taus], c=SIG, lw=2.2))
+    o.append(DIM(p.X(-1), p.Y(-60), p.X(1), p.Y(-60), None, c=GLD))
+    o.append(T(p.X(1) + 6, p.Y(-60) + 3.5, "±1 チップ", "start", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(0.12), p.Y(1023) + 3, "1023", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(1.15), p.Y(470), "辺は直線", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(1.15), p.Y(470) + 13, "（傾き 1024/チップ）", "start", 9, SIG, False, halo=True))
+    # (b) 頂点を 2 点から読む
+    xb = 410
+    o.append(T(xb, 18, "(b) 頂点の位置を 2 点の値から求める", "start", 11.5, INK, True))
+    q = Plot(xb + 50, 56, 230, 130, (-1.2, 1.8), (-120, 1120))
+    o.append(q.axes(xl="ずれ τ [チップ]", yl="相関", xt=[-1, -0.5, 0, 0.5, 1, 1.5], yt=[0, 500, 1000], xfmt=_f02_fmt, yfmt=lambda v: "%d" % v))
+    t0 = 0.3
+    tri = lambda t: max(1023 - 1024 * abs(t - t0), -1)
+    o.append(q.line([(t, tri(t)) for t in _f02_np.linspace(-1.2, 1.8, 301)], c=SIG, lw=2.0))
+    r1, r2 = tri(-0.5), tri(0.5)
+    o.append(W(q.X(-0.5), q.Y(r1), q.X(t0), q.Y(1023), c=GLD, lw=1.3, dash="5 3"))
+    o.append(W(q.X(0.5), q.Y(r2), q.X(t0), q.Y(1023), c=GLD, lw=1.3, dash="5 3"))
+    for t, r in ((-0.5, r1), (0.5, r2)):
+        o.append(W(q.X(t), q.Y(r), q.X(t), q.Y(-120), c=GLD, lw=1, dash="2 3"))
+        o.append(D(q.X(t), q.Y(r), GLD, 4.4))
+    o.append(TX(q.X(-0.5) - 4, q.Y(r1) - 8, "R(τ_1) = %.1f" % r1, "end", 9.5, GLD, True, halo=True))
+    o.append(TX(q.X(0.5) + 6, q.Y(r2) + 12, "R(τ_2) = %.1f" % r2, "start", 9.5, GLD, True, halo=True))
+    o.append(D(q.X(t0), q.Y(1023), GRN, 4.6))
+    o.append(TX(q.x + q.w, q.Y(1023) - 9, "τ_0 = 0.300 チップ（87.9 m）", "end", 9.5, GRN, True, halo=True))
+    o.append(TX(q.X(-0.5), q.y + q.h + 46, "τ_1 = −0.5、τ_2 = +0.5 チップ: τ_0 = 0 − (203.8 − 818.2) ÷ 2048 = 0.300", "middle", 9.5, INK))
+    # (c) 3 機の衛星
+    yc = 262
+    o.append(T(14, yc, "(c) PRN 1・2・3 の電波が重なって届いたとき（遅れ 120.25・487.60・801.90 チップ）の、手元の符号ごとの相関", "start", 11.5, INK, True))
+    dly = {1: 120.25, 2: 487.60, 3: 801.90}
+    R = {(s, p_): _f02_circ(a[s], a[p_]) for s in (1, 2, 3) for p_ in (1, 2, 3)}
+    for row, (pl, c) in enumerate(((1, SIG), (2, GRN), (3, GLD))):
+        P = Plot(110, yc + 18 + row * 56, 560, 40, (0, 1023), (-200, 1150))
+        ts = sorted(set([float(k) for k in range(0, 1024)] + [dly[s] + d for s in (1, 2, 3) for d in (-1, 0, 1)]))
+        vals = [(t, sum(_f02_rcont(R[(s, pl)], t - dly[s]) for s in (1, 2, 3))) for t in ts if 0 <= t <= 1023]
+        o.append(W(P.x, P.Y(0), P.x + P.w, P.Y(0), c=GRD, lw=1))
+        o.append(P.line(vals, c=c, lw=1.1))
+        o.append(T(P.x - 8, P.y + 26, "PRN %d" % pl, "end", 10, c, True))
+        o.append(T(P.X(dly[pl]) + 6, P.y + 10, "%.2f" % dly[pl], "start", 9.5, c, True, halo=True))
+        if row == 2:
+            for t in (0, 256, 512, 768, 1023):
+                o.append(W(P.X(t), P.y + P.h, P.X(t), P.y + P.h + 4, c=MUT, lw=1))
+                o.append(T(P.X(t), P.y + P.h + 15, "%d" % t, "middle", 9, MUT))
+            o.append(T(P.x + P.w / 2, P.y + P.h + 30, "手元の符号のずれ τ [チップ]", "middle", 10, MUT))
+    o.append(T(102, yc + 17, "手元の符号", "end", 9.5, MUT))
+    return SVG(700, yc + 18 + 3 * 56 + 30, o, "相関の山の形。(a) 整数のずれの値を直線で結ぶと、ずれ 0 の山は幅 ±1 チップ（±977.5 ns、±293 m）の三角形になる。(b) 頂点の左右の 2 点の値が分かれば、2 本の辺の交わる点として、頂点の位置を 1 チップより細かく求められる（本当の遅れ 0.3 チップの例）。(c) 3 機の電波が同じ強さで重なっていても、手元の符号を選べば、その衛星の遅れの所にだけ山が立つ。ほかの衛星の電波は、相互相関の小さな値にしかならない。")
+F["e02_tri"] = _f02_tri_fig()
+
+
+# =====================================================================
+# 4 節: BPSK — 符号とデータの積で搬送波の位相を反転させる
+# =====================================================================
+def _f02_bpsk_fig():
+    o = []
+    bits = _F02_CODES[1]
+    idx = [1019, 1020, 1021, 1022, 0, 1, 2, 3]
+    chips = [1 - 2 * bits[i] for i in idx]
+    data = [1, 1, 1, 1, -1, -1, -1, -1]
+    prod = [c * d for c, d in zip(chips, data)]
+    x0, cw, ncy = 172, 63.5, 3
+    xe = x0 + 8 * cw
+    o.append(T(14, 18, "BPSK（ビットの区切りの前後 4 チップずつ。1 チップに搬送波 3 周期で描いた）", "start", 11.5, INK, True))
+    xm = x0 + 4 * cw
+    o.append(W(xm, 30, xm, 286, c=PUR, lw=1.3, dash="5 3"))
+    o.append(T(xm + 5, 40, "符号の周期の区切り = ビットの区切り", "start", 9.5, PUR, True, halo=True))
+    for j, i in enumerate(idx):
+        o.append(T(x0 + j * cw + cw / 2, 56, "チップ %d" % i, "middle", 9, MUT))
+    rows = [(78, "符号のチップ", "a(t)", chips, SIG), (126, "データのビット", "d(t)", data, GLD), (174, "積", "d(t) a(t)", prod, GRN)]
+    for y, nm, sym, vals, c in rows:
+        o.append(T(14, y - 2, nm, "start", 10, c, True))
+        o.append(TX(14, y + 12, sym, "start", 10, c))
+        o.append(W(x0, y, xe, y, c=GRD, lw=1))
+        o.append(_f02_wave(x0, y, 13, vals, cw, c=c, lw=2.0))
+        o.append(T(x0 - 6, y - 9, "+1", "end", 8.5, MUT))
+        o.append(T(x0 - 6, y + 17, "−1", "end", 8.5, MUT))
+    o.append(T(x0 + 2 * cw, 126 - 18, "ビット 0（+1）", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(x0 + 6 * cw, 126 - 18, "ビット 1（−1）", "middle", 9.5, GLD, True, halo=True))
+    # 搬送波と送る信号
+    yc, yv = 222, 268
+    o.append(T(14, yc - 2, "搬送波", "start", 10, MUT, True))
+    o.append(TX(14, yc + 12, "cos(2π f_{L1} t)", "start", 9.5, MUT))
+    o.append(T(14, yv - 2, "送る信号", "start", 10, SIG, True))
+    o.append(TX(14, yv + 12, "v(t) = A d a cos", "start", 9.5, SIG))
+    n = 8 * ncy * 24
+    cpts, vpts = [], []
+    for k in range(n + 1):
+        u = k / (ncy * 24)              # チップの単位の時間
+        x = x0 + u * cw
+        cv = math.cos(2 * math.pi * ncy * u)
+        j = min(int(u), 7)
+        cpts.append((x, yc - 13 * cv))
+        vpts.append((x, yv - 15 * prod[j] * cv))
+    o.append(PL(cpts, c=MUT, lw=1.3))
+    o.append(PL(vpts, c=SIG, lw=1.6))
+    first = True
+    for j in range(1, 8):
+        if prod[j] != prod[j - 1]:
+            xx = x0 + j * cw
+            o.append(W(xx, yv - 22, xx, yv + 22, c=ALI, lw=1.1, dash="2 2"))
+            o.append(D(xx, yv - 24, ALI, 3.2))
+            if first:
+                o.append(T(xx + 4, yv - 26, "位相が 180° 変わる", "start", 9.5, ALI, True, halo=True))
+                first = False
+    o.append(T(14, 304, "積が −1 の間は、搬送波の山と谷が入れ替わる（位相が 180° ずれる）。", "start", 9.5, MUT))
+    o.append(T(14, 318, "実際は、1 チップに搬送波 1540 周期、1 bit に 20 460 チップが入る。", "start", 9.5, MUT))
+    return SVG(700, 328, o, "BPSK の波形（PRN 1。符号の周期の区切りをはさむ 8 チップ）。データのビットの区切りは、符号の周期の区切りにそろえてある。符号のチップとデータのビットの積が +1 の間は搬送波のまま、−1 の間は搬送波の正負を逆にして送るので、積が変わる所で搬送波の位相が 180° 変わる。")
+F["e02_bpsk"] = _f02_bpsk_fig()
+
+
+# =====================================================================
+# 4 節: スペクトラム — 主ローブ・L5 との比較・拡散・線の並び
+# =====================================================================
+def _f02_psd_fig():
+    o = []
+    # (a) C/A と L5
+    o.append(T(14, 18, "(a) C/A 符号と L5 の信号（電力の合計は同じ）", "start", 11.5, INK, True))
+    p = Plot(70, 40, 280, 140, (-3, 3), (0, 1.12))
+    m = RECT(p.X(-1.023), p.y, p.X(1.023) - p.X(-1.023), p.h, 0, SSOFT, "none", 0, op=0.6)
+    o.append(m)
+    o.append(p.axes(xl="周波数 f − 1575.42 [MHz]", yl=None, xt=[-3, -2, -1, 0, 1, 2, 3], yt=[0, 0.5, 1], xfmt=_f02_fmt, yfmt=_f02_fmt))
+    o.append(T(p.x - 34, p.y + p.h / 2, "C/A の中心を 1 とした比", "middle", 9, MUT, rot=-90))
+    fs = _f02_np.linspace(-3, 3, 601)
+    o.append(p.line([(f, float(_f02_sinc(f / 1.023)) ** 2) for f in fs], c=SIG, lw=2.2))
+    o.append(p.line([(f, 0.1 * float(_f02_sinc(f / 10.23)) ** 2) for f in fs], c=TEA, lw=2.2))
+    o.append(T(p.X(-1.12), p.Y(0.78), "主ローブ（青い範囲）", "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(-1.12), p.Y(0.78) + 13, "幅 2.046 MHz", "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(-1.12), p.Y(0.78) + 26, "（電力の 90.3 %）", "end", 9, SIG, False, halo=True))
+    o.append(T(p.X(1.15), p.Y(0.62), "C/A（1.023 M チップ/s）", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(1.15), p.Y(0.1) - 24, "L5（10.23 M チップ/s）:", "start", 9.5, TEA, True, halo=True))
+    o.append(T(p.X(1.15), p.Y(0.1) - 11, "高さ 1/10、幅 20.46 MHz", "start", 9, TEA, False, halo=True))
+    # (b) 拡散: データだけ と 符号を掛けたもの
+    xb = 418
+    o.append(T(xb, 18, "(b) 符号を掛けると広がる（拡散）", "start", 11.5, INK, True))
+    q1 = Plot(xb + 30, 52, 100, 100, (-150, 150), (0, 1.12))
+    o.append(q1.axes(xl="f − 1575.42 [Hz]", yl=None, xt=[-100, 0, 100], yt=[0], xfmt=lambda v: ("%d" % v).replace("-", "−"), yfmt=lambda v: "0"))
+    o.append(q1.line([(f, float(_f02_sinc(f * 0.02)) ** 2) for f in _f02_np.linspace(-150, 150, 301)], c=GLD, lw=2.0))
+    o.append(T(q1.x + q1.w / 2, q1.y - 8, "データだけ（50 bit/s）", "middle", 9.5, GLD, True))
+    q2 = Plot(xb + 182, 52, 100, 100, (-3, 3), (0, 1.12))
+    o.append(q2.axes(xl="f − 1575.42 [MHz]", yl=None, xt=[-2, 0, 2], yt=[0], xfmt=_f02_fmt, yfmt=lambda v: "0"))
+    o.append(q2.line([(f, float(_f02_sinc(f / 1.023)) ** 2) for f in _f02_np.linspace(-3, 3, 301)], c=SIG, lw=2.0))
+    o.append(T(q2.x + q2.w / 2, q2.y - 8, "データ × 符号", "middle", 9.5, SIG, True))
+    o.append(ARR(q1.x + q1.w + 8, q1.y + 50, q2.x - 16, q2.y + 50, c=INK, lw=1.6, head=7))
+    o.append(T((q1.x + q1.w + q2.x) / 2 - 4, q1.y + 40, "符号を", "middle", 9.5, INK, True))
+    o.append(T((q1.x + q1.w + q2.x) / 2 - 4, q1.y + 70, "掛ける", "middle", 9.5, INK, True))
+    o.append(T(xb, 216, "縦は 1 Hz あたりの電力（全体の電力を 1 とした割合）", "start", 9, MUT))
+    o.append(T(xb, 230, "主ローブの幅 100 Hz → 2.046 MHz（約 2 万倍）", "start", 9.5, INK, True))
+    o.append(T(xb, 244, "中心の高さ 0.02 → 9.8 × 10⁻⁷（約 2 万分の 1）", "start", 9.5, INK, True))
+    # (c) C/A 符号の線スペクトラム
+    yc = 278
+    o.append(T(14, yc, "(c) PRN 1 の実際のスペクトラム: 1 kHz おきの線（0〜1.2 MHz）", "start", 11.5, INK, True))
+    P = Plot(70, yc + 16, 600, 110, (0, 1.2), (1e-4, 10), ylog=True)
+    o.append(P.axes(xl="周波数 f − 1575.42 [MHz]", yl=None, xt=[0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2], yt=[1e-4, 1e-3, 1e-2, 0.1, 1, 10],
+                    xfmt=_f02_fmt, yfmt=lambda v: {1e-4: "10⁻⁴", 1e-3: "10⁻³", 1e-2: "0.01", 0.1: "0.1", 1: "1", 10: "10"}[v]))
+    o.append(T(P.x - 44, P.y + P.h / 2, "線の電力（比）", "middle", 9, MUT, rot=-90))
+    A = _f02_np.abs(_f02_np.fft.fft(_f02_pm(1))) ** 2 / 1023.0
+    d = []
+    for k in range(1, 1201):
+        f = k * 1e-3
+        v = float(_f02_sinc(f / 1.023)) ** 2 * A[k % 1023]
+        v = max(v, 1.1e-4)
+        d.append("M%.1f,%.1fv2.2" % (P.X(f), P.Y(v) - 1.1))
+    o.append(PATH("".join(d), c=SIG, lw=1.4))
+    o.append(P.line([(f, max(float(_f02_sinc(f / 1.023)) ** 2, 1e-4)) for f in _f02_np.linspace(0.0005, 1.2, 600)], c=GLD, lw=1.8, dash="6 3"))
+    o.append(T(P.X(0.62), P.Y(3.5), "線の高さは、包絡（導出した形。黄の破線）のまわりにばらつく", "start", 9.5, INK, True, halo=True))
+    o.append(T(P.X(1.023) - 4, P.Y(2e-4), "1.023 MHz で 0", "end", 9.5, GLD, True, halo=True))
+    return SVG(700, yc + 16 + 110 + 42, o, "スペクトラム（周波数ごとの電力）。(a) C/A 符号の信号の電力の 90.3 % は、幅 2.046 MHz の主ローブ（青い範囲）に入る。チップレートが 10 倍の L5 では、同じ電力が 10 倍の幅に広がり、高さは 1/10 になる。(b) 50 bit/s のデータだけなら電力は ±50 Hz に集まるが、符号を掛けると約 2 万倍の幅に広がる（拡散）。(c) C/A 符号は 1 ms で繰り返すので、実際には 1 kHz おきの線になり、線の電力は包絡のまわりにばらつく（縦は、各線の電力を、中心の包絡の値を 1 とした比で表した。対数の目盛）。")
+F["e02_psd"] = _f02_psd_fig()
+
+
+# =====================================================================
+# 4 節: BOC(1,1) と BPSK の比較
+# =====================================================================
+def _f02_boc_fig():
+    o = []
+    vals = [1, -1, -1, 1, -1, 1]
+    x0, cw = 172, 84
+    o.append(T(14, 18, "(a) BOC(1,1): チップに、1 チップで 1 周期の方形波（副搬送波）を掛ける", "start", 11.5, INK, True))
+    rows = [(52, "C/A（BPSK）", vals, SIG, 1), (100, "副搬送波", [1, -1] * 6, MUT, 2), (148, "BOC(1,1)", [v * s for v in vals for s in (1, -1)], GRN, 2)]
+    for y, nm, vv, c, per in rows:
+        o.append(T(14, y + 4, nm, "start", 10, c, True))
+        o.append(W(x0, y, x0 + 6 * cw, y, c=GRD, lw=1))
+        o.append(_f02_wave(x0, y, 12, vv, cw / per, c=c, lw=2.0))
+    for j in range(7):
+        o.append(W(x0 + j * cw, 34, x0 + j * cw, 164, c=LIN, lw=0.8, dash="2 3"))
+    o.append(T(x0 + 0.5 * cw, 32, "1 チップ", "middle", 9, MUT))
+    o.append(T(14, 100 + 16, "（1.023 MHz）", "start", 9, MUT))
+    # (b) スペクトラム
+    yb = 196
+    o.append(T(14, yb, "(b) スペクトラム（電力の合計は同じ）", "start", 11.5, INK, True))
+    p = Plot(70, yb + 18, 270, 130, (-4, 4), (0, 1.12))
+    o.append(RECT(p.X(-0.5), p.y, p.X(0.5) - p.X(-0.5), p.h, 0, MSOFT, "none", 0, op=0.8))
+    o.append(p.axes(xl="周波数 f − 1575.42 [MHz]", yl=None, xt=[-4, -2, 0, 2, 4], yt=[0, 0.5, 1], xfmt=_f02_fmt, yfmt=_f02_fmt))
+    o.append(T(p.x - 34, p.y + p.h / 2, "C/A の中心を 1 とした比", "middle", 9, MUT, rot=-90))
+    fs = _f02_np.linspace(-4, 4, 801)
+    x = fs / 1.023
+    o.append(p.line([(f, float(_f02_sinc(v)) ** 2) for f, v in zip(fs, x)], c=SIG, lw=2.0))
+    o.append(p.line([(f, float(_f02_sinc(v / 2)) ** 2 * math.sin(math.pi * v / 2) ** 2) for f, v in zip(fs, x)], c=GRN, lw=2.2))
+    o.append(T(p.X(-3.9), p.Y(1.02), "±0.5 MHz（灰色）に入る電力", "start", 9, INK, True, halo=True))
+    o.append(T(p.X(-3.9), p.Y(1.02) + 13, "C/A 76 %、BOC(1,1) 15 %", "start", 9, INK, True, halo=True))
+    o.append(T(p.X(0.85), p.Y(0.6), "BOC(1,1)", "start", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(0.85), p.Y(0.6) + 12, "山は ±0.76 MHz", "start", 9, GRN, False, halo=True))
+    o.append(T(p.X(-0.95), p.Y(0.84), "C/A", "end", 9.5, SIG, True, halo=True))
+    # (c) 相関
+    xc = 410
+    o.append(T(xc, yb, "(c) 相関の山の形（1 を山の高さとした比）", "start", 11.5, INK, True))
+    q = Plot(xc + 50, yb + 18, 230, 130, (-1.5, 1.5), (-0.65, 1.1))
+    o.append(q.axes(xl="ずれ τ [チップ]", yl=None, xt=[-1.5, -1, -0.5, 0, 0.5, 1, 1.5], yt=[-0.5, 0, 0.5, 1], xfmt=_f02_fmt, yfmt=_f02_fmt))
+    o.append(T(q.x - 36, q.y + q.h / 2, "相関", "middle", 9.5, MUT, rot=-90))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
+    o.append(q.line([(-1.5, 0), (-1, 0), (0, 1), (1, 0), (1.5, 0)], c=SIG, lw=2.0))
+    o.append(q.line([(-1.5, 0), (-1, 0), (-0.5, -0.5), (-1 / 3, 0), (0, 1), (1 / 3, 0), (0.5, -0.5), (1, 0), (1.5, 0)], c=GRN, lw=2.2))
+    o.append(D(q.X(1 / 3), q.Y(0), GRN, 3.6))
+    o.append(T(q.X(1 / 3) + 5, q.Y(0) - 6, "±1/3 で 0", "start", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(0.5), q.Y(-0.5) + 14, "横の山 −0.5", "middle", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(-0.62), q.Y(0.62), "C/A", "end", 9.5, SIG, True, halo=True))
+    return SVG(700, yb + 18 + 130 + 42, o, "BOC(1,1) と C/A 符号の信号（BPSK）の比較（実際の L1C・E1 の信号は、これに BOC(6,1) を少し混ぜた形）。(a) BOC(1,1) は、各チップの前半と後半で符号が反転する。(b) 電力は中心で 0 になり、左右に分かれる。C/A 符号の信号の電力が集まる中心の近くを避けるので、同じ 1575.42 MHz に載せても互いの妨げになりにくい。(c) 相関の山は、三角形より 3 倍急に下がり、±0.5 チップに負の横の山がある。")
+F["e02_boc"] = _f02_boc_fig()
