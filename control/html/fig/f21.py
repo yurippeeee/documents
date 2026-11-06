@@ -166,10 +166,12 @@ class _F21Plant:
 # =====================================================================
 def _f21_run(T=6.0, Ts=_F21_TS, h=None, x0=(0, 0, 0, 0), F=None, est="kf", H=None, Ad=None, Bd=None,
              M=_F21_M, m=_F21_m, l=_F21_l, Fc=0.0, ffc=0.0, umax=_F21_UMAX, noise=False, seed=1, Ls=0.0,
-             off=0.0, push=None, inj=None, every=1, stop_deg=60.0, sa=0.3, sal=3.0):
+             off=0.0, push=None, inj=None, every=1, stop_deg=60.0, sa=0.3, sal=3.0, timing="B", sgn=(1, 1, 1)):
     """返り値 dict(t, x（本当の状態）, xh（推定）, u（出した力）, uc（制御器が計算した力。inj を足す前）, fell)。
     est: "kf"（カルマンフィルタ）・"true"（本当の状態を使う。比べるため）。Ls: 測る値の遅れ [s]。off: 角度の 0 点のずれ [rad]。
-    push = (開始, 長さ, 力)（おもりを水平に押す）。inj = (振幅, 角周波数)（出す力に正弦波を足す。6 節）"""
+    push = (開始, 長さ, 力)（おもりを水平に押す）。inj = (振幅, 角周波数)（出す力に正弦波を足す。6 節）。
+    timing="A" なら、測ってすぐ計算した力を出す（すべてを測る連続の計算と比べるため）。
+    sgn = (位置のセンサ, 角度のセンサ, 力) の向き（−1 で逆。6 節の配線の誤り）"""
     F = _F21_FLQ if F is None else _f21_np.asarray(F, float)
     if est == "kf" and H is None:
         H, Ad, Bd = _f21_kf(Ts, sa, sal)
@@ -188,7 +190,7 @@ def _f21_run(T=6.0, Ts=_F21_TS, h=None, x0=(0, 0, 0, 0), F=None, est="kf", H=Non
         t = k * Ts
         xs = hist[0]
         e1, e2 = (rg.normal(), rg.normal()) if noise else (0.0, 0.0)
-        y0 = xs[0] + _F21_SP * e1; y1 = xs[2] + off + _F21_SPH * e2
+        y0 = sgn[0] * xs[0] + _F21_SP * e1; y1 = sgn[1] * xs[2] + off + _F21_SPH * e2
         u_k = u_next; uc_k = uc_next
         if est == "true":
             xh = list(xs)
@@ -206,8 +208,11 @@ def _f21_run(T=6.0, Ts=_F21_TS, h=None, x0=(0, 0, 0, 0), F=None, est="kf", H=Non
         u_next = uc + (inj[0] * math.sin(inj[1] * (t + Ts)) if inj else 0.0)
         if umax is not None:
             u_next = max(-umax, min(umax, u_next))
-        if est == "kf":
-            xm = [sum(Adl[i][j] * xh[j] for j in range(4)) + Bdl[i] * u_k for i in range(4)]
+        if timing == "A":
+            u_k, uc_k = u_next, uc
+        if est == "kf":       # 足した正弦波は、推定から見て知らない外乱にする（予測には計算した力を使う）
+            ue = uc_k if inj else u_k
+            xm = [sum(Adl[i][j] * xh[j] for j in range(4)) + Bdl[i] * ue for i in range(4)]
         if k % every == 0:
             R["t"].append(t); R["x"].append(pl.x); R["xh"].append(tuple(xh)); R["u"].append(u_k); R["uc"].append(uc_k)
         if k == n:
@@ -215,7 +220,7 @@ def _f21_run(T=6.0, Ts=_F21_TS, h=None, x0=(0, 0, 0, 0), F=None, est="kf", H=Non
         for j in range(nsub):
             tj = t + j * h
             fd = push[2] if (push and push[0] - 1e-9 <= tj < push[0] + push[1] - 1e-9) else 0.0
-            pl.step(u_k, fd, h)
+            pl.step(sgn[2] * u_k, fd, h)
             if nd:
                 hist.append(pl.x); hist.pop(0)
             else:
@@ -239,6 +244,23 @@ def _f21_settle(t, y, tol):
         return float("inf")
     a, b = abs(y[i]), abs(y[i + 1])
     return t[i] + (t[i + 1] - t[i]) * (a - tol) / (a - b)
+
+
+def _f21_sci(v, d=2):
+    """0.000061 → "6.1 × 10⁻⁵"（0.01 以上はそのまま有効数字 d 桁）"""
+    if v == 0:
+        return "0"
+    if abs(v) >= 0.01:
+        return _f21_fg(v, d)
+    e = int(math.floor(math.log10(abs(v)))); mnt = v / 10 ** e
+    sup = str(e).translate(str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹"))
+    return ("%.*f" % (d - 1, mnt)).replace("-", "−") + " × 10" + sup
+
+
+def _f21_pow10(v):
+    """目盛の 10 のべき（1e-6 → "10⁻⁶"）"""
+    e = int(round(math.log10(v)))
+    return "1" if e == 0 else ("10" if e == 1 else "10" + str(e).translate(str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")))
 
 
 def _f21_ff(v, d=2):
@@ -823,3 +845,448 @@ def _f21_ts_fig():
 
 
 F["e21_ts"] = _f21_ts_fig()
+
+
+# =====================================================================
+# 4 節: 固定小数点（係数の大きさと Q 形式の刻み、整数で計算した力と浮動小数点の差）
+# =====================================================================
+def _f21_rsr(v, sft):
+    """v ÷ 2^sft を四捨五入（負の数も 0 から遠い方へ。16 章 4 節の rshift_round）"""
+    h = 1 << (sft - 1)
+    return (v + h) >> sft if v >= 0 else -((h - v) >> sft)
+
+
+class _F21Fix:
+    """制御器（更新・力・予測）を整数で計算する。状態と力は小数部 fs ビット、A_d・B_d・H は小数部 fc ビット、F は小数部 ff ビット。"""
+
+    def __init__(self, H, Ad, Bd, F, fs, fc, ff):
+        q = lambda v, f: int(round(float(v) * 2 ** f))
+        self.fs, self.fc, self.ff = fs, fc, ff
+        self.Ad = [[q(Ad[i][j], fc) for j in range(4)] for i in range(4)]
+        self.Bd = [q(Bd[i][0], fc) for i in range(4)]
+        self.H = [[q(H[i][j], fc) for j in range(2)] for i in range(4)]
+        self.F = [q(F[i], ff) for i in range(4)]
+        self.xm = None; self.umax = q(_F21_UMAX, fs)
+
+    def step(self, y0, y1, u_k):
+        fs, fc, ff = self.fs, self.fc, self.ff
+        Y0, Y1, U = int(round(y0 * 2 ** fs)), int(round(y1 * 2 ** fs)), int(round(u_k * 2 ** fs))
+        if self.xm is None:
+            self.xm = [Y0, 0, Y1, 0]
+        e0, e1 = Y0 - self.xm[0], Y1 - self.xm[2]
+        xh = [self.xm[i] + _f21_rsr(self.H[i][0] * e0 + self.H[i][1] * e1, fc) for i in range(4)]
+        un = -_f21_rsr(sum(self.F[i] * xh[i] for i in range(4)), ff)
+        un = max(-self.umax, min(self.umax, un))
+        self.xm = [_f21_rsr(sum(self.Ad[i][j] * xh[j] for j in range(4)) + self.Bd[i] * U, fc) for i in range(4)]
+        return un / 2 ** fs
+
+
+class _F21Flt:
+    """同じ計算を浮動小数点で（_f21_np.float32 なら C の float と同じ桁）。"""
+
+    def __init__(self, H, Ad, Bd, F, dt=float):
+        self.dt = dt
+        cv = lambda a: _f21_np.asarray(a, dtype=dt)
+        self.H, self.Ad, self.Bd, self.F = cv(H), cv(Ad), cv(Bd[:, 0]), cv(F)
+        self.xm = None
+
+    def step(self, y0, y1, u_k):
+        dt = self.dt
+        if self.xm is None:
+            self.xm = _f21_np.array([y0, 0, y1, 0], dtype=dt)
+        e = _f21_np.array([y0 - self.xm[0], y1 - self.xm[2]], dtype=dt)
+        xh = self.xm + self.H @ e
+        un = float(-(self.F @ xh)); un = max(-_F21_UMAX, min(_F21_UMAX, un))
+        self.xm = self.Ad @ xh + self.Bd * dt(u_k)
+        return un
+
+
+def _f21_run_ctl(ctl, T=4.0, x0=(0, 0, 10 * _F21_D, 0), seed=7):
+    """制御器 ctl（step(y0, y1, u_k) → 次の周期の力）を、1 ms ごと・(B) の出し方で、対象（摩擦なし）につなぐ。"""
+    pl = _F21Plant(x0); rg = _F21Rng(seed); n = int(round(T / _F21_TS)); u_next = 0.0; us = []
+    for k in range(n + 1):
+        y0 = pl.x[0] + _F21_SP * rg.normal(); y1 = pl.x[2] + _F21_SPH * rg.normal()
+        u_k = u_next
+        u_next = ctl.step(y0, y1, u_k)
+        us.append(u_k)
+        if k == n:
+            break
+        pl.step(u_k, 0.0, _F21_TS)
+    return _f21_np.array(us)
+
+
+def _f21_fixed_fig():
+    o = []
+    H, Ad, Bd = _f21_kf(_F21_TS)
+    # (a) 係数の大きさ
+    o.append(T(12, 18, "(a) 1 ms の係数の大きさと、Q 形式の刻み", "start", 11.5, INK, True))
+    P = Plot(66, 30, 300, 210, (0, 22), (1e-10, 10), ylog=True)
+    o.append(P.axes(yl="係数の大きさ", xt=[], yt=[1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1],
+                    yfmt=_f21_pow10))
+    groups = [("A_d", [(Ad[0][1], ""), (Ad[0][2], ""), (Ad[0][3], ""), (Ad[1][2], ""), (Ad[1][3], ""), (Ad[2][2] - 1, "d"), (Ad[2][3], ""), (Ad[3][2], ""), (Ad[3][3] - 1, "d")]),
+              ("B_d", [(Bd[i][0], "") for i in range(4)]),
+              ("H", [(H[i][j], "") for i in range(4) for j in range(2)])]
+    xk = 0.7; q16, q28 = 2.0 ** -16, 2.0 ** -28
+    n0 = 0
+    for gname, vals in groups:
+        x_start = xk
+        for v, tag in vals:
+            av = abs(v)
+            c = ALI if av < q16 / 2 else SIG
+            o.append(W(P.X(xk), P.Y(1e-10), P.X(xk), P.Y(max(av, 1e-10)), c=c, lw=3))
+            if tag == "d":
+                o.append(CIRC(P.X(xk), P.Y(av), 3.5, c=c, lw=1.4, fill=SCR))
+            n0 += av < q16 / 2
+            xk += 1
+        o.append(TX((P.X(x_start) + P.X(xk - 1)) / 2, P.y + P.h + 16, gname, "middle", 10, INK, True))
+        xk += 0.6
+    for qv, lab, c in ((q16, "Q16.16 の刻み 1.5 × 10⁻⁵", ALI), (q28, "Q4.28 の刻み 3.7 × 10⁻⁹", GRN)):
+        o.append(W(P.x, P.Y(qv), P.x + P.w, P.Y(qv), c=c, lw=1.2, dash="5 3"))
+        o.append(T(P.x + P.w - 4, P.Y(qv) - 4, lab, "end", 9, c, True, halo=True))
+    o.append(T(P.x + 4, P.y + 12, "赤: Q16.16 では 0 に丸められる（%d 個）" % n0, "start", 9, ALI, True, halo=True))
+    o.append(T(P.x + 4, P.y + 26, "○: 対角の要素は 1 との差", "start", 9, MUT, halo=True))
+    # (b) 浮動小数点（倍精度）との差
+    o.append(T(398, 18, "(b) 倍精度で計算した力との差（10° から放す）", "start", 11.5, INK, True))
+    ref = _f21_run_ctl(_F21Flt(H, Ad, Bd, _F21_FLQ))
+    cases = [(_F21Flt(H, Ad, Bd, _F21_FLQ, _f21_np.float32), MUT, "float（単精度）"),
+             (_F21Fix(H, Ad, Bd, _F21_FLQ, 16, 16, 16), ALI, "すべて Q16.16"),
+             (_F21Fix(H, Ad, Bd, _F21_FLQ, 24, 28, 24), GRN, "係数 Q4.28・信号 Q8.24")]
+    Pb = Plot(440, 30, 248, 210, (0, 4), (1e-8, 1), ylog=True)
+    o.append(Pb.axes(xl="時間 t [s]", yl="力の差 [N]", xt=[0, 1, 2, 3, 4], yt=[1e-8, 1e-6, 1e-4, 1e-2, 1],
+                     yfmt=_f21_pow10))
+    ts = _f21_np.arange(len(ref)) * _F21_TS
+    maxd = []
+    for ctl, c, lab in cases:
+        d = _f21_np.abs(_f21_run_ctl(ctl) - ref)
+        maxd.append(d.max())
+        # 100 点ごとの最大で描く（1e-8 未満は 1e-8 に）
+        pts = [(ts[i], max(1e-8, d[i:i + 40].max())) for i in range(0, len(d) - 1, 40)]
+        o.append(Pb.line(pts, c=c, lw=1.6))
+    for k in range(3):
+        o.append(LEGL(440, 286 + k * 16, [(cases[k][1], None, "%s: 最大 %s N" % (cases[k][2], _f21_sci(maxd[k])))], sz=9.5))
+    return SVG(704, 326, o, cap="(a) 1 ms ごとのサンプリングした状態方程式の係数 A_d・B_d と、20 章のカルマンフィルタのゲイン H（観測ノイズ 1 mm・0.1°）の大きさ。Q16.16 の刻みより小さい係数は 0 に丸められ、1 に近い対角の要素は 1 との差が大きく狂う。(b) 同じ計算を整数で行ったときの、倍精度の浮動小数点との力の差（観測ノイズあり。40 周期ごとの最大）。")
+
+
+F["e21_fixed"] = _f21_fixed_fig()
+
+
+# =====================================================================
+# 5 節: 力の上限で立て直せる傾き
+# =====================================================================
+def _f21_maxtilt(**kw):
+    """力の上限 5 N で、静かに放して立て直せる初めの傾き [°]（2 分法。6 s 後に角度 1° 以内・台車 5 cm 以内なら立て直せた）。"""
+    lo, hi = 15.0, 36.0
+    for _ in range(13):
+        mid = (lo + hi) / 2
+        r = _f21_run(T=6.0, x0=(0, 0, mid * _F21_D, 0), stop_deg=89.0, **kw)
+        xe = r["x"][-1]
+        if r["fell"] is None and abs(xe[2]) < _F21_D and abs(xe[0]) < 0.05:
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def _f21_sat_fig():
+    o = []
+    H, Ad, Bd = _f21_kf(_F21_TS)
+    lim = math.degrees(math.atan(_F21_UMAX / ((_F21_M + _F21_m) * _F21_g)))
+    vals = [("どんな制御器でも（18 章 4 節）", lim, MUT),
+            ("極配置・すべてを測る", _f21_maxtilt(F=_F21_FPP, est="true", timing="A"), MUT),
+            ("19 章の F・すべてを測る", _f21_maxtilt(est="true", timing="A"), SIG),
+            ("19 章の F・推定・1 ms (B)", _f21_maxtilt(H=H, Ad=Ad, Bd=Bd), ALI)]
+    o.append(T(12, 18, "(a) 力の上限 5 N で立て直せる初めの傾き", "start", 11.5, INK, True))
+    x0, w = 210, 150
+    for i, (lab, v, c) in enumerate(vals):
+        y = 34 + i * 30
+        o.append(T(x0 - 8, y + 14, lab, "end", 9.5, INK))
+        o.append(RECT(x0, y + 2, w * v / 40, 18, 3, soft(c), c, 1.2))
+        o.append(T(x0 + w * v / 40 + 5, y + 15, "%.1f°" % v, "start", 9.5, c, True))
+    o.append(W(x0 + w * 20 / 40, 30, x0 + w * 20 / 40, 34 + 4 * 30, c=GRN, lw=1.2, dash="4 3"))
+    o.append(T(x0 + w * 20 / 40, 34 + 4 * 30 + 12, "仕様 2: 20°", "middle", 9.5, GRN, True))
+    vmax = vals[3][1]
+    # (b) 推定・1 ms で、限界の前後から放す
+    o.append(T(12, 196, "(b) 19 章の F・推定・1 ms で、%.0f° と %.0f° から放す" % (math.floor(vmax - 1), math.ceil(vmax + 1)), "start", 11.5, INK, True))
+    Pa = Plot(66, 210, 270, 110, (0, 3), (-40, 90))
+    Pu = Plot(424, 210, 260, 110, (0, 3), (-6, 6))
+    o.append(Pa.axes(xl="時間 t [s]", yl="角度 φ [°]", xt=[0, 1, 2, 3], yt=[-30, 0, 30, 60, 90], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(Pu.axes(xl="時間 t [s]", yl="力 u [N]", xt=[0, 1, 2, 3], yt=[-5, 0, 5], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    for v in (5, -5):
+        o.append(W(Pu.x, Pu.Y(v), Pu.x + Pu.w, Pu.Y(v), c=ALI, lw=1, dash="4 3"))
+    for ang, c, dash in ((math.floor(vmax - 1), GRN, None), (math.ceil(vmax + 1), ALI, "5 3")):
+        r = _f21_run(T=3.0, x0=(0, 0, ang * _F21_D, 0), H=H, Ad=Ad, Bd=Bd, stop_deg=89.0)
+        o.append(Pa.clip(list(zip(r["t"], r["x"][:, 2] / _F21_D)), c=c, lw=2, dash=dash))
+        o.append(Pu.clip(list(zip(r["t"], r["u"])), c=c, lw=1.6, dash=dash))
+        if r["fell"] is None:
+            o.append(T(Pa.X(3) - 4, Pa.Y(r["x"][-1, 2] / _F21_D) + 14, "%d°: 立て直す" % ang, "end", 9.5, c, True, halo=True))
+        else:
+            o.append(T(Pa.X(0.62), Pa.Y(-30), "%d°: 戻しすぎて反対側へ倒れる" % ang, "start", 9.5, c, True, halo=True))
+    return SVG(704, 362, o, cap="(a) 力の上限 5 N の下で、静かに放して立て直せる初めの傾き（線形でない式。「すべてを測る」は、測ってすぐ力を出す連続の計算とほぼ同じもの）。どんな制御器でも、傾きが (M + m) g tan φ = 5 N を超える角度からは戻せない。推定と 1 ms ごとの計算を入れても、すべての状態を測った連続の計算とほとんど変わらない。(b) 限界の前後の 2 つの傾きから放したときの角度と力。力は上限に張り付き、戻せない方は、張り付いている間に振子が勢いを付けて真上を通り過ぎ、反対側へ倒れる。")
+
+
+F["e21_sat"] = _f21_sat_fig()
+
+
+# =====================================================================
+# 5 節: クーロン摩擦とリミットサイクル
+# =====================================================================
+def _f21_friction_fig():
+    o = []
+    H, Ad, Bd = _f21_kf(_F21_TS)
+    # (a) 摩擦の力と速さ
+    o.append(T(12, 18, "(a) 摩擦の力と台車の速さ", "start", 11.5, INK, True))
+    Pa = Plot(66, 30, 250, 130, (-0.1, 0.1), (-0.5, 0.5))
+    o.append(Pa.axes(xl="台車の速さ [m/s]", yl="摩擦の力 [N]", xt=[-0.1, -0.05, 0, 0.05, 0.1], yt=[-0.3, 0, 0.3],
+                     xfmt=lambda v: ("%g" % v).replace("-", "−"), yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(W(Pa.x, Pa.Y(0), Pa.x + Pa.w, Pa.Y(0), c=MUT, lw=1)); o.append(W(Pa.X(0), Pa.y, Pa.X(0), Pa.y + Pa.h, c=MUT, lw=1))
+    o.append(Pa.clip([(-0.1, 0.6), (0.1, -0.6)], c=MUT, lw=1.4, dash="5 3"))
+    o.append(W(Pa.X(-0.1), Pa.Y(0.3), Pa.X(0), Pa.Y(0.3), c=ALI, lw=2.4))
+    o.append(W(Pa.X(0), Pa.Y(0.3), Pa.X(0), Pa.Y(-0.3), c=ALI, lw=4))
+    o.append(W(Pa.X(0), Pa.Y(-0.3), Pa.X(0.1), Pa.Y(-0.3), c=ALI, lw=2.4))
+    o.append(T(Pa.X(0.004), Pa.Y(0.12), "止まっている間は", "start", 9, ALI, halo=True))
+    o.append(T(Pa.X(0.004), Pa.Y(0.12) + 12, "±0.3 N まで打ち消す", "start", 9, ALI, halo=True))
+    o.append(T(Pa.X(0.098), Pa.Y(-0.3) - 6, "動いている間は 0.3 N", "end", 9, ALI, True, halo=True))
+    o.append(T(Pa.X(-0.098), Pa.Y(-0.43), "破線: 粘性摩擦", "start", 9, MUT, halo=True))
+    # (b) リミットサイクル
+    o.append(T(370, 18, "(b) 摩擦 0.3 N で、2° から放す", "start", 11.5, INK, True))
+    r = _f21_run(T=12.0, x0=(0, 0, 2 * _F21_D, 0), H=H, Ad=Ad, Bd=Bd, Fc=_F21_FC, every=5)
+    Pb = Plot(418, 30, 270, 56, (0, 12), (-45, 45)); Pc = Plot(418, 104, 270, 56, (0, 12), (-2, 2))
+    st = r["x"][:, 1] == 0.0
+    i = 0
+    while i < len(st):
+        if st[i]:
+            j = i
+            while j < len(st) and st[j]:
+                j += 1
+            for P_ in (Pb, Pc):
+                o.append(RECT(P_.X(r["t"][i]), P_.y, P_.X(r["t"][j - 1]) - P_.X(r["t"][i]), P_.h, 0, GOSOFT, "none", 0))
+            i = j
+        else:
+            i += 1
+    o.append(Pb.axes(yl="p [mm]", xt=[0, 4, 8, 12], yt=[-30, 0, 30], xfmt=lambda v: "", yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(Pc.axes(xl="時間 t [s]", yl="φ [°]", xt=[0, 4, 8, 12], yt=[-1, 0, 1], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(Pb.line(list(zip(r["t"], r["x"][:, 0] * 1000)), c=SIG, lw=1.8))
+    o.append(Pc.line(list(zip(r["t"], r["x"][:, 2] / _F21_D)), c=SIG, lw=1.8))
+    o.append(T(Pb.x + Pb.w - 4, Pb.y + 11, "金の帯: 台車が止まっている", "end", 9, GLD, True, halo=True))
+    # (c) 補償
+    o.append(T(12, 214, "(c) 推定した速さの向きに摩擦を足す（摩擦 0.3 N）", "start", 11.5, INK, True))
+    Pd = Plot(66, 228, 250, 110, (8, 16), (-45, 45))
+    o.append(Pd.axes(xl="時間 t [s]", yl="台車 p [mm]", xt=[8, 10, 12, 14, 16], yt=[-30, 0, 30], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    for ffc, c, dash in ((0.0, MUT, "5 3"), (0.45, GLD, None), (0.3, GRN, None)):
+        rr = _f21_run(T=16.0, x0=(0, 0, 2 * _F21_D, 0), H=H, Ad=Ad, Bd=Bd, Fc=_F21_FC, ffc=ffc, every=5)
+        sel = rr["t"] >= 8
+        o.append(Pd.line(list(zip(rr["t"][sel], rr["x"][sel, 0] * 1000)), c=c, lw=1.8, dash=dash))
+    o.append(LEGL(66, 380, [(MUT, "5 3", "足さない"), (GRN, None, "0.3 N を足す"), (GLD, None, "0.45 N（多すぎ）")], sz=9.5, gap=12))
+    # (d) 揺れの幅と摩擦の大きさ
+    o.append(T(370, 214, "(d) 台車の揺れの幅と摩擦の大きさ", "start", 11.5, INK, True))
+    Pe = Plot(418, 228, 270, 110, (0, 1.0), (0, 120))
+    o.append(Pe.axes(xl="摩擦の大きさ [N]", yl="片側の幅 [mm]", xt=[0, 0.25, 0.5, 0.75, 1.0], yt=[0, 30, 60, 90, 120], xfmt=lambda v: "%g" % v))
+    o.append(Pe.line([(0, 0), (1.0, 1000 / abs(_F21_FLQ[0]))], c=FNT, lw=1.4, dash="4 3"))
+    for fc in (0.1, 0.3, 0.5, 0.75, 1.0):
+        rr = _f21_run(T=14.0, x0=(0, 0, 2 * _F21_D, 0), H=H, Ad=Ad, Bd=Bd, Fc=fc, every=5)
+        sel = rr["t"] >= 6
+        amp = (rr["x"][sel, 0].max() - rr["x"][sel, 0].min()) / 2 * 1000
+        o.append(D(Pe.X(fc), Pe.Y(amp), SIG, 3.6))
+    o.append(T(Pe.x + 6, Pe.y + 12, "点: 数値計算　破線: 摩擦 ÷ |f₁|", "start", 9, MUT, halo=True))
+    return SVG(704, 392, o, cap="(a) クーロン摩擦は、動いている間は速さによらない一定の大きさで動きを妨げ、止まっている間は、その大きさまでの力を打ち消す。粘性摩擦（破線）は、遅いほど小さい。(b) 4 節の制御器（19 章の F と 20 章のカルマンフィルタ、1 ms）で、台車は止まっては動くことを繰り返し、振子も揺れ続ける。(c) 推定した速さの向きに、見込んだ摩擦を足すと、揺れは小さくなるが、多すぎると振子の揺れが増える。(d) 揺れの幅は摩擦の大きさにほぼ比例し、摩擦 ÷ 状態フィードバックの位置のゲインの 1.1 倍ほどである。")
+
+
+F["e21_friction"] = _f21_friction_fig()
+
+
+# =====================================================================
+# 5 節: 推定を入れたループの余裕と、カルマンフィルタの重み
+# =====================================================================
+_F21_WMULS = (1, 2, 4, 10, 30, 100)
+
+
+def _f21_margin_fig():
+    o = []
+    # (a) 位相余裕と力のノイズの釣り合い
+    o.append(T(12, 18, "(a) 位相余裕と力の揺れ", "start", 11.5, INK, True))
+    P = Plot(66, 34, 270, 170, (0.0, 0.3), (25, 65))
+    o.append(RECT(P.X(0), P.Y(65), P.X(0.2) - P.X(0), P.Y(40) - P.Y(65), 0, GSOFT, "none", 0))
+    o.append(P.axes(xl="力の揺れの標準偏差 [N]", yl="位相余裕 [°]", xt=[0, 0.1, 0.2, 0.3], yt=[30, 40, 50, 60], xfmt=lambda v: "%g" % v))
+    o.append(T(P.X(0.005), P.Y(63), "仕様 6・8 を満たす範囲", "start", 9, GRN, True, halo=True))
+    pts = []
+    for mul in _F21_WMULS:
+        H, Ad, Bd = _f21_kf(_F21_TS, 0.3 * math.sqrt(mul), 3.0 * math.sqrt(mul))
+        pm = _f21_margins(_f21_loop_tf(_F21_FLQ, _F21_TS, H, Ad, Bd), _F21_TS)[0]
+        ns = _f21_force_std(_F21_FLQ, _F21_TS, H, Ad, Bd)
+        pts.append((ns, pm, mul))
+    o.append(P.line([(a, b) for a, b, _ in pts], c=ALI, lw=1.6))
+    for a, b, mul in pts:
+        c = SIG if mul == 4 else ALI
+        o.append(D(P.X(a), P.Y(b), c, 4.2 if mul == 4 else 3.2))
+        o.append(T(P.X(a) + 6, P.Y(b) + 13, "×%g" % mul, "start", 9.5, c, mul == 4, halo=True))
+    full = _f21_margins(_f21_loop_tf(_F21_FLQ, _F21_TS, timing="B"), _F21_TS)[0]
+    o.append(W(P.x, P.Y(full), P.x + P.w, P.Y(full), c=MUT, lw=1.2, dash="4 3"))
+    o.append(T(P.x + P.w - 4, P.Y(full) - 5, "すべてを測るとき %.1f°" % full, "end", 9, MUT, halo=True))
+    # (b) ナイキスト線図
+    o.append(T(380, 18, "(b) 入力の点で切ったループのナイキスト線図", "start", 11.5, INK, True))
+    cp, Pn = CPLANE(414, 34, 270, 170, (-3.2, 1.0), (-1.3, 1.35), [-3, -2, -1, 0, 1], [-1, 0, 1])
+    o.append(cp)
+    th = _f21_np.linspace(0, 2 * math.pi, 181)
+    o.append(Pn.clip([(-1 + math.cos(a), math.sin(a)) for a in th], c=GRN, lw=1.2, dash="3 3"))
+    ws = _f21_np.logspace(-0.3, math.log10(math.pi / _F21_TS * 0.99), 900)
+    cases = [(_f21_loop_tf(_F21_FLQ, _F21_TS, timing="B"), MUT, "5 3"),
+             (_f21_loop_tf(_F21_FLQ, _F21_TS, *_f21_kf(_F21_TS)), ALI, None),
+             (_f21_loop_tf(_F21_FLQ, _F21_TS, *_f21_kf(_F21_TS, 0.6, 6.0)), SIG, None)]
+    for L, c, dash in cases:
+        v = _f21_loop_eval(L, _F21_TS, ws)
+        o.append(Pn.clip([(z.real, z.imag) for z in v], c=c, lw=1.8, dash=dash))
+    o.append(M1(Pn))
+    o.append(T(Pn.x + 4, Pn.y + 11, "緑の点線: −1 を中心とする半径 1 の円", "start", 9, GRN, halo=True))
+    o.append(LEGL(380, 246, [(MUT, "5 3", "すべてを測る"), (ALI, None, "20 章の W（×1）"), (SIG, None, "W を 4 倍")], sz=9.5, gap=12))
+    # (c) 遅れ 30 ms
+    o.append(T(12, 282, "(c) 測る値が 30 ms 遅れるとき、10° から放す", "start", 11.5, INK, True))
+    Pc = Plot(66, 296, 618, 96, (0, 4), (-9, 11))
+    o.append(Pc.axes(xl="時間 t [s]", yl="角度 φ [°]", xt=[0, 1, 2, 3, 4], yt=[-5, 0, 5, 10], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    for (sa, sal), c, lab in (((0.3, 3.0), ALI, "20 章の W"), ((0.6, 6.0), SIG, "W を 4 倍")):
+        r = _f21_run(T=4.0, x0=(0, 0, 10 * _F21_D, 0), sa=sa, sal=sal, Ls=0.03, every=2)
+        o.append(Pc.clip(list(zip(r["t"], r["x"][:, 2] / _F21_D)), c=c, lw=1.8))
+    o.append(LEGL(400, 316, [(ALI, None, "20 章の W"), (SIG, None, "W を 4 倍")], sz=9.5, gap=12))
+    return SVG(704, 436, o, cap="(a) カルマンフィルタのプロセスノイズの分散を 1〜100 倍に見込んだときの、入力の点の位相余裕と、観測ノイズによる力の揺れ（1 ms、(B) の出し方）。推定が速くなり、余裕はすべてを測るときに近づくが、ノイズを多く通す。(b) 推定を入れると、ナイキスト線図は −1 を中心とする円（19 章 6 節）の中に入り、−1 に近づく。(c) 測る値に 30 ms のむだ時間があると、20 章の W のままでは揺れが長く残る。")
+
+
+F["e21_margin"] = _f21_margin_fig()
+
+
+# =====================================================================
+# 5 節: モデルの誤差（振子の長さと台車の質量のずれ）
+# =====================================================================
+def _f21_cl_eig(lr, Mr, H, Ad, Bd, F=None):
+    """本当の対象の長さ・質量が lr・Mr 倍のとき、(B) の出し方とカルマンフィルタ（名目のモデル）の閉ループの固有値（z）。"""
+    F = _F21_FLQ if F is None else F
+    At, Bt = _f21_AB(_F21_M * Mr, _F21_m, _F21_l * lr)
+    Adt, Bdt = _f21_c2d(At, Bt, _F21_TS)
+    I = _f21_np.eye(4); C = _F21_C
+    Ac = _f21_np.zeros((5, 5)); Bc = _f21_np.zeros((5, 2))
+    Ac[:4, :4] = Ad @ (I - H @ C); Ac[:4, 4] = Bd[:, 0]; Bc[:4, :] = Ad @ H
+    Ac[4, :4] = -F @ (I - H @ C); Bc[4, :] = -F @ H
+    Phi = _f21_np.zeros((9, 9)); Phi[:4, :4] = Adt; Phi[:4, 8] = Bdt[:, 0]
+    Phi[4:, :4] = Bc @ C; Phi[4:, 4:] = Ac
+    return _f21_np.linalg.eigvals(Phi)
+
+
+def _f21_class(ev):
+    """0: 不安定、1: 揺れが長く残る（最も小さい減衰比が 0.1 未満）、2: 立つ"""
+    if _f21_np.abs(ev).max() >= 1.0:
+        return 0
+    s_ = _f21_np.log(ev.astype(complex)) / _F21_TS
+    z = min((-v.real / abs(v)) for v in s_ if abs(v) > 1e-9)
+    return 1 if z < 0.1 else 2
+
+
+def _f21_map(P, H, Ad, Bd, nl=29, nm=29):
+    o = []
+    lrs = _f21_np.linspace(0.4, 2.6, nl); mrs = _f21_np.linspace(0.3, 3.1, nm)
+    dl, dm = lrs[1] - lrs[0], mrs[1] - mrs[0]
+    cols = {0: ALI, 1: GLD, 2: GRN}
+    for a in lrs:
+        for b in mrs:
+            k = _f21_class(_f21_cl_eig(a, b, H, Ad, Bd))
+            o.append(RECT(P.X(b - dm / 2), P.Y(a + dl / 2), P.X(b + dm / 2) - P.X(b - dm / 2) + 1.0, P.Y(a - dl / 2) - P.Y(a + dl / 2) + 1.0, 0, cols[k], "none", 0, op=0.32))
+    o.append(RECT(P.X(0.8), P.Y(1.2), P.X(1.2) - P.X(0.8), P.Y(0.8) - P.Y(1.2), 0, "none", INK, 1.4))
+    o.append(D(P.X(1), P.Y(1), INK, 3))
+    return "".join(o)
+
+
+def _f21_model_fig():
+    o = []
+    for k, ((sa, sal), title) in enumerate((((0.3, 3.0), "(a) 20 章の W"), ((0.6, 6.0), "(b) W を 4 倍"))):
+        H, Ad, Bd = _f21_kf(_F21_TS, sa, sal)
+        x0 = 66 + k * 236
+        o.append(T(x0 - 50, 18, title, "start", 11.5, INK, True))
+        P = Plot(x0, 30, 170, 150, (0.3, 3.1), (0.4, 2.6))
+        o.append(_f21_map(P, H, Ad, Bd))
+        o.append(P.axes(xl="台車の質量の倍率", yl="振子の長さの倍率" if k == 0 else None, xt=[0.5, 1, 1.5, 2, 2.5, 3], yt=[0.5, 1, 1.5, 2, 2.5], grid=False, xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    o.append(LEGEND(66, 230, [(GRN, "立つ"), (GLD, "揺れが長く残る（減衰比 < 0.1）"), (ALI, "不安定")], sz=9.5))
+    o.append(T(66, 248, "枠: 仕様 9 の ±20 %、点: 名目の値", "start", 9.5, MUT))
+    # (c) 押す試験を ±20 % の 4 つの角で
+    o.append(T(520, 18, "(c) W を 4 倍、押す試験", "start", 11.5, INK, True))
+    Pc = Plot(556, 30, 134, 150, (0, 4), (-18, 8))
+    o.append(Pc.axes(xl="時間 t [s]", yl="角度 φ [°]", xt=[0, 2, 4], yt=[-15, -10, -5, 0, 5], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    worst = 0
+    for lr, mr, c in ((1, 1, INK), (0.8, 0.8, TEA), (1.2, 0.8, PUR), (0.8, 1.2, GLD), (1.2, 1.2, ALI)):
+        r = _f21_run(T=4.0, push=(0.5, 0.1, 1.0), sa=0.6, sal=6.0, l=_F21_l * lr, M=_F21_M * mr, every=4)
+        worst = max(worst, abs(r["x"][:, 2]).max() / _F21_D)
+        o.append(Pc.clip(list(zip(r["t"], r["x"][:, 2] / _F21_D)), c=c, lw=1.5))
+    o.append(T(520, 232, "長さ・質量の倍率", "start", 9.5, MUT, True))
+    for i, (lab, c) in enumerate((("1・1", INK), ("0.8・0.8", TEA), ("1.2・0.8", PUR), ("0.8・1.2", GLD), ("1.2・1.2", ALI))):
+        o.append(W(520 + (i % 3) * 60, 246 + (i // 3) * 14, 536 + (i % 3) * 60, 246 + (i // 3) * 14, c=c, lw=2))
+        o.append(T(539 + (i % 3) * 60, 250 + (i // 3) * 14, lab, "start", 9, MUT))
+    return SVG(704, 274, o, cap="振子の長さと台車の質量が、モデル（名目の値）から何倍ずれていても立つか（線形化した式に、1 ms ごとの計算とカルマンフィルタを入れた閉ループの固有値で判定）。カルマンフィルタは名目のモデルで推定する。(a)(b) どちらの W でも、仕様の ±20 %（枠）は十分に内側にある。W を 4 倍にすると、短く軽い側の不安定な範囲が狭まる。(c) ±20 % の 4 つの角で、おもりを押したときの角度（線形でない式）。最も傾くのは、長くて重い組である。")
+
+
+F["e21_model"] = _f21_model_fig()
+
+
+# =====================================================================
+# 6 節: 調整と検証の手順、向き（符号）の誤り
+# =====================================================================
+def _f21_flow_fig():
+    o = []
+    steps = [("1. 安全の準備", "非常停止・端のスイッチ・30° で止める", "16 章 5 節", ALI),
+             ("2. 向きと 0 点を確かめる", "センサと力の向きを 1 つずつ", "17 章 2 節", GLD),
+             ("3. 値を測る", "揺れの周期・力の段差・ノイズ（2 節）", "3・4 章", LIN),
+             ("4. ホストで模型と動かす", "同じ C のコードで仕様の表を", "16 章 6 節", LIN),
+             ("5. 手で支えて始める", "内側の角度だけ → 全部の状態", "14 章 4 節", SIG),
+             ("6. ログを模型と重ねる", "1 ms ごとの p・φ・推定・力", "16 章 6 節", SIG),
+             ("7. 試験を順に", "10° から放す・押す・立てたまま", "18・19 章", SIG),
+             ("8. 余裕を測る", "正弦波を力に足して一巡伝達関数", "8・16 章", SIG),
+             ("9. 仕様の表で判定", "満たさない行は 5 節の直し方へ", "1 節", GRN)]
+    bw, bh, gx, gy = 212, 50, 24, 20
+    pos = []
+    for i, (t1, t2, ch, c) in enumerate(steps):
+        col, row = i % 3, i // 3
+        x = 14 + col * (bw + gx); y = 14 + row * (bh + gy)
+        pos.append((x, y))
+        o.append(RECT(x, y, bw, bh, 7, PAN if c == LIN else soft(c), c, 1.4))
+        o.append(T(x + 8, y + 18, t1, "start", 10.5, INK if c == LIN else c, True))
+        o.append(T(x + 8, y + 36, t2, "start", 9, MUT))
+        o.append(T(x + bw - 6, y + 18, ch, "end", 9, MUT))
+    for i in range(len(steps) - 1):
+        (x1, y1), (x2, y2) = pos[i], pos[i + 1]
+        if (i % 3) < 2:
+            o.append(ARR(x1 + bw, y1 + bh / 2, x2, y2 + bh / 2, c=MUT, lw=1.5, head=6))
+        else:
+            o.append(W(x1 + bw / 2, y1 + bh, x1 + bw / 2, y1 + bh + gy / 2, x2 + bw / 2, y1 + bh + gy / 2, c=MUT, lw=1.5))
+            o.append(ARR(x2 + bw / 2, y1 + bh + gy / 2, x2 + bw / 2, y2, c=MUT, lw=1.5, head=6))
+    # 9 → 4 に戻る
+    (x9, y9), (x4, y4) = pos[8], pos[3]
+    o.append(W(x9 + bw / 2, y9 + bh, x9 + bw / 2, y9 + bh + 14, x4 - 8 + 0, y9 + bh + 14, c=ALI, lw=1.5, dash="5 3"))
+    o.append(W(x4 - 8, y9 + bh + 14, x4 - 8, y4 + bh / 2, c=ALI, lw=1.5, dash="5 3"))
+    o.append(ARR(x4 - 8, y4 + bh / 2, x4, y4 + bh / 2, c=ALI, lw=1.5, head=6, dash="5 3"))
+    o.append(T(x9 + bw / 2 - 8, y9 + bh + 28, "満たさない行があれば、設計を直して 4. からやり直す", "end", 9.5, ALI, True))
+    return SVG(704, 14 + 3 * (bh + gy) + 34, o, cap="実機で振子を立てるまでの手順。右上の灰色の字は、主に使う章。危ない順（倒れる・台車がぶつかる）に先に手を打ち、閉ループにする前に、向きと値を 1 つずつ確かめる。実機で試す前に、同じコードをホストで模型と動かして仕様の表を確かめておく。")
+
+
+F["e21_flow"] = _f21_flow_fig()
+
+
+def _f21_signs_fig():
+    o = []
+    cases = [((1, 1, 1), SIG, None, "正しい"), ((1, -1, 1), ALI, None, "角度のセンサが逆"),
+             ((-1, 1, 1), GLD, None, "位置のセンサが逆"), ((1, 1, -1), PUR, "5 3", "力の向きが逆")]
+    o.append(T(12, 18, "向きを 1 か所だけ逆にして、2° から放す（4 節の制御器、W を 4 倍）", "start", 11.5, INK, True))
+    Pa = Plot(66, 34, 270, 150, (0, 3), (-10, 65))
+    Pb = Plot(418, 34, 270, 150, (0, 3), (-0.6, 1.2))
+    o.append(Pa.axes(xl="時間 t [s]", yl="角度 φ [°]", xt=[0, 1, 2, 3], yt=[0, 20, 40, 60]))
+    o.append(Pb.axes(xl="時間 t [s]", yl="台車の位置 p [m]", xt=[0, 1, 2, 3], yt=[-0.5, 0, 0.5, 1.0], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    for v in (0.5, -0.5):
+        o.append(W(Pb.x, Pb.Y(v), Pb.x + Pb.w, Pb.Y(v), c=ALI, lw=1, dash="4 3"))
+    for sg, c, dash, lab in cases:
+        r = _f21_run(T=3.0, x0=(0, 0, 2 * _F21_D, 0), sa=0.6, sal=6.0, sgn=sg, stop_deg=60.0, every=2)
+        o.append(Pa.clip(list(zip(r["t"], r["x"][:, 2] / _F21_D)), c=c, lw=2, dash=dash))
+        o.append(Pb.clip(list(zip(r["t"], r["x"][:, 0])), c=c, lw=2, dash=dash))
+        if r["fell"] is not None:
+            if sg[0] < 0:
+                o.append(T(Pa.X(r["fell"]) - 6, Pa.Y(32), "%s: %.2f s で倒れる" % (lab, r["fell"]), "end", 9.5, c, True, halo=True))
+            else:
+                o.append(T(Pa.X(0.34), Pa.Y(52) + (0 if sg[1] < 0 else 14), "%s: %.2f s で倒れる" % (lab, r["fell"]), "start", 9.5, c, True, halo=True))
+    o.append(LEGL(66, 236, [(c, dash, lab) for _, c, dash, lab in cases], sz=9.5, gap=14))
+    return SVG(704, 246, o, cap="センサか力の向きを 1 か所だけ逆にしたときの動き（線形でない式）。角度のセンサや力の向きが逆だと、制御器は振子を倒す向きに押し、0.3 s ほどで倒れる。位置のセンサが逆だと、振子はしばらく立つが、台車を戻すつもりの力が台車を押し出し、レールの端を越えてから倒れる。")
+
+
+F["e21_signs"] = _f21_signs_fig()
