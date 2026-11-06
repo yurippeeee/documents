@@ -245,12 +245,14 @@ def _f05_binstep_fig():
     o.append(r.line(c1, c=MUT, lw=1.6, dash="5 3"))
     o.append(r.line(c2, c=SIG, lw=1.8))
     o.append(r.line(c3, c=ALI, lw=2))
-    for curve, c, lab in ((c1, MUT, "11.1"), (c2, SIG, "13.6"), (c3, ALI, "15.3")):
-        s90 = _f05_np.interp(0.9, [v for _, v in curve], [s for s, _ in curve])
+    s90s = [10 * math.log10(_f05_opt.brentq(lambda x: _f05_pmax(x, 1022) - 0.9, 2, 100)),
+            10 * math.log10(_f05_opt.brentq(lambda x: float(_f05_pd(x, thr)) - 0.9, 2, 100)),
+            10 * math.log10(_f05_opt.brentq(lambda x: _f05_pd_str(x, thr) - 0.9, 2, 100))]
+    for s90, c in zip(s90s, (MUT, SIG, ALI)):
         o.append(D(r.X(s90), r.Y(0.9), c, 3.6))
-    o.append(LEGL(xc - 6, 216, [(MUT, "5 3", "3 章 6 節の基準（11.1 dB）")], 9.5, 12))
-    o.append(LEGL(xc - 6, 232, [(SIG, None, "しきい値・42 966 ビン（13.6 dB）")], 9.5, 12))
-    o.append(LEGL(xc - 6, 248, [(ALI, None, "さらに刻みの損失（15.3 dB）")], 9.5, 12))
+    o.append(LEGL(xc - 6, 216, [(MUT, "5 3", "3 章 6 節の基準（%.1f dB）" % s90s[0])], 9.5, 12))
+    o.append(LEGL(xc - 6, 232, [(SIG, None, "しきい値・42 966 ビン（%.1f dB）" % s90s[1])], 9.5, 12))
+    o.append(LEGL(xc - 6, 248, [(ALI, None, "さらに刻みの損失（%.1f dB）" % s90s[2])], 9.5, 12))
     o.append(T(14, 282, "(c) のしきい値は、格子全体で誤って超える確率を 1 % にした値（雑音の平均の 11.8 dB 上）。", "start", 9.5, MUT))
     o.append(T(14, 297, "3 章 6 節の基準は、1023 通りの中の最大が本当のずれに来る割合（しきい値なし）。", "start", 9.5, MUT))
     return SVG(700, 306, o, "ビンの刻みと、見つけるのに要る SN 比。(a) ドップラーの向きの電力は sinc² の形で、500 Hz（1/(2T_coh)）の刻みなら、真ん中でも 0.81 倍で済むが、1 kHz の刻みでは 0.41 倍に落ちる。(b) 符号の位相の向きは三角形の 2 乗で、1/2 チップの刻みの真ん中では 0.56 倍になる。(c) 検出確率（見つかる割合）と SNR。3 章 6 節の基準より、ビンの数としきい値の分と、刻みの損失の分だけ、多くの SN 比が要る（点が 90 %）。")
@@ -534,7 +536,7 @@ def _f05_scurve_fig():
     o.append(D(r.X(0), r.Y(0), GRN, 4.4))
     for sg in (1, -1):
         o.append(D(r.X(sg * (0.5 + d / 4)), r.Y(0), ALI, 4.4))
-    o.append(T(r.X(0), r.y + 12, "本当の点", "middle", 9.5, GRN, True, halo=True))
+    o.append(T(r.X(0), r.Y(0) + 22, "本当の点", "middle", 9.5, GRN, True, halo=True))
     o.append(T(r.X(0.55) + 4, r.Y(0) - 26, "偽の点", "middle", 9.5, ALI, True, halo=True))
     o.append(T(r.X(0.55) + 4, r.Y(0) - 13, "±0.55", "middle", 9.5, ALI, False, halo=True))
     o.append(LEGL(xc, 238, [(PUR, None, "BOC(1,1)"), (FNT, "4 3", "BPSK（同じ間隔）")], 9.5, 12))
@@ -587,7 +589,6 @@ def _f05_dllloop_fig():
     o.append(ARR(448, yc, 478, yc, c=MUT, lw=1.6))
     _f05_blk(o, 478, yc - 22, 104, 44, "符号の NCO", "足し込む（積分）", GLD)
     o.append(W(582, yc, 630, yc, c=GLD, lw=1.6))
-    o.append(TX(596, yc - 7, "τ̂", "start", 11, GLD, True))
     o.append(D(630, yc, INK, 3.4))
     o.append(W(630, yc, 630, yc + 50, 85, yc + 50, c=GLD, lw=1.4))
     o.append(ARR(85, yc + 50, 85, yc + 16, c=GLD, lw=1.4, head=6))
@@ -692,3 +693,526 @@ def _f05_dllnoise_fig():
     o.append(T(xl, yy + 53, "（数字は C/N0 [dB-Hz]）", "start", 9.5, MUT))
     return SVG(700, 330, o, "1 次の DLL（ループの帯域 1 Hz、搬送波による支援あり）の擬似距離の雑音。実線は E と L の電力の差の判別器の式、破線は位相が合っている（I だけの差）ときの式、○は 1 ms ごとのシミュレーション。E・L の間隔を狭くすると雑音が減る。C/N0 が低いと、電力の差では雑音どうしの積の分だけ雑音が増えるが、積分の時間を 20 ms にすると、その分が小さくなる。3 章 6 節の式（点線）は、間隔 1 チップ・帯域 0.5 Hz・位相が合っているときの式にあたる。")
 F["e05_dllnoise"] = _f05_dllnoise_fig()
+
+
+# =====================================================================
+# 4 節: コスタスの判別器
+# =====================================================================
+def _f05_costas_fig():
+    o = []
+    rng = _f05_np.random.default_rng(8)
+    psi = math.radians(25.0)
+    c = 10 ** 4.5; sd = math.sqrt(1 / (2 * c * 1e-3))
+    bits = _f05_np.where(rng.random(8) < 0.5, 1, -1); bits[0] = 1; bits[1] = -1
+    o.append(T(14, 18, "(a) P の I・Q（位相のずれ 25°、45 dB-Hz、1 ms ごと）", "start", 11, INK, True))
+    p = Plot(70, 40, 200, 200, (-1.4, 1.4), (-1.4, 1.4))
+    o.append(p.axes(xl="I（√(2C) で割った値）", yl="Q", xt=[-1, 0, 1], yt=[-1, 0, 1], xfmt=_f05_m, yfmt=_f05_m))
+    o.append(W(p.X(0), p.y, p.X(0), p.y + p.h, c=MUT, lw=1)); o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
+    cir = [(math.cos(a), math.sin(a)) for a in _f05_np.linspace(0, 2 * math.pi, 121)]
+    o.append(p.line(cir, c=FNT, lw=1, dash="4 3"))
+    ang = -psi
+    o.append(p.line([(-1.4 * math.cos(ang), -1.4 * math.sin(ang)), (1.4 * math.cos(ang), 1.4 * math.sin(ang))], c=GLD, lw=1.2, dash="5 3"))
+    for k in range(160):
+        d = bits[k // 20]
+        I = d * math.cos(psi) + sd * rng.standard_normal(); Q = -d * math.sin(psi) + sd * rng.standard_normal()
+        o.append(D(p.X(I), p.Y(Q), SIG if d > 0 else PUR, 2.2))
+    arc = [(0.55 * math.cos(a), 0.55 * math.sin(a)) for a in _f05_np.linspace(0, -psi, 20)]
+    o.append(p.line(arc, c=GLD, lw=1.4))
+    o.append(T(p.X(0.62), p.Y(-0.18), "25°", "start", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(0.92), p.Y(-0.75), "d = +1", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(-0.92), p.Y(0.75), "d = −1", "middle", 9.5, PUR, True, halo=True))
+    o.append(TX(14, 300, "データが変わると点は反対側へ移るが、−Q_P/I_P は同じなので", "start", 9.5, INK))
+    o.append(TX(14, 315, "D_{PLL} = arctan(−Q_P/I_P) = 25° はビットによらない", "start", 9.5, INK, True))
+    # (b) S 字
+    xb = 330
+    o.append(T(xb, 18, "(b) 位相の判別器の出力", "start", 11, INK, True))
+    q = Plot(xb + 44, 40, 300, 200, (-180, 180), (-200, 200))
+    o.append(q.axes(xl="位相のずれ [°]", yl="出力 [°]", xt=[-180, -90, 0, 90, 180], yt=[-180, -90, 0, 90, 180], xfmt=_f05_m, yfmt=_f05_m))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
+    xs = _f05_np.linspace(-180, 180, 721)
+    four = [(x, x) for x in xs]
+    o.append(q.line(four, c=FNT, lw=1.6, dash="5 3"))
+    cost = _f05_np.degrees(_f05_np.arctan(_f05_np.tan(_f05_np.radians(xs))))
+    segs = []; cur = []
+    for x, v in zip(xs, cost):
+        if cur and abs(v - cur[-1][1]) > 90:
+            segs.append(cur); cur = []
+        cur.append((x, v))
+    segs.append(cur)
+    for sg in segs:
+        o.append(q.line(sg, c=SIG, lw=2.2))
+    o.append(q.line([(x, math.degrees(math.sin(2 * math.radians(x)) / 2)) for x in xs], c=GRN, lw=1.8))
+    for x0 in (-180, 0, 180):
+        o.append(D(q.X(x0), q.Y(0), SIG, 4.2))
+    o.append(T(q.X(-178), q.Y(160), "4 象限 arctan2", "start", 9.5, MUT, True, halo=True))
+    o.append(T(q.X(-178), q.Y(130), "（データが無いときだけ）", "start", 9.5, MUT, False, halo=True))
+    o.append(LEGL(xb, 300, [(SIG, None, "コスタス arctan(−Q/I)"), (GRN, None, "−QI（小さい間）")], 9.5, 14))
+    o.append(T(xb, 318, "●: ロックする点（0° と ±180°）。180° でロックすると、", "start", 9.5, MUT))
+    o.append(T(xb, 333, "ビットが反転して読める（プリアンブルで気づく）", "start", 9.5, MUT))
+    return SVG(700, 344, o, "コスタスループの判別器。(a) データのビットが −1 になると、P の点は原点の反対側へ移るが、−Q/I の比は変わらないので、arctan(−Q/I) は位相のずれ 25° を出し続ける。(b) コスタスの判別器は 180° ごとに同じ値をくり返し、0° と ±180° の両方でロックする。−QI は、ずれが小さい間は位相のずれに比例する（傾きは信号の電力で変わる）。4 象限の arctan2 は ±180° まで測れるが、データがあると、ビットが変わるたびに 180° 跳ぶ。")
+F["e05_costas"] = _f05_costas_fig()
+
+
+# =====================================================================
+# 4 節: FLL で引き込んでから PLL（1 ms ごとのシミュレーション）
+# =====================================================================
+def _f05_pll_sim(cn0, Bn, T_, tend, order=2, acc=0.0, jerk=0.0, df0=0.0, dpsi0=0.0, data=True, fll_time=0.0, Bf=10.0, seed=5, lin=False, kind="costas"):
+    rng = _f05_np.random.default_rng(seed)
+    n = int(round(tend / T_)); c = 10 ** (cn0 / 10); sd = math.sqrt(1 / (2 * c * T_)) if cn0 < 200 else 0.0
+    w0 = Bn / 0.53 if order == 2 else (Bn / 0.7845 if order == 3 else 4 * Bn)
+    psh = 0.0; wh = 0.0; x1 = None; x2 = 0.0; prev = None
+    bits = _f05_np.where(rng.random(int(tend / 0.02) + 3) < 0.5, 1, -1)
+    E = _f05_np.zeros(n); F = _f05_np.zeros(n); IQ = _f05_np.zeros((n, 2))
+    for k in range(n):
+        t0 = k * T_; tm = t0 + T_ / 2
+        psi = dpsi0 + 2 * math.pi * (df0 * tm + 0.5 * acc / _F05_LAM * tm * tm + jerk / _F05_LAM * tm ** 3 / 6)
+        fd = df0 + acc / _F05_LAM * tm + 0.5 * jerk / _F05_LAM * tm * tm
+        dpb = psi - (psh + wh * T_ / 2); dfr = fd - wh / (2 * math.pi)
+        amp = float(_f05_np.sinc(dfr * T_)); d = bits[int(t0 / 0.02)] if data else 1
+        I = d * amp * math.cos(dpb) + sd * rng.standard_normal(); Q = -d * amp * math.sin(dpb) + sd * rng.standard_normal()
+        IQ[k] = (I, Q); E[k] = dpb; F[k] = dfr
+        if t0 < fll_time:
+            if prev is not None:
+                num = I * prev[1] - prev[0] * Q; den = prev[0] * I + prev[1] * Q
+                fe = math.atan(num / den) / (2 * math.pi * T_) if den != 0 else 0.0
+                kf = 4 * T_ * Bf / (1 + 2 * T_ * Bf); wh += 2 * math.pi * kf * fe
+            prev = (I, Q)
+        else:
+            if x1 is None:
+                x1 = wh
+            if lin:
+                e = dpb
+            elif kind == "costas":
+                e = math.atan(-Q / I) if I != 0 else 0.0
+            else:
+                e = math.atan2(-Q, I)
+            if order == 1:
+                wh = x1 + w0 * e
+            elif order == 2:
+                x1 += w0 * w0 * T_ * e; wh = x1 + 1.414 * w0 * e
+            else:
+                x2 += w0 ** 3 * T_ * e; x1 += (x2 + 1.1 * w0 * w0 * e) * T_; wh = x1 + 2.4 * w0 * e
+        psh += wh * T_
+    return E, F, IQ
+
+
+def _f05_wrapc(x):
+    return (x + math.pi / 2) % math.pi - math.pi / 2
+
+
+def _f05_pullin_fig():
+    o = []
+    T_ = 1e-3
+    E, F, IQ = _f05_pll_sim(45.0, 15.0, T_, 0.6, df0=200.0, dpsi0=1.0, fll_time=0.2, Bf=10.0, seed=5)
+    tt = _f05_np.arange(len(E)) * T_
+    # (a) FLL の判別器
+    o.append(T(14, 18, "(a) FLL の判別器（1 ms）", "start", 11, INK, True))
+    p = Plot(60, 40, 250, 150, (-750, 750), (-300, 300))
+    o.append(RECT(p.X(-250), p.y, p.X(250) - p.X(-250), p.h, 0, GSOFT, "none", 0))
+    o.append(p.axes(xl="周波数のずれ Δf [Hz]", yl="出力 [Hz]", xt=[-750, -500, -250, 0, 250, 500, 750], yt=[-250, 0, 250], xfmt=_f05_m, yfmt=_f05_m))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
+    xs = _f05_np.linspace(-750, 750, 1501)
+    ys = _f05_np.degrees(_f05_np.arctan(_f05_np.tan(2 * math.pi * xs * T_))) / 360 / T_
+    segs = []; cur = []
+    for x, v in zip(xs, ys):
+        if cur and abs(v - cur[-1][1]) > 200:
+            segs.append(cur); cur = []
+        cur.append((x, v))
+    segs.append(cur)
+    for sg in segs:
+        o.append(p.line(sg, c=SIG, lw=2))
+    o.append(T(p.X(0), p.y + 12, "±250 Hz で正しい", "middle", 9.5, GRN, True, halo=True))
+    # (d) I・Q
+    xq = 380
+    o.append(T(xq, 18, "(d) P の I・Q の点", "start", 11, INK, True))
+    q = Plot(xq + 50, 40, 150, 150, (-1.3, 1.3), (-1.3, 1.3))
+    o.append(q.axes(xl="I", yl="Q", xt=[-1, 0, 1], yt=[-1, 0, 1], xfmt=_f05_m, yfmt=_f05_m))
+    o.append(W(q.X(0), q.y, q.X(0), q.y + q.h, c=MUT, lw=1)); o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
+    for k in range(0, 200, 2):
+        o.append(D(q.X(max(-1.3, min(1.3, IQ[k, 0]))), q.Y(max(-1.3, min(1.3, IQ[k, 1]))), FNT, 1.8))
+    for k in range(350, 600, 2):
+        o.append(D(q.X(max(-1.3, min(1.3, IQ[k, 0]))), q.Y(max(-1.3, min(1.3, IQ[k, 1]))), SIG, 2.2))
+    o.append(T(q.x + q.w + 10, q.y + 30, "灰: FLL の間", "start", 9.5, MUT, True))
+    o.append(T(q.x + q.w + 10, q.y + 45, "（回り続ける）", "start", 9.5, MUT))
+    o.append(T(q.x + q.w + 10, q.y + 75, "青: PLL で", "start", 9.5, SIG, True))
+    o.append(T(q.x + q.w + 10, q.y + 90, "ロックした後", "start", 9.5, SIG, True))
+    o.append(T(q.x + q.w + 10, q.y + 105, "（I の軸の ±1）", "start", 9.5, SIG))
+    # (b) 周波数のずれ
+    yb = 236
+    o.append(T(14, yb, "(b) 周波数のずれ（初め 200 Hz、帯域 10 Hz の FLL）", "start", 11, INK, True))
+    r = Plot(60, yb + 16, 600, 110, (0, 0.6), (-30, 220))
+    o.append(RECT(r.X(0), r.y, r.X(0.2) - r.X(0), r.h, 0, MSOFT, "none", 0))
+    o.append(r.axes(yl="Δf [Hz]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6], yt=[0, 100, 200], xfmt=lambda v: "", yfmt=_f05_m))
+    o.append(W(r.x, r.Y(0), r.x + r.w, r.Y(0), c=MUT, lw=1))
+    o.append(r.line(list(zip(tt, F)), c=SIG, lw=1.8))
+    o.append(T(r.X(0.1), r.y + 14, "FLL", "middle", 10, MUT, True))
+    o.append(T(r.X(0.4), r.y + 14, "PLL（帯域 15 Hz、2 次）", "middle", 10, SIG, True))
+    f2 = float(_f05_np.abs(F[195:200]).mean())
+    o.append(T(r.X(0.21), r.Y(60), "0.2 s で %.1f Hz" % f2, "start", 9.5, SIG, True, halo=True))
+    # (c) 位相のずれ
+    yc = yb + 160
+    o.append(T(14, yc, "(c) 位相のずれ（180° ごとに同じとして、±90° に折り返した値）", "start", 11, INK, True))
+    s_ = Plot(60, yc + 16, 600, 110, (0, 0.6), (-90, 90))
+    o.append(RECT(s_.X(0), s_.y, s_.X(0.2) - s_.X(0), s_.h, 0, MSOFT, "none", 0))
+    o.append(s_.axes(xl="時間 t [s]", yl="ずれ [°]", xt=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6], yt=[-90, -45, 0, 45, 90], xfmt=_f05_m, yfmt=_f05_m))
+    o.append(W(s_.x, s_.Y(0), s_.x + s_.w, s_.Y(0), c=MUT, lw=1))
+    ew = [math.degrees(_f05_wrapc(e)) for e in E]
+    pts = list(zip(tt, ew)); segs = []; cur = []
+    for x, v in pts:
+        if cur and abs(v - cur[-1][1]) > 90:
+            segs.append(cur); cur = []
+        cur.append((x, v))
+    segs.append(cur)
+    for sg in segs:
+        o.append(s_.line(sg, c=PUR, lw=1.2))
+    E2, _, _ = _f05_pll_sim(45.0, 15.0, T_, 1.6, df0=200.0, dpsi0=1.0, fll_time=0.2, Bf=10.0, seed=5)
+    sdv = float(_f05_np.std([math.degrees(_f05_wrapc(e)) for e in E2[600:]]))
+    o.append(T(s_.X(0.36), s_.Y(60), "落ち着いた後（0.6〜1.6 s）の揺れ σ = %.2f°（式 1.26°）" % sdv, "start", 9.5, PUR, True, halo=True))
+    return SVG(700, yc + 176, o, "捕捉の後、FLL で周波数を引き込んでから PLL で位相を合わせる様子（C/N0 45 dB-Hz、1 ms ごとの計算）。(a) FLL の判別器は、2 回の P の点の角度の差から周波数のずれを測り、1 ms の積分なら ±250 Hz の中で正しい（データが変わっても同じ）。(b) 初めの 200 Hz のずれを、FLL が 0.2 s で 1 Hz より小さくする。(c) PLL に切り替えると、0.2 s ほどで位相のずれが数度に収まる。(d) FLL の間は点が回り続け、ロックした後は I の軸の上の 2 か所（ビット ±1）に集まる。")
+F["e05_pullin"] = _f05_pullin_fig()
+
+
+# =====================================================================
+# 4 節: ループの次数と帯域
+# =====================================================================
+def _f05_loops_fig():
+    o = []
+    T_ = 1e-3; tend = 0.6
+    tt = _f05_np.arange(int(tend / T_)) * T_
+    cols = {1: TEA, 2: SIG, 3: PUR}
+    tests = [("(a) 位相が 30° 跳ぶ", dict(dpsi0=math.radians(30.0)), (-12, 36), [0, 15, 30]),
+             ("(b) 周波数が 10 Hz 跳ぶ", dict(df0=10.0), (-50, 70), [-30, 0, 30, 60]),
+             ("(c) 加速度 1 g（51.6 Hz/s）", dict(acc=9.81), (-15, 60), [0, 23.2, 50])]
+    for i, (ttl, kw, yr, yt) in enumerate(tests):
+        x0 = 14 + i * 228
+        o.append(T(x0, 18, ttl, "start", 11, INK, True))
+        p = Plot(x0 + 44, 36, 166, 120, (0, tend), yr)
+        o.append(p.axes(xl="時間 t [s]", yl="位相のずれ [°]" if i == 0 else None, xt=[0, 0.2, 0.4, 0.6], yt=yt, xfmt=_f05_m, yfmt=lambda v: _f05_m(round(v, 1))))
+        o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
+        for order in (1, 2, 3):
+            E, _, _ = _f05_pll_sim(999.0, 15.0, T_, tend, order=order, data=False, lin=True, **kw)
+            o.append(p.clip(list(zip(tt, _f05_np.degrees(E))), c=cols[order], lw=1.8))
+    o.append(LEGL(58, 214, [(TEA, None, "1 次"), (SIG, None, "2 次"), (PUR, None, "3 次（どれも帯域 15 Hz）")], 9.5, 16))
+    o.append(T(390, 208, "残るずれ: 1 次は (b) で 60°、2 次は (c) で 23.2°", "start", 9.5, MUT))
+    o.append(T(390, 223, "3 次は行き過ぎが大きいが、(c) でも 0 に戻る", "start", 9.5, MUT))
+    # (d) 帯域の釣り合い
+    yd = 244
+    o.append(W(10, yd - 14, 690, yd - 14, c=LIN, lw=0.8))
+    o.append(T(14, yd + 4, "(d) 2 次の PLL の帯域の選び方（加速度 1 g、1 ms）", "start", 11, INK, True))
+    q = Plot(60, yd + 24, 330, 170, (2, 60), (0, 90), xlog=True)
+    o.append(q.axes(xl="ループの帯域 B_L [Hz]", yl="3σ + 動きのずれ [°]", xt=[2, 5, 10, 20, 50], yt=[0, 15, 30, 45, 60, 75, 90], xfmt=_f05_m, yfmt=_f05_m))
+    o.append(W(q.x, q.Y(45), q.x + q.w, q.Y(45), c=ALI, lw=1.2, dash="5 3"))
+    o.append(T(q.x + 4, q.Y(45) - 5, "目安 45°", "start", 9.5, ALI, True, halo=True))
+    bl = _f05_np.logspace(math.log10(2), math.log10(60), 140)
+    dyn = [math.degrees(2 * math.pi * 9.81 / _F05_LAM / (b / 0.53) ** 2) for b in bl]
+    o.append(q.clip(list(zip(bl, dyn)), c=MUT, lw=1.4, dash="4 3"))
+    best = []
+    for cn, c in ((27, TEA), (30, SIG), (45, PUR)):
+        cc = 10 ** (cn / 10)
+        tot = [3 * math.degrees(math.sqrt(b / cc * (1 + 1 / (2 * T_ * cc)))) + dv for b, dv in zip(bl, dyn)]
+        o.append(q.clip(list(zip(bl, tot)), c=c, lw=2))
+        j = int(_f05_np.argmin(tot)); best.append((cn, bl[j], tot[j]))
+        o.append(D(q.X(bl[j]), q.Y(tot[j]), c, 3.8))
+    xt_ = 420
+    o.append(T(xt_, yd + 40, "破線: 動きによるずれ（帯域を広くすると減る）", "start", 9.5, MUT))
+    o.append(T(xt_, yd + 56, "実線: 雑音の 3σ を足した値（帯域を広くすると増える）", "start", 9.5, MUT))
+    yy = yd + 82
+    for (cn, b, v), c in zip(best, (TEA, SIG, PUR)):
+        o.append(T(xt_, yy, "%d dB-Hz: 最も小さいのは %.0f Hz で %.0f°" % (cn, b, v), "start", 9.5, c, True))
+        yy += 16
+    o.append(T(xt_, yy + 10, "27 dB-Hz では、どの帯域でも 45° を超える", "start", 9.5, ALI, True))
+    o.append(T(xt_, yy + 26, "（3 次にして動きのずれを消すか、積分の時間を延ばす）", "start", 9.5, MUT))
+    return SVG(700, yd + 236, o, "ループの次数と帯域（1 ms ごとの計算、雑音なし。判別器は直線とした。3 次の係数は代表的な 1.1 と 2.4）。(a) 位相の跳びには、どの次数もずれを 0 に戻す。(b) 周波数の跳び（位相が一定の速さで進む）には、1 次のループは一定のずれを残す。3 次はこの係数では行き過ぎが大きく、落ち着くのに時間がかかる。(c) 加速度（周波数が一定の速さで変わる）には、2 次のループが 23.2° のずれを残し、3 次は 0 に戻す。(d) 帯域を広くすると動きによるずれは減るが、雑音の揺れは増える。2 つの和が最も小さい帯域があり、C/N0 が低いと、その値でも目安の 45° を超える。")
+F["e05_loops"] = _f05_loops_fig()
+
+
+# =====================================================================
+# 5 節: ビット同期（1 ms ごとの I の符号の変わり目を数える）
+# =====================================================================
+def _f05_bitsync_fig():
+    o = []
+    off = 7
+    def run(cn0, ms, seed):
+        rng = _f05_np.random.default_rng(seed)
+        c = 10 ** (cn0 / 10); sd = math.sqrt(1 / (2 * c * 1e-3))
+        nb = ms // 20 + 3
+        bits = _f05_np.where(rng.random(nb) < 0.5, 1, -1)
+        t = _f05_np.arange(ms)
+        truth = bits[(t - off) // 20 + 1]
+        I = truth + sd * rng.standard_normal(ms)
+        ch = _f05_np.sign(I[1:]) != _f05_np.sign(I[:-1])
+        pos = t[1:] % 20
+        return I, truth, _f05_np.bincount(pos[ch], minlength=20)
+    I, truth, _ = run(30.0, 200, 4)
+    o.append(T(14, 18, "(a) 1 ms ごとの P の I（30 dB-Hz。金の線はデータのビット）", "start", 11, INK, True))
+    p = Plot(56, 36, 610, 110, (0, 200), (-2.6, 2.6))
+    for k in range(0, 200, 20):
+        o.append(RECT(p.X(k + off), p.y, 1.2, p.h, 0, FNT, "none", 0))
+    o.append(p.axes(xl="時間 [ms]", yl="I", xt=list(range(0, 201, 20)), yt=[-2, -1, 0, 1, 2], xfmt=_f05_m, yfmt=_f05_m))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
+    o.append(p.steps([(k, truth[k]) for k in range(200)] + [(200, truth[199])], c=GLD, lw=1.8))
+    for k in range(200):
+        c = ALI if (k > 0 and _f05_np.sign(I[k]) != _f05_np.sign(I[k - 1]) and (k % 20) != off) else SIG
+        o.append(D(p.X(k + 0.5), p.Y(max(-2.6, min(2.6, I[k]))), c, 1.9))
+    o.append(T(p.x + p.w, p.y - 4, "細い縦線: ビットの境目（20 ms の中の 7 ms 目）。赤: 雑音で符号が変わった所", "end", 9.5, MUT))
+    # (b) 20 ms の中の位置ごとの回数（1 s）
+    yb = 210
+    o.append(T(14, yb, "(b) 符号が変わった回数を、20 ms の中の位置ごとに数える（1 s = 50 bit の後）", "start", 11, INK, True))
+    for i, (cn, sd_) in enumerate(((45.0, 41), (30.0, 42), (25.0, 43))):
+        _, _, h = run(cn, 1000, sd_)
+        x0 = 56 + i * 216
+        q = Plot(x0, yb + 32, 180, 100, (-0.5, 19.5), (0, 35))
+        o.append(q.axes(xl="20 ms の中の位置 [ms]", yl="回数" if i == 0 else None, xt=[0, 5, 10, 15], yt=[0, 10, 20, 30], xfmt=_f05_m, yfmt=_f05_m))
+        for k in range(20):
+            c = SIG if k == off else MUT
+            o.append(RECT(q.X(k) - 3.6, q.Y(h[k]), 7.2, q.Y(0) - q.Y(h[k]), 1, soft(c), c, 1.0))
+        o.append(T(x0 + 90, yb + 26, "%d dB-Hz" % cn, "middle", 10, INK, True))
+        o.append(T(q.X(off) + 8, q.Y(h[off]) + 4, "%d" % h[off], "start", 9.5, SIG, True, halo=True))
+    return SVG(700, yb + 180, o, "ビット同期。(a) 位相が合った P の I は、データのビットに雑音が加わった値で、符号が変わるのは、主に値の違うビットへ移る境目である（同じ値のビットが続けば変わらない）。(b) 1 s のあいだに符号が変わった回数を 20 ms の中の位置ごとに数えると、境目の位置（7 ms 目）だけが 25 回ほどになる。C/N0 が低いと、雑音で変わる回数がほかの位置にも増え、見分けるのに長くかかる。")
+F["e05_bitsync"] = _f05_bitsync_fig()
+
+
+# =====================================================================
+# 5 節: エフェメリスを受けるまでの時間（18〜36 s）
+# =====================================================================
+def _f05_teph(t0):
+    ends = []
+    for i in (1, 2, 3):
+        st = 6.0 * (i - 1)
+        while st < t0 - 1e-9:
+            st += 30.0
+        ends.append(st + 6.0)
+    return max(ends) - t0
+
+
+def _f05_ephwait_fig():
+    o = []
+    o.append(T(14, 18, "(a) サブフレームの並びと、読み始める時刻の例", "start", 11, INK, True))
+    x0, w = 40, 620
+    X = lambda t: x0 + t / 60.0 * w
+    yf = 48
+    for k in range(10):
+        i = k % 5 + 1
+        c = SIG if i <= 3 else MUT
+        o.append(RECT(X(6 * k), yf, X(6) - X(0) - 1, 22, 2, soft(c), c, 1.0))
+        o.append(T(X(6 * k + 3), yf + 15, "%d" % i, "middle", 10, c, True))
+    for v in range(0, 61, 6):
+        o.append(T(X(v), yf + 36, "%d" % v, "middle", 9.5, MUT))
+    o.append(T(X(30), yf + 52, "フレームの頭からの時刻 [s]（青: サブフレーム 1〜3。時計の補正の値とエフェメリス）", "middle", 9.5, MUT))
+    exs = [(3.0, GLD), (20.0, PUR)]
+    for j, (t0, c) in enumerate(exs):
+        y = yf + 76 + j * 46
+        te = _f05_teph(t0)
+        o.append(D(X(t0), y, c, 4.4))
+        o.append(W(X(t0), y, X(t0 + te), y, c=c, lw=1.6))
+        o.append(W(X(t0 + te), y - 6, X(t0 + te), y + 6, c=c, lw=1.6))
+        for i in (1, 2, 3):
+            st = 6.0 * (i - 1)
+            while st < t0 - 1e-9:
+                st += 30.0
+            o.append(RECT(X(st), y + 6, X(st + 6) - X(st) - 1, 12, 2, soft(GRN), GRN, 1.0))
+            o.append(T(X(st + 3), y + 16, "%d" % i, "middle", 9, GRN, True))
+        o.append(T(X(t0) - 6, y + 4, "t₀ = %g s" % t0, "end", 9.5, c, True))
+        o.append(T(X(t0 + te) + 8, y + 4, "%g s 待つ" % te, "start", 9.5, c, True))
+    # (b) 待つ時間と t0
+    yb = 236
+    o.append(W(10, yb - 16, 690, yb - 16, c=LIN, lw=0.8))
+    o.append(T(14, yb + 2, "(b) 読み始める時刻 t₀ と、待つ時間", "start", 11, INK, True))
+    p = Plot(70, yb + 22, 430, 150, (0, 30), (10, 40))
+    o.append(p.axes(xl="読み始める時刻 t₀ [s]（フレームの頭から）", yl="待つ時間 [s]", xt=[0, 6, 12, 18, 24, 30], yt=[10, 18, 29.4, 36, 40], xfmt=_f05_m, yfmt=lambda v: _f05_m(v)))
+    for a, b in ((0.0001, 6), (6.0001, 12), (12.0001, 18), (18.0, 30)):
+        ts = _f05_np.linspace(a, b, 60)
+        o.append(p.line([(t, _f05_teph(t)) for t in ts], c=SIG, lw=2.2))
+    o.append(D(p.X(0), p.Y(18), SIG, 3.6))
+    o.append(W(p.x, p.Y(29.4), p.x + p.w, p.Y(29.4), c=GLD, lw=1.2, dash="5 3"))
+    o.append(T(p.X(29.5), p.Y(29.4) + 14, "平均 29.4 s", "end", 9.5, GLD, True, halo=True))
+    for t0, c in exs:
+        o.append(D(p.X(t0), p.Y(_f05_teph(t0)), c, 4.2))
+    o.append(T(530, yb + 50, "最も短い: 18 s", "start", 10, SIG, True))
+    o.append(T(530, yb + 66, "（サブフレーム 1 の頭から）", "start", 9.5, MUT))
+    o.append(T(530, yb + 92, "最も長い: 36 s", "start", 10, SIG, True))
+    o.append(T(530, yb + 108, "（1 の頭を少し逃した）", "start", 9.5, MUT))
+    o.append(T(530, yb + 134, "t₀ が一様なら平均 29.4 s", "start", 10, GLD, True))
+    return SVG(700, yb + 214, o, "エフェメリスを受けるまでの時間。(a) サブフレーム 1〜3 は 30 s のフレームごとに繰り返す。サブフレームは頭から受けないと読めないので、t₀ = 3 s に読み始めると、1 は次のフレームまで待ち、33 s かかる。t₀ = 20 s では、1〜3 とも次のフレームのものを受け、28 s かかる。(b) 待つ時間は 18〜36 s で、読み始める時刻がフレームの中のどこでも同じ確からしさなら、平均 29.4 s である。")
+F["e05_ephwait"] = _f05_ephwait_fig()
+
+
+# =====================================================================
+# 5 節: スタートの種類と、手順ごとの時間（例の値）
+# =====================================================================
+_F05_STAGES = [("探す", GLD), ("合わせる", PUR), ("ビット同期", TEA), ("エフェメリスを待つ", SIG), ("位置を出す", GRN)]
+
+
+def _f05_ttffseq_fig():
+    o = []
+    rows = [("コールドスタート", [1.64, 0.3, 1.0, 29.4, 0.0]),
+            ("ウォームスタート", [0.09, 0.3, 1.0, 29.4, 0.0]),
+            ("ホットスタート", [0.06, 0.3, 0.0, 0.0, 0.5])]
+    o.append(T(14, 18, "(a) 手順ごとの時間（例の値。エフェメリスは平均 29.4 s、細い線は 18〜36 s）", "start", 11, INK, True))
+    x0, w = 130, 540
+    X = lambda t: x0 + t / 40.0 * w
+    for i, (nm, ts) in enumerate(rows):
+        y = 44 + i * 40
+        o.append(T(x0 - 8, y + 15, nm, "end", 10, INK, True))
+        t = 0.0
+        for (lab, c), d in zip(_F05_STAGES, ts):
+            if d > 0:
+                o.append(RECT(X(t), y, max(X(t + d) - X(t), 1.5), 22, 2, soft(c), c, 1.0))
+                if X(t + d) - X(t) > tw(lab, 9.5) + 6:
+                    o.append(T((X(t) + X(t + d)) / 2, y + 15, lab, "middle", 9.5, c, True))
+            t += d
+        if ts[3] > 0:
+            a = sum(ts[:3]); o.append(W(X(a + 18), y + 26, X(a + 36), y + 26, c=SIG, lw=1.2))
+            o.append(W(X(a + 18), y + 23, X(a + 18), y + 29, c=SIG, lw=1.2)); o.append(W(X(a + 36), y + 23, X(a + 36), y + 29, c=SIG, lw=1.2))
+        o.append(T(X(t) + 6, y + 15, "%.1f s" % t, "start", 10, INK, True))
+    o.append(W(x0, 168, x0 + w, 168, c=MUT, lw=1.1))
+    for v in range(0, 41, 5):
+        o.append(W(X(v), 168, X(v), 172, c=MUT, lw=1)); o.append(T(X(v), 184, "%d" % v, "middle", 9.5, MUT))
+    o.append(T(x0 + w / 2, 200, "電源を入れてからの時間 [s]", "middle", 10, MUT))
+    # (b) 初めの 3 s を拡大
+    yb = 226
+    o.append(W(10, yb - 12, 690, yb - 12, c=LIN, lw=0.8))
+    o.append(T(14, yb + 4, "(b) 初めの 3 s を拡大", "start", 11, INK, True))
+    X2 = lambda t: x0 + t / 3.0 * w
+    for i, (nm, ts) in enumerate(rows):
+        y = yb + 18 + i * 30
+        o.append(T(x0 - 8, y + 13, nm, "end", 9.5, INK))
+        t = 0.0
+        for (lab, c), d in zip(_F05_STAGES, ts):
+            if d > 0:
+                e = min(t + d, 3.0)
+                if t < 3.0:
+                    o.append(RECT(X2(t), y, max(X2(e) - X2(t), 1.5), 18, 2, soft(c), c, 1.0))
+                    if X2(e) - X2(t) > tw(lab, 9) + 6:
+                        o.append(T((X2(t) + X2(e)) / 2, y + 13, lab, "middle", 9, c, True))
+            t += d
+    o.append(W(x0, yb + 110, x0 + w, yb + 110, c=MUT, lw=1.1))
+    for v in (0, 0.5, 1, 1.5, 2, 2.5, 3):
+        o.append(W(X2(v), yb + 110, X2(v), yb + 114, c=MUT, lw=1)); o.append(T(X2(v), yb + 126, _f05_m(v), "middle", 9.5, MUT))
+    o.append(LEGL(14, yb + 152, [(GLD, None, "探す"), (PUR, None, "合わせる"), (TEA, None, "ビット同期"), (SIG, None, "エフェメリス"), (GRN, None, "位置（出力の時刻まで）")], 9.5, 14))
+    return SVG(700, yb + 162, o, "スタートの種類と、手順ごとの時間（例の値: 探す回路は同時に 4000 個のビンを計算し、1 つのビンに 4 ms をかける。コールドスタートは 32 機 × 2046 × 25 = 164 万個のビン、ウォームスタートは見えている 9 機 × 2046 × 5 = 9.2 万個）。コールドとウォームは、どちらもエフェメリスを待つ時間が大部分を占め、TTFF はほとんど変わらない。ホットスタートはエフェメリスを待たず、1 s ほどで位置が出る。")
+F["e05_ttffseq"] = _f05_ttffseq_fig()
+
+
+# =====================================================================
+# 6 節: 前もって持つ情報で、探すビンが減る・バックアップ電源
+# =====================================================================
+def _f05_agnss_fig():
+    o = []
+    rows = [("コールド", 32 * 2046 * 25, "32 機 × 2046 × 25（±6 kHz）", ALI),
+            ("ウォーム", 9 * 2046 * 5, "9 機 × 2046 × 5（TCXO の ±0.8 kHz）", GLD),
+            ("ホット・A-GNSS", 9 * 2046 * 3, "9 機 × 2046 × 3（前の周波数のずれを使う）", SIG),
+            ("A-GNSS＋精密な時刻", 9 * 40 * 3, "9 機 × 40（±10 チップ）× 3", GRN)]
+    o.append(T(14, 18, "(a) 探すビンの数と、探す時間（同時に 4000 個のビンを計算する例）", "start", 11, INK, True))
+    x0, w = 150, 300
+    X = lambda v: x0 + (math.log10(v) - 2) / 5.0 * w
+    for v in (1e2, 1e3, 1e4, 1e5, 1e6, 1e7):
+        o.append(W(X(v), 34, X(v), 160, c=GRD, lw=1))
+        o.append(T(X(v), 174, "10%s" % "⁰¹²³⁴⁵⁶⁷⁸⁹"[int(round(math.log10(v)))], "middle", 9.5, MUT))
+    o.append(T(x0 + w / 2, 190, "ビンの数（対数の目盛）", "middle", 10, MUT))
+    o.append(T(470, 44, "1 ビンに 4 ms", "middle", 9.5, MUT, True))
+    o.append(T(470, 57, "（強い信号）", "middle", 9, MUT))
+    o.append(T(600, 44, "1 ビンに 0.2 s", "middle", 9.5, MUT, True))
+    o.append(T(600, 57, "（弱い信号。6 節）", "middle", 9, MUT))
+    for i, (nm, v, sub, c) in enumerate(rows):
+        y = 66 + i * 24
+        o.append(T(x0 - 8, y + 13, nm, "end", 10, INK, True))
+        o.append(RECT(x0, y, X(v) - x0, 17, 2, soft(c), c, 1.0))
+        o.append(T(x0 + 4, y + 13, sub, "start", 9, INK, False, halo=True))
+        o.append(T(470, y + 13, _f05_fmt_t(v * 4e-3 / 4000), "middle", 10, c, True))
+        o.append(T(600, y + 13, _f05_fmt_t(v * 0.2 / 4000), "middle", 10, c, True))
+    # (b) バックアップ電源
+    yb = 214
+    o.append(W(10, yb - 12, 690, yb - 12, c=LIN, lw=0.8))
+    o.append(T(14, yb + 4, "(b) 電源を切っていた時間と、次に入れたときのスタート（代表値）", "start", 11, INK, True))
+    xa, wa = 150, 500
+    lt = lambda h: xa + (math.log10(h) - math.log10(1 / 60)) / (math.log10(24 * 365) - math.log10(1 / 60)) * wa
+    def band(y, a, b, c, lab):
+        o.append(RECT(lt(a), y, lt(b) - lt(a), 22, 0, soft(c), "none", 0))
+        if lt(b) - lt(a) > tw(lab, 9.5) + 6:
+            o.append(T((lt(a) + lt(b)) / 2, y + 15, lab, "middle", 9.5, c, True))
+    y1 = yb + 22
+    o.append(T(xa - 8, y1 + 15, "バックアップあり", "end", 10, INK, True))
+    band(y1, 1 / 60, 3, SIG, "ホット"); band(y1, 3, 24 * 21, GLD, "ウォーム"); band(y1, 24 * 21, 24 * 365, ALI, "コールド")
+    o.append(RECT(lt(2), y1, lt(4) - lt(2), 22, 0, "none", MUT, 1, dash="3 2"))
+    o.append(RECT(lt(24 * 14), y1, lt(24 * 60) - lt(24 * 14), 22, 0, "none", MUT, 1, dash="3 2"))
+    y2 = y1 + 34
+    o.append(T(xa - 8, y2 + 15, "バックアップなし", "end", 10, INK, True))
+    band(y2, 1 / 60, 24 * 365, ALI, "コールド（時刻が分からない）")
+    ticks = [(1 / 60, "1 分"), (10 / 60, "10 分"), (1, "1 時間"), (4, "4 時間"), (24, "1 日"), (24 * 7, "1 週"), (24 * 30, "1 か月"), (24 * 365, "1 年")]
+    for h, lab in ticks:
+        o.append(W(lt(h), y2 + 26, lt(h), y2 + 30, c=MUT, lw=1)); o.append(T(lt(h), y2 + 43, lab, "middle", 9.5, MUT))
+    o.append(T(xa + wa / 2, y2 + 60, "電源を切っていた時間（対数の目盛。破線の枠は、境目がこの範囲にあること）", "middle", 9.5, MUT))
+    return SVG(700, y2 + 72, o, "前もって持つ情報と、探す範囲・スタートの種類（例の値と代表値）。(a) アルマナック・時刻・位置があれば、見えている衛星とドップラーが予想でき、精密な時刻があれば符号の位相も予想できるので、探すビンの数が桁で減る。弱い信号を長い積分で探すときほど、その差が効く。(b) バックアップ電源で時計とメモリを保つと、エフェメリスが有効な間（2〜4 時間ほど）はホットスタート、アルマナックが使える間（数週間）はウォームスタートになる。")
+
+
+def _f05_fmt_t(s):
+    if s < 0.01:
+        return "%.1f ms" % (s * 1e3)
+    if s < 1:
+        return "%.2f s" % s
+    if s < 100:
+        return "%.1f s" % s
+    return "%.0f s" % s
+
+
+F["e05_agnss"] = _f05_agnss_fig()
+
+
+# =====================================================================
+# 6 節: 非コヒーレント積分の利得と、感度と時間
+# =====================================================================
+def _f05_req_snr(N, pfa, straddle=True):
+    thr = float(_f05_st.gamma.isf(pfa, N))
+    g = _F05_STR if straddle else _f05_np.array([1.0])
+    f = lambda s: float(_f05_st.ncx2.sf(2 * thr, 2 * N, 2 * N * s * g).mean()) - 0.9
+    return _f05_opt.brentq(f, 1e-4, 1e5)
+
+
+def _f05_noncoh_fig():
+    o = []
+    pfa0 = 0.01 / 42966
+    s1 = _f05_req_snr(1, pfa0, False)
+    Ns = [1, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100, 200, 300, 500, 1000]
+    gains = [(n, 10 * math.log10(s1 / _f05_req_snr(n, pfa0, False))) for n in Ns]
+    o.append(T(14, 18, "(a) 足す回数と利得（1 回あたりの SNR が下げられる量）", "start", 11, INK, True))
+    p = Plot(60, 40, 260, 180, (1, 1000), (0, 30), xlog=True)
+    o.append(p.axes(xl="足す回数 N_nc", yl="利得 [dB]", xt=[1, 10, 100, 1000], yt=[0, 10, 20, 30], xfmt=_f05_m, yfmt=_f05_m))
+    o.append(p.line([(n, 10 * math.log10(n)) for n in (1, 1000)], c=MUT, lw=1.4, dash="5 3"))
+    o.append(p.line([(n, 5 * math.log10(n)) for n in (1, 1000)], c=FNT, lw=1.4, dash="2 3"))
+    o.append(p.line(gains, c=SIG, lw=2.2))
+    for n, g in gains:
+        if n in (10, 100):
+            o.append(D(p.X(n), p.Y(g), SIG, 4))
+            o.append(T(p.X(n) + 6, p.Y(g) + 14, "%.1f dB" % g, "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(30), p.Y(25), "コヒーレント（10 log N）", "middle", 9.5, MUT, False, halo=True))
+    o.append(T(p.X(200), p.Y(8), "平方根（5 log N）", "middle", 9.5, MUT, False, halo=True))
+    o.append(T(p.X(1.2), p.Y(27), "青: 非コヒーレント", "start", 9.5, SIG, True, halo=True))
+    # (b) 合わせた積分の時間と、要る C/N0
+    xb = 370
+    o.append(T(xb, 18, "(b) 合わせた積分の時間と、見つけられる C/N0", "start", 11, INK, True))
+    q = Plot(xb + 50, 40, 250, 180, (1, 3000), (15, 50), xlog=True)
+    o.append(q.axes(xl="合わせた積分の時間 [ms]", yl="要る C/N0 [dB-Hz]", xt=[1, 10, 100, 1000], yt=[15, 20, 25, 30, 35, 40, 45, 50], xfmt=_f05_m, yfmt=_f05_m))
+    marks = []
+    for Tc, c in ((1, TEA), (10, SIG), (20, PUR)):
+        nb = int(round(10000 * 2 * Tc * 1e-3)) + 1; cells = 2046 * nb; pfa = 0.01 / cells
+        pts = []
+        for n in (1, 2, 5, 10, 20, 50, 100):
+            if Tc * n > 3000:
+                continue
+            snr = _f05_req_snr(n, pfa)
+            cn = 10 * math.log10(snr) - 10 * math.log10(Tc * 1e-3)
+            pts.append((Tc * n, cn))
+            if (Tc, n) in ((1, 1), (20, 10), (20, 100)):
+                marks.append((Tc, n, cn, cells, c))
+        o.append(q.line(pts, c=c, lw=2))
+        for x, v in pts:
+            o.append(D(q.X(x), q.Y(v), c, 2.6))
+        o.append(T(q.X(pts[-1][0]) + 4, q.Y(pts[-1][1]) - 8, "%d ms" % Tc, "start", 9.5, c, True, halo=True))
+    yy = 262
+    o.append(T(14, yy, "1 つの衛星の ±5 kHz の格子を、同時に 4000 個のビンを計算する回路で探す時間（例の値）:", "start", 9.5, INK, True))
+    for k, (Tc, n, cn, cells, c) in enumerate(marks):
+        o.append(T(14 + k * 228, yy + 18, "%d ms × %d 回: %.1f dB-Hz" % (Tc, n, cn), "start", 9.5, c, True))
+        o.append(T(14 + k * 228, yy + 33, "%s ビン、%s" % (_f05_g(cells), _f05_fmt_t(cells * Tc * n * 1e-3 / 4000)), "start", 9.5, MUT))
+    return SVG(700, yy + 44, o, "非コヒーレント積分。(a) P_d = 0.9・1 つのビンの誤警報確率 2.33 × 10⁻⁷ で計算した利得。足す回数を 10 倍にしても、利得はコヒーレントの 10 dB より小さく、回数が多いほど平方根（10 倍で 5 dB）に近づく。(b) コヒーレント積分の時間（1・10・20 ms）と、それを足す回数を変えたときに見つけられる C/N0（刻みの損失の平均を含む）。長い積分ほど弱い信号を見つけられるが、ドップラーのビンも増え、探す時間が急に延びる。")
+F["e05_noncoh"] = _f05_noncoh_fig()
