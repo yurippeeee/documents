@@ -649,7 +649,8 @@
      U.gnss.ca(prn): C/A 符号 1023 チップ（0/1 の Int8Array）。G1・G2 は全部 1 から始め、出力 = G1[10] xor G2[a] xor G2[b]
      U.gnss.pm(prn): 0 → +1、1 → −1 に直した列（Int8Array）
      U.gnss.fft(re, im): 長さが 2 のべきの配列を、その場で離散フーリエ変換する（基数 2）
-     U.gnss.erfc(x)・U.gnss.Q(x): 相補誤差関数と、標準正規分布の上側確率（正規分布の乱数は U.rng(seed).normal()） */
+     U.gnss.erfc(x)・U.gnss.Q(x): 相補誤差関数と、標準正規分布の上側確率（正規分布の乱数は U.rng(seed).normal()）
+     U.gnss.constellation()・ecef(s, t)・rx(B, L, h)・elaz(r, p)・sky(U, cx, cy, R, sats, o)・SYS・TOKYO: 01 章の近似の衛星の配置とスカイプロット */
   var gnss=(function(){
     var TAPS=[null,[2,6],[3,7],[4,8],[5,9],[1,9],[2,10],[1,8],[2,9],[3,10],[2,3],[3,4],[5,6],[6,7],[7,8],[8,9],[9,10],[1,4],[2,5],[3,6],[4,7],[5,8],[6,9],[1,3],[4,6],[5,7],[6,8],[7,9],[8,10],[1,6],[2,7],[3,8],[4,9]];
     var CODES={},PMS={};
@@ -662,7 +663,41 @@
     /* 相補誤差関数 erfc(x)（相対誤差 1.2e-7 以下。小さい確率でも桁が保たれる）と、標準正規分布の上側確率 Q(x) = erfc(x/√2)/2 */
     function erfc(x){var z=Math.abs(x),t=1/(1+0.5*z),r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));return x>=0?r:2-r;}
     function Q(x){return 0.5*erfc(x/Math.SQRT2);}
-    return {TAPS:TAPS,ca:ca,pm:pm,fft:fft,erfc:erfc,Q:Q};
+    /* 空の配置（01 章で作った近似の衛星の配置・座標の変換・スカイプロット。figures.py の gnss_const・sat_ecef・elaz・sky と同じ計算） */
+    var D=Math.PI/180,MU=3.986004418e14,WE=7.2921151467e-5,AW=6378137,FW=1/298.257223563,E2=FW*(2-FW);
+    var SYS={GPS:["GPS","signal","G"],GLONASS:["GLONASS","purple","R"],Galileo:["Galileo","green","E"],BeiDou:["BeiDou","gold","C"],QZSS:["みちびき","teal","J"]};
+    var TOKYO=[35.681,139.767,40.0];
+    function geod(B,L,h){B*=D;L*=D;var N=AW/Math.sqrt(1-E2*Math.sin(B)*Math.sin(B));return [(N+h)*Math.cos(B)*Math.cos(L),(N+h)*Math.cos(B)*Math.sin(L),(N*(1-E2)+h)*Math.sin(B)];}
+    function kep(a,e,i,w,Om,M){M*=D;var E=M;for(var k=0;k<30;k++)E=E-(E-e*Math.sin(E)-M)/(1-e*Math.cos(E));
+      var nu=2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2),Math.sqrt(1-e)*Math.cos(E/2)),r=a*(1-e*Math.cos(E)),u=w*D+nu,O=Om*D,inc=i*D;
+      return [r*(Math.cos(O)*Math.cos(u)-Math.sin(O)*Math.sin(u)*Math.cos(inc)),r*(Math.sin(O)*Math.cos(u)+Math.cos(O)*Math.sin(u)*Math.cos(inc)),r*Math.sin(u)*Math.sin(inc)];}
+    function walker(sys,a,inc,P,S,F,Om0){var o=[];for(var p=0;p<P;p++)for(var s=0;s<S;s++)o.push({sys:sys,a:a,e:0,i:inc,w:0,Om:(Om0||0)+360*p/P,M:360*s/S+360*F*p/(P*S),nm:SYS[sys][2]+(p*S+s+1)});return o;}
+    var CON=null;
+    function constellation(){if(CON)return CON;var S=[].concat(walker("GPS",26560e3,55,6,4,1,0),walker("GLONASS",25510e3,64.8,3,8,1,15),walker("Galileo",29600e3,56,3,8,1,40),walker("BeiDou",27906e3,55,3,8,1,70));
+      for(var k=0;k<3;k++)S.push({sys:"QZSS",a:42164e3,e:0.075,i:41,w:270,Om:166+120*k,M:60-120*k,nm:"J"+(k+1)});
+      S.push({sys:"QZSS",a:42164e3,geo:127,nm:"J4"});CON=S;return S;}
+    function ecef(s,t){var p;if(s.geo!=null){var g=WE*t+s.geo*D;p=[s.a*Math.cos(g),s.a*Math.sin(g),0];}
+      else{var n=Math.sqrt(MU/Math.pow(s.a,3))/D;p=kep(s.a,s.e,s.i,s.w,s.Om,s.M+n*t);}
+      var th=WE*t,c=Math.cos(th),sn=Math.sin(th);return [p[0]*c+p[1]*sn,-p[0]*sn+p[1]*c,p[2]];}
+    function rx(B,L,h){return {B:B,L:L,h:h,r0:geod(B,L,h)};}
+    /* 受信機 r = rx(B, L, h) から見た点 p（ECEF）の [仰角, 方位角（北から東へ） [°], 距離 [m], e, n, u] */
+    function elaz(r,p){var d=[p[0]-r.r0[0],p[1]-r.r0[1],p[2]-r.r0[2]],b=r.B*D,l=r.L*D;
+      var e=-Math.sin(l)*d[0]+Math.cos(l)*d[1],n=-Math.sin(b)*Math.cos(l)*d[0]-Math.sin(b)*Math.sin(l)*d[1]+Math.cos(b)*d[2],u=Math.cos(b)*Math.cos(l)*d[0]+Math.cos(b)*Math.sin(l)*d[1]+Math.sin(b)*d[2];
+      return [Math.atan2(u,Math.hypot(e,n))/D,(Math.atan2(e,n)/D+360)%360,Math.hypot(d[0],d[1],d[2]),e,n,u];}
+    function skyxy(cx,cy,R,el,az){var r=R*(90-el)/90;return [cx+r*Math.sin(az*D),cy-r*Math.cos(az*D)];}
+    /* スカイプロット（中心が真上、外の円が地平線、上が北・右が東）。sats = [{el, az, name, col, hl}]、o = {trails: [{pts: [[el, az], …], col}], labels, sz, dot} */
+    function sky(U,cx,cy,R,sats,o){var S=U.S,s=[];o=o||{};var dot=o.dot||4.2,sz=o.sz||9.5;
+      s.push(S.CIRC(cx,cy,R,"muted",1.3,"var(--screen)"));
+      for(var az=0;az<360;az+=30){var q=skyxy(cx,cy,R,0,az);s.push(S.L(cx,cy,q[0],q[1],"grid",1));}
+      [30,60].forEach(function(e){s.push(S.CIRC(cx,cy,R*(90-e)/90,"faint",0.9,null,"3 3"));});
+      s.push(S.L(cx-4,cy,cx+4,cy,"muted",1));s.push(S.L(cx,cy-4,cx,cy+4,"muted",1));
+      [0,30,60].forEach(function(e){s.push(S.T(cx+3,cy-R*(90-e)/90+11,e+"°","start",9.5,"muted",false,false,null,true));});
+      [[0,"北"],[90,"東"],[180,"南"],[270,"西"]].forEach(function(d){var q=skyxy(cx,cy,R+11,0,d[0]);s.push(S.T(q[0],q[1]+4,d[1],"middle",10,"ink",true));});
+      (o.trails||[]).forEach(function(tr){var seg=[];tr.pts.forEach(function(p){if(p[0]>=0)seg.push(skyxy(cx,cy,R,p[0],p[1]));else{if(seg.length>1)s.push(S.PL(seg,tr.col,1.2,null,"2 2"));seg=[];}});if(seg.length>1)s.push(S.PL(seg,tr.col,1.2,null,"2 2"));});
+      sats.forEach(function(p){if(p.el<0)return;var q=skyxy(cx,cy,R,p.el,p.az);if(p.hl)s.push(S.CIRC(q[0],q[1],dot+4,p.col,1.8));s.push(S.D(q[0],q[1],p.col,dot));
+        if(o.labels!==false&&p.name)s.push(S.T(q[0]+dot+2,q[1]+3.5,p.name,"start",sz,p.col,true,false,null,true));});
+      return s.join("");}
+    return {TAPS:TAPS,ca:ca,pm:pm,fft:fft,erfc:erfc,Q:Q,SYS:SYS,TOKYO:TOKYO,geod:geod,kep:kep,walker:walker,constellation:constellation,ecef:ecef,rx:rx,elaz:elaz,skyxy:skyxy,sky:sky};
   })();
   /* ===== END GNSS の計算部品 ===== */
 

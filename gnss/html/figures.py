@@ -1062,6 +1062,130 @@ def BODEPH(num, den, ws, delay=0.0):
     ph = ph + 360.0 * round((_np.degrees(ref) - ph[0]) / 360.0)
     return db, ph - _np.degrees(ws * delay)
 
+# ---- GNSS の空の配置（01 章で作った、近似の衛星の配置・座標の変換・スカイプロットを共通にした） ----
+# 軌道は円の近似（みちびきの準天頂軌道だけ楕円）。時刻 0 で慣性座標の x 軸が経度 0° を向く。wjs の U.gnss と同じ計算。
+import math as _gm
+GNSS_MU = 3.986004418e14            # 地球の重力定数 μ [m³/s²]（WGS 84）
+GNSS_WE = 7.2921151467e-5           # 地球の自転の角速度 [rad/s]（WGS 84）
+GNSS_AW = 6378137.0                 # WGS 84 の赤道の半径 [m]
+GNSS_FW = 1 / 298.257223563         # WGS 84 の扁平率
+GNSS_E2 = GNSS_FW * (2 - GNSS_FW)
+GNSS_TOKYO = (35.681, 139.767, 40.0)  # 東京駅のあたり（緯度・経度 [°]・楕円体高 [m]）。01 章の例の受信機
+GNSS_SYSC = {"GPS": SIG, "GLONASS": PUR, "Galileo": GRN, "BeiDou": GLD, "QZSS": TEA}   # 衛星系の色（ガイドの約束）
+GNSS_SYSN = {"GPS": "GPS", "GLONASS": "GLONASS", "Galileo": "Galileo", "BeiDou": "BeiDou", "QZSS": "みちびき"}
+GNSS_SYSL = {"GPS": "G", "GLONASS": "R", "Galileo": "E", "BeiDou": "C", "QZSS": "J"}
+_GD = _gm.pi / 180
+
+
+def geod2ecef(B, L, h):
+    """緯度 B・経度 L [°]・楕円体高 h [m] → ECEF (x, y, z) [m]（WGS 84）。"""
+    b, l = B * _GD, L * _GD
+    N = GNSS_AW / _gm.sqrt(1 - GNSS_E2 * _gm.sin(b) ** 2)
+    return ((N + h) * _gm.cos(b) * _gm.cos(l), (N + h) * _gm.cos(b) * _gm.sin(l), (N * (1 - GNSS_E2) + h) * _gm.sin(b))
+
+
+def enu(B, L, h, p):
+    """受信機（B, L, h）から見た点 p（ECEF [m]）の (e, n, u) [m]。"""
+    r0 = geod2ecef(B, L, h)
+    d = (p[0] - r0[0], p[1] - r0[1], p[2] - r0[2])
+    b, l = B * _GD, L * _GD
+    e = -_gm.sin(l) * d[0] + _gm.cos(l) * d[1]
+    n = -_gm.sin(b) * _gm.cos(l) * d[0] - _gm.sin(b) * _gm.sin(l) * d[1] + _gm.cos(b) * d[2]
+    u = _gm.cos(b) * _gm.cos(l) * d[0] + _gm.cos(b) * _gm.sin(l) * d[1] + _gm.sin(b) * d[2]
+    return e, n, u
+
+
+def elaz(B, L, h, p):
+    """受信機から見た点 p の仰角 θ と方位角 α [°]（北から東へ）と距離 [m]。"""
+    e, n, u = enu(B, L, h, p)
+    return _gm.degrees(_gm.atan2(u, _gm.hypot(e, n))), _gm.degrees(_gm.atan2(e, n)) % 360.0, _gm.sqrt(e * e + n * n + u * u)
+
+
+def kepler_pos(a, e, i, w, Om, M):
+    """軌道要素（長半径 a [m]、離心率 e、角 i・w・Om・M は度）→ 慣性座標の位置 [m]。"""
+    M = M * _GD
+    E = M
+    for _ in range(30):
+        E = E - (E - e * _gm.sin(E) - M) / (1 - e * _gm.cos(E))
+    nu = 2 * _gm.atan2(_gm.sqrt(1 + e) * _gm.sin(E / 2), _gm.sqrt(1 - e) * _gm.cos(E / 2))
+    r = a * (1 - e * _gm.cos(E))
+    u, O, inc = w * _GD + nu, Om * _GD, i * _GD
+    return (r * (_gm.cos(O) * _gm.cos(u) - _gm.sin(O) * _gm.sin(u) * _gm.cos(inc)),
+            r * (_gm.sin(O) * _gm.cos(u) + _gm.cos(O) * _gm.sin(u) * _gm.cos(inc)),
+            r * _gm.sin(u) * _gm.sin(inc))
+
+
+def walker(sysn, a, inc, P, S, F, Om0=0.0):
+    """P 面 × S 機を等間隔に置いた円軌道（隣の面とは 360°·F/(P·S) ずらす）。"""
+    return [dict(sys=sysn, a=a, e=0.0, i=inc, w=0.0, Om=Om0 + 360.0 * p / P,
+                 M=360.0 * s / S + 360.0 * F * p / (P * S), nm="%s%d" % (GNSS_SYSL[sysn], p * S + s + 1))
+            for p in range(P) for s in range(S)]
+
+
+def gnss_const():
+    """01 章の近似の配置（GPS 6 面 × 4 機・GLONASS・Galileo・BeiDou 各 3 面 × 8 機・みちびき 4 機）。"""
+    S = (walker("GPS", 26560e3, 55.0, 6, 4, 1) + walker("GLONASS", 25510e3, 64.8, 3, 8, 1, 15.0)
+         + walker("Galileo", 29600e3, 56.0, 3, 8, 1, 40.0) + walker("BeiDou", 27906e3, 55.0, 3, 8, 1, 70.0))
+    for k in range(3):
+        S.append(dict(sys="QZSS", a=42164e3, e=0.075, i=41.0, w=270.0, Om=166.0 + 120 * k, M=60.0 - 120.0 * k, nm="J%d" % (k + 1)))
+    S.append(dict(sys="QZSS", a=42164e3, geo=127.0, nm="J4"))
+    return S
+
+
+def sat_ecef(s, t):
+    """衛星 s（gnss_const の要素）の時刻 t [s] の ECEF の位置 [m]。"""
+    if s.get("geo") is not None:
+        th = GNSS_WE * t + s["geo"] * _GD
+        p = (s["a"] * _gm.cos(th), s["a"] * _gm.sin(th), 0.0)
+    else:
+        n = _gm.sqrt(GNSS_MU / s["a"] ** 3) / _GD
+        p = kepler_pos(s["a"], s["e"], s["i"], s["w"], s["Om"], s["M"] + n * t)
+    th = GNSS_WE * t
+    return (p[0] * _gm.cos(th) + p[1] * _gm.sin(th), -p[0] * _gm.sin(th) + p[1] * _gm.cos(th), p[2])
+
+
+def skyxy(cx, cy, R, el, az):
+    """スカイプロットの点の位置（中心が真上、外の円が仰角 0°、上が北・右が東）。"""
+    rr = R * (90.0 - el) / 90.0
+    return cx + rr * _gm.sin(az * _GD), cy - rr * _gm.cos(az * _GD)
+
+
+def sky(cx, cy, R, sats, labels=True, sz=9.5, rings=(30, 60), dirs=True, trails=(), dot=4.2):
+    """スカイプロット（01 章と同じ見た目）。sats = [(仰角, 方位角, 名前 or None, 色)]、trails = [([(仰角, 方位角), …], 色)]。"""
+    o = [CIRC(cx, cy, R, c=MUT, lw=1.3, fill=SCR)]
+    for az in range(0, 360, 30):
+        x, y = skyxy(cx, cy, R, 0, az)
+        o.append(W(cx, cy, x, y, c=GRD, lw=1))
+    for e in rings:
+        o.append(CIRC(cx, cy, R * (90 - e) / 90, c=FNT, lw=0.9, dash="3 3"))
+    o.append(W(cx - 4, cy, cx + 4, cy, c=MUT, lw=1))
+    o.append(W(cx, cy - 4, cx, cy + 4, c=MUT, lw=1))
+    for e in (0,) + tuple(rings):
+        o.append(T(cx + 3, cy - R * (90 - e) / 90 + 11, "%d°" % e, "start", 9.5, MUT, False, halo=True))
+    if dirs:
+        for az, lab in ((0, "北"), (90, "東"), (180, "南"), (270, "西")):
+            x, y = skyxy(cx, cy, R + 11, 0, az)
+            o.append(T(x, y + 4, lab, "middle", 10, INK, True))
+    for pts, c in trails:
+        seg = []
+        for el, az in pts:
+            if el >= 0:
+                seg.append(skyxy(cx, cy, R, el, az))
+            elif seg:
+                if len(seg) > 1:
+                    o.append(PL(seg, c=c, lw=1.2, dash="2 2"))
+                seg = []
+        if len(seg) > 1:
+            o.append(PL(seg, c=c, lw=1.2, dash="2 2"))
+    for el, az, nm, c in sats:
+        if el < 0:
+            continue
+        x, y = skyxy(cx, cy, R, el, az)
+        o.append(D(x, y, c, dot))
+        if labels and nm:
+            o.append(T(x + dot + 2, y + 3.5, nm, "start", sz, c, True, halo=True))
+    return "".join(o)
+
 # ---- GNSS の計算部品（02 章で作った C/A 符号の生成を共通にした） ----
 # CA_TAPS[prn]: G2 の 2 つのタップ（IS-GPS-200 の表。PRN 1〜32）
 CA_TAPS = {1: (2, 6), 2: (3, 7), 3: (4, 8), 4: (5, 9), 5: (1, 9), 6: (2, 10), 7: (1, 8), 8: (2, 9), 9: (3, 10), 10: (2, 3),
