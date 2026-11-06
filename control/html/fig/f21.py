@@ -1060,7 +1060,7 @@ def _f21_friction_fig():
     # (b) リミットサイクル
     o.append(T(370, 18, "(b) 摩擦 0.3 N で、2° から放す", "start", 11.5, INK, True))
     r = _f21_run(T=12.0, x0=(0, 0, 2 * _F21_D, 0), H=H, Ad=Ad, Bd=Bd, Fc=_F21_FC, every=5)
-    Pb = Plot(418, 30, 270, 56, (0, 12), (-45, 45)); Pc = Plot(418, 104, 270, 56, (0, 12), (-2, 2))
+    Pb = Plot(418, 40, 270, 50, (0, 12), (-45, 45)); Pc = Plot(418, 108, 270, 52, (0, 12), (-2, 2))
     st = r["x"][:, 1] == 0.0
     i = 0
     while i < len(st):
@@ -1077,7 +1077,7 @@ def _f21_friction_fig():
     o.append(Pc.axes(xl="時間 t [s]", yl="φ [°]", xt=[0, 4, 8, 12], yt=[-1, 0, 1], yfmt=lambda v: ("%g" % v).replace("-", "−")))
     o.append(Pb.line(list(zip(r["t"], r["x"][:, 0] * 1000)), c=SIG, lw=1.8))
     o.append(Pc.line(list(zip(r["t"], r["x"][:, 2] / _F21_D)), c=SIG, lw=1.8))
-    o.append(T(Pb.x + Pb.w - 4, Pb.y + 11, "金の帯: 台車が止まっている", "end", 9, GLD, True, halo=True))
+    o.append(T(Pb.x + Pb.w, Pb.y - 6, "金の帯: 台車が止まっている", "end", 9, GLD, True, halo=True))
     # (c) 補償
     o.append(T(12, 214, "(c) 推定した速さの向きに摩擦を足す（摩擦 0.3 N）", "start", 11.5, INK, True))
     Pd = Plot(66, 228, 250, 110, (8, 16), (-45, 45))
@@ -1354,14 +1354,16 @@ F["e21_inject"] = _f21_inject_fig()
 def _f21_map_fig():
     o = []
     steps = [("1 仕様", ["01", "04", "09", "11"]),
-             ("2 モデル", ["02", "03", "04", "14", "17"]),
-             ("3 設計", ["10", "12", "13", "14", "18", "19"]),
-             ("4 実装", ["15", "16", "17", "20"]),
-             ("5 現実の問題", ["05", "06", "07", "09", "11", "14", "19", "20"]),
-             ("6 検証", ["08", "16"])]
+             ("2 モデル", ["02", "03", "04", "08", "14", "17"]),
+             ("3 設計", ["04", "05", "06", "10", "12", "13", "14", "18", "19"]),
+             ("4 実装", ["15", "16", "17", "19", "20"]),
+             ("5 現実の問題", ["02", "03", "04", "05", "06", "07", "09", "11", "14", "15", "16", "17", "18", "19", "20"]),
+             ("6 検証", ["07", "08", "11", "14", "16", "17"])]
     part = {"01": SIG, "02": SIG, "03": SIG, "04": SIG, "05": PUR, "06": PUR, "07": PUR, "08": PUR, "09": PUR,
             "10": GLD, "11": GLD, "12": GLD, "13": GLD, "14": GLD, "15": TEA, "16": TEA, "17": GRN, "18": GRN, "19": GRN, "20": GRN}
     bw, gx, x0 = 104, 12, 14
+    cw, ch_, gc = 46, 19, 4
+    nmax = max(len(c) for _, c in steps)
     for i, (name, chs) in enumerate(steps):
         x = x0 + i * (bw + gx)
         o.append(RECT(x, 14, bw, 30, 7, SSOFT, SIG, 1.5))
@@ -1369,13 +1371,13 @@ def _f21_map_fig():
         if i < len(steps) - 1:
             o.append(ARR(x + bw, 29, x + bw + gx, 29, c=SIG, lw=1.6, head=6))
         for k, ch in enumerate(chs):
-            y = 58 + k * 24
+            cx = x + gc + (k % 2) * (cw + gc); y = 56 + (k // 2) * (ch_ + 5)
             c = part[ch]
-            o.append(RECT(x + 22, y, bw - 44, 19, 4, soft(c), c, 1.1))
-            o.append(T(x + bw / 2, y + 13.5, ch + " 章", "middle", 9.5, c, True))
-    # 部の凡例
-    o.append(LEGEND(14, 270, [(SIG, "第 I 部 1〜4 章"), (PUR, "第 II 部 5〜9 章"), (GLD, "第 III 部 10〜14 章"), (TEA, "第 IV 部 15・16 章"), (GRN, "第 V 部 17〜20 章")], sz=9.5, gap=12))
-    return SVG(704, 282, o, cap="この章の 6 つの段（上）と、それぞれで主に使った章（下。色は部）。どの部の道具も、1 つの装置を立てるのに使われる。")
+            o.append(RECT(cx, y, cw, ch_, 4, soft(c), c, 1.1))
+            o.append(T(cx + cw / 2, y + 13.5, ch + " 章", "middle", 9.5, c, True))
+    yl = 56 + ((nmax + 1) // 2) * (ch_ + 5) + 14
+    o.append(LEGEND(14, yl, [(SIG, "第 I 部 1〜4 章"), (PUR, "第 II 部 5〜9 章"), (GLD, "第 III 部 10〜14 章"), (TEA, "第 IV 部 15・16 章"), (GRN, "第 V 部 17〜20 章")], sz=9.5, gap=12))
+    return SVG(704, yl + 12, o, cap="この章の 6 つの段（上）と、それぞれで使った章（下。色は部。7 節の表と同じ）。現実の問題を確かめる段では、ほとんどすべての部の道具を使う。")
 
 
 F["e21_map"] = _f21_map_fig()
