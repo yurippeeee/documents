@@ -996,7 +996,7 @@ def _f18_pend_limit_fig():
         o.append(D(P.X(u), P.Y(y), SIG, 2.6))
     ynl = _f18_maxtilt(F, None)
     o.append(W(P.X(0), P.Y(ynl), P.X(20), P.Y(ynl), c=MUT, lw=1.2, dash="3 3"))
-    o.append(T(P.X(19.6), P.Y(ynl) + 14, "上限なし: %s°（線形化の範囲の限界）" % _f18_fx(ynl, 1), "end", 9.5, MUT, halo=True))
+    o.append(T(P.X(19.6), P.Y(ynl) + 14, "上限なし: %s°（この F の限界）" % _f18_fx(ynl, 1), "end", 9.5, MUT, halo=True))
     o.append(T(P.X(1.0), P.Y(84), "どんな制御器でも越えられない", "start", 9.5, ALI, True, halo=True))
     o.append(T(P.X(1.0), P.Y(84) + 13, "tan φ = 上限 ÷ ((M + m)g)（赤の破線）", "start", 9.5, ALI, True, halo=True))
     y5 = _f18_maxtilt(F, 5.0)

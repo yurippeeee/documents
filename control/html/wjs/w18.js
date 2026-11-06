@@ -30,6 +30,8 @@
   function _w18_flin(x,u,fd,d){var M=0.5,m=0.2,l=0.3,g=9.81,Fc=u+d;return [x[1],(Fc-m*g*x[2])/M,x[3],((M+m)*g*x[2]-Fc)/(M*l)+fd/(m*l)];}
   /* 閉ループを 4 次のルンゲ・クッタ法で解く。入力は微分方程式の中で計算する（連続の制御器）。
      o = {F（4 つ）, fI（積分型サーボ系なら w に掛けるゲイン）, x0, T, h, nl, umax, push:[開始, 長さ, 力], dist(t), r(t), every} */
+  /* 記録の i 番目が範囲の外、i+1 番目が内のとき、範囲の端を横切る時刻を直線で補間する（記録の間隔に丸めない） */
+  function _w18_cross(t,x,i,fa,tol){var a=fa(x[i]),b=fa(x[i+1]);return a>b?t[i]+(t[i+1]-t[i])*(a-tol)/(a-b):t[i+1];}
   function _w18_sim(U,o){
     var F=o.F,h=o.h||0.002,n=Math.round(o.T/h),ev=o.every||1,integ=o.fI!=null,plant=o.nl===false?_w18_flin:_w18_fnl;
     function ctrl(t,x){var u,rr=o.r?o.r(t):0;
@@ -331,7 +333,7 @@
       box.set(S.svg(Wd,nar?qy+3*100+16:Math.max(qy+3*118+10,sy2+sw*0.6+40),o));
       /* 読み出し */
       function stats(r){var pm=_w18_max(r.x,function(x){return Math.abs(x[2]);}),pp=_w18_max(r.x,function(x){return Math.abs(x[0]);}),uu2=_w18_max(r.u,Math.abs),ts=null,sat=0,i;
-        for(i=r.x.length-1;i>=0;i--)if(Math.abs(r.x[i][2])>0.2*Math.PI/180){ts=i<r.x.length-1?r.t[i+1]:null;break;}
+        for(i=r.x.length-1;i>=0;i--)if(Math.abs(r.x[i][2])>0.2*Math.PI/180){ts=i<r.x.length-1?_w18_cross(r.t,r.x,i,function(x){return Math.abs(x[2]);},0.2*Math.PI/180):null;break;}
         if(R.umax!=null)for(i=1;i<r.u.length;i++)if(Math.abs(r.u[i])>=R.umax-1e-9)sat+=r.t[i]-r.t[i-1];
         var pmx=_w18_max(r.x,function(x){return x[2];}),pmn=_w18_min(r.x,function(x){return x[2];});
         return {ph:pm.v*180/Math.PI,php:pmx.v*180/Math.PI,phn:pmn.v*180/Math.PI,p:pp.v*100,u:uu2.v,ts:ts,sat:sat};}
@@ -415,7 +417,7 @@
       /* 読み出し */
       function stats(rs){var i,sgn=R.r>=0?1:-1,rev=0,t1=null,k6=Math.round(6/0.01),ex2=0,fin=rs.x[rs.x.length-1][0];
         for(i=0;i<=Math.min(k6,rs.x.length-1);i++)rev=Math.max(rev,-sgn*rs.x[i][0]);
-        for(i=Math.min(k6,rs.x.length-1);i>=0;i--)if(Math.abs(rs.x[i][0]-R.r)>0.01){t1=i<k6?rs.t[i+1]:null;break;}
+        for(i=Math.min(k6,rs.x.length-1);i>=0;i--)if(Math.abs(rs.x[i][0]-R.r)>0.01){t1=i<k6?_w18_cross(rs.t,rs.x,i,function(x){return Math.abs(x[0]-R.r);},0.01):null;break;}
         for(i=k6;i<rs.x.length;i++)ex2=Math.max(ex2,Math.abs(rs.x[i][0]-R.r));
         var um2=_w18_max(rs.u,Math.abs);return {rev:rev,t1:t1,ex:ex2,fin:fin,u:um2.v,u0:rs.u[0]};}
       var a=stats(R.ri),b=stats(R.rn),h="";
