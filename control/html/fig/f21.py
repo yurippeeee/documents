@@ -1290,3 +1290,82 @@ def _f21_signs_fig():
 
 
 F["e21_signs"] = _f21_signs_fig()
+
+
+def _f21_inject_meas(H, Ad, Bd, ws=(4, 7, 10, 14, 20, 28, 40), A=0.3, seed=3, sa=0.6, sal=6.0):
+    """力に振幅 A [N] の正弦波を足し、立てたまま記録して、L(jω) = −U_c/U を読む（16 章 6 節）。観測ノイズあり。"""
+    out = []
+    for w in ws:
+        per = 2 * math.pi / w; nper = max(3, int(math.ceil(1.5 / per)))
+        r = _f21_run(T=2.0 + nper * per, H=H, Ad=Ad, Bd=Bd, noise=True, seed=seed, inj=(A, w))
+        t = r["t"]; sel = t >= t[-1] - nper * per + 1e-9
+        e = _f21_np.exp(-1j * w * t[sel])
+        out.append((w, -(r["uc"][sel] * e).sum() / (r["u"][sel] * e).sum()))
+    return out
+
+
+def _f21_inject_fig():
+    o = []
+    H, Ad, Bd = _f21_kf(_F21_TS, 0.6, 6.0)
+    L = _f21_loop_tf(_F21_FLQ, _F21_TS, H, Ad, Bd)
+    ws = _f21_np.logspace(0, 2, 300)
+    v = _f21_loop_eval(L, _F21_TS, ws)
+    db = 20 * _f21_np.log10(_f21_np.abs(v)); ph = _f21_np.degrees(_f21_np.unwrap(_f21_np.angle(v)))
+    ph = ph - 360 * round((ph[0] - (-200)) / 360)       # 低い角周波数で −180° 付近から描く
+    svg, pm, pp, hgt = BODE(66, 22, 600, [(ws, db, ph, SIG, None)], (1, 100), (-10, 20), (-225, -90), hm=120, hp=110, dbt=[-10, 0, 10, 20], pht=[-225, -180, -135, -90])
+    o.append(svg)
+    meas = _f21_inject_meas(H, Ad, Bd)
+    for w, Lm in meas:
+        d_ = 20 * math.log10(abs(Lm)); p_ = math.degrees(_f21_np.angle(Lm))
+        p_ = p_ - 360 * round((p_ - _f21_np.interp(w, ws, ph)) / 360)
+        o.append(CIRC(pm.X(w), pm.Y(d_), 4, c=ALI, lw=1.8, fill=SCR)); o.append(CIRC(pp.X(w), pp.Y(p_), 4, c=ALI, lw=1.8, fill=SCR))
+    # 測った点を直線で補って、|L| = 1 の角周波数と位相余裕を読む
+    mw = [m[0] for m in meas]; md = [20 * math.log10(abs(m[1])) for m in meas]
+    mp = [math.degrees(_f21_np.angle(m[1])) for m in meas]
+    mp = [p_ - 360 * round((p_ - _f21_np.interp(w, ws, ph)) / 360) for w, p_ in zip(mw, mp)]
+    k = next(i for i in range(1, len(md)) if md[i - 1] > 0 >= md[i])
+    a = md[k - 1] / (md[k - 1] - md[k]); lw_ = math.log10(mw[k - 1]) + a * (math.log10(mw[k]) - math.log10(mw[k - 1]))
+    wgc = 10 ** lw_; phc = mp[k - 1] + a * (mp[k] - mp[k - 1]); pmm = 180 + phc
+    pm_model = _f21_margins(L, _F21_TS)
+    o.append(W(pm.X(wgc), pm.y, pm.X(wgc), pp.y + pp.h, c=GLD, lw=1.2, dash="4 3"))
+    o.append(T(pm.X(wgc) + 5, pm.y + 14, "|L| = 1: %.1f rad/s" % wgc, "start", 9.5, GLD, True, halo=True))
+    o.append(DARR(pp.X(wgc) - 12, pp.Y(-180), pp.X(wgc) - 12, pp.Y(phc), c=GLD, lw=1.3))
+    o.append(T(pp.X(wgc) - 20, (pp.Y(-180) + pp.Y(phc)) / 2 + 4, "位相余裕 %.1f°（モデル %.1f°）" % (pmm, pm_model[0]), "end", 9.5, GLD, True, halo=True))
+    o.append(LEGL(66, hgt + 6, [(SIG, None, "モデルの一巡伝達関数"), (ALI, None, "力に正弦波を足して測った点（○）")], sz=9.5))
+    return SVG(704, hgt + 16, o, cap="立てたまま、制御器が計算した力に振幅 0.3 N の正弦波を足して記録し、16 章 6 節の方法で、入力の点で切った一巡伝達関数 L を 7 つの角周波数で測ったもの（観測ノイズあり。推定には足す前の力を使う）。測った点を直線で補って |L| = 1 の角周波数と位相余裕を読むと、5 節で計算した値とほとんど同じになる。")
+
+
+F["e21_inject"] = _f21_inject_fig()
+
+
+# =====================================================================
+# 7 節: この演習の各段で使った章
+# =====================================================================
+def _f21_map_fig():
+    o = []
+    steps = [("1 仕様", ["01", "04", "09", "11"]),
+             ("2 モデル", ["02", "03", "04", "14", "17"]),
+             ("3 設計", ["10", "12", "13", "14", "18", "19"]),
+             ("4 実装", ["15", "16", "17", "20"]),
+             ("5 現実の問題", ["05", "06", "07", "09", "11", "14", "19", "20"]),
+             ("6 検証", ["08", "16"])]
+    part = {"01": SIG, "02": SIG, "03": SIG, "04": SIG, "05": PUR, "06": PUR, "07": PUR, "08": PUR, "09": PUR,
+            "10": GLD, "11": GLD, "12": GLD, "13": GLD, "14": GLD, "15": TEA, "16": TEA, "17": GRN, "18": GRN, "19": GRN, "20": GRN}
+    bw, gx, x0 = 104, 12, 14
+    for i, (name, chs) in enumerate(steps):
+        x = x0 + i * (bw + gx)
+        o.append(RECT(x, 14, bw, 30, 7, SSOFT, SIG, 1.5))
+        o.append(T(x + bw / 2, 34, name, "middle", 11, SIG, True))
+        if i < len(steps) - 1:
+            o.append(ARR(x + bw, 29, x + bw + gx, 29, c=SIG, lw=1.6, head=6))
+        for k, ch in enumerate(chs):
+            y = 58 + k * 24
+            c = part[ch]
+            o.append(RECT(x + 22, y, bw - 44, 19, 4, soft(c), c, 1.1))
+            o.append(T(x + bw / 2, y + 13.5, ch + " 章", "middle", 9.5, c, True))
+    # 部の凡例
+    o.append(LEGEND(14, 270, [(SIG, "第 I 部 1〜4 章"), (PUR, "第 II 部 5〜9 章"), (GLD, "第 III 部 10〜14 章"), (TEA, "第 IV 部 15・16 章"), (GRN, "第 V 部 17〜20 章")], sz=9.5, gap=12))
+    return SVG(704, 282, o, cap="この章の 6 つの段（上）と、それぞれで主に使った章（下。色は部）。どの部の道具も、1 つの装置を立てるのに使われる。")
+
+
+F["e21_map"] = _f21_map_fig()
