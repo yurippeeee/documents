@@ -287,7 +287,7 @@ def _f07_path_fig():
     o.append(_f07_sat(sx, sy, PUR, 1.2))
     o.append(_f07_sat(sx + 30, sy - 12, PUR, 1.2, dash="2 2"))
     o.append(ARR(sx + 4, sy - 3, sx + 25, sy - 11, c=PUR, lw=1.2, head=5))
-    o.append(T(sx + 50, sy - 14, "計算した位置", "start", 9.5, PUR, halo=True))
+    o.append(T(sx + 52, sy - 10, "計算した位置", "start", 9.5, PUR, halo=True))
     o.append(TX(sx - 30, sy + 26, "① 衛星の時計と軌道の誤差 δr_i^s", "start", 10, PUR, True, halo=True))
     # 直接波
     o.append(ARR(sx + 4, sy + 6, ax - 1, ay - 8, c=SIG, lw=2.2, head=8))
@@ -473,7 +473,7 @@ def _f07_atmos_fig():
     for nm, f in (("L5", _F07_F5), ("L2", _F07_F2), ("L1", _F07_F1)):
         v = 40.3 * tec / f ** 2
         o.append(D(q.X(f / 1e6), q.Y(v), GLD, 4))
-        o.append(T(q.X(f / 1e6) + (6 if nm != "L5" else -2), q.Y(v) + (-7 if nm != "L5" else 18), "%s %.2f m" % (nm, v), "start", 9.5, GLD, True, halo=True))
+        o.append(T(q.X(f / 1e6) + (6 if nm != "L5" else -7), q.Y(v) + (-7 if nm != "L5" else 17), "%s %.2f m" % (nm, v), "start" if nm != "L5" else "end", 9.5, GLD, True, halo=True))
     o.append(W(q.X(1100), q.Y(2.41), q.X(1700), q.Y(2.41), c=GRN, lw=2, dash="6 3"))
     o.append(T(q.X(1690), q.Y(2.41) + 14, "対流圏 約 2.4 m（周波数によらない）", "end", 9.5, GRN, True, halo=True))
     o.append(TX(xb + 4, 330, "I = 40.3 TEC / f^2: L2 は L1 の %.2f 倍、L5 は %.2f 倍" % ((_F07_F1 / _F07_F2) ** 2, (_F07_F1 / _F07_F5) ** 2), "start", 9.5, GLD, True))
