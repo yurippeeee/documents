@@ -1338,11 +1338,11 @@ def _f21_inject_fig():
     wgc = 10 ** lw_; phc = mp[k - 1] + a * (mp[k] - mp[k - 1]); pmm = 180 + phc
     pm_model = _f21_margins(L, _F21_TS)
     o.append(W(pm.X(wgc), pm.y, pm.X(wgc), pp.y + pp.h, c=GLD, lw=1.2, dash="4 3"))
-    o.append(T(pm.X(wgc) + 5, pm.y + 14, "|L| = 1: %.1f rad/s" % wgc, "start", 9.5, GLD, True, halo=True))
+    o.append(T(pm.X(wgc) + 5, pm.y + 14, "ゲインが 1: %.1f rad/s" % wgc, "start", 9.5, GLD, True, halo=True))
     o.append(DARR(pp.X(wgc) - 12, pp.Y(-180), pp.X(wgc) - 12, pp.Y(phc), c=GLD, lw=1.3))
     o.append(T(pp.X(wgc) - 20, (pp.Y(-180) + pp.Y(phc)) / 2 + 4, "位相余裕 %.1f°（モデル %.1f°）" % (pmm, pm_model[0]), "end", 9.5, GLD, True, halo=True))
     o.append(LEGL(66, hgt + 6, [(SIG, None, "モデルの一巡伝達関数"), (ALI, None, "力に正弦波を足して測った点（○）")], sz=9.5))
-    return SVG(704, hgt + 16, o, cap="立てたまま、制御器が計算した力に振幅 0.3 N の正弦波を足して記録し、16 章 6 節の方法で、入力の点で切った一巡伝達関数 L を 7 つの角周波数で測ったもの（観測ノイズあり。推定には足す前の力を使う）。測った点を直線で補って |L| = 1 の角周波数と位相余裕を読むと、5 節で計算した値とほとんど同じになる。")
+    return SVG(704, hgt + 16, o, cap="立てたまま、制御器が計算した力に振幅 0.3 N の正弦波を足して記録し、16 章 6 節の方法で、入力の点で切った一巡伝達関数を 7 つの角周波数で測ったもの（観測ノイズあり。推定には足す前の力を使う）。測った点を直線で補って、ゲインが 1 になる角周波数と位相余裕を読むと、5 節で計算した値とほとんど同じになる。")
 
 
 F["e21_inject"] = _f21_inject_fig()
