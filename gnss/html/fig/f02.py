@@ -400,7 +400,7 @@ def _f02_chips_fig():
         o.append(T(xb + 58, yy, "%d・%d" % (a, b), "middle", 10, GLD))
         o.append(T(xb + 126, yy, "".join(str(x) for x in _F02_CODES[prn][:10]), "middle", 10, INK, False, True))
         o.append(T(xb + 186, yy, _f02_oct10(_F02_CODES[prn]), "middle", 10, SIG, True, True))
-    o.append(T(xb, 60 + 5 * 17 + 2, "PRN 1〜32 の全部が規格の表と一致", "start", 9.5, GRN, True))
+    o.append(T(xb, 60 + 5 * 17 + 2, "5 つとも規格の表の値と一致", "start", 9.5, GRN, True))
     # (c) 1023 チップの全体
     yc = 186
     o.append(T(14, yc, "(c) PRN 1 の 1023 チップの全体（341 チップずつ 3 段。左上から右下へ）", "start", 11.5, INK, True))
@@ -1080,11 +1080,11 @@ def _f02_txtime_fig():
         o.append(T(p.X(t), ya + 15, "%d" % t, "middle", 9, MUT))
     o.append(T(p.x + p.w / 2, ya + 31, "電波が届くまでの時間 [ms]（受信機の時計のずれを含む）", "middle", 10, MUT))
     frac = 0.34697
-    for k in range(67, 87):
+    for k in range(67, 86):   # 67.347〜85.347 ms（67〜86 ms の中の 19 通り）
         t = k + frac
         hl = k == 72
         o.append(W(p.X(t), ya - (34 if hl else 14), p.X(t), ya, c=GLD if hl else FNT, lw=2.4 if hl else 1.4))
     o.append(T(p.X(72 + frac) + 6, ya - 25, "区切りを数えると 72.347 ms に決まる", "start", 9.5, GLD, True, halo=True))
-    o.append(T(p.x, ya + 48, "灰色の線: 符号のずれだけで分かる候補（0.347 ms ＋ 整数 ms。1 ms ごとに 20 通り、1 ms は光の速さで 300 km）", "start", 9.5, MUT))
+    o.append(T(p.x, ya + 48, "灰色の線: 符号のずれだけで分かる候補（0.347 ms ＋ 整数 ms。67〜86 ms の中に 19 通り、1 ms は光の速さで 300 km）", "start", 9.5, MUT))
     return SVG(700, ya + 58, o, "送った時刻の数え方（例の値）。(a) HOW から、いま受けているサブフレームの始まりの時刻（345 600 s。週の始まりから）が分かる。そこから、ワード・ビット・符号の周期・チップを数え、チップの端数を相関の頂点から読んで足すと、いま届いているチップを送った時刻になる。受信機の時計の読みとの差に光の速さを掛けたものが擬似距離である。(b) 符号のずれ（1 ms の中の位置）だけでは、届いた時間の候補が 1 ms ごとに並ぶ。区切りを数えることで 1 つに決まる。")
 F["e02_txtime"] = _f02_txtime_fig()
