@@ -367,7 +367,7 @@
     /* 推定の設計が変わったときだけ計算する: ゲイン・推定の極・力のノイズ（分散の式）・余裕 */
     function prep(){var e=sest.get(),kind=e===0?"ideal":(e===1?"diff":"est"),H=e===2?_w20_pobs(U,swo.get()):(e===3?_w20_pkf(U,ssc.get()):null),tau=stau.get();
       var fs=0;if(kind!=="ideal"){var cl=_w20_pcl(U,kind,H,tau),md=_w20_pmodel(U),Sg=_w20_lyap(M,cl.Phi,M.mul(M.mul(cl.G,md.V),M.T(cl.G)));fs=Math.sqrt(M.mul(M.mul(cl.Fz,Sg),M.T(cl.Fz))[0][0]);}
-      D={kind:kind,H:H,tau:tau,fs:fs,poles:H?_w20_pestpoles(U,H):null,mg:_w20_pmargins(U,_w20_ploop(U,kind,H,tau))};run();}
+      D={kind:kind,H:H,tau:tau,fs:fs,wo:e===2?swo.get():null,poles:H?_w20_pestpoles(U,H):null,mg:_w20_pmargins(U,_w20_ploop(U,kind,H,tau))};run();}
     function run(){if(!D)return;var ts=stst.get(),T=ts===2?6:4,x0=ts===1?[0,0,10*_W20_D2R,0]:[0,0,0,0];
       var r=_w20_prun(U,{kind:D.kind,H:D.H,tau:D.tau,x0:x0,T:T,seed:seed,noise:cno.get()?1:0,proc:cpr.get()?1:0,push:ts===0?[0.5,0.1,1.0]:null,umax:cum.get()?5:null,kg:skg.get()});
       R={r:r,T:T,ts:ts};st.el.querySelector("input").max=T;draw();}
@@ -400,7 +400,7 @@
       var md=_w20_pmodel(U),h="",mm=_w20_minmax(ph),pm=_w20_maxabs(pp);
       if(D.kind==="ideal")h+="推定なし: 4 つの状態を誤差なく使う（19 章 4 節の最適レギュレータ F = ["+md.F[0].map(function(v){return _w20_g(v,4);}).join(", ")+"]）<br>";
       else if(D.kind==="diff")h+="差分を時定数 "+(D.tau?_w20_g(D.tau*1000,3)+" ms":"0（ならさない）")+" の一次遅れでならした速度と角速度を使う<br>";
-      else h+="H = [["+D.H.map(function(rw2){return rw2.map(function(v){return _w20_g(v,3);}).join(", ");}).join("], [")+"]]（予測と更新の形、1 ms ごと）<br>推定誤差の極: <b>"+_w20_poles(D.poles)+"</b><br>";
+      else h+="H = [["+D.H.map(function(rw2){return rw2.map(function(v){return _w20_g(v,3);}).join(", ");}).join("], [")+"]]（予測と更新の形、1 ms ごと）<br>推定誤差の極: <b>"+(D.wo!=null?"−"+D.wo+" が 4 つ（台車の側と振子の側に 2 つずつ置いた）":_w20_poles(D.poles))+"</b><br>";
       h+="力のノイズの標準偏差（分散の式、測定のノイズだけ）: <b>"+(D.kind==="ideal"?"0":_w20_g(D.fs,3)+" N")+"</b>";
       if(cno.get()||cpr.get()){var i0=Math.round(1/TS),us=r.u.slice(i0);h+="、この乱数の列での力の揺れ（1 s 以後）: "+_w20_g(_w20_std(us,0),3)+" N";}
       h+="<br>角度 "+_w20_f(mm[0],2)+"〜"+_w20_f(mm[1],2)+"°、台車が動く最大の距離 "+_w20_g(pm,3)+" cm、最大の力 "+_w20_g(_w20_maxabs(r.u),3)+" N";
