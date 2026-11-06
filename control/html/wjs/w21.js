@@ -258,15 +258,15 @@
       o.push(S.T(Ps.x+Ps.w-3,Ps.Y(0)-5,"実部","end",9,"muted",false,false,null,true));o.push(S.T(Ps.X(0)+4,Ps.y+11,"虚部","start",9,"muted",false,false,null,true));
       /* 波形 */
       var t=R.t,ph=col(R.x[2],1/D),pp=R.x[0],pv=R.x[1],gx,gw,gh=nar?66:72,gy0=nar?sy+sh+52:gy+70,dx,dy;
-      if(nar){gx=[52,52,52];gw=330;dy=gh+30;}else{gx=[46,280,514];gw=180;dy=0;}
+      if(nar){gx=[52,52,52];gw=330;dy=gh+36;}else{gx=[46,280,514];gw=180;dy=0;}
       var rph=_w21_range([ph],0.08,4),rp=_w21_range([pp,[0.5,-0.5].filter(function(v){return _w21_maxabs(pp)>0.3&&Math.sign(v)===Math.sign(pp[pp.length-1]);})],0.08,0.3),rv=_w21_range([pv],0.1,0.3);
-      var w1=_w21_wave(S,U,gx[0],gy0,gw,gh,0,6,rph[0],rph[1],"角度 φ [°]（塗り: 面積）",[[t,ph,"signal"]],tc,true);
+      var w1=_w21_wave(S,U,gx[0],gy0,gw,gh,0,6,rph[0],rph[1],"角度 φ [°]（塗り: 面積）",[[t,ph,"signal"]],tc,!nar);
       var area=[];for(var i=0;i<t.length;i++)area.push([t[i],Math.max(rph[0],Math.min(rph[1],ph[i]))]);
       var poly=[[w1.P.X(0),w1.P.Y(Math.max(rph[0],Math.min(rph[1],0)))]].concat(area.map(function(q){return [w1.P.X(q[0]),w1.P.Y(q[1])];})).concat([[w1.P.X(t[t.length-1]),w1.P.Y(Math.max(rph[0],Math.min(rph[1],0)))]]);
       o.push(S.PL(poly,"none",0,"var(--signal-soft)",null,0.8));o.push(w1.svg);
-      var w2=_w21_wave(S,U,gx[1],gy0+dy,gw,gh,0,6,rp[0],rp[1],"台車の位置 p [m]",[[t,pp,"signal"]],tc,true);o.push(w2.svg);
+      var w2=_w21_wave(S,U,gx[1],gy0+dy,gw,gh,0,6,rp[0],rp[1],"台車の位置 p [m]",[[t,pp,"signal"]],tc,!nar);o.push(w2.svg);
       [0.5,-0.5].forEach(function(v){if(v>rp[0]&&v<rp[1])o.push(S.L(w2.P.x,w2.P.Y(v),w2.P.x+w2.P.w,w2.P.Y(v),"alias",1,"4 3"));});
-      o.push(_w21_wave(S,U,gx[2],gy0+2*dy,gw,gh,0,6,rv[0],rv[1],U.htx?"台車の速さ \\dot{p} [m/s]":"台車の速さ [m/s]",[[t,pv,"signal"]],tc,true).svg);
+      o.push(_w21_wave(S,U,gx[2],gy0+2*dy,gw,gh,0,6,rv[0],rv[1],"台車の速さ \\dot{p} [m/s]",[[t,pv,"signal"]],tc,true).svg);
       box.set(S.svg(Wd,nar?gy0+2*dy+gh+42:gy0+gh+42,o));
       /* 読み出し */
       var ar=0;for(var j=1;j<t.length;j++)ar+=(t[j]-t[j-1])*(R.x[2][j]+R.x[2][j-1])/2;
@@ -333,7 +333,7 @@
       if(r.fell!=null&&tc>=r.fell-1e-9)o.push(S.T(ax+aw-4,30,"倒れた","end",10,"alias",true,false,null,true));
       o.push(S.T(ax+aw,gy+40,"t = "+_w21_f(tc,2)+" s","end",10,"ink",true));o.push(S.T(ax,gy+40,"破線: 推定した状態","start",9.5,"green"));
       var ev=Math.max(1,Math.round((R.T>10?0.02:0.005)/DS.Ts)),t=col(r.t,1,ev),ph=col(r.x[2],1/D,ev),pp=col(r.x[0],100,ev),u=col(r.u,1,ev),T=Math.min(R.T,r.t[n-1]+1e-9);
-      var gx=nar?52:404,gw=nar?330:280,gh=nar?72:70,gy0=nar?gy+64:22,dy=gh+30;
+      var gx=nar?52:404,gw=nar?330:280,gh=nar?72:66,gy0=nar?gy+64:22,dy=gh+36;
       var rph=_w21_range([ph],0.08,2),rp=_w21_range([pp],0.08,2),ru=_w21_range([u],0.08,1);
       o.push(_w21_wave(S,U,gx,gy0,gw,gh,0,T,rph[0],rph[1],"角度 φ [°]",[[t,ph,"signal"]],tc,false).svg);
       var w2=_w21_wave(S,U,gx,gy0+dy,gw,gh,0,T,rp[0],rp[1],"台車の位置 p [cm]",[[t,pp,"signal"]],tc,false);o.push(w2.svg);
@@ -420,8 +420,8 @@
       var ev=5,t=[],ph=[],pp=[];for(var i=0;i<n;i+=ev){t.push(R.t[i]);ph.push(R.x[2][i]/D);pp.push(R.x[0][i]*100);}
       var gx=nar?52:392,gw=nar?330:290,gh=58,gy0=nar?ay+gy-(ly+40)+64:gy+66,rph=_w21_range([ph],0.08,4),rp=_w21_range([pp],0.08,4);
       o.push(_w21_wave(S,U,gx,gy0,gw,gh,0,5,rph[0],rph[1],"角度 φ [°]",[[t,ph,"signal"]],tc,false).svg);
-      o.push(_w21_wave(S,U,gx,gy0+gh+28,gw,gh,0,5,rp[0],rp[1],"台車の位置 p [cm]",[[t,pp,"signal"]],tc,true).svg);
-      var Ht=Math.max(ly+30,gy0+2*gh+28+40);box.set(S.svg(Wd,Ht,o));
+      o.push(_w21_wave(S,U,gx,gy0+gh+36,gw,gh,0,5,rp[0],rp[1],"台車の位置 p [cm]",[[t,pp,"signal"]],tc,true).svg);
+      var Ht=Math.max(ly+30,gy0+2*gh+36+40);box.set(S.svg(Wd,Ht,o));
       /* 読み出し */
       var nm=["不安定","揺れが長く残る","立つ"],cc=["warn","warn","ok"],h="長さ "+_w21_f(slr.get(),2)+" 倍・質量 "+_w21_f(smr.get(),2)+" 倍: <span class=\""+cc[CL.cls]+"\">"+nm[CL.cls]+"</span>（閉ループの 9 つの極のうち、z 平面の原点から最も遠い極の距離 "+_w21_f(CL.rho,5)+"、最も小さい減衰比 "+(CL.rho<1?_w21_f(CL.zmin,3):"−")+"）";
       var mm=_w21_minmax(R.x[2]),j0=Math.round((stt.get()===0?3.5:2.5)/0.001);
@@ -473,9 +473,10 @@
     U.button(br,"補償 0.3 N で摩擦が無い",function(){pre(1,1,0,true,0);});
     var tb=U.readout(el),box=U.svgbox(el),ro=U.readout(el),R=null;
     function go(){R=_w21_suite(U,{mul:[1,4,10][sw.get()],ffc:[0,0.3,0.45][scp.get()],Fc:[0,0.3,0.6][sfc.get()],noise:cno.get()});table();draw();}
-    function table(){var rows=R.res.map(function(q,i){return [String(i+1),_W21_SPEC[i],q.v,q.ok?'<span class="ok">○</span>':'<span class="warn">×</span>'];});
+    function table(){var narrow=el.clientWidth>0&&el.clientWidth<520,mk=function(q){return q.ok?'<span class="ok">○</span>':'<span class="warn">×</span>';};
+      var rows=R.res.map(function(q,i){return narrow?[(i+1)+". "+_W21_SPEC[i]+"<br><b>"+q.v+"</b>",mk(q)]:[String(i+1),_W21_SPEC[i],q.v,mk(q)];});
       var nok=R.res.filter(function(q){return q.ok;}).length;
-      tb.innerHTML=U.tbl(["","仕様","模型の試験の値","判定"],rows,["right","left","left","center"])+"<div>"+nok+" / 9 行を満たす"+(nok===9?' <span class="ok">すべて満たす</span>':"")+"</div>";
+      tb.innerHTML=(narrow?U.tbl(["仕様（上）と模型の試験の値（下）","判定"],rows,["wrap","center"]):U.tbl(["","仕様","模型の試験の値","判定"],rows,["right","left","left","center"]))+"<div>"+nok+" / 9 行を満たす"+(nok===9?' <span class="ok">すべて満たす</span>':"")+"</div>";
       var trs=tb.querySelectorAll("tbody tr");for(var i=0;i<trs.length;i++){(function(k){trs[k].style.cursor="pointer";if(k===srow.get())trs[k].style.background="var(--signal-soft)";
         trs[k].addEventListener("click",function(){srow.set(k);table();draw();});})(i);}}
     function band(P,t0,t1,lo,hi){var o=[];if(hi<P.yr[1])o.push(S.RECT(P.X(t0),P.Y(P.yr[1]),P.X(t1)-P.X(t0),P.Y(hi)-P.Y(P.yr[1]),0,"var(--alias-soft)","none",0));
@@ -485,15 +486,15 @@
       var yb=0;function wave(x,y,T0,T,lo,hi,title,list,xl){yb=Math.max(yb,y+gh+(xl?40:24));return _w21_wave(S,U,x,y,gw,gh,T0,T,lo,hi,title,list,null,xl);}
       if(row===0||row===2||row===4){var a=ser(R.r1,2,1/D),p=ser(R.r1,0,1),u=ser(R.r1,"u",1),ra=_w21_range([a[1]],0.1,6);
         var w1=wave(gx,yy,0,6,ra[0],ra[1],"10° から放す: 角度 φ [°]",[[a[0],a[1],"signal"]],false);o.push(band(w1.P,2.5,6,-2,2));o.push(w1.svg);
-        var rp=_w21_range([p[1],[0.4,-0.1]],0.05,0.2),w2=wave(gx2,yy+(nar?dy:0),0,6,rp[0],rp[1],"台車の位置 p [m]",[[p[0],p[1],"signal"]],nar);o.push(band(w2.P,0,6,-0.35,0.35));o.push(w2.svg);
+        var rp=_w21_range([p[1],[0.4,-0.1]],0.05,0.2),w2=wave(gx2,yy+(nar?dy:0),0,6,rp[0],rp[1],"台車の位置 p [m]",[[p[0],p[1],"signal"]],!nar);o.push(band(w2.P,0,6,-0.35,0.35));o.push(w2.svg);
         var w3=wave(gx,yy+dy*(nar?2:1),0,6,-6,6,"力 u [N]",[[u[0],u[1],"gold",null,1.3]],true);o.push(w3.svg);[5,-5].forEach(function(v){o.push(S.L(w3.P.x,w3.P.Y(v),w3.P.x+w3.P.w,w3.P.Y(v),"alias",1,"3 3"));});
         h="薄い赤: 仕様 1・3 で入ってはいけない範囲。赤の破線: 力の上限 5 N（仕様 5 は、ここに張り付く時間）。";}
       else if(row===1){var a2=ser(R.r2,2,1/D),p2=ser(R.r2,0,1),ra2=_w21_range([a2[1]],0.1,10),rp2=_w21_range([p2[1],[0.5]],0.05,0.3);
-        o.push(wave(gx,yy,0,6,ra2[0],ra2[1],"20° から放す: 角度 φ [°]",[[a2[0],a2[1],"signal"]],true).svg);
+        o.push(wave(gx,yy,0,6,ra2[0],ra2[1],"20° から放す: 角度 φ [°]",[[a2[0],a2[1],"signal"]],!nar).svg);
         var w22=wave(gx2,yy+(nar?dy:0),0,6,rp2[0],rp2[1],"台車の位置 p [m]",[[p2[0],p2[1],"signal"]],true);o.push(band(w22.P,0,6,-0.45,0.45));o.push(w22.svg);
         h="薄い赤: 安全のための停止が働く台車の位置（0.45 m）より外。";}
       else if(row===3){var a4=ser(R.r4,2,1/D),p4=ser(R.r4,0,1),ra4=_w21_range([a4[1]],0.1,6),rp4=_w21_range([p4[1],[0.4,-0.1]],0.05,0.2);
-        var w41=wave(gx,yy,0,6.5,ra4[0],ra4[1],"押す（0.5 s から）: 角度 φ [°]",[[a4[0],a4[1],"signal"]],true);o.push(band(w41.P,3.5,6.5,-2,2));o.push(w41.svg);
+        var w41=wave(gx,yy,0,6.5,ra4[0],ra4[1],"押す（0.5 s から）: 角度 φ [°]",[[a4[0],a4[1],"signal"]],!nar);o.push(band(w41.P,3.5,6.5,-2,2));o.push(w41.svg);
         var w42=wave(gx2,yy+(nar?dy:0),0,6.5,rp4[0],rp4[1],"台車の位置 p [m]",[[p4[0],p4[1],"signal"]],true);o.push(band(w42.P,0,6.5,-0.35,0.35));o.push(w42.svg);
         h="薄い赤: 仕様 4・3 で入ってはいけない範囲。";}
       else if(row===5||row===6){var p7=ser(R.r7,0,100,10,2),a7=ser(R.r7,2,1/D,10,2),u7=ser(R.r7,"u",1,2,2);
@@ -511,7 +512,7 @@
         var a8=ser(R.r8,2,1/D),ra8=_w21_range([a8[1]],0.1,6),w81=wave(gx2,yy+(nar?cp.h+60:10),0,6,ra8[0],ra8[1],"測る値が 20 ms 遅れて 10° から放す: φ [°]",[[a8[0],a8[1],"signal"]],true);o.push(band(w81.P,2.5,6,-2,2));o.push(w81.svg);
         h="緑の点線: −1 を中心とする半径 1 の円（19 章 6 節）。位相余裕 "+(R.mg.pm!=null?_w21_f(R.mg.pm,1)+"°":"−")+"、ゲイン交差角周波数 "+(R.mg.wgc?_w21_g(R.mg.wgc,3)+" rad/s":"−")+"、許されるむだ時間 "+(R.mg.delay?_w21_g(R.mg.delay*1000,3)+" ms":"−")+"。";}
       else{var cl=["teal","purple","gold","alias"],sa=[],sb=[];R.c9.forEach(function(z,i){var a9=ser(z.ra,2,1/D),b9=ser(z.rb,2,1/D);sa.push([a9[0],a9[1],cl[i],null,1.4]);sb.push([b9[0],b9[1],cl[i],null,1.4]);});
-        var w91=wave(gx,yy,0,6,-8,11,"±20 % の 4 つの角: 10° から放す φ [°]",sa,true);o.push(band(w91.P,2.5,6,-2,2));o.push(w91.svg);
+        var w91=wave(gx,yy,0,6,-8,11,"±20 % の 4 つの角: 10° から放す φ [°]",sa,!nar);o.push(band(w91.P,2.5,6,-2,2));o.push(w91.svg);
         var w92=wave(gx2,yy+(nar?dy:0),0,6.5,-17,6,"押す φ [°]",sb,true);o.push(band(w92.P,3.5,6.5,-2,2));o.push(w92.svg);
         var ly=yb+4;R.c9.forEach(function(z,i){var lx=gx-40+(i%2)*170+(nar?0:(i>1?340:0)),lyy=ly+(nar?Math.floor(i/2)*16:0)-(nar?0:(i%2?0:0));o.push(S.L(lx,lyy-4,lx+20,lyy-4,cl[i],2.2));o.push(S.T(lx+24,lyy,"長さ "+z.c[0]+" 倍・質量 "+z.c[1]+" 倍","start",9,"muted"));});yb=ly+(nar?28:12);
         h="4 つの角（振子の長さの倍率・台車の質量の倍率）。薄い赤: 仕様 1・4 で入ってはいけない範囲。";}
