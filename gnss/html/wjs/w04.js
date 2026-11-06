@@ -161,7 +161,7 @@
     for(var i=1;i<=n;i++){var x=B*i*dt,h=B*Math.sin(Math.PI*x)/(Math.PI*x);H[i]=H[i-1]+(prev+h)/2*dt;prev=h;}
     return (_W04_HT[key]={H:H,n:n,dt:dt});}
   function _w04_Hv(T,t){var a=Math.abs(t)/T.dt;if(a>=T.n)return (t<0?-1:1)*T.H[T.n];var i=Math.floor(a),f=a-i,v=T.H[i]*(1-f)+T.H[i+1]*f;return t<0?-v:v;}
-  /* 量子化器: mode 0 = 1 bit、1 = 2 bit（±1・±3、しきい値 βσ）、2 = 3 bit（±1〜±7、段の幅 βσ）、3 = しない */
+  /* 量子化器: mode 0 = 1 bit、1 = 2 bit（±1・±3、しきい値 γσ）、2 = 3 bit（±1〜±7、段の幅 γσ）、3 = しない */
   function _w04_quantizer(mode,beta){
     if(mode===3)return {g:1,Eq2:1,Rq:function(r){return r;},q:function(x){return x;}};
     if(mode===0)return {g:Math.sqrt(2/Math.PI),Eq2:1,Rq:function(r){return 2/Math.PI*Math.asin(Math.max(-1,Math.min(1,r)));},q:function(x){return x>=0?1:-1;}};
@@ -197,7 +197,7 @@
     U.head(el,"SAMPLING & QUANTIZATION","サンプリングと量子化 — 相関の後の SN 比の損失");
     var r1=U.ctrls(el);
     var fsS=U.select(r1,"サンプリング周波数 f<sub>s</sub>",["32.736 MHz","16.368 MHz（本文の例）","10.912 MHz","10.23 MHz（n = 1 の下限）","8.184 MHz（半分が中間周波数）","5.456 MHz（帯域通過サンプリング）","4.092 MHz（中間周波数と同じ）"],1,function(){mc=null;draw();});
-    var bS=U.select(r1,"前段のフィルタの幅 B",["2.046 MHz（本文の例）","4.092 MHz"],0,function(){mc=null;draw();});
+    var bS=U.select(r1,"前段のフィルタの幅 B<sub>IF</sub>",["2.046 MHz（本文の例）","4.092 MHz"],0,function(){mc=null;draw();});
     var r2=U.ctrls(el);
     var qs=U.seg(r2,["1 bit","2 bit","3 bit","量子化しない"],1,function(i){bt.set(i===2?0.6:1.0);mc=null;draw();});
     var bt=U.slider(r2,"しきい値（2 bit）・段の幅（3 bit）",{min:0.2,max:2.5,step:0.05,value:1.0,fmt:function(v){return _w04_f(v,2)+" σ";},onInput:function(){mc=null;draw();}});
@@ -271,12 +271,12 @@
       if(!F.ok&&!deg)t+='<span class="warn">帯域の一部が f_s/2 の整数倍をまたいで、折り返した雑音が重なる</span><br>';
       if(deg)t+='<span class="warn">この f_s では、中間周波数が 0 か f_s/2 に折り返り、標本の列から搬送波の位相が分からなくなる（位相によっては信号が消える）</span><br>';
       else{
-        t+="選んだ量子化（"+names[md]+(md===1||md===2?"、"+_w04_f(c.beta,2)+"σ":"")+"）: 合わせた損失 <b>"+_w04_f(Lq,2)+" dB</b>（量子化の分 "+_w04_f(Lq-L0,2)+" dB）→ 1 節の例（47.5 dB-Hz）なら、相関器から見た C/N0 は "+_w04_f(47.45+Lq,1)+" dB-Hz、1 ms の後の SN 比は "+_w04_f(47.45+Lq-30,1)+" dB<br>";
+        t+="選んだ量子化（"+names[md]+(md===1||md===2?"、"+_w04_f(c.beta,2)+"σ":"")+"）: 合わせた損失 <b>"+_w04_f(Lq,2)+" dB</b>（量子化の分 "+_w04_f(Lq-L0,2)+" dB）→ 1 節の例（47.5 dB-Hz）なら、相関をとった後に見える C/N0 は "+_w04_f(47.45+Lq,1)+" dB-Hz、1 ms の後の SN 比は "+_w04_f(47.45+Lq-30,1)+" dB<br>";
         var row=[0,1,2,3].map(function(m){var b=m===1?1.0:(m===2?0.586:1);return names[m]+" "+_w04_f(_w04_semi(U,c.B,c.fs,m,b),2)+" dB";});
-        t+="この f_s と B での比較（2 bit は 1.0σ、3 bit は 0.59σ）: "+row.join("、")+"<br>";
-        t+="相関器の計算: 1 チャネルあたり 1 秒に "+_w04_g(6*c.fs/1e6,1)+" M 回（f_s に比例）<br>";}
+        t+="この f_s と B_IF での比較（2 bit は 1.0σ、3 bit は 0.59σ）: "+row.join("、")+"<br>";
+        t+="掛けて足す計算（4・5 節）: 衛星 1 つあたり 1 秒に "+_w04_f(6*c.fs/1e4,0)+" 万回（f_s に比例）<br>";}
       if(mc){if(mc.msg)t+=mc.msg;else t+="シミュレーション（"+mc.K+" 回、雑音の探り "+mc.M+" 本）: 量子化しない "+_w04_f(mc.n,2)+" dB、"+names[md]+" "+_w04_f(mc.q,2)+" dB、量子化の分 <b>"+_w04_f(mc.q-mc.n,2)+" dB</b>（近似の計算 "+_w04_f(Lq-L0,2)+" dB。ばらつきの目安 ±"+_w04_f(mc.se,2)+" dB）";}
-      ro.innerHTML=U.htx(t)+'<div class="wnote">中間周波数 4.092 MHz、PRN 1、積分の時間 1 ms。前段は幅 B の理想のフィルタ。損失は、信号が雑音より十分弱いとして、標本どうしの雑音の相関を含めて計算した値（本文の図の線と同じ計算）。シミュレーションは、同じ雑音で量子化したものとしないものを比べ、信号の分は ± の信号の差、雑音の分は乱数の符号との相関で測る。</div>';
+      ro.innerHTML=U.htx(t)+'<div class="wnote">中間周波数 4.092 MHz、PRN 1、積分の時間 1 ms。前段は幅 B<sub>IF</sub> の理想のフィルタ。損失は、信号が雑音より十分弱いとして、標本どうしの雑音の相関を含めて計算した値（本文の図の線と同じ計算）。シミュレーションは、同じ雑音で量子化したものとしないものを比べ、信号の分は ± の信号の差、雑音の分は乱数の符号との相関で測る。</div>';
     }
     draw();
   };
@@ -318,7 +318,7 @@
           a[0]+=yc*cE[k];a[1]+=ys*cE[k];a[2]+=yc*cP[k];a[3]+=ys*cP[k];a[4]+=yc*cL[k];a[5]+=ys*cL[k];
           if(pr){acI+=yc*cP[k];acQ+=ys*cP[k];if(k%stepRun===0||k===J-1)pr.push([(k+1)/FS*1e3,acI/J,acQ/J]);}}
         for(var q=0;q<6;q++)a[q]/=J;reps.push(a);if(pr)run=pr;}
-      /* 式の値: (I, Q) = d Λ(Δτ) sinc(Δf T)(cos φ̄, −sin φ̄) */
+      /* 式の値: (I, Q) = d Λ(Δτ) sinc(Δf T)(cos Δψ̄, −sin Δψ̄)、Δψ̄ = Δψ + πΔf T（平均の位相のずれ） */
       var ph=Dp+Math.PI*Df*T,sc=sinc(Df*T),offs=[-De/2,0,De/2],fm=offs.map(function(o){var v=d*lam(Dt+o)*sc;return [v*Math.cos(ph),-v*Math.sin(ph)];});
       var nar=_w04_nar(box),Wd=nar?400:700,o=[],cols=["green","signal","gold"],nm=["E","P","L"];
       /* (a) I・Q 平面 */
@@ -356,7 +356,7 @@
       var h=U.tbl(["","I（計算）","Q（計算）","大きさ","I（式）","Q（式）","大きさ（式）"],rows,["left","right","right","right","right","right","right"]);
       var mE=Math.hypot(reps[0][0],reps[0][1]),mL=Math.hypot(reps[0][4],reps[0][5]),pp=Math.atan2(-reps[0][3],reps[0][2])*180/Math.PI;
       h+="E と L の大きさの差 = <b>"+_w04_f(mE-mL,3)+"</b>（式 "+_w04_f(Math.abs(sc)*(lam(Dt-De/2)-lam(Dt+De/2)),3)+"）"+(De===1&&Math.abs(Dt)<=0.5?" → 頂点は局部の符号より "+_w04_f((mE-mL)/2,2)+" チップずれた所（本当は "+_w04_f(Dt,2)+"）":"")+"<br>";
-      h+="P の点の角度から読んだ位相のずれ "+_w04_f(pp,1)+"°（式の平均の位相 φ̄ = Δψ + πΔf T_coh = "+_w04_f(ph*180/Math.PI+(d<0?180:0),1)+"°"+(d<0?"。データが −1 なので 180° 足した値":"")+"）、周波数のずれによる倍率 sinc(Δf T_coh) = "+_w04_f(sc,3)+"<br>";
+      h+="P の点の角度から読んだ位相のずれ "+_w04_f(pp,1)+"°（式の平均の位相のずれ <span style=\"text-decoration:overline\">Δψ</span> = Δψ + πΔf T_coh = "+_w04_f(ph*180/Math.PI+(d<0?180:0),1)+"°"+(d<0?"。データが −1 なので 180° 足した値":"")+"）、周波数のずれによる倍率 sinc(Δf T_coh) = "+_w04_f(sc,3)+"<br>";
       if(C0<90){var snr=Math.pow(10,C0/10)*T*Math.pow(lam(Dt)*sc,2);h+="P の相関の後の SN 比（式）(C/N0) T_coh Λ² sinc² = <b>"+_w04_f(10*Math.log10(Math.max(snr,1e-12)),1)+" dB</b>、I と Q のそれぞれの雑音の標準偏差 √(N0/T_coh) = "+_w04_f(Math.sqrt(1/(2*Math.pow(10,C0/10)*T)),3)+"<br>";}
       if(Math.abs(Df)*T>=1)h+='<span class="warn">周波数のずれが 1/T_coh 以上で、和がほとんど 0 になる（3 章 4 節）</span><br>';
       ro.innerHTML=U.htx(h)+'<div class="wnote">中間周波数 4.092 MHz・16.368 MHz の標本（PRN 1、√(2C) = 1）に、白色雑音を足して計算した。(a) の大きな点は 1 回目の積分、小さな点は別の雑音で '+(R-1)+' 回繰り返した値。○ は式の値。</div>';

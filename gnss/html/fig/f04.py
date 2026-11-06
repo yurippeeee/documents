@@ -98,7 +98,7 @@ def _f04_chain_fig():
     p = Plot(250, y0 + 14, 400, 60, (1, 1e8), (0, 3), xlog=True)
     o.append(p.axes(xl=None, yl=None, xt=[1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8], yt=[],
                     xfmt=lambda v: {1: "1", 10: "10", 100: "100", 1e3: "1000", 1e4: "1 万", 1e5: "10 万", 1e6: "100 万", 1e7: "1000 万", 1e8: "1 億"}[v], grid=True))
-    bars = [("A/D 変換の出力（bit）", 3.2736e7, SIG), ("相関器の出力（衛星 1 つ）", 6000.0, PUR), ("位置（10 Hz の場合）", 10.0, GRN)]
+    bars = [("A/D 変換の出力（bit）", 3.2736e7, SIG), ("掛けて足した後（衛星 1 つ）", 6000.0, PUR), ("位置（10 Hz の場合）", 10.0, GRN)]
     for i, (lab, v, c) in enumerate(bars):
         yy = p.y + 4 + i * 19
         o.append(RECT(p.X(1), yy, p.X(v) - p.X(1), 13, 2, soft(c), c, 1.1))
@@ -368,7 +368,7 @@ def _f04_alias_fig():
     o.append(T(xb - 30, 136, "緑: 帯域が 1 つの区間に入る", "start", 9.5, GRN, True))
     o.append(T(xb - 30, 150, "（n = 2 で 5.115〜6.138 MHz、n = 1 で 10.23 MHz 以上）", "start", 9.5, GRN))
     o.append(T(xb - 30, 166, "赤: 帯域が自分と重なる", "start", 9.5, ALI, True))
-    o.append(TX(xb - 30, 184, "条件 2f_H/n ≤ f_s ≤ 2f_L/(n − 1)", "start", 9.5, INK))
+    o.append(TX(xb - 30, 184, "条件 2f_max/n ≤ f_s ≤ 2f_min/(n − 1)", "start", 9.5, INK))
     # (c) 帯域の折り返し（3 通り）
     o.append(T(14, 214, "(c) 帯域（3.069〜5.115 MHz）が標本の列でどこに見えるか（濃い方が高い周波数の側）", "start", 11, INK, True))
     cases = [(16.368, "f_s = 16.368 MHz: そのまま（中間周波数は f_s/4）", GRN), (5.456, "f_s = 5.456 MHz: 0.341〜2.387 MHz に裏返る（帯域通過サンプリング）", GRN),
@@ -486,7 +486,7 @@ _F04_QBMC = {0.5: (-0.58, -0.85), 1.0: (-0.24, -0.57), 1.5: (-0.27, -0.76), 2.0:
 
 
 def _f04_eta2(beta):
-    """2 bit（±1・±3、しきい値 βσ）の損失（真数）。標本が独立で、信号が弱いとき。"""
+    """2 bit（±1・±3、しきい値 γσ）の損失（真数）。標本が独立で、信号が弱いとき。"""
     from scipy.stats import norm as _nrm
     g = (2 + 4 * math.exp(-beta ** 2 / 2)) / math.sqrt(2 * math.pi)
     v = (2 * _nrm.cdf(beta) - 1) + 9 * 2 * (1 - _nrm.cdf(beta))
@@ -513,16 +513,16 @@ def _f04_qloss_fig():
         o.append(T(p.x, p.y - 6, lab, "start", 9.5, SIG, True))
         o.append(T(p.x + p.w - 4, p.y + p.h - 8, ls, "end", 9.5, ALI, True, halo=True))
     # (b) 2 bit のしきい値
-    o.append(T(14, 222, "(b) 2 bit の、しきい値 βσ と損失", "start", 11, INK, True))
+    o.append(T(14, 222, "(b) 2 bit の、しきい値 γσ と損失", "start", 11, INK, True))
     q = Plot(70, 242, 270, 150, (0.2, 2.5), (-1.4, 0))
-    o.append(q.axes(xl="しきい値 β（雑音の標準偏差の何倍か）", yl="量子化の損失 [dB]", xt=[0.5, 1.0, 1.5, 2.0, 2.5], yt=[-1.4, -1.2, -1.0, -0.8, -0.6, -0.4, -0.2, 0], xfmt=_f04_m, yfmt=_f04_m))
+    o.append(q.axes(xl="しきい値の倍率 γ（しきい値 ÷ 雑音の標準偏差）", yl="量子化の損失 [dB]", xt=[0.5, 1.0, 1.5, 2.0, 2.5], yt=[-1.4, -1.2, -1.0, -0.8, -0.6, -0.4, -0.2, 0], xfmt=_f04_m, yfmt=_f04_m))
     bb = _f04_np.linspace(0.2, 2.5, 116)
     o.append(q.line([(b, 10 * math.log10(_f04_eta2(b))) for b in bb], c=SIG, lw=2.2))
     o.append(q.line(list(zip(_F04_QB, _F04_QB16)), c=PUR, lw=2.0, dash="6 3"))
     for b, (v16, vw) in _F04_QBMC.items():
         o.append(CIRC(q.X(b), q.Y(vw), 3.8, c=SIG, lw=1.6, fill=SCR))
         o.append(RECT(q.X(b) - 3.4, q.Y(v16) - 3.4, 6.8, 6.8, 0.5, SCR, PUR, 1.5))
-    o.append(T(q.X(1.0), q.Y(-0.55) + 16, "−0.55 dB（β = 1.0）", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(1.0), q.Y(-0.55) + 16, "−0.55 dB（γ = 1.0）", "middle", 9.5, SIG, True, halo=True))
     o.append(LEGL(q.x - 50, q.y + q.h + 46, [(SIG, None, "標本が独立なとき（式）"), (PUR, "6 3", "16.368 MHz（近似の計算）")], 9, 10))
     o.append(T(q.x + q.w, q.y + q.h + 62, "○・□: シミュレーション（各 300 回）", "end", 9, MUT))
     # (c) サンプリング周波数と損失
