@@ -206,13 +206,13 @@
     var nr=U.slider(r2,"チップレート（1.023 M チップ/s の何倍か）",{values:[0.5,1,2,5,10],value:1,fmt:function(v){return v+" 倍（"+_w02_f(v*1.023,4).replace(/0+$/,"").replace(/\.$/,"")+" M チップ/s）";},onInput:function(){md.set(4);draw();}});
     var sc=U.slider(r2,"副搬送波の周波数（1.023 MHz の何倍か。0 は BPSK）",{values:[0,0.5,1,1.5,2,2.5,3,5,6,10,15],value:1,fmt:function(v){return v?v+" 倍":"0（BPSK）";},onInput:function(){md.set(4);draw();}});
     var r3=U.ctrls(el);
-    var bw=U.slider(r3,"受信機が受ける周波数の幅（中心のまわり）",{values:[1,2,4,8,16,24,40],value:4,fmt:function(v){return v+" MHz（±"+(v/2)+" MHz）";},onInput:function(){draw();}});
+    var bw=U.slider(r3,"受信機が受ける周波数の幅（中心のまわり）",{values:[1,2,4,8,16,24,40],value:1,fmt:function(v){return v+" MHz（±"+(v/2)+" MHz）";},onInput:function(){draw();}});
     var r4=U.ctrls(el);
     var ov=U.checkbox(r4,"C/A 符号（BPSK(1)）を重ねる",true,function(){draw();});
     var lg=U.checkbox(r4,"縦を対数の目盛にする",false,function(){draw();});
     var ff=U.checkbox(r4,"でたらめな符号を FFT したスペクトラムを重ねる",false,function(){draw();});
     var br=U.btnrow(el),seed=1;
-    U.button(br,"本文の例（BOC(1,1) と C/A）",function(){md.set(2);nr.set(1);sc.set(1);bw.set(4);ov.set(true);lg.set(false);ff.set(false);draw();});
+    U.button(br,"本文の例（BOC(1,1) と C/A）",function(){md.set(2);nr.set(1);sc.set(1);bw.set(1);ov.set(true);lg.set(false);ff.set(false);draw();});
     U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
     var box=U.svgbox(el),ro=U.readout(el);
     function cfg(){var n=nr.get(),m=sc.get(),k=m>0?Math.max(1,Math.round(2*m/n)):0;return {n:n,k:k,m:k?k*n/2:0,Tc:TCA/n};}
