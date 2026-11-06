@@ -184,8 +184,8 @@ def _f03_spread_fig():
     o.append(T(s5[0] + 2, s5[1] - 12, "仰角 5° の衛星", "middle", 9.5, SIG, True, halo=True))
     o.append(T((s5[0] + rxx) / 2 + 14, (s5[1] + rxy) / 2 + 18, "r = 25 235 km", "start", 9.5, GLD, True, halo=True))
     o.append(T(rxx - 10, rxy - 2, "受信機", "end", 9.5, GRN, True, halo=True))
-    o.append(T(ox - 120, oy + 112, "球の面の面積 4πr²（真上で 5.1 × 10¹⁵ m²）に", "start", 9.5, SIG))
-    o.append(T(ox - 120, oy + 126, "電力が一様に広がり、密度が 1/(4πr²) に薄まる", "start", 9.5, SIG))
+    o.append(T(ox - 124, oy + 116, "球の面の面積 4πr²（真上で 5.1 × 10¹⁵ m²）に", "start", 9.5, SIG, False, halo=True))
+    o.append(T(ox - 124, oy + 130, "電力が一様に広がり、密度が 1/(4πr²) に薄まる", "start", 9.5, SIG, False, halo=True))
     # (b) 仰角と自由空間損失
     xb = 392
     o.append(T(xb, 18, "(b) 衛星の仰角と自由空間損失", "start", 11.5, INK, True))
@@ -201,8 +201,8 @@ def _f03_spread_fig():
     o.append(TX(xb + 8, 277, "λ^2/(4π) = 28.8 cm²（5.4 cm 角）", "start", 9.5, INK))
     o.append(RECT(xb + 222, 252, 30, 30, 1, GOSOFT, GLD, 1.2))
     o.append(T(xb + 237, 296, "5.4 cm", "middle", 9, GLD))
-    o.append(T(xb + 8, 316, "受信電力 C = EIRP × G_a ÷ L_fs", "start", 9.5, MUT))
-    return SVG(700, 344, o, "衛星から受信機まで。(a) 衛星から出た電力は、半径 r の球の面に広がって薄まる（地球と軌道の大きさの比は実際のとおり。地球の半径 6 371 km、軌道の半径 26 560 km の円）。仰角が低い衛星ほど遠い。(b) 自由空間損失 (4πr/λ)² は、真上の衛星で 182.5 dB、仰角 5° で 184.4 dB で、空のどこに見えるかで 2 dB ほど変わる。損失のうち λ²/(4π) の分は、利得 0 dBi のアンテナが電力を受け止める面積（L1 で 28.8 cm²）である。")
+    o.append(TX(xb + 8, 316, "受信電力 C = EIRP × G_a ÷ L_{fs}", "start", 9.5, MUT))
+    return SVG(700, 354, o, "衛星から受信機まで。(a) 衛星から出た電力は、半径 r の球の面に広がって薄まる（地球と軌道の大きさの比は実際のとおり。地球の半径 6 371 km、軌道の半径 26 560 km の円）。仰角が低い衛星ほど遠い。(b) 自由空間損失 (4πr/λ)² は、真上の衛星で 182.5 dB、仰角 5° で 184.4 dB で、空のどこに見えるかで 2 dB ほど変わる。損失のうち λ²/(4π) の分は、利得 0 dBi のアンテナが電力を受け止める面積（L1 で 28.8 cm²）である。")
 F["e03_spread"] = _f03_spread_fig()
 
 
@@ -229,8 +229,8 @@ def _f03_budget_fig():
             o.append(W(xb_, p.Y(lv[i]), p.X(i + 1.18), p.Y(lv[i]), c=FNT, lw=1, dash="3 3"))
         o.append(T(p.X(i + 0.5), p.Y(-140) + 15, names[i][0], "middle", 9.5, INK, True))
         o.append(T(p.X(i + 0.5), p.Y(-140) + 29, names[i][1], "middle", 9.5, SIG if i == 0 else MUT, True))
-    o.append(T(p.X(1.5), p.Y(-40), "−184.4 dB", "middle", 10, MUT, True, halo=True))
-    o.append(T(p.X(1.5), p.Y(-40) + 14, "（10¹⁸ 分の 1 あまり）", "middle", 9, MUT, False, halo=True))
+    o.append(T(p.X(1.86), p.Y(-40), "−184.4 dB", "start", 10, MUT, True, halo=True))
+    o.append(T(p.X(1.86), p.Y(-40) + 14, "（10¹⁸ 分の 1 あまり）", "start", 9, MUT, False, halo=True))
     o.append(W(p.X(3.82), p.Y(lv[3]), p.X(4), p.Y(lv[3]), c=SIG, lw=2.2))
     o.append(T(p.X(3.6), p.Y(lv[3]) - 8, "C = −128.5 dBm", "end", 10, SIG, True, halo=True))
     # (b) 拡大: −124〜−131 dBm
@@ -320,7 +320,7 @@ def _f03_floor_fig():
         vals.append((f, _F03_CMIN + 10 * math.log10(_F03_TC) + 10 * math.log10(max(sv, 1e-12))))
     o.append(p.clip(vals, c=SIG, lw=2.0))
     pk = _F03_CMIN + 10 * math.log10(_F03_TC)
-    o.append(T(p.X(4) - 4, p.Y(_F03_N0) - 6, "雑音の床 N_0 = −174.0", "end", 9.5, TEA, True, halo=True))
+    o.append(TX(p.X(4) - 4, p.Y(_F03_N0) - 6, "雑音の床 N_0 = −174.0", "end", 9.5, TEA, True, halo=True))
     o.append(T(p.X(0.25), p.Y(pk) - 8, "信号の山 −188.6", "start", 9.5, SIG, True, halo=True))
     o.append(DIM(p.X(-0.35), p.Y(_F03_N0), p.X(-0.35), p.Y(pk), None, c=ALI))
     o.append(T(p.X(-0.45), p.Y((pk + _F03_N0) / 2) + 4, "14.6 dB", "end", 9.5, ALI, True, halo=True))
@@ -336,14 +336,14 @@ def _f03_floor_fig():
     o.append(q.line([(x[i], sb[i]) for i in range(i0, i1 + 1)], c=SIG, lw=2.0))
     o.append(T(q.x + q.w, q.y - 6, "青: 信号だけ　青緑: 信号 + 雑音", "end", 9, MUT))
     # 信号を 10 倍に拡大
-    r = Plot(xb + 36, 204, 236, 52, (60, 66), (-3.2, 3.2))
+    r = Plot(xb + 36, 214, 236, 46, (60, 66), (-3.2, 3.2))
     o.append(RECT(r.x, r.y, r.w, r.h, 2, SCR, LIN, 0.8))
     o.append(r.line([(x[i], 10 * sb[i]) for i in range(i0, i1 + 1)], c=SIG, lw=1.4))
-    o.append(T(r.x + 4, r.y + 12, "信号だけを 10 倍に拡大（チップの境目で位相が反転）", "start", 9, SIG, True, halo=True))
+    o.append(T(r.x, r.y - 5, "信号だけを 10 倍に拡大（チップの境目で位相が反転）", "start", 9, SIG, True))
     for k in range(60, 67):
         o.append(T(r.X(k), r.y + r.h + 14, "%d" % k, "middle", 9, MUT))
     o.append(T(r.x + r.w / 2, r.y + r.h + 30, "時間 [チップ]（表示のため搬送波を 4.092 MHz に下げた）", "middle", 9.5, MUT))
-    return SVG(700, 300, o, "雑音の床と、その下に埋もれた信号（受信電力 −128.5 dBm、290 K の熱雑音）。(a) 熱雑音の電力スペクトル密度は −174.0 dBm/Hz で平ら（白色雑音）。信号の電力スペクトル密度 C·S(f − f_L1) の山は −188.6 dBm/Hz で、雑音の床の 14.6 dB 下にある。(b) 2 MHz の帯域を通すと、信号（搬送波の山の高さ）は雑音の標準偏差の約 0.19 倍しかなく、足した波形から信号は見えない。")
+    return SVG(700, 310, o, "雑音の床と、その下に埋もれた信号（受信電力 −128.5 dBm、290 K の熱雑音）。(a) 熱雑音の電力スペクトル密度は −174.0 dBm/Hz で平ら（白色雑音）。信号の電力スペクトル密度 C·S(f − f<sub>L1</sub>) の山は −188.6 dBm/Hz で、雑音の床の 14.6 dB 下にある。(b) 2 MHz の帯域を通すと、信号（搬送波の山の高さ）は雑音の標準偏差の約 0.19 倍しかなく、足した波形から信号は見えない。")
 F["e03_floor"] = _f03_floor_fig()
 
 
@@ -368,7 +368,7 @@ def _f03_cn0bw_fig():
         o.append(T(p.X(b) + dx, p.Y(v) + dy, lab, a, 9.5, SIG, True, halo=True))
     o.append(LEGL(p.X(3e3), p.y + 18, [(SIG, None, "C/N0 = 45.5 dB-Hz"), (MUT, "6 4", "35.5 dB-Hz（10 dB 弱い信号）")], 9.5, 14))
     o.append(T(p.X(2e4), p.Y(_F03_CN0 - 10 * math.log10(2e4)) - 30, "幅が 10 倍になるごとに −10 dB", "start", 9.5, INK, False, halo=True))
-    return SVG(700, 300, o, "帯域の中の SN 比と C/N0。帯域の中の SN 比 C/N は、帯域幅が 10 倍になるごとに 10 dB 下がる（傾き −10 dB/10 倍の直線）。C/N0 は、この直線の帯域幅 1 Hz での値で、帯域の選び方によらず信号の強さを表す。どの帯域の SN 比も C/N0 − 10 log₁₀ B_n で求まる。")
+    return SVG(700, 300, o, "帯域の中の SN 比と C/N0。帯域の中の SN 比 C/N は、帯域幅が 10 倍になるごとに 10 dB 下がる（傾き −10 dB/10 倍の直線）。C/N0 は、この直線の帯域幅 1 Hz での値で、帯域の選び方によらず信号の強さを表す。どの帯域の SN 比も C/N0 − 10 log₁₀ B<sub>n</sub> で求まる。")
 F["e03_cn0bw"] = _f03_cn0bw_fig()
 
 
@@ -398,8 +398,8 @@ def _f03_cn0env_fig():
         o.append(D(q.X(e), q.Y(v), SIG, 4.2))
     o.append(T(q.X(88), q.Y(cn0(90, 3.0)) + 15, "50.4", "end", 9.5, SIG, True, halo=True))
     o.append(T(q.X(7), q.Y(cn0(5, -5.0)) + 4, "40.5", "start", 9.5, SIG, True, halo=True))
-    o.append(T(q.X(60), q.Y(cn0(60, 0)) + 16, "0 dBi のアンテナ（距離の違いだけ）", "middle", 9, MUT, False, halo=True))
-    o.append(T(q.X(45), q.Y(50) + 13, "開けた空の代表値 40〜50 dB-Hz", "middle", 9, GRN, True, halo=True))
+    o.append(T(q.X(88), q.Y(cn0(75, 0)) + 16, "破線: 0 dBi のアンテナ（距離の違いだけ）", "end", 9, MUT, False, halo=True))
+    o.append(T(q.X(88), q.Y(40) - 6, "開けた空の代表値 40〜50 dB-Hz", "end", 9, GRN, True, halo=True))
     # (c) 周りの様子
     xc = 400
     o.append(T(xc, 18, "(c) 周りの様子による C/N0 の範囲（代表値）", "start", 11.5, INK, True))
@@ -438,18 +438,18 @@ def _f03_despread_fig():
     o.append(T(351, 160, "符号", "middle", 9, INK, True))
     o.append(T(351, 172, "を掛ける", "middle", 9, INK, True))
     o.append(T(xb + 30, 18, "(b) 逆拡散の後（中心のまわりを拡大）", "start", 11.5, INK, True))
-    q = Plot(xb + 44, 40, 250, 200, (-1500, 1500), (-200, -140))
+    q = Plot(xb + 44, 40, 250, 200, (-600, 600), (-200, -140))
     o.append(RECT(q.X(-500), q.y, q.X(500) - q.X(-500), q.h, 0, GOSOFT, "none", 0, op=0.7))
     o.append(RECT(q.x, q.Y(_F03_N0), q.w, q.Y(-200) - q.Y(_F03_N0), 0, TSOFT, "none", 0, op=0.8))
-    o.append(q.axes(xl="周波数 f − f_{L1} [Hz]", yl=None, xt=[-1500, -1000, -500, 0, 500, 1000, 1500], yt=[-200, -190, -180, -170, -160, -150, -140], xfmt=_f03_m, yfmt=_f03_m))
-    o.append(q.line([(-1500, _F03_N0), (1500, _F03_N0)], c=TEA, lw=2.4))
-    fq = _f03_np.linspace(-1500, 1500, 3001)
+    o.append(q.axes(xl="周波数 f − f_{L1} [Hz]", yl=None, xt=[-600, -300, 0, 300, 600], yt=[-200, -190, -180, -170, -160, -150, -140], xfmt=_f03_m, yfmt=_f03_m))
+    o.append(q.line([(-600, _F03_N0), (600, _F03_N0)], c=TEA, lw=2.4))
+    fq = _f03_np.linspace(-600, 600, 2401)
     Tb = 0.02
     o.append(q.clip([(f, _F03_CMIN + 10 * math.log10(Tb * max(float(_f03_np.sinc(f * Tb)) ** 2, 1e-14))) for f in fq], c=SIG, lw=1.4))
     pk = _F03_CMIN + 10 * math.log10(Tb)
-    o.append(T(q.X(60), q.Y(pk) + 4, "信号の山 −145.5", "start", 9.5, SIG, True, halo=True))
-    o.append(T(q.X(60), q.Y(pk) + 18, "（床の 28.5 dB 上）", "start", 9, SIG, False, halo=True))
-    o.append(T(q.X(1500) - 4, q.Y(_F03_N0) - 6, "雑音の床は同じ", "end", 9.5, TEA, True, halo=True))
+    o.append(T(q.X(70), q.Y(pk) + 4, "信号の山 −145.5", "start", 9.5, SIG, True, halo=True))
+    o.append(T(q.X(70), q.Y(pk) + 18, "（床の 28.5 dB 上）", "start", 9, SIG, False, halo=True))
+    o.append(T(q.X(600) - 4, q.Y(_F03_N0) - 6, "雑音の床は同じ", "end", 9.5, TEA, True, halo=True))
     o.append(T(q.X(0), q.Y(-195), "例: 幅 1 kHz だけ取り出す", "middle", 9, GLD, True, halo=True))
     o.append(T(14, q.y + q.h + 52, "幅 1 kHz の中（金の範囲）: 雑音 −174.0 + 30.0 = −144.0 dBm、信号 −128.5 dBm（SN 比 +15.5 dB）", "start", 9.5, INK))
     return SVG(700, 304, o, "逆拡散（C/N0 = 45.5 dB-Hz の例）。(a) 逆拡散の前は、信号の電力が約 2 MHz に広がり、電力スペクトル密度の山が雑音の床の下にある。(b) 同じ符号を遅れを合わせて掛けると、符号が消えて、データのビット（20 ms）だけで位相が変わる搬送波が残り、同じ電力が ±50 Hz ほどの幅に集まる。雑音は、符号を掛けても同じ密度の白色雑音のままである。信号のある狭い幅だけを取り出せば、入る雑音は密度 × 幅だけになる。")
@@ -492,10 +492,10 @@ def _f03_sumwalk_fig():
     tot = _f03_np.cumsum(dsp[0])
     o.append(r.line([(n, tot[n - 1]) for n in range(1, 1024, 3)], c=INK, lw=1.2))
     o.append(T(r.X(1023) - 4, r.Y(1023) - 8, "信号の和 nA → 1023A", "end", 9.5, SIG, True, halo=True))
-    o.append(T(r.X(1023) - 4, r.Y(env[-1]) - 6, "雑音の和の ±1σ: ±√n σ_w → ±122A", "end", 9, TEA, True, halo=True))
+    o.append(TX(r.X(1023) - 4, r.Y(env[-1]) - 6, "雑音の和の ±1σ: ±√n σ_w → ±122A", "end", 9, TEA, True, halo=True))
     o.append(T(r.X(330), r.Y(-330), "雑音だけの和（5 回の例）", "start", 9, TEA, False, halo=True))
     o.append(T(r.X(520), r.Y(430) - 10, "信号 + 雑音の和", "end", 9, INK, True, halo=True))
-    return SVG(700, 280, o, "足すと、信号は回数に比例し、雑音は平方根で増える（C/N0 = 45.5 dB-Hz、搬送波の位相がそろった 1 つの成分）。(a) 逆拡散した 1 チップの値は、信号の部分 A に、その 3.8 倍の標準偏差の雑音が乗っていて、信号は見えない。(b) 足すと、信号の部分の和は nA で増え、雑音の部分の和は正負が打ち消し合って、標準偏差が √n σ_w でしか増えない。1023 チップ（1 ms）足すと、信号は雑音の標準偏差の 8.4 倍になる。")
+    return SVG(700, 280, o, "足すと、信号は回数に比例し、雑音は平方根で増える（C/N0 = 45.5 dB-Hz、搬送波の位相がそろった 1 つの成分）。(a) 逆拡散した 1 チップの値は、信号の部分 A に、その 3.8 倍の標準偏差の雑音が乗っていて、信号は見えない。(b) 足すと、信号の部分の和は nA で増え、雑音の部分の和は正負が打ち消し合って、標準偏差が √n σ<sub>w</sub> でしか増えない。1023 チップ（1 ms）足すと、信号は雑音の標準偏差の 8.4 倍になる。")
 F["e03_sumwalk"] = _f03_sumwalk_fig()
 
 
@@ -510,7 +510,7 @@ _F03_SNRPTS = [(45.0, 1.0, 15.02, 18.06), (45.0, 2.0, 18.08, 21.04), (45.0, 5.0,
 
 def _f03_snr_fig():
     o = []
-    o.append(T(14, 18, "(a) Y_I と Y_Q（C/N0 = 35 dB-Hz、位相の差 30°）", "start", 11.5, INK, True))
+    o.append(TX(14, 18, "(a) Y_I と Y_Q（C/N0 = 35 dB-Hz、位相の差 30°）", "start", 11.5, INK, True))
     p = Plot(64, 42, 232, 232, (-1.6, 1.6), (-1.6, 1.6))
     o.append(p.axes(xl="Y_I（信号の振幅 √(2C) = 1）", yl="Y_Q", xt=[-1.5, -1, -0.5, 0, 0.5, 1, 1.5], yt=[-1.5, -1, -0.5, 0, 0.5, 1, 1.5], xfmt=_f03_m, yfmt=_f03_m))
     o.append(W(p.X(0), p.y, p.X(0), p.y + p.h, c=MUT, lw=1))
@@ -548,8 +548,8 @@ def _f03_snr_fig():
     o.append(T(r.X(1.08), r.Y(16.6), "45 dB-Hz", "start", 9.5, SIG, True, halo=True))
     o.append(T(r.X(1.08), r.Y(6.6), "35 dB-Hz", "start", 9.5, GRN, True, halo=True))
     o.append(LEGL(r.x - 30, r.y + r.h + 48, [(INK, None, "SNR = (C/N_0) T_{coh}"), (INK, "5 3", "SNR_I（2 倍）")], 9.5, 12))
-    o.append(T(r.x + r.w, r.y + r.h + 64, "○・□: シミュレーション（SNR・SNR_I）", "end", 9, MUT))
-    return SVG(700, 358, o, "相関の後の SN 比。(a) 中間周波数の実数の標本に雑音を足して計算した Y_I と Y_Q を、何回も繰り返した点（C/N0 = 35 dB-Hz、受けた搬送波と手元の搬送波の位相の差 30°）。信号の点（黒）は半径 √(2C) の円の上にあり、雑音による散らばりは 1/√T_coh に比例して小さくなる。(b) 式の SNR = (C/N0) × T_coh（実線）と、Y_I だけで見た SNR_I = 2 (C/N0) T_coh（破線）を、シミュレーションで測った値（○・□）と比べた。")
+    o.append(TX(r.x + r.w, r.y + r.h + 64, "○・□: シミュレーション（SNR・SNR_I）", "end", 9, MUT))
+    return SVG(700, 358, o, "相関の後の SN 比。(a) 中間周波数の実数の標本に雑音を足して計算した Y<sub>I</sub> と Y<sub>Q</sub> を、何回も繰り返した点（C/N0 = 35 dB-Hz、受けた搬送波と手元の搬送波の位相の差 30°）。信号の点（黒）は半径 √(2C) の円の上にあり、雑音による散らばりは 1/√T<sub>coh</sub> に比例して小さくなる。(b) 式の SNR = (C/N0) × T<sub>coh</sub>（実線）と、Y<sub>I</sub> だけで見た SNR<sub>I</sub> = 2 (C/N0) T<sub>coh</sub>（破線）を、シミュレーションで測った値（○・□）と比べた。")
 F["e03_snr"] = _f03_snr_fig()
 
 
@@ -598,8 +598,8 @@ F["e03_cohlimit"] = _f03_cohlimit_fig()
 def _f03_nf_fig():
     o = []
     o.append(T(14, 18, "(a) アンテナ 100 K と LNA のシステム雑音温度", "start", 11.5, INK, True))
-    X = lambda k: 104 + k * 0.62
-    yt0 = 44
+    X = lambda k: 76 + k * 0.52
+    yt0 = 40
     for k in (0, 100, 200, 300, 400):
         o.append(W(X(k), yt0 - 4, X(k), yt0 + 5 * 34 + 2, c=GRD, lw=1))
         o.append(T(X(k), yt0 + 5 * 34 + 16, "%d" % k, "middle", 9.5, MUT))
@@ -608,18 +608,22 @@ def _f03_nf_fig():
         y = yt0 + j * 34
         te = (10 ** (nf / 10) - 1) * _F03_T0
         ts = 100 + te
-        n0 = _f03_dB(_F03_KB * ts) + 30
-        cn0 = _F03_CMIN - n0
+        cn0 = _F03_CMIN - (_f03_dB(_F03_KB * ts) + 30)
         o.append(T(X(0) - 8, y + 16, "NF %s dB" % _f03_m(nf), "end", 10, INK, True))
         o.append(RECT(X(0), y + 4, X(100) - X(0), 18, 2, TSOFT, TEA, 1.1))
         if te > 0:
             o.append(RECT(X(100), y + 4, X(ts) - X(100), 18, 2, ASOFT, ALI, 1.1))
-        o.append(T(X(ts) + 6, y + 17, "%s K → C/N0 %s dB-Hz" % (_f03_f(ts), _f03_f(cn0)), "start", 9.5, SIG if nf == 1.0 else INK, nf == 1.0))
-    o.append(LEGEND(X(0), yt0 + 5 * 34 + 52, [(TEA, "アンテナ T_ant = 100 K"), (ALI, "LNA の雑音温度 T_e = (F − 1)T_0")], 9.5, 16))
+        o.append(T(X(ts) + 6, y + 17, "%s K・%s dB-Hz" % (_f03_f(ts), _f03_f(cn0)), "start", 9.5, SIG if nf == 1.0 else INK, nf == 1.0))
+    ly = yt0 + 5 * 34 + 52
+    o.append(RECT(X(0), ly - 9, 10, 10, 2, TSOFT, TEA, 1.1))
+    o.append(TX(X(0) + 15, ly, "アンテナ T_ant = 100 K", "start", 9.5, MUT))
+    o.append(RECT(X(0) + 150, ly - 9, 10, 10, 2, ASOFT, ALI, 1.1))
+    o.append(TX(X(0) + 165, ly, "LNA の T_e = (F − 1)T_0", "start", 9.5, MUT))
+    o.append(T(X(0), ly + 18, "右の数: システム雑音温度・C/N0（C = −128.5 dBm）", "start", 9.5, MUT))
     # (b) C/N0 の下がり方
     xb = 470
-    o.append(T(xb - 30, 18, "(b) LNA で C/N0 が下がる量", "start", 11.5, INK, True))
-    p = Plot(xb + 6, 44, 200, 190, (0, 4), (0, 7))
+    o.append(T(xb - 20, 18, "(b) LNA で C/N0 が下がる量", "start", 11.5, INK, True))
+    p = Plot(xb + 30, 44, 176, 190, (0, 4), (0, 7))
     o.append(p.axes(xl="雑音指数 NF [dB]", yl="C/N0 が下がる量 [dB]", xt=[0, 1, 2, 3, 4], yt=[0, 1, 2, 3, 4, 5, 6, 7], xfmt=_f03_m, yfmt=_f03_m))
     nfs = _f03_np.linspace(0, 4, 81)
     o.append(p.line([(v, v) for v in nfs], c=MUT, lw=1.8, dash="6 4"))
@@ -628,9 +632,10 @@ def _f03_nf_fig():
     o.append(D(p.X(1), p.Y(_f03_dB(175.1 / 100)), SIG, 4.4))
     o.append(T(p.X(1) + 7, p.Y(_f03_dB(175.1 / 100)) + 2, "2.4 dB", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(1) + 7, p.Y(1) + 12, "1.0 dB", "start", 9.5, MUT, True, halo=True))
-    o.append(TX(p.X(3.9), p.Y(6.2), "T_ant = 100 K", "end", 9.5, SIG, True, halo=True))
-    o.append(TX(p.X(3.9), p.Y(3.6) + 14, "T_ant = 290 K（= NF）", "end", 9.5, MUT, True, halo=True))
-    return SVG(700, 312, o, "雑音指数と雑音温度。(a) 受信機の入力に換算した雑音は、アンテナの雑音温度（100 K。代表値）と LNA の雑音温度 T_e = (F − 1) × 290 K の和（システム雑音温度）になる。NF 1 dB の LNA では 175.1 K で、受信電力 −128.5 dBm の C/N0 は 47.7 dB-Hz である。(b) アンテナの雑音温度が 290 K なら、C/N0 はちょうど NF だけ下がる（破線）。冷たい空を見る 100 K のアンテナでは、同じ LNA でもっと多く下がる（NF 1 dB で 2.4 dB）。")
+    o.append(TX(p.X(3.95), p.Y(6.4), "T_ant = 100 K", "end", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(3.95), p.Y(3.3) + 16, "T_ant = 290 K", "end", 9.5, MUT, True, halo=True))
+    o.append(T(p.X(3.95), p.Y(3.3) + 29, "（= NF）", "end", 9, MUT, False, halo=True))
+    return SVG(700, 312, o, "雑音指数と雑音温度。(a) 受信機の入力に換算した雑音は、アンテナの雑音温度（100 K。代表値）と LNA の雑音温度 T<sub>e</sub> = (F − 1) × 290 K の和（システム雑音温度）になる。NF 1 dB の LNA では 175.1 K で、受信電力 −128.5 dBm の C/N0 は 47.7 dB-Hz である。(b) アンテナの雑音温度が 290 K なら、C/N0 はちょうど NF だけ下がる（破線）。冷たい空を見る 100 K のアンテナでは、同じ LNA でもっと多く下がる（NF 1 dB で 2.4 dB）。")
 F["e03_nf"] = _f03_nf_fig()
 
 
@@ -639,53 +644,53 @@ F["e03_nf"] = _f03_nf_fig()
 # =====================================================================
 def _f03_level_fig():
     o = []
-    yb = 34
-    o.append(BOX(40, yb, 120, 44, "アンテナ", "T_ant = 100 K", TEA, PAN, sz=11, ssz=9.5))
+    yb = 30
+    o.append(RECT(40, yb, 120, 44, 8, PAN, TEA, 1.4))
+    o.append(T(100, yb + 19, "アンテナ", "middle", 11, INK, True))
+    o.append(TX(100, yb + 35, "T_ant = 100 K", "middle", 9.5, MUT))
     o.append(ARR(160, yb + 22, 286, yb + 22, c=SIG, lw=1.8))
     o.append(BOX(286, yb, 140, 44, "LNA", "NF 1 dB・利得 18 dB", SIG, PAN, sz=11, ssz=9.5))
     o.append(ARR(426, yb + 22, 540, yb + 22, c=SIG, lw=1.8))
     o.append(BOX(540, yb, 130, 44, "後の段", "フリスの式は 9 章", MUT, PAN, sz=11, ssz=9.5, dash="5 3"))
     xa, xl = 224, 484
     for x, s in ((xa, "アンテナの出口"), (xl, "LNA の出口")):
-        o.append(W(x, yb + 22, x, 300, c=FNT, lw=1, dash="3 3"))
+        o.append(W(x, yb + 22, x, 352, c=FNT, lw=1, dash="3 3"))
         o.append(D(x, yb + 22, INK, 3.4))
         o.append(T(x, yb + 62, s, "middle", 9.5, INK, True, halo=True))
-    # 上: 信号の電力
     def strip(y0, h, lo, hi, ttl, unit):
         Y = lambda v: y0 + h - (v - lo) / (hi - lo) * h
-        o.append(T(14, y0 - 6, ttl, "start", 10, INK, True))
+        o.append(TX(14, y0 - 8, ttl, "start", 10, INK, True))
         o.append(W(100, y0, 100, y0 + h, c=MUT, lw=1.2))
-        step = 5
-        v = math.ceil(lo / step) * step
+        v = math.ceil(lo / 5) * 5
         while v <= hi + 1e-9:
             o.append(W(96, Y(v), 100, Y(v), c=MUT, lw=1))
             o.append(W(100, Y(v), 680, Y(v), c=GRD, lw=1))
             o.append(T(92, Y(v) + 3.5, _f03_m(v), "end", 9, MUT))
-            v += step
+            v += 5
         o.append(T(14, y0 + 14, unit, "start", 9, MUT))
         return Y
-    Y1 = strip(124, 58, -130, -105, "信号の電力 C", "[dBm]")
+    Y1 = strip(128, 80, -130, -105, "信号の電力 C", "[dBm]")
     o.append(D(xa, Y1(-128.5), SIG, 4.6))
     o.append(D(xl, Y1(-110.5), SIG, 4.6))
     o.append(ARR(xa + 8, Y1(-128.5), xl - 8, Y1(-110.5), c=SIG, lw=1.6))
     o.append(T(xa - 8, Y1(-128.5) + 4, "−128.5", "end", 9.5, SIG, True, halo=True))
     o.append(T(xl + 8, Y1(-110.5) + 4, "−110.5（+18 dB）", "start", 9.5, SIG, True, halo=True))
-    Y2 = strip(214, 84, -180, -155, "雑音の電力スペクトル密度 N_0", "[dBm/Hz]")
+    Y2 = strip(240, 100, -180, -155, "雑音の電力スペクトル密度 N_0", "[dBm/Hz]")
     na = _f03_dB(_F03_KB * 100) + 30
     nl = _f03_dB(_F03_KB * 75.1) + 30 + 18
     nt = _f03_dB(_F03_KB * 175.1) + 30 + 18
     o.append(D(xa, Y2(na), TEA, 4.6))
     o.append(T(xa - 8, Y2(na) + 4, "アンテナの雑音 %s" % _f03_f(na), "end", 9.5, TEA, True, halo=True))
-    o.append(D(xl, Y2(na + 18), TEA, 4.2))
-    o.append(T(xl - 8, Y2(na + 18) + 12, "アンテナの雑音 × 利得 %s" % _f03_f(na + 18), "end", 9, TEA, True, halo=True))
-    o.append(D(xl, Y2(nl), ALI, 4.2))
-    o.append(T(xl + 8, Y2(nl) + 8, "LNA が足す雑音 %s" % _f03_f(nl), "start", 9, ALI, True, halo=True))
-    o.append(D(xl, Y2(nt), INK, 4.6))
-    o.append(T(xl + 8, Y2(nt) - 2, "合計 %s" % _f03_f(nt), "start", 9.5, INK, True, halo=True))
     o.append(ARR(xa + 8, Y2(na), xl - 8, Y2(na + 18), c=TEA, lw=1.3, dash="4 3"))
-    o.append(T(xa, 318, "C/N0 = −128.5 − (%s) = %s dB-Hz" % (_f03_f(na), _f03_f(-128.5 - na)), "middle", 9.5, INK, True))
-    o.append(T(xl, 318, "C/N0 = −110.5 − (%s) = %s dB-Hz" % (_f03_f(nt), _f03_f(-110.5 - nt)), "middle", 9.5, SIG, True))
-    return SVG(700, 330, o, "アンテナと LNA の前後のレベル（受信電力 −128.5 dBm、アンテナの雑音温度 100 K、LNA は雑音指数 1 dB・利得 18 dB の例の値）。LNA は、信号もアンテナの雑音も 18 dB 大きくし、そのうえに自分の雑音（入力に換算して 75.1 K 分）を足す。C/N0 は、利得では変わらず、足された雑音の分だけ 50.1 dB-Hz から 47.7 dB-Hz に下がる。")
+    o.append(D(xl, Y2(na + 18), TEA, 4.2))
+    o.append(T(xl - 8, Y2(na + 18) + 14, "アンテナの雑音 × 利得 %s" % _f03_f(na + 18), "end", 9, TEA, True, halo=True))
+    o.append(D(xl + 10, Y2(nl), ALI, 4.2))
+    o.append(T(xl + 18, Y2(nl) + 12, "LNA が足す雑音 %s" % _f03_f(nl), "start", 9, ALI, True, halo=True))
+    o.append(D(xl, Y2(nt), INK, 4.6))
+    o.append(T(xl + 8, Y2(nt) - 4, "合計 %s" % _f03_f(nt), "start", 9.5, INK, True, halo=True))
+    o.append(T(xa, 370, "C/N0 = −128.5 − (%s) = %s dB-Hz" % (_f03_f(na), _f03_f(-128.5 - na)), "middle", 9.5, INK, True))
+    o.append(T(xl, 370, "C/N0 = −110.5 − (%s) = %s dB-Hz" % (_f03_f(nt), _f03_f(-110.5 - nt)), "middle", 9.5, SIG, True))
+    return SVG(700, 380, o, "アンテナと LNA の前後のレベル（受信電力 −128.5 dBm、アンテナの雑音温度 100 K、LNA は雑音指数 1 dB・利得 18 dB の例の値）。LNA は、信号もアンテナの雑音も 18 dB 大きくし、そのうえに自分の雑音（入力に換算して 75.1 K 分）を足す。C/N0 は、利得では変わらず、足された雑音の分だけ 50.1 dB-Hz から 47.7 dB-Hz に下がる。")
 F["e03_level"] = _f03_level_fig()
 
 
@@ -704,7 +709,7 @@ def _f03_corrpow(cn0, M, seed, d0=300):
     sw = math.sqrt(_F03_RC / (2 * q)) / math.sqrt(M)
     rg = _f03_np.random.default_rng(seed)
     x = _f03_np.roll(_F03_PM, d0) * _f03_np.exp(1j * 0.9) + sw * (rg.standard_normal(1023) + 1j * rg.standard_normal(1023))
-    R = _f03_np.fft.ifft(_f03_np.fft.fft(x) * _f03_np.conj(_f03_np.fft.fft(_F03_PM)))
+    R = _f03_np.fft.ifft(_f03_np.fft.fft(x) * _f03_np.conj(_f03_np.fft.fft(_F03_PM))) / 1023.0
     P = _f03_np.abs(R) ** 2
     pn = 2 * sw ** 2 / 1023.0
     return P / pn
@@ -713,7 +718,7 @@ def _f03_corrpow(cn0, M, seed, d0=300):
 def _f03_acq_fig():
     o = []
     o.append(T(14, 18, "(a) 1 ms の積分の相関の電力（1 回の例。本当のずれは 300 チップ）", "start", 11.5, INK, True))
-    rows = [(45.5, 3), (40.0, 8), (36.0, 4)]
+    rows = [(45.5, 1), (40.0, 1), (36.0, 1)]
     for k, (cn0, seed) in enumerate(rows):
         P = _f03_corrpow(cn0, 1, seed)
         y0 = 40 + k * 86
@@ -756,7 +761,7 @@ def _f03_acq_fig():
             xl_ = _f03_np.interp(0.6 if M == 10 else 0.3, [b for a, b in _F03_ACQ], [a for a, b in _F03_ACQ]) - sh
             o.append(T(q.X(xl_) + 6, q.Y(0.6 if M == 10 else 0.3) + 4, lab, "start", 9.5, c, True, halo=True))
     o.append(T(q.x + q.w, q.y + q.h + 46, "1023 通りのずれ・周波数のずれ 0（各点 3000 回）", "end", 9, MUT))
-    return SVG(700, 318, o, "捕捉。(a) 1 ms の積分の相関の電力を、1 チップごとの 1023 通りのずれで計算した例（PRN 1、2 つの成分の電力）。C/N0 が高いと、本当のずれ（破線）の山が雑音のどこよりも高いが、C/N0 が下がると、雑音だけの所の最大が山を超えることがある。(b) 最大の所が本当のずれに来る割合は SNR = (C/N0) × T_coh で決まり、SNR 8.4 dB で 50 %、11.1 dB で 90 % になる。90 % に要る C/N0 は、積分の時間 1 ms で 41 dB-Hz、10 ms で 31 dB-Hz、20 ms で 28 dB-Hz である。")
+    return SVG(700, 318, o, "捕捉。(a) 1 ms の積分の相関の電力を、1 チップごとの 1023 通りのずれで計算した例（PRN 1、2 つの成分の電力）。C/N0 が高いと、本当のずれ（破線）の山が雑音のどこよりも高いが、C/N0 が下がると、雑音だけの所の最大が山を超えることがある。(b) 最大の所が本当のずれに来る割合は SNR = (C/N0) × T<sub>coh</sub> で決まり、SNR 8.4 dB で 50 %、11.1 dB で 90 % になる。90 % に要る C/N0 は、積分の時間 1 ms で 41 dB-Hz、10 ms で 31 dB-Hz、20 ms で 28 dB-Hz である。")
 F["e03_acq"] = _f03_acq_fig()
 
 
@@ -790,13 +795,13 @@ def _f03_ber_fig():
     o.append(W(p.x, p.Y(1e-5), p.X(26.58), p.Y(1e-5), c=MUT, lw=1, dash="3 3"))
     o.append(D(p.X(26.58), p.Y(1e-5), SIG, 4.4))
     o.append(T(p.X(26.58) + 6, p.Y(1e-5) - 4, "26.6 dB-Hz で 10⁻⁵", "start", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(15), p.Y(1e-8), "P_b = Q(√(2E_b/N_0))", "start", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(15), p.Y(1e-8), "P_b = Q(√(2E_b/N_0))", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(15), p.Y(1e-8) + 14, "○: シミュレーション", "start", 9, ALI, False, halo=True))
     for c in (14, 18, 22, 26, 30, 34):
         o.append(T(p.X(c), p.y + p.h + 28, _f03_m(c - 17), "middle", 9, GLD))
     o.append(T(p.x - 8, p.y + p.h + 15, "C/N0", "end", 9, MUT))
-    o.append(T(p.x - 8, p.y + p.h + 28, "E_b/N_0", "end", 9, GLD))
-    o.append(T(p.x + p.w / 2, p.y + p.h + 44, "C/N0 [dB-Hz]、E_b/N_0 [dB] = C/N0 − 17.0", "middle", 9.5, MUT))
+    o.append(TX(p.x - 8, p.y + p.h + 28, "E_b/N_0", "end", 9, GLD))
+    o.append(TX(p.x + p.w / 2, p.y + p.h + 44, "C/N0 [dB-Hz]、E_b/N_0 [dB] = C/N0 − 17.0", "middle", 9.5, MUT))
     # (b) サブフレーム
     xb = 430
     o.append(T(xb, 18, "(b) 300 bit を全部正しく読む確率", "start", 11.5, INK, True))
@@ -808,7 +813,7 @@ def _f03_ber_fig():
         v = (1 - _f03_pb(c)) ** 300
         o.append(D(q.X(c), q.Y(v), SIG, 4.2))
         o.append(T(q.X(c) + dx, q.Y(v) + dy, "%d dB-Hz: %s" % (c, _f03_f(v, 3)), a, 9.5, SIG, True, halo=True))
-    return SVG(700, 300, o, "データのビットを読み誤る割合（搬送波の位相が合い、1 bit = 20 ms の Y_I の符号で読む）。(a) ビット誤り率 P_b = Q(√(2E_b/N_0)) は、C/N0 が下がると急に増え、26.6 dB-Hz で 10⁻⁵ になる。○は、1 bit を 20 460 チップの和として読んだシミュレーションの値。(b) 300 bit のサブフレームを全部正しく読める確率 (1 − P_b)³⁰⁰ は、25 dB-Hz で 0.945、22 dB-Hz で 0.169 まで下がる。")
+    return SVG(700, 300, o, "データのビットを読み誤る割合（搬送波の位相が合い、1 bit = 20 ms の Y<sub>I</sub> の符号で読む）。(a) ビット誤り率 P<sub>b</sub> = Q(√(2E<sub>b</sub>/N<sub>0</sub>)) は、C/N0 が下がると急に増え、26.6 dB-Hz で 10⁻⁵ になる。○は、1 bit を 20 460 チップの和として読んだシミュレーションの値。(b) 300 bit のサブフレームを全部正しく読める確率 (1 − P<sub>b</sub>)³⁰⁰ は、25 dB-Hz で 0.945、22 dB-Hz で 0.169 まで下がる。")
 F["e03_ber"] = _f03_ber_fig()
 
 
@@ -889,8 +894,8 @@ def _f03_rangenoise_fig():
     o.append(DIM(q.X(48), q.Y(v45), q.X(48), q.Y(v35), None, c=INK))
     o.append(T(q.X(48) + 5, q.Y(math.sqrt(v45 * v35)) - 2, "× 3.16", "start", 9.5, INK, True, halo=True))
     o.append(T(q.X(48) + 5, q.Y(math.sqrt(v45 * v35)) + 11, "（10 dB）", "start", 9, INK, False, halo=True))
-    o.append(T(q.x + q.w, q.y + q.h + 46, "線: 式 cT_c/(2√((C/N0)T))　○: シミュレーション", "end", 9, MUT))
-    return SVG(700, 298, o, "距離の雑音。(a) 追尾している受信機は、頂点の左右 0.5 チップの 2 点（早い所・遅い所）の相関から、2 章の式で頂点を求める。2 点の値の雑音で、求めた頂点が揺れる（1 ms の 1 回の測定を 40 回。点の散らばりの標準偏差は、45 dB-Hz で 0.089 チップ、35 dB-Hz で 0.281 チップ）。(b) 擬似距離の雑音の標準偏差 σ_ρ = cT_c/(2√((C/N0)T)) は C/N0 の平方根に反比例し、10 dB 下がると 3.16 倍になる。1 s の平均では、45 dB-Hz で 0.82 m、35 dB-Hz で 2.61 m。")
+    o.append(TX(q.x + q.w, q.y + q.h + 46, "線: 式 cT_c/(2√((C/N0)T))　○: シミュレーション", "end", 9, MUT))
+    return SVG(700, 298, o, "距離の雑音。(a) 追尾している受信機は、頂点の左右 0.5 チップの 2 点（早い所・遅い所）の相関から、2 章の式で頂点を求める。2 点の値の雑音で、求めた頂点が揺れる（1 ms の 1 回の測定を 40 回。点の散らばりの標準偏差は、45 dB-Hz で 0.089 チップ、35 dB-Hz で 0.281 チップ）。(b) 擬似距離の雑音の標準偏差 σ<sub>ρ</sub> = cT<sub>c</sub>/(2√((C/N0)T)) は C/N0 の平方根に反比例し、10 dB 下がると 3.16 倍になる。1 s の平均では、45 dB-Hz で 0.82 m、35 dB-Hz で 2.61 m。")
 F["e03_rangenoise"] = _f03_rangenoise_fig()
 
 
@@ -925,7 +930,7 @@ def _f03_thresholds_fig():
             y += 22
             continue
         kind, nm, a, b, c = r[0], r[1], r[2], r[3], r[4]
-        o.append(T(X0 - 8, y + 13, nm, "end", 9.5, c if kind != "calc" else INK, True))
+        o.append(TX(X0 - 8, y + 13, nm, "end", 9.5, c if kind != "calc" else INK, True))
         if kind == "env":
             o.append(RECT(X(a), y + 2, X(b) - X(a), 15, 3, soft(c), c, 1.2))
             o.append(T(X(b) + 5, y + 13, "%d〜%d" % (a, b), "start", 9, c))
