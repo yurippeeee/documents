@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="katex/katex.min.css">
 <script defer src="katex/katex.min.js"></script>
 <script defer src="katex/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<script defer src="katex/contrib/copy-tex.min.js"></script>
 <script defer src="widgets.js"></script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "7b6e9d2633b64a6bba9a294bb612c422"}'></script><!-- End Cloudflare Web Analytics -->
 </head>
@@ -21,7 +22,7 @@
 <main class="doc">
   <p class="chno">Chapter 01</p>
   <h1 class="doctitle">OS がない世界 — スーパーループはどこで破綻するのか</h1>
-  <blockquote><p><strong>この章がなぜ必要なのか——「OS を使う理由」を先に体で分かっておく.</strong></p><p>いきなり「タスクとは」「セマフォとは」と始めると、 覚えることばかりが増えて、なぜそんなものが必要なのかが分からなくなる。</p><p>だからまず、<strong>OS を使わずに書くとどうなるか</strong>を見る。 そして、それがどこで、どういう理由で破綻するかを具体的に確かめる。 <strong>OS が提供する機能は、すべてこの破綻に対する処方箋である。</strong></p></blockquote><h2 id="スーパーループ-最も単純なプログラムの形">1. スーパーループ — 最も単純なプログラムの形</h2><p>組み込みのプログラムを OS なしで書くと、必ずこの形になる。</p><pre><code class="lang-c">int main(void)
+  <blockquote><p><strong>この章がなぜ必要なのか——「OS を使う理由」を先に体で分かっておく.</strong></p><p>いきなり「タスクとは」「セマフォとは」と始めると、 覚えることばかりが増えて、なぜそんなものが必要なのかが分からなくなる。</p><p>だからまず、<strong>OS を使わずに書くとどうなるか</strong>を見る。 そして、それがどこで、どういう理由で破綻するかを具体的に確かめる。 <strong>OS が提供する機能は、すべてこの破綻に対する処方箋である。</strong></p></blockquote><blockquote class="learn"><p><strong>この章で学ぶこと.</strong> 節ごとに、新しく出てくる用語と、読み終えたときに説明できるようになることを並べる。全部を説明できれば、この章は理解できている（まとめは <a href="#この章のまとめ">7 節</a>）。</p><div class="tablewrap"><table><thead><tr><th>節</th><th>新しく出てくる用語</th><th>説明できるようになること</th></tr></thead><tbody><tr><td><a href="#スーパーループ-最も単純なプログラムの形">1 節</a></td><td>スーパーループ</td><td>OS を使わない組み込みプログラムが、初期化と無限ループだけのスーパーループの形になること。メモリを食わず、動作が予測しやすく、デバッグが簡単という長所</td></tr><tr><td><a href="#何が起きるか-応答が-待たされる">2 節</a></td><td>ループ周期</td><td>1 つの処理が 50 ms かかると、ボタン処理の呼び出しが最悪 50 ms 以上待たされること。応答の遅れがループ周期 1 周分に及ぶ仕組み</td></tr><tr><td><a href="#応答遅延を実際に見る">3 節</a></td><td>—</td><td>各処理の実行時間を変えたとき、スーパーループで他の処理の応答時間がどう変わるかを、数値で見積もる方法</td></tr><tr><td><a href="#まず思いつく対策と-その限界">4 節</a></td><td>状態機械</td><td>処理を細かく切る・割り込みに追い出す・状態機械にする、という 3 つの対策の効き方と代償。どれも途中の状態を自分で持つ必要があり、途中で待てないこと</td></tr><tr><td><a href="#破綻する-4-つのポイント">5 節</a></td><td>状態爆発</td><td>スーパーループが限界を迎える 4 つの場合、すなわち応答時間が守れない・待てない・状態が爆発する・優先度が付けられないという場合の見分け方</td></tr><tr><td><a href="#os-が与える-1-つの発明">6 節</a></td><td>コンテキスト・コンテキストスイッチ・プログラムカウンタ (PC)・スタックポインタ (SP)・マルチタスク OS</td><td>OS が自動化するのは、実行の途中の状態の保存と、次に動かす処理の選択であること。保存するのがレジスタ群とスタックポインタという有限のデータで、その差し替えがコンテキストスイッチになること</td></tr></tbody></table></div></blockquote><h2 id="スーパーループ-最も単純なプログラムの形">1. スーパーループ — 最も単純なプログラムの形</h2><p>組み込みのプログラムを OS なしで書くと、必ずこの形になる。</p><pre><code class="lang-c">int main(void)
 {
     hardware_init();
 
