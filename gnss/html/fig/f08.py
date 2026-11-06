@@ -969,12 +969,11 @@ def _f08_gpidea_fig():
     for sx in (-1, 1):
         x_ = cx + sx * 132
         o.append(DARR(x_, yg - 30, x_, yg - 4, c=PUR, lw=2.0, head=5))
-    o.append(T(cx + 132, yg - 38, "残る", "middle", 9.5, PUR, True, halo=True))
     o.append(T(cx, 40, "電波は上の半分だけに出る", "middle", 9.5, SIG, True, halo=True))
     o.append(T(cx, yg + 26, "地板（どこまでも続く）", "middle", 9.5, MUT, True))
     o.append(T(cx, yg + 46, "下の半分には出ない", "middle", 9.5, MUT))
-    o.append(T(30, yg - 38, "地平線の向きでも", "start", 9.5, PUR, True, halo=True))
-    o.append(T(30, yg - 24, "垂直の成分は", "start", 9.5, PUR, True, halo=True))
+    o.append(T(24, yg - 52, "地平線の向きでも", "start", 9.5, PUR, True, halo=True))
+    o.append(T(24, yg - 38, "垂直の成分は残る", "start", 9.5, PUR, True, halo=True))
     # (b) 有限の地板
     xb = 362
     o.append(W(352, 30, 352, 196, c=LIN, lw=0.8))
@@ -1008,7 +1007,7 @@ def _f08_gpidea_fig():
     o.append(p.line([(e, amp(v)) for e, v in zip(el7, d7) if -40 <= e <= 40], c=SIG, lw=2.4))
     a0 = amp(d7[list(el7).index(0.0)])
     o.append(D(p.X(0), p.Y(a0), GLD, 4.2))
-    o.append(T(p.X(0) + 7, p.Y(a0) + 4, "%.2f（%s dB）" % (a0, _f08_f(20 * math.log10(a0), 1)), "start", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(0) + 7, p.Y(a0) - 6, "%.2f（%s dB）" % (a0, _f08_f(20 * math.log10(a0), 1)), "start", 9.5, GLD, True, halo=True))
     o.append(LEGL(390, yc + 6, [(MUT, "5 3", "無限の地板（地平線で段差）"), (SIG, None, "地板 70 mm（なめらか）")], 9.5, 16))
     o.append(T(390, yc + 56, "縁で回り込んだ電波が段差をならし、", "start", 9.5, INK))
     o.append(T(390, yc + 72, "境目（地平線）でほぼ半分になる。", "start", 9.5, INK))
@@ -1052,7 +1051,8 @@ def _f08_gpsize_fig():
         rows.append((s, dv[L.index(90.0)], dv[L.index(0.0)], dv[L.index(-90.0)]))
     o.append(W(p.X(70), p.y, p.X(70), p.y + p.h, c=MUT, lw=1, dash="3 3"))
     o.append(T(p.X(70) + 4, p.y + 12, "70 mm", "start", 9.5, MUT, False, halo=True))
-    for k, c, nm, dy in ((1, SIG, "真上", -8), (2, GLD, "地平線", -8), (3, ALI, "真下", 14)):
+    hs = [r[2] for r in rows if r[0] >= 50]; hmin, hmax = min(hs), max(hs)
+    for k, c, nm, dy in ((1, SIG, "真上", -8), (2, GLD, "地平線", 16), (3, ALI, "真下", 14)):
         o.append(p.line([(r[0], r[k]) for r in rows], c=c, lw=2.2))
         for r in rows:
             o.append(D(p.X(r[0]), p.Y(r[k]), c, 2.6))
@@ -1061,9 +1061,11 @@ def _f08_gpsize_fig():
         r = [q for q in rows if q[0] == s][0]
         o.append(DARR(p.X(s), p.Y(r[1]) + 3, p.X(s), p.Y(r[3]) - 3, c=INK, lw=1.0, head=5))
         o.append(T(p.X(s) + 5, (p.Y(r[1]) + p.Y(r[3])) / 2 + 4, "前後比 %.1f dB" % (r[1] - r[3]), "start", 9.5, INK, True, halo=True))
+    fb = {r[0]: r[1] - r[3] for r in rows}
+    elI, dI = _f08_gp(None); hinf = dI[list(elI).index(0.0)]
     o.append(T(xb, 300, "大きい地板ほど真下へ漏れる電波（後ろのローブ）が", "start", 9.5, INK))
-    o.append(T(xb, 316, "小さく、真上が強い。地平線は大きさによらず約 −6 dB", "start", 9.5, INK))
-    o.append(T(xb, 336, "（1 波長 = 190 mm より大きいと、大きさの効き方が", "start", 9.5, MUT))
-    o.append(T(xb, 352, "小さくなる）", "start", 9.5, MUT))
-    return SVG(700, 376, o, "地板の大きさによるパターンの違い（例の比誘電率 20 のパッチを、正方形の地板の中心に置いた。地板の奥行きを無限とした 2 次元のモーメント法の計算で、パッチの 2 つの縁を通る切り口の、地板に垂直な成分。値は無限の地板の真上に対する [dB]）。(a) 地板が小さいほど、真下へ漏れる電波（後ろのローブ）が大きく、真上が弱い。(b) 真上・地平線・真下の値と、地板の一辺。真上と真下の差（前後比）は、地板 50 mm で 3.1 dB、150 mm で 13.7 dB。地平線の値は、地板の大きさによらず、無限の地板のときより約 6 dB 低い。実際の 3 次元の地板では値が変わるので、傾向として見る。")
+    o.append(T(xb, 316, "小さく、真上が強い。地平線は %s〜%s dB で、大きさで" % (_f08_f(hmin, 1), _f08_f(hmax, 1)), "start", 9.5, INK))
+    o.append(T(xb, 332, "あまり変わらない（無限の地板では %s dB）" % _f08_f(hinf, 1), "start", 9.5, INK))
+    o.append(T(xb, 352, "（50 mm 以上。1 波長は 190 mm）", "start", 9.5, MUT))
+    return SVG(700, 376, o, "地板の大きさによるパターンの違い（例の比誘電率 20 のパッチを、正方形の地板の中心に置いた。地板の奥行きを無限とした 2 次元のモーメント法の計算で、パッチの 2 つの縁を通る切り口の、地板に垂直な成分。値は無限の地板の真上に対する [dB]）。(a) 地板が小さいほど、真下へ漏れる電波（後ろのローブ）が大きく、真上が弱い。(b) 真上・地平線・真下の値と、地板の一辺。真上と真下の差（前後比）は、地板 50 mm で %.1f dB、150 mm で %.1f dB。地平線の値は、一辺が 50 mm 以上ならあまり変わらず、無限の地板のとき（%s dB）より %.1f〜%.1f dB 低い（電界でほぼ半分）。実際の 3 次元の地板では値が変わるので、傾向として見る。" % (fb[50], fb[150], _f08_f(hinf, 1), hinf - hmax, hinf - hmin))
 F["e08_gpsize"] = _f08_gpsize_fig()
