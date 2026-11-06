@@ -138,7 +138,8 @@ def _f03_db_fig():
         o.append(T(xa - 8, Y(v) + 3.5, "%s dBm（%s）" % (_f03_m(v), s), "end", 9.5, MUT))
     eirp_dbm = _F03_EIRP + 30
     o.append(D(xa, Y(eirp_dbm), SIG, 4.6))
-    o.append(T(xa + 10, Y(eirp_dbm) + 4, "衛星の EIRP の例 %s dBm（440 W）" % _f03_f(eirp_dbm), "start", 9.5, SIG, True, halo=True))
+    o.append(T(xa + 10, Y(eirp_dbm) - 6, "衛星の送信の強さ（例）", "start", 9.5, SIG, True, halo=True))
+    o.append(T(xa + 10, Y(eirp_dbm) + 8, "%s dBm（440 W）" % _f03_f(eirp_dbm), "start", 9.5, SIG, True, halo=True))
     o.append(D(xa, Y(_F03_CMIN), SIG, 4.6))
     o.append(T(xa + 10, Y(_F03_CMIN) - 6, "地上で受ける L1 C/A", "start", 9.5, SIG, True, halo=True))
     o.append(T(xa + 10, Y(_F03_CMIN) + 8, "−128.5 dBm（1.41 × 10⁻¹⁶ W）", "start", 9.5, SIG, True, halo=True))
@@ -147,7 +148,7 @@ def _f03_db_fig():
     o.append(T(xr - 6, Y(-30) - 4, "%s dB" % _f03_f(eirp_dbm - _F03_CMIN), "end", 10, ALI, True, halo=True))
     o.append(T(xr - 6, Y(-30) + 10, "小さくなる", "end", 9.5, ALI, True, halo=True))
     o.append(T(xr - 6, Y(-30) + 24, "（約 3 × 10¹⁸ 分の 1）", "end", 9.5, ALI, False, halo=True))
-    return SVG(700, 312, o, "デシベル。(a) 比を常用対数の 10 倍で表すと、比の掛け算が dB の足し算になる。2 倍は 3.01 dB、10 倍は 10 dB。(b) 1 mW を基準にした dBm で電力を表すと、衛星の送信（EIRP の例の値 56.4 dBm）から地上で受ける電力（規格の最小値 −128.5 dBm）までの 184.9 dB を、1 本の目盛に並べられる。30 dB ごとに 1000 倍違う。")
+    return SVG(700, 312, o, "デシベル。(a) 比を常用対数の 10 倍で表すと、比の掛け算が dB の足し算になる。2 倍は 3.01 dB、10 倍は 10 dB。(b) 1 mW を基準にした dBm で電力を表すと、衛星の送信の強さ（1 節の後半で求める例の値 56.4 dBm）から地上で受ける電力（規格の最小値 −128.5 dBm）までの 184.9 dB を、1 本の目盛に並べられる。30 dB ごとに 1000 倍違う。")
 F["e03_db"] = _f03_db_fig()
 
 
@@ -398,7 +399,7 @@ def _f03_cn0env_fig():
         o.append(D(q.X(e), q.Y(v), SIG, 4.2))
     o.append(T(q.X(88), q.Y(cn0(90, 3.0)) + 15, "50.4", "end", 9.5, SIG, True, halo=True))
     o.append(T(q.X(7), q.Y(cn0(5, -5.0)) + 4, "40.5", "start", 9.5, SIG, True, halo=True))
-    o.append(T(q.X(88), q.Y(cn0(75, 0)) + 16, "破線: 0 dBi のアンテナ（距離の違いだけ）", "end", 9, MUT, False, halo=True))
+    o.append(T(q.X(2), q.Y(53), "破線: 0 dBi のアンテナ（距離の違いだけ）", "start", 9, MUT, False, halo=True))
     o.append(T(q.X(88), q.Y(40) - 6, "開けた空の代表値 40〜50 dB-Hz", "end", 9, GRN, True, halo=True))
     # (c) 周りの様子
     xc = 400

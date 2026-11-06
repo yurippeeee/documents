@@ -11,6 +11,7 @@
   /* 相補誤差関数（どの x でも相対誤差 1.2 × 10⁻⁷ 未満の近似）と Q 関数 */
   function _w03_erfc(x){var z=Math.abs(x),t=1/(1+0.5*z),r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));return x>=0?r:2-r;}
   function _w03_Q(x){return 0.5*_w03_erfc(x/Math.SQRT2);}
+  function _w03_g(v){return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g," ");}
   function _w03_sinc(x){return Math.abs(x)<1e-12?1:Math.sin(Math.PI*x)/(Math.PI*x);}
   /* 1.2 × 10⁻⁵ の形の数 */
   function _w03_sci(v,d){if(v<1e-100)return "10⁻¹⁰⁰ より小さい";if(v>=0.01)return _w03_f(v,3);var e=Math.floor(Math.log10(v)),m=v/Math.pow(10,e);if(+m.toFixed(d||1)>=10){m/=10;e++;}
@@ -68,7 +69,7 @@
       o.push(S.T(tx,by+58,"C/N0 = "+_w03_f(cn.get(),1)+" dB-Hz","start",11,"signal",true));
       o.push(S.T(tx,by+76,"（帯域によらない）","start",9.5,"muted"));
       /* (c) 波形 */
-      var cy=nar?470:272,ch0=60,nc=4,R=U.plot(64,cy,nar?320:600,120,[ch0,ch0+nc],[-8,8]),lo=ch0*64,hi=(ch0+nc)*64;
+      var cy=nar?500:272,ch0=60,nc=4,R=U.plot(64,cy,nar?320:600,120,[ch0,ch0+nc],[-8,8]),lo=ch0*64,hi=(ch0+nc)*64;
       o.push(S.T(nar?6:14,cy-14,"(c) 帯域を通した波形（縦は、2 MHz の雑音の標準偏差を 1 とした値）","start",11,"ink",true));
       o.push(R.axes({xt:[ch0,ch0+1,ch0+2,ch0+3,ch0+4],yt:[-8,-4,0,4,8],xfmt:function(v){return String(v);},yfmt:function(v){return String(v).replace("-","−");},xl:"時間 [チップ]（表示のため搬送波を 12.276 MHz に下げた）",ylOff:30}));
       var pa=[],pb=[];for(var k=lo;k<=hi;k++){var t=k/64;pa.push([t,wb[k]+amp*sb[k]]);pb.push([t,amp*sb[k]]);}
@@ -175,7 +176,7 @@
     U.head(el,"LINK BUDGET","回線計算 — 衛星の電力から C/N0 まで");
     var r1=U.ctrls(el);
     var ei=U.slider(r1,"衛星の EIRP",{min:20,max:32,step:0.1,value:_W03_EIRP,fmt:function(v){return _w03_f(v,1)+" dBW（"+U.sig(Math.pow(10,v/10),3)+" W）";},onInput:draw});
-    var ev=U.slider(r1,"衛星の仰角 θ",{min:5,max:90,step:1,value:5,fmt:function(v){return v+"°（距離 "+_w03_f(_w03_range(v)/1e3,0)+" km）";},onInput:draw});
+    var ev=U.slider(r1,"衛星の仰角 θ",{min:5,max:90,step:1,value:5,fmt:function(v){return v+"°（距離 "+_w03_g(_w03_range(v)/1e3)+" km）";},onInput:draw});
     var r2=U.ctrls(el);
     var an=U.select(r2,"受信アンテナ",["0 dBi（向きによらない）","例のアンテナ（真上 +3、5° で −5 dBi）"],0,draw);
     var ls=U.slider(r2,"そのほかの損失（遮へいなど）",{min:0,max:30,step:0.5,value:0,fmt:function(v){return _w03_f(v,1)+" dB";},onInput:draw});
@@ -205,15 +206,15 @@
       o.push(S.L(sx2-9,sy2,sx2+9,sy2,"signal",1.1)+S.RECT(sx2-14,sy2-3.2,6.5,6.4,1,U.soft("signal"),"signal",1)+S.RECT(sx2+7.5,sy2-3.2,6.5,6.4,1,U.soft("signal"),"signal",1)+S.RECT(sx2-3.6,sy2-3.6,7.2,7.2,1.5,"signal","signal",1));
       o.push(S.CIRC(sx2,sy2,16,"signal",1,null,"2 3"));
       o.push(S.D(rxx,rxy-2,"green",3.6));
-      o.push(S.T((rxx+sx2)/2,(rxy+sy2)/2+(el0<45?16:-6),_w03_f(r/1e3,0)+" km",el0<45?"middle":"start",9.5,"gold",true,false,null,true));
+      o.push(S.T((rxx+sx2)/2,(rxy+sy2)/2+(el0<45?16:-6),_w03_g(r/1e3)+" km",el0<45?"middle":"start",9.5,"gold",true,false,null,true));
       o.push(S.T(cx,cy+(nar?118:130),"仰角 "+el0+"°・自由空間損失 "+_w03_f(L,1)+" dB","middle",9.5,"ink",true));
       /* (b) 信号の電力と雑音の密度（数値の差が C/N0） */
       var bx=nar?64:300,by=nar?320:40,P=U.plot(bx+40,by,nar?130:120,230,[0,1],[-185,-110]);
       o.push(S.TX(nar?6:bx-6,by-24,"(b) 信号の電力 C と雑音の密度 N_0","start",11,"ink",true));
       o.push(P.axes({xt:[],yt:[-180,-170,-160,-150,-140,-130,-120,-110],yfmt:function(v){return String(v).replace("-","−");},yl:"dBm（C）・dBm/Hz（N_0）",ylOff:44}));
-      function lvl(v,c,lab,lw,left){var vv=Math.max(-185,Math.min(-110,v));o.push(S.L(P.X(0.1),P.Y(vv),P.X(0.9),P.Y(vv),c,lw||2.6));if(left)o.push(S.T(P.X(0.12),P.Y(vv)+13,lab,"start",9,c,false,false,null,true));else o.push(S.TX(P.X(0.92),P.Y(vv)+4,lab,"start",9.5,c,true,true));}
+      function lvl(v,c,lab,lw,left){var vv=Math.max(-185,Math.min(-110,v));o.push(S.L(P.X(0.1),P.Y(vv),P.X(0.9),P.Y(vv),c,lw||2.6));if(left){if(lab)o.push(S.T(P.X(0.12),P.Y(vv)+13,lab,"start",9,c,false,false,null,true));}else o.push(S.TX(P.X(0.92),P.Y(vv)+4,lab,"start",9.5,c,true,true));}
       lvl(C,"signal","C = "+_w03_f(C,1));lvl(N0,"teal","N_0 = "+_w03_f(N0,1));
-      if(!only.get())lvl(_W03_N0,"muted","290 K だけなら −174.0",1.2,true);
+      if(!only.get()){lvl(_W03_N0,"muted","",1.2,true);o.push(S.T(P.x,P.y+P.h+18,"灰色の線: 290 K の熱雑音だけなら −174.0","start",9,"muted"));}
       var ya=P.Y(Math.max(-185,Math.min(-110,C))),yb=P.Y(Math.max(-185,Math.min(-110,N0)));
       o.push(S.DARR(P.X(0.5),ya+3,P.X(0.5),yb-3,"ink",1.4));o.push(S.T(P.X(0.5)-6,(ya+yb)/2+4,"C/N0 "+_w03_f(cn0,1),"end",10,"ink",true,false,null,true));
       /* (c) システム雑音温度の内訳 */
@@ -228,14 +229,14 @@
       box.set(S.svg(Wd,nar?by+290:320,o));
       /* 読み出し（回線計算の表） */
       var rows=[["衛星の EIRP",_w03_f(ei.get(),1)+" dBW",_w03_f(eirpm,1)+" dBm"],
-        ["自由空間損失（距離 "+_w03_f(r/1e3,0)+" km）","−"+_w03_f(L,1)+" dB",_w03_f(c1,1)+" dBm"],
+        ["自由空間損失（距離 "+_w03_g(r/1e3)+" km）","−"+_w03_f(L,1)+" dB",_w03_f(c1,1)+" dBm"],
         ["大気による損失（例の値）","−0.5 dB",_w03_f(c2,1)+" dBm"],
         ["そのほかの損失",(ls.get()>0?"−":"")+_w03_f(ls.get(),1)+" dB",_w03_f(c3,1)+" dBm"],
         ["受信アンテナの利得",(ga>=0?"+":"")+_w03_f(ga,1)+" dBi","<b>C = "+_w03_f(C,1)+" dBm</b>"],
         ["システム雑音温度",only.get()?"290 K（熱雑音だけ）":ta.get()+" + "+_w03_f(Te,1)+" = "+_w03_f(Ts,1)+" K","<b>N<sub>0</sub> = "+_w03_f(N0,1)+" dBm/Hz</b>"],
         ["C/N0","C − N<sub>0</sub>","<b>"+_w03_f(cn0,1)+" dB-Hz</b>"],
         ["積分の後の SNR（1 ms・20 ms）","C/N0 − 30.0・− 17.0",_w03_f(cn0-30,1)+" dB・"+_w03_f(cn0-16.99,1)+" dB"]];
-      ro.innerHTML=U.tbl(["項目","値","累計"],rows,["left","right","right"])+'<div class="wnote">地球の半径 6 371 km、軌道の半径 26 560 km の円で距離を計算した。EIRP の初めの値 26.4 dBW は、規格の受信電力の最小値（−128.5 dBm）を、仰角 5°・0 dBi・大気 0.5 dB として逆算した例の値で、衛星は向きによらず同じ EIRP で出すとした。例のアンテナの利得とアンテナの雑音温度は例の値（代表値）。LNA は 1 段だけで、後の段の雑音は 9 章で扱う。</div>';
+      ro.innerHTML=(nar?U.tbl(["項目","値 → 累計"],rows.map(function(r){return [r[0],r[1]+"<br>→ "+r[2]];}),["wrap","right"]).split('class="wrap" style="text-align:left"').join('class="wrap" style="text-align:left;min-width:5em"'):U.tbl(["項目","値","累計"],rows,["left","right","right"]))+'<div class="wnote">地球の半径 6 371 km、軌道の半径 26 560 km の円で距離を計算した。EIRP の初めの値 26.4 dBW は、規格の受信電力の最小値（−128.5 dBm）を、仰角 5°・0 dBi・大気 0.5 dB として逆算した例の値で、衛星は向きによらず同じ EIRP で出すとした。例のアンテナの利得とアンテナの雑音温度は例の値（代表値）。LNA は 1 段だけで、後の段の雑音は 9 章で扱う。</div>';
     }
     draw();
   };
@@ -277,9 +278,9 @@
       var dp="";for(var px=0;px<Math.round(P.w);px++){var j0=Math.floor(px/P.w*1023),j1=Math.max(j0+1,Math.floor((px+1)/P.w*1023)),mx=0;for(var j=j0;j<j1;j++)mx=Math.max(mx,A.P[j]);dp+="M"+(P.x+px+0.5).toFixed(1)+","+P.Y(0).toFixed(1)+"V"+P.Y(mx).toFixed(1);}
       o.push(S.PATH(dp,"teal",1));o.push(S.L(P.X(D0),P.y,P.X(D0),P.y+P.h,"signal",1,"3 3"));
       var ok=A.im===D0;o.push(S.D(P.X(A.im),P.Y(A.P[A.im]),ok?"green":"alias",4.6));
-      o.push(S.T(P.x+P.w,P.y-4,ok?"最大 = 本当のずれ（見つかる）":"最大が別のずれ "+A.im+" チップ（見誤る）","end",10,ok?"green":"alias",true));
+      o.push(S.T(nar?P.x:P.x+P.w,nar?P.y+P.h+30:P.y-4,ok?"最大 = 本当のずれ（見つかる）":"最大が別のずれ "+A.im+" チップ（見誤る）",nar?"start":"end",10,ok?"green":"alias",true));
       /* (b) データ */
-      var dy=nar?170:160,cw=nar?10:16,chh=nar?11:12,x0=nar?64:70,ne=0;
+      var dy=nar?186:160,cw=nar?10:16,chh=nar?11:12,x0=nar?64:70,ne=0;
       o.push(S.T(nar?6:14,dy-6,"(b) データ: 1 つのサブフレーム（10 ワード × 30 bit）の読み誤り","start",11,"ink",true));
       for(var w=0;w<10;w++)for(var b=0;b<30;b++){var B=BITS[w*30+b];if(B.e)ne++;o.push(S.RECT(x0+b*cw,dy+4+w*chh,cw-1.5,chh-1.5,1,B.e?U.soft("alias"):U.soft("green"),B.e?"alias":"green",B.e?1.4:0.5));}
       var ex=x0+30*cw+12,pb=_w03_Q(Math.sqrt(2*q*0.02)),pok=Math.pow(1-pb,300);
@@ -289,7 +290,7 @@
         if(cn.get()<25)o.push(S.T(ex,dy+92,"25 dB-Hz より下では、搬送波の","start",9,"alias",true));
         if(cn.get()<25)o.push(S.T(ex,dy+105,"位相を合わせ続けにくい（代表値）","start",9,"alias",true));}
       /* (c) 距離 */
-      var ry=nar?320:300,cm=_W03_C*_W03_TC,sig1=cm/(2*Math.sqrt(q*1.0)),ymax=30,R=U.plot(64,ry,nar?320:600,110,[0,60],[-ymax,ymax]);
+      var ry=nar?336:300,cm=_W03_C*_W03_TC,sig1=cm/(2*Math.sqrt(q*1.0)),ymax=30,R=U.plot(64,ry,nar?320:600,110,[0,60],[-ymax,ymax]);
       o.push(S.T(nar?6:14,ry-12,"(c) 距離: 1 s ごとの擬似距離の雑音（60 s）","start",11,"ink",true));
       o.push(R.axes({xt:[0,10,20,30,40,50,60],yt:[-30,-15,0,15,30],xfmt:function(v){return String(v);},yfmt:function(v){return String(v).replace("-","−");},xl:"時間 [s]",yl:"[m]",ylOff:30}));
       if(sig1<ymax){o.push(R.line([[0,sig1],[60,sig1]],"signal",1,"4 3"));o.push(R.line([[0,-sig1],[60,-sig1]],"signal",1,"4 3"));}
