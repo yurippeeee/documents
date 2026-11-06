@@ -566,7 +566,7 @@ def _f21_ident_fig():
         o.append(D(Pc.X(u), Pc.Y(a_), c, 4))
     o.append(D(Pc.X(Fcest), Pc.Y(0), ALI, 4))
     o.append(T(Pc.X(Fcest) - 4, Pc.Y(0) + 14, "%.2f N = 摩擦" % Fcest, "end", 9.5, ALI, True, halo=True))
-    o.append(T(Pc.x + 6, Pc.y + 12, "傾き %.2f /kg → M = %.3f kg" % (k1, Mest), "start", 9.5, SIG, True, halo=True))
+    o.append(T(Pc.x + 6, Pc.y + 12, "傾き %.3f /kg → M = %.3f kg" % (k1, Mest), "start", 9.5, SIG, True, halo=True))
     return SVG(704, 364, o, cap="パラメータを測る試験の記録（ノイズのある測定を数値計算で作ったもの。本当の値は l = 0.3 m、M = 0.5 kg、摩擦 0.3 N）。(a) 吊り下げた振子の揺れ。ノイズをならしてから 0 を横切る時刻を読み、5 周期の長さから周期と l を求める。(b) 3 つの大きさの力で押したときの台車の位置と、当てはめた放物線。(c) 放物線の加速度を力に対して並べた直線の傾きが 1/M、加速度が 0 になる力が摩擦の大きさ。")
 
 
@@ -655,7 +655,7 @@ def _f21_pid_fig():
         t, x, _ = R[k]; c, dash, _lab = _F21_CS[k]
         o.append(Pc.clip(list(zip(t, x[:, 0])), c=c, lw=2, dash=dash))
     ppid = R["pid"][1][-1, 0]
-    o.append(T(Pc.X(6) - 4, Pc.Y(ppid) + 14, "PID: %.2f m で止まる" % ppid, "end", 9.5, GLD, True, halo=True))
+    o.append(T(Pc.X(6) - 4, Pc.Y(ppid) + 14, "PID: 6 s で %.2f m（戻らない）" % ppid, "end", 9.5, GLD, True, halo=True))
     # (d) 角度のセンサの 0 点が 0.5° ずれたとき
     o.append(T(386, 200, "(d) 角度のセンサの 0 点が 0.5° ずれたとき", "start", 11.5, INK, True))
     Pd = Plot(424, 212, 260, 120, (0, 6), (-0.6, 0.1))
@@ -668,7 +668,7 @@ def _f21_pid_fig():
         if k == "lqr":
             o.append(T(Pd.X(6) - 4, Pd.Y(x[-1, 0]) + 14, "19 章の F: %.1f cm" % (x[-1, 0] * 100), "end", 9.5, SIG, True, halo=True))
     o.append(LEGL(60, 374, [(_F21_CS[k][0], _F21_CS[k][1], _F21_CS[k][2]) for k in ("pd", "pid", "casc", "lqr")]))
-    return SVG(704, 384, o, cap="角度だけを戻す PD・PID と、台車の位置も戻すカスケード・状態フィードバックの比較（線形でない式、すべての状態を測れるとき、力の上限なし）。(a) 振子が立った後の台車の速さは、角度の面積の g 倍になる。角度の PD は面積が正のまま残り、19 章の F は反対側へ傾いて面積を 0 にする。(b)(c) PD の台車は流れ続け、PID は止まるが戻らない。(d) 角度のセンサの 0 点がずれると、角度だけの制御では台車が加速し続ける。")
+    return SVG(704, 384, o, cap="角度だけを戻す PD・PID と、台車の位置も戻すカスケード・状態フィードバックの比較（線形でない式、すべての状態を測れるとき、力の上限なし）。(a) 振子が立った後の台車の速さは、角度の面積の g 倍になる。角度の PD は面積が正のまま残り、19 章の F は反対側へ傾いて面積を 0 にする。(b)(c) PD の台車は流れ続ける。PID の台車はほぼ止まるが戻らない（線形でない式では、わずかな速さが残り、ゆっくり流れ続ける）。(d) 角度のセンサの 0 点がずれると、角度だけの制御では台車が加速し続ける。")
 
 
 F["e21_pid"] = _f21_pid_fig()

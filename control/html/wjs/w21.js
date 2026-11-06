@@ -276,7 +276,7 @@
       var nT=t.length-1;
       h+="<br>角度の面積 ∫φ dt（0〜"+_w21_f(t[nT],1)+" s）: <b>"+_w21_f(ar,4)+" rad·s</b>、g × 面積 = "+_w21_f(_W21.g*ar,3)+" m/s、最後の台車の速さ "+_w21_f(pv[nT],3)+" m/s";
       var mm=_w21_minmax(ph),last=-1;for(var q=0;q<ph.length;q++)if(Math.abs(ph[q])>0.5)last=q;
-      var tset=last<0?0:(last+1<t.length?t[last+1]:Infinity),rail=null;for(var q2=1;q2<t.length;q2++){if(Math.abs(pp[q2-1])<0.5&&Math.abs(pp[q2])>=0.5){rail=t[q2];break;}}
+      var tset=last<0?0:(last+1<t.length?t[last]+(t[last+1]-t[last])*(Math.abs(ph[last])-0.5)/(Math.abs(ph[last])-Math.abs(ph[last+1])):Infinity),rail=null;for(var q2=1;q2<t.length;q2++){if(Math.abs(pp[q2-1])<0.5&&Math.abs(pp[q2])>=0.5){var a0=Math.abs(pp[q2-1]),a1=Math.abs(pp[q2]);rail=t[q2-1]+(t[q2]-t[q2-1])*(0.5-a0)/(a1-a0);break;}}/* どちらも記録の間を直線で補間する（記録の間隔に丸めない） */
       h+="<br>角度 "+_w21_f(mm[0],2)+"〜"+_w21_f(mm[1],2)+"°、±0.5° に収まる時刻 <b>"+(isFinite(tset)?_w21_f(tset,2)+" s":"収まらない")+"</b>、台車が動く最大の距離 <b>"+_w21_g(_w21_maxabs(pp)*100,3)+" cm</b>、"+_w21_f(t[nT],0)+" s の台車の位置 "+_w21_f(pp[nT],3)+" m、最大の力 "+_w21_g(_w21_maxabs(R.u),3)+" N";
       if(rail!=null)h+=' <span class="warn">'+_w21_f(rail,2)+" s にレールの端（0.5 m）に届く</span>";
       if(R.fell!=null)h+=' <span class="warn">'+_w21_f(R.fell,2)+" s に倒れた</span>";
