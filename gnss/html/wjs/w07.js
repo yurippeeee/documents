@@ -305,7 +305,7 @@
         h+="GDOP <b>"+_w07_f(dd.G,2)+"</b>、PDOP <b>"+_w07_f(dd.P,2)+"</b>、HDOP <b>"+_w07_f(dd.H,2)+"</b>、VDOP <b>"+_w07_f(dd.V,2)+"</b>、TDOP <b>"+_w07_f(dd.T,2)+"</b><br>";
         h+="誤差の楕円: 長い半径 "+_w07_f(s1,2)+" m（方位 "+_w07_f(azl,0)+"° と "+_w07_f((azl+180)%360,0)+"° の向き）、短い半径 "+_w07_f(s2,2)+" m。水平の DRMS = HDOP × σ = <b>"+_w07_f(dd.H*sig,2)+" m</b>（紫の破線の円）、CEP "+_w07_f(cep,2)+" m、R95 "+_w07_f(r95,2)+" m<br>";
         h+="上下: VDOP × σ = <b>"+_w07_f(dd.V*sig,2)+" m</b>（95 % は "+_w07_f(1.96*dd.V*sig,2)+" m）。時計のずれ: TDOP × σ = "+_w07_f(dd.T*sig,2)+" m（"+_w07_f(dd.T*sig/_W07_C*1e9,1)+" ns）";}
-      else h+='<span class="warn">'+(act.length<nu?"使う衛星（"+act.length+" 個）が未知数（"+nu+" 個）より少ないので解けない。":"衛星の並びが悪く、G に逆行列が無いので解けない（同じ仰角に並ぶ円錐の並びなど）。")+'</span>';
+      else h+='<span class="warn">'+(act.length<nu?"使う衛星（"+act.length+" 個）が未知数（"+nu+" 個）より少ないので解けない。":"衛星の並びが悪く、GᵀG に逆行列が無いので解けない（同じ仰角に並ぶ円錐の並びなど）。")+'</span>';
       ro.innerHTML=h+'<div class="wnote">東京、1 章の近似の配置（再生では 1 こまで 5 分進む）。ドラッグで動かした衛星は、その位置に止まる。DOP は (GᵀG)<sup>−1</sup> の対角成分から計算し、全部の衛星系では、衛星系ごとに時計のずれの未知数を置いた（TDOP は最初の衛星系の時計）。</div>';
     }
     setPre();draw();

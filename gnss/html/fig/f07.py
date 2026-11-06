@@ -187,7 +187,7 @@ def _f07_klob_lt(lt, eld=90.0, azd=180.0, scale=1.0):
 
 
 def _f07_shell(eld):
-    """薄い殻（高さ 350 km）のマッピング関数 1/cos z'（sin z' = R cos θ /(R + h_I)）。"""
+    """薄い殻（高さ 350 km）のマッピング関数 1/cos z'（sin z' = R_E cos θ /(R_E + h_I)）。"""
     s = _F07_RE * math.cos(eld * _F07_D2R) / (_F07_RE + _F07_HI)
     return 1 / math.sqrt(1 - s * s)
 
@@ -509,8 +509,8 @@ def _f07_klob_fig():
     o.append(W(cx, cy, px, py, c=MUT, lw=1.1, dash="4 3"))
     o.append(D(cx, cy, MUT, 3))
     o.append(T(cx + 6, cy + 4, "地球の中心", "start", 9, MUT, halo=True))
-    o.append(TX((cx + rx) / 2 - 8, (cy + ry) / 2, "R", "end", 10.5, MUT, True, halo=True))
-    o.append(TX((cx + px) / 2 + 8, (cy + py) / 2 + 4, "R + h_I", "start", 10.5, MUT, True, halo=True))
+    o.append(TX((cx + rx) / 2 - 8, (cy + ry) / 2, "R_E", "end", 10.5, MUT, True, halo=True))
+    o.append(TX((cx + px) / 2 + 8, (cy + py) / 2 + 4, "R_E + h_I", "start", 10.5, MUT, True, halo=True))
     o.append(W(rx - hx * 40, ry - hy * 40, rx + hx * 40, ry + hy * 40, c=FNT, lw=1, dash="2 3"))
     o.append(W(px, py, px + (px - cx) / (R + hh) * 46, py + (py - cy) / (R + hh) * 46, c=FNT, lw=1, dash="2 3"))
     o.append(ARR(rx, ry, px + dx * 46, py + dy * 46, c=SIG, lw=2, head=7))
@@ -520,8 +520,8 @@ def _f07_klob_fig():
     o.append(TX(rx + 34, ry - 4, "θ", "start", 11, SIG, True, halo=True))
     o.append(TX(px + 12, py - 20, "z'", "start", 11, GLD, True, halo=True))
     o.append(T(14, 318, "中心・受信機・通る点の三角形の正弦定理から", "start", 9.5, INK))
-    o.append(TX(14, 336, "sin z' = R cos θ / (R + h_I)", "start", 10.5, GLD, True))
-    o.append(TX(14, 354, "倍率 m_I(θ) = 1 / cos z'（R = 6 371 km、h_I = 350 km）", "start", 9.5, INK))
+    o.append(TX(14, 336, "sin z' = R_E cos θ / (R_E + h_I)", "start", 10.5, GLD, True))
+    o.append(TX(14, 354, "倍率 m_I(θ) = 1 / cos z'（R_E = 6 371 km、h_I = 350 km）", "start", 9.5, INK))
     # (b) 倍率と仰角
     xb = 392
     o.append(T(xb, 18, "(b) 天頂の何倍か（電離層の倍率）", "start", 11.5, INK, True))
@@ -724,7 +724,8 @@ def _f07_mpgeom_fig():
         o.append(_f07_sat(sx_, sy_, c, 0.8))
         o.append(T(sx_, sy_ - 10, "%d° %s" % (el, "使う" if el > 15 else "使わない"), "middle", 9, c if el > 15 else MUT, True, halo=True))
     o.append(T(20, 546, "低い衛星の電波は、大気を長く通り、地面や建物で反射しやすく、", "start", 9.5, INK))
-    o.append(T(20, 562, "アンテナの利得も低い。使う衛星が減るので DOP（4 節）は上がる。", "start", 9.5, INK))
+    o.append(T(20, 562, "アンテナの利得も低い。ただし、使う衛星が減ると、衛星の並びで決まる", "start", 9.5, INK))
+    o.append(T(20, 578, "誤差の倍率（4 節）が大きくなる。", "start", 9.5, INK))
     cx, cy, R = 560, 450, 95
     sats = [(q[1], q[2], q[0], PUR if q[1] > 15 else FNT) for q in _F07_VL]
     o.append(sky(cx, cy, R, sats, dot=4.2))
