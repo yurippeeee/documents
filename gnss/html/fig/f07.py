@@ -187,7 +187,7 @@ def _f07_klob_lt(lt, eld=90.0, azd=180.0, scale=1.0):
 
 
 def _f07_shell(eld):
-    """薄い殻（高さ 350 km）のマッピング関数 1/cos z'（sin z' = R cos θ /(R + h)）。"""
+    """薄い殻（高さ 350 km）のマッピング関数 1/cos z'（sin z' = R cos θ /(R + h_I)）。"""
     s = _F07_RE * math.cos(eld * _F07_D2R) / (_F07_RE + _F07_HI)
     return 1 / math.sqrt(1 - s * s)
 
@@ -440,8 +440,9 @@ def _f07_tec(Nm, hm, H):
     return float(_f07_np.trapezoid(_f07_chap(hs, Nm, hm, H), hs))
 
 
-_F07_DAY = (1.0e12, 300e3, 60e3)      # 昼の例（最も多い所の電子の数 [個/m³]・その高さ・広がり）
-_F07_NIGHT = (2.0e11, 350e3, 70e3)    # 夜の例
+_F07_SQ2PIE = math.sqrt(2 * math.pi * math.e)   # チャップマンの形の積分 ∫exp(½(1 − z − e^{−z}))dz
+_F07_DAY = (25e16 / (60e3 * _F07_SQ2PIE), 300e3, 60e3)     # 昼の例（最も多い所の電子の数 [個/m³]・その高さ・広がり）。TEC 25 TECU
+_F07_NIGHT = (6e16 / (70e3 * _F07_SQ2PIE), 350e3, 70e3)    # 夜の例。TEC 6 TECU
 _F07_TECD = _f07_tec(*_F07_DAY) / 1e16
 _F07_TECN = _f07_tec(*_F07_NIGHT) / 1e16
 
@@ -494,7 +495,7 @@ def _f07_klob_fig():
         return PL(pts, c=c, lw=lw)
     o.append(arc(R, -1.05, 1.05, SIG, 1.6))
     o.append(arc(R + hh, -0.95, 0.95, GLD, 2.4))
-    o.append(T(cx + (R + hh) * math.sin(0.62) + 6, cy - (R + hh) * math.cos(0.62) + 4, "電離層（高さ h）", "start", 9.5, GLD, True, halo=True))
+    o.append(TX(cx + (R + hh) * math.sin(0.62) + 6, cy - (R + hh) * math.cos(0.62) + 4, "電離層（高さ h_I）", "start", 9.5, GLD, True, halo=True))
     o.append(T(cx + R * math.sin(0.95) + 6, cy - R * math.cos(0.95) + 10, "地面", "start", 9.5, SIG, halo=True))
     a_r = -0.42                                    # 受信機の位置（中心から見た角）
     rx, ry = cx + R * math.sin(a_r), cy - R * math.cos(a_r)
@@ -509,7 +510,7 @@ def _f07_klob_fig():
     o.append(D(cx, cy, MUT, 3))
     o.append(T(cx + 6, cy + 4, "地球の中心", "start", 9, MUT, halo=True))
     o.append(TX((cx + rx) / 2 - 8, (cy + ry) / 2, "R", "end", 10.5, MUT, True, halo=True))
-    o.append(TX((cx + px) / 2 + 8, (cy + py) / 2 + 4, "R + h", "start", 10.5, MUT, True, halo=True))
+    o.append(TX((cx + px) / 2 + 8, (cy + py) / 2 + 4, "R + h_I", "start", 10.5, MUT, True, halo=True))
     o.append(W(rx - hx * 40, ry - hy * 40, rx + hx * 40, ry + hy * 40, c=FNT, lw=1, dash="2 3"))
     o.append(W(px, py, px + (px - cx) / (R + hh) * 46, py + (py - cy) / (R + hh) * 46, c=FNT, lw=1, dash="2 3"))
     o.append(ARR(rx, ry, px + dx * 46, py + dy * 46, c=SIG, lw=2, head=7))
@@ -519,8 +520,8 @@ def _f07_klob_fig():
     o.append(TX(rx + 34, ry - 4, "θ", "start", 11, SIG, True, halo=True))
     o.append(TX(px + 12, py - 20, "z'", "start", 11, GLD, True, halo=True))
     o.append(T(14, 318, "中心・受信機・通る点の三角形の正弦定理から", "start", 9.5, INK))
-    o.append(TX(14, 336, "sin z' = R cos θ / (R + h)", "start", 10.5, GLD, True))
-    o.append(TX(14, 354, "倍率 m_I(θ) = 1 / cos z'（R = 6 371 km、h = 350 km）", "start", 9.5, INK))
+    o.append(TX(14, 336, "sin z' = R cos θ / (R + h_I)", "start", 10.5, GLD, True))
+    o.append(TX(14, 354, "倍率 m_I(θ) = 1 / cos z'（R = 6 371 km、h_I = 350 km）", "start", 9.5, INK))
     # (b) 倍率と仰角
     xb = 392
     o.append(T(xb, 18, "(b) 天頂の何倍か（電離層の倍率）", "start", 11.5, INK, True))
@@ -545,13 +546,13 @@ def _f07_klob_fig():
     pk = _f07_klob_lt(14.0)
     o.append(D(r.X(14), r.Y(pk), GLD, 4.5))
     o.append(T(r.X(14) + 10, r.Y(pk) - 4, "14 時に頂点 %.2f m" % pk, "start", 10, GLD, True, halo=True))
-    d0 = _f07_klob(_F07_TOK[0], _F07_TOK[1], 90, 0, (14 - _F07_TOK[1] / 15) * 3600, detail=True)
+    d0 = _f07_klob(_F07_TOK[0], _F07_TOK[1], 90, 180, (14 - _F07_TOK[1] / 15) * 3600, detail=True)   # 曲線（_f07_klob_lt）と同じ方位
     half = d0["PER"] / 4 / 3600
     o.append(DIM(r.X(14 - half), r.Y(0.45), r.X(14 + half), r.Y(0.45), None, c=GLD))
     o.append(TX(r.X(14), r.Y(0.45) - 6, "cos の半周期（周期 P_I = %.1f 時間の半分）" % (d0["PER"] / 3600), "middle", 9.5, GLD, halo=True))
     o.append(DIM(r.X(20.6), r.Y(1.499), r.X(20.6), r.Y(pk), None, c=GLD))
     o.append(TX(r.X(20.9), r.Y((pk + 1.5) / 2) + 4, "振幅 A_I = %.2f m" % (d0["AMP"] * _F07_C), "start", 9.5, GLD, True, halo=True))
-    return SVG(700, 632, o, "電離層の遅れの計算。(a) 電離層を高さ h の薄い殻とみなすと、仰角 θ で見た電波は、殻を天頂角 z' で斜めに横切り、遅れは天頂の 1/cos z' 倍になる。(b) その倍率は、真上で 1、仰角 30° で 1.75、5° で 3.04 になる。クロブッチャー・モデルの近似の式（破線）もほぼ同じ。(c) クロブッチャー・モデルの天頂の遅れは、夜は 5 ns で一定、昼は 14 時を頂点とする cos の半周期の形で、振幅と周期を、航法メッセージの 8 つの係数（ここでは例の値）から計算する。")
+    return SVG(700, 632, o, "電離層の遅れの計算。(a) 電離層を高さ h<sub>I</sub> の薄い殻とみなすと、仰角 θ で見た電波は、殻を天頂角 z' で斜めに横切り、遅れは天頂の 1/cos z' 倍になる。(b) その倍率は、真上で 1、仰角 30° で 1.75、5° で 3.04 になる。クロブッチャー・モデルの近似の式（破線）もほぼ同じ。(c) クロブッチャー・モデルの天頂の遅れは、夜は 5 ns で一定、昼は 14 時を頂点とする cos の半周期の形で、振幅と周期を、航法メッセージの 8 つの係数（ここでは例の値）から計算する。")
 F["e07_klob"] = _f07_klob_fig()
 
 
@@ -729,7 +730,7 @@ def _f07_mpgeom_fig():
     o.append(sky(cx, cy, R, sats, dot=4.2))
     o.append(CIRC(cx, cy, R * (90 - 15) / 90, c=ALI, lw=1.4, dash="5 3"))
     o.append(T(cx, cy + R + 32, "東京の空（時刻 0）。赤の破線の外を使わない", "middle", 9.5, MUT))
-    return SVG(700, 590, o, "反射の幾何と仰角マスク。(a) 地面で反射した電波は、地面に映ったアンテナの位置から来たように見え、余分の道のりは 2h<sub>a</sub> sin θ（h<sub>a</sub> はアンテナの地面からの高さ）。(b) 壁で反射すると 2d<sub>w</sub> cos θ（d<sub>w</sub> は壁までの距離。壁が衛星の向きに垂直な場合）。(c) 直接波が建物でさえぎられ、反射波だけが届くと、遅れの全部が誤差になる。(d) 仰角マスクは、地平線に近い衛星を使わない設定である。誤差の大きい衛星を除く代わりに、使う衛星が減る。")
+    return SVG(700, 590, o, "反射の幾何と仰角マスク。(a) 地面で反射した電波は、地面に映ったアンテナの位置から来たように見え、余分の道のりは 2h<sub>a</sub> sin θ（h<sub>a</sub> はアンテナの地面からの高さ）。(b) 壁で反射すると 2d<sub>w</sub> cos θ（d<sub>w</sub> は壁までの距離。壁が、受信機から見て衛星と反対の側に、衛星の方位に垂直に立つ場合）。(c) 直接波が建物でさえぎられ、反射波だけが届くと、遅れの全部が誤差になる。(d) 仰角マスクは、地平線に近い衛星を使わない設定である。誤差の大きい衛星を除く代わりに、使う衛星が減る。")
 F["e07_mpgeom"] = _f07_mpgeom_fig()
 
 
