@@ -74,7 +74,7 @@ def _f04_chain_fig():
     o.append(W(605, ya + hb, 605, 112, 158, 112, 158, 150, c=SIG, lw=1.6))
     o.append(ARR(158, 140, 158, 150, c=SIG, lw=1.6))
     o.append(T(604, 124, "数の列", "end", 9.5, SIG, True, halo=True))
-    o.append(T(14, 140, "ベースバンド処理（数の計算。衛星ごとに分かれる）", "start", 10.5, PUR, True, halo=True))
+    o.append(T(176, 138, "ベースバンド処理（数の計算。衛星ごとに分かれる）", "start", 10.5, PUR, True, halo=True))
     yb = 150
     # 5: 衛星の数だけ重ねた箱
     for k in (2, 1):
@@ -144,13 +144,14 @@ def _f04_levels_fig():
     q = Plot(xb, 34, 136, 196, (0, 3), (-20, 35))
     o.append(q.axes(xl=None, yl=None, xt=[], yt=[-20, -10, 0, 10, 20, 30], yfmt=_f04_m))
     o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1.2))
-    items = [("A/D の入力", -15.7, ALI), ("1 ms 足す", 16.7, GRN), ("20 ms 足す", 29.7, GRN)]
+    items = [("A/D の|入力", -15.7, ALI), ("1 ms|足す", 16.7, GRN), ("20 ms|足す", 29.7, GRN)]
     for i, (lab, v, c) in enumerate(items):
         x0 = q.X(i + 0.18); x1 = q.X(i + 0.82)
         o.append(RECT(x0, min(q.Y(v), q.Y(0)), x1 - x0, abs(q.Y(v) - q.Y(0)), 2, soft(c), c, 1.2))
         o.append(T((x0 + x1) / 2, q.Y(v) + (14 if v < 0 else -6), _f04_m(v, 1), "middle", 9.5, c, True, halo=True))
-        o.append(T((x0 + x1) / 2, q.y + q.h + 15, lab, "middle", 9, INK))
-    o.append(T(q.x + q.w / 2, q.y + q.h + 30, "（量子化の損失を含む）", "middle", 9, MUT))
+        for j, ln in enumerate(lab.split("|")):
+            o.append(T((x0 + x1) / 2, q.y + q.h + 15 + j * 13, ln, "middle", 9, INK))
+    o.append(T(q.x + q.w / 2, q.y + q.h + 46, "（量子化の損失を含む）", "middle", 9, MUT))
     return SVG(700, 316, o, "RF フロントエンドの各段の信号と雑音の電力（例の値: アンテナの雑音温度 100 K、最初の増幅器の雑音指数 1 dB・利得 18 dB）。(a) 増幅は信号と雑音を同じだけ大きくするので、帯域の中の SN 比は、最初の増幅器が雑音を足した後は −15 dB ほどのまま変わらない。(b) 信号が雑音の上に出るのは、衛星の符号を掛けて足した後で、1 ms で 16.7 dB、20 ms で 29.7 dB になる（3 節の 2 bit の量子化の損失 0.74 dB を含む）。")
 F["e04_levels"] = _f04_levels_fig()
 
@@ -321,7 +322,7 @@ def _f04_tcxo_fig():
         if -25 <= ppm <= 25:
             o.append(W(p.x + p.w, p.Y(ppm), p.x + p.w + 4, p.Y(ppm), c=MUT, lw=1))
             o.append(T(p.x + p.w + 7, p.Y(ppm) + 3.3, _f04_m(k), "start", 9.5, MUT))
-    o.append(T(p.x + p.w + 30, p.y + p.h / 2, "L1 での見かけのずれ [kHz]", "middle", 10, MUT, rot=90))
+    o.append(T(p.x + p.w + 40, p.y + p.h / 2, "L1 での見かけのずれ [kHz]", "middle", 10, MUT, rot=90))
     return SVG(700, 290, o, "TCXO と、1 つの発振器から作る周波数（例の値）。(a) 局部発振器・A/D 変換の標本の時刻・ベースバンド処理の回路の時計は、どれも同じ基準の発振器から作る。(b) 補償しない水晶の発振器の周波数は温度で ±20 ppm ほど変わり（例の形）、L1 では ±30 kHz の見かけのずれになる。TCXO は ±0.5 ppm（±788 Hz）以内に収める。紫の帯は、衛星の動きによるドップラーの範囲（±5 kHz、代表値）を ppm に直したもの。")
 F["e04_tcxo"] = _f04_tcxo_fig()
 
@@ -394,8 +395,8 @@ def _f04_alias_fig():
             o.append(RECT(r.X(a1), r.y + 6, r.X(a2) - r.X(a1), r.h - 12, 1, SSOFT, SIG, 1.2))
             o.append(RECT(r.X(b1), r.y + 6, r.X(b2) - r.X(b1), r.h - 12, 1, SIG, SIG, 1.2))
         o.append(TX(r.x, r.y - 4, lab, "start", 9.5, c, True))
-        o.append(T(r.X(fsv / 2) + 3, r.y + r.h - 4, "f_s/2", "start", 9, MUT, halo=True) if fsv != 8.184 else "")
-    o.append(T(680, 238 + 2 * 76 + 80, "周波数 [MHz]（灰色: 0〜f_s/2、破線: f_s/2 の整数倍）", "end", 9.5, MUT))
+        o.append(TX(r.X(fsv / 2) + 3, r.y + r.h - 4, "f_s/2", "start", 9, MUT, False, True) if fsv != 8.184 else "")
+    o.append(TX(680, 238 + 2 * 76 + 80, "周波数 [MHz]（灰色: 0〜f_s/2、破線: f_s/2 の整数倍）", "end", 9.5, MUT))
     return SVG(700, 482, o, "標本をとると周波数が折り返す（例の値: 中間周波数 4.092 MHz、帯域の幅 2.046 MHz）。(a) 4.092 MHz の正弦波を 5.456 MHz で標本にした点は、1.364 MHz の正弦波の上にも乗り、標本の列では区別できない。(b) 帯域が f_s/2 ごとの 1 つの区間に入るサンプリング周波数（緑）なら、折り返しても帯域は自分と重ならない。(c) 16.368 MHz ではそのまま、5.456 MHz では裏返って低い周波数に見える。8.184 MHz では、中間周波数が f_s/2 に来て、帯域の上と下の半分が重なる。")
 F["e04_alias"] = _f04_alias_fig()
 
@@ -500,10 +501,6 @@ def _f04_qloss_fig():
           ("2 bit（±1・±3、しきい値 1.0σ）", [(-3, -3), (-1, -3), (-1, -1), (0, -1), (0, 1), (1, 1), (1, 3), (3, 3)], 3.6, "−0.55 dB"),
           ("3 bit（±1〜±7、段の幅 0.59σ）", None, 8.0, "−0.17 dB")]
     d3 = 0.586
-    st3 = [(-3, -7)]
-    for k in range(-3, 4):
-        lo = k * d3
-        st3 += [(lo, 2 * k - 1 if k <= 0 else 2 * k - 1), (lo, 2 * k + 1)]
     st3 = [(-3, -7), (-3 * d3, -7), (-3 * d3, -5), (-2 * d3, -5), (-2 * d3, -3), (-d3, -3), (-d3, -1), (0, -1), (0, 1), (d3, 1), (d3, 3), (2 * d3, 3), (2 * d3, 5), (3 * d3, 5), (3 * d3, 7), (3, 7)]
     for i, (lab, pts, ym, ls) in enumerate(qs):
         x0 = 62 + i * 214
@@ -514,7 +511,7 @@ def _f04_qloss_fig():
         o.append(p.axes(xl="入力 x/σ", yl="出力 q" if i == 0 else None, xt=[-3, -2, -1, 0, 1, 2, 3], yt=yt, xfmt=_f04_m, yfmt=_f04_m))
         o.append(p.line(pts if pts else st3, c=SIG, lw=2.2))
         o.append(T(p.x, p.y - 6, lab, "start", 9.5, SIG, True))
-        o.append(T(p.x + p.w - 4, p.y + 14, ls, "end", 9.5, ALI, True, halo=True))
+        o.append(T(p.x + p.w - 4, p.y + p.h - 8, ls, "end", 9.5, ALI, True, halo=True))
     # (b) 2 bit のしきい値
     o.append(T(14, 222, "(b) 2 bit の、しきい値 βσ と損失", "start", 11, INK, True))
     q = Plot(70, 242, 270, 150, (0.2, 2.5), (-1.4, 0))
@@ -544,11 +541,461 @@ def _f04_qloss_fig():
             continue
         for v, c in zip(vals, (MUT, ALI, SIG, GRN)):
             o.append(CIRC(r.X(fsv), r.Y(v), 3.4, c=c, lw=1.5, fill=SCR))
-    for v, c in ((-1.96, ALI), (-0.55, SIG), (-0.17, GRN)):
-        o.append(W(r.X(30.5), r.Y(v), r.X(34), r.Y(v), c=c, lw=1.6, dash="2 2"))
-    o.append(T(r.X(33.8), r.Y(-1.96) + 13, "独立なとき", "end", 9, ALI, True, halo=True))
+    o.append(W(r.X(26), r.Y(-1.96), r.X(34), r.Y(-1.96), c=ALI, lw=1.6, dash="2 2"))
+    o.append(T(r.X(33.8), r.Y(-1.96) + 13, "1 bit・標本が独立なとき", "end", 9, ALI, True, halo=True))
     o.append(T(r.X(7.8), r.y + 14, "重なる", "middle", 9, ALI, True, halo=True))
     o.append(LEGL(r.x - 50, r.y + r.h + 46, [(ALI, None, "1 bit"), (SIG, None, "2 bit"), (GRN, None, "3 bit"), (MUT, None, "量子化しない")], 9, 8))
     o.append(T(r.x + r.w, r.y + r.h + 62, "○: シミュレーション（各 400 回）", "end", 9, MUT))
-    return SVG(700, 466, o, "量子化の損失（中間周波数 4.092 MHz、幅 2.046 MHz の理想のフィルタ、積分の時間 1 ms）。(a) 1・2・3 bit の量子化の入力と出力。損失は、標本どうしが独立なときの式の値。(b) 2 bit の損失は、しきい値が雑音の標準偏差に近いとき最も小さい（線は式と近似の計算、点はシミュレーション）。(c) 帯域の幅より速く標本をとると、量子化の損失は小さくなる。赤い範囲は、帯域が折り返して自分と重なるサンプリング周波数。点線は、標本が独立なときの量子化の損失。")
+    return SVG(700, 466, o, "量子化の損失（中間周波数 4.092 MHz、幅 2.046 MHz の理想のフィルタ、積分の時間 1 ms）。(a) 1・2・3 bit の量子化の入力と出力。損失は、標本どうしが独立なときの式の値。(b) 2 bit の損失は、しきい値が雑音の標準偏差に近いとき最も小さい（線は式と近似の計算、点はシミュレーション）。(c) 帯域の幅より速く標本をとると、量子化の損失は小さくなる。赤い範囲は、帯域が折り返して自分と重なるサンプリング周波数。点線は、1 bit で標本が独立なときの損失（−1.96 dB）。")
 F["e04_qloss"] = _f04_qloss_fig()
+
+
+# =====================================================================
+# 4 節: NCO — 足し算を繰り返して位相を作る
+# =====================================================================
+def _f04_nco_fig():
+    o = []
+    o.append(T(14, 17, "(a) 位相のレジスタ（1 周期 = 2^32）", "start", 11, INK, True))
+    p = Plot(56, 40, 196, 150, (0, 20), (0, 1.05))
+    o.append(p.axes(xl="標本の番号 k", yl="位相 [周期]", xt=[0, 4, 8, 12, 16, 20], yt=[0, 0.25, 0.5, 0.75, 1], yfmt=_f04_m))
+    for frac, c in ((0.25, SIG), (0.3, PUR)):
+        pts = []
+        for k in range(21):
+            ph = (k * frac) % 1.0
+            pts.append((k, ph))
+            o.append(D(p.X(k), p.Y(ph), c, 3.0))
+        for k in range(20):
+            a, b = pts[k], pts[k + 1]
+            if b[1] > a[1]:
+                o.append(W(p.X(a[0]), p.Y(a[1]), p.X(b[0]), p.Y(b[1]), c=c, lw=1.2))
+    o.append(T(p.x + 2, p.y + p.h + 44, "青: K = 2^30（1/4 周期ずつ）", "start", 9.5, SIG, True))
+    o.append(T(p.x + 2, p.y + p.h + 58, "紫: K = 0.3 × 2^32（0.3 周期ずつ）", "start", 9.5, PUR, True))
+    # (b) cos の表を引いた値
+    o.append(T(290, 17, "(b) 位相で cos の表を引く", "start", 11, INK, True))
+    q = Plot(312, 40, 176, 150, (0, 20), (-1.2, 1.2))
+    o.append(q.axes(xl="標本の番号 k", yl=None, xt=[0, 4, 8, 12, 16, 20], yt=[-1, 0, 1], yfmt=_f04_m))
+    kk = _f04_np.linspace(0, 20, 401)
+    for frac, c in ((0.25, SIG), (0.3, PUR)):
+        o.append(q.line([(k, math.cos(2 * math.pi * frac * k)) for k in kk], c=c, lw=1.0, dash="3 3"))
+        for k in range(21):
+            o.append(D(q.X(k), q.Y(math.cos(2 * math.pi * frac * k)), c, 3.0))
+    o.append(TX(q.x + 2, q.y + q.h + 44, "青: 4.092 MHz（f_s/4）", "start", 9.5, SIG, True))
+    o.append(TX(q.x + 2, q.y + q.h + 58, "紫: 4.910 MHz（0.3 f_s）", "start", 9.5, PUR, True))
+    # (c) 符号の NCO
+    o.append(T(512, 17, "(c) 符号の NCO（K = 2^28）", "start", 11, INK, True))
+    r = Plot(540, 40, 140, 150, (0, 48), (0, 3.2))
+    o.append(r.axes(xl="標本の番号 k", yl=None, xt=[0, 16, 32, 48], yt=[0, 1, 2, 3], yfmt=_f04_m))
+    o.append(r.steps([(k, (k // 16)) for k in range(49)], c=GLD, lw=2.0))
+    for n in range(3):
+        v = int(_F04_PM[n])
+        o.append(T(r.X(16 * n + 8), r.Y(n) - 6, "a[%d] = %s" % (n, "+1" if v > 0 else "−1"), "middle", 9, ALI if v < 0 else GRN, True, halo=True))
+    o.append(T(r.x + 2, r.y + r.h + 44, "整数部 = チップの番号", "start", 9.5, GLD, True))
+    o.append(T(r.x + 2, r.y + r.h + 58, "1 チップに 16 標本", "start", 9.5, GLD, True))
+    # 例の値の表
+    y0 = 266
+    o.append(W(14, y0 - 8, 686, y0 - 8, c=LIN, lw=0.8))
+    rows = [("搬送波 4.092 MHz", "K = 2^30 = 1 073 741 824"), ("搬送波 4.093 MHz（ドップラー +1 kHz）", "K = 1 074 004 224（+262 400）"),
+            ("符号 1.023 M チップ/s", "K = 2^28 = 268 435 456"), ("周波数の細かさ", "f_s/2^32 = 3.8 mHz")]
+    o.append(TX(14, y0 + 8, "f_s = 16.368 MHz、32 ビットのレジスタの例: f_{NCO} = K f_s/2^{32}", "start", 10, INK, True))
+    for i, (a, b) in enumerate(rows):
+        yy = y0 + 28 + i * 17
+        o.append(T(30, yy, a, "start", 9.5, MUT))
+        o.append(TX(300, yy, b, "start", 9.5, INK, True))
+    return SVG(700, 352, o, "NCO（数値制御発振器、f_s = 16.368 MHz の例）。(a) 標本ごとにレジスタに K を足し、あふれた桁を捨てると、位相が一定の速さで増える。K が大きいほど速く回り、周波数が高い。(b) 位相で cos と sin の表を引いた値が、局部の搬送波になる。(c) 符号の NCO は、位相の整数部をチップの番号として数え、C/A 符号の表を引く（PRN 1 の最初の 3 チップ）。")
+F["e04_nco"] = _f04_nco_fig()
+
+
+# =====================================================================
+# 4 節: 相関器のブロック図
+# =====================================================================
+def _f04_mult(x, y, c=INK):
+    return CIRC(x, y, 13, c=c, lw=1.5, fill=SCR) + W(x - 6, y - 6, x + 6, y + 6, c=c, lw=1.6) + W(x - 6, y + 6, x + 6, y - 6, c=c, lw=1.6)
+
+
+def _f04_corrblock_fig():
+    o = []
+    yI, yQ, ym = 84, 236, 160
+    o.append(RECT(14, ym - 24, 96, 48, 7, SSOFT, SIG, 1.4))
+    o.append(TX(62, ym - 4, "標本 y_k", "middle", 10.5, INK, True))
+    o.append(T(62, ym + 12, "A/D 変換から", "middle", 9, MUT))
+    o.append(W(110, ym, 130, ym, c=SIG, lw=1.6))
+    o.append(W(130, yI, 130, yQ, c=SIG, lw=1.6))
+    xc, xk, xs = 230, 380, 486
+    for yy in (yI, yQ):
+        o.append(ARR(130, yy, xc - 13, yy, c=SIG, lw=1.6))
+        o.append(_f04_mult(xc, yy))
+        o.append(ARR(xc + 13, yy, xk - 13, yy, c=SIG, lw=1.6))
+        o.append(_f04_mult(xk, yy))
+        o.append(ARR(xk + 13, yy, xs - 4, yy, c=SIG, lw=1.6))
+        for k in (2, 1, 0):
+            o.append(RECT(xs + 5 * k, yy - 20 - 5 * k, 62, 40, 6, PAN, PUR, 1.2))
+        o.append(TX(xs + 31, yy - 3, "Σ（J 個）", "middle", 10, PUR, True))
+        o.append(T(xs + 31, yy + 12, "E・P・L", "middle", 9, PUR))
+    # NCO
+    _f04_box(o, xc - 56, ym - 22, 112, 44, "搬送波の NCO", "cos・sin の表", GLD, None)
+    _f04_box(o, xk - 56, ym - 22, 112, 44, "符号の NCO", "C/A 符号の表", GLD, None)
+    o.append(ARR(xc, ym - 22, xc, yI + 14, c=GLD, lw=1.5))
+    o.append(ARR(xc, ym + 22, xc, yQ - 14, c=GLD, lw=1.5))
+    o.append(ARR(xk, ym - 22, xk, yI + 14, c=GLD, lw=1.5))
+    o.append(ARR(xk, ym + 22, xk, yQ - 14, c=GLD, lw=1.5))
+    o.append(TX(xc - 8, yI + 34, "2cos ψ̂_k", "end", 10, GLD, True, True))
+    o.append(TX(xc - 8, yQ - 26, "2sin ψ̂_k", "end", 10, GLD, True, True))
+    o.append(T(xk - 8, yI + 34, "E・P・L の 3 つ", "end", 9.5, GLD, True, halo=True))
+    o.append(TX(xk + 8, yQ - 26, "a(t_k − τ̂ ∓ Δ_{EL}T_c/2) など", "start", 9.5, GLD, True, True))
+    # 出力
+    o.append(TX(xs + 78, yI - 30, "I_E・I_P・I_L", "start", 10.5, SIG, True))
+    o.append(TX(xs + 78, yQ + 40, "Q_E・Q_P・Q_L", "start", 10.5, SIG, True))
+    _f04_box(o, 600, ym - 30, 90, 60, "追尾の計算", "プログラム", PUR, "5 章")
+    o.append(W(xs + 72, yI, 645, yI, c=SIG, lw=1.6))
+    o.append(ARR(645, yI, 645, ym - 30, c=SIG, lw=1.6))
+    o.append(W(xs + 72, yQ, 645, yQ, c=SIG, lw=1.6))
+    o.append(ARR(645, yQ, 645, ym + 30, c=SIG, lw=1.6))
+    o.append(T(612, yI - 6, "1 ms ごと", "middle", 9, SIG, True))
+    # 直す向き
+    o.append(W(600, ym, xk + 56 + 18, ym, c=GLD, lw=1.4, dash="5 3"))
+    o.append(ARR(xk + 56 + 18, ym, xk + 58, ym, c=GLD, lw=1.4))
+    o.append(W(xk - 56, ym + 8, xc + 58, ym + 8, c=GLD, lw=1.4, dash="5 3"))
+    o.append(ARR(xc + 70, ym + 8, xc + 58, ym + 8, c=GLD, lw=1.4))
+    o.append(T(xs + 50, ym - 6, "K を書き換える", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(14, 300, "上の段（I）は cos、下の段（Q）は sin を掛ける。符号を掛けて足す所は、局部の符号の遅れを少しずつ変えた E・P・L の 3 つがあり、", "start", 9.5, INK))
+    o.append(T(14, 315, "全部で 6 つの和（6 つの相関器の出力）ができる。積分の時間（ふつう 1 ms）だけ足したら値を出し、和を 0 に戻す。", "start", 9.5, INK))
+    return SVG(700, 326, o, "相関器の組み立て。A/D 変換の標本に、搬送波の NCO が作る cos と sin を掛け（I と Q）、符号の NCO が作る局部の符号を掛けて、積分の時間のあいだ足す。追尾の計算（5 章）が、出力の I・Q からずれを求め、NCO の K を書き換える。")
+F["e04_corrblock"] = _f04_corrblock_fig()
+
+
+# =====================================================================
+# 4 節: I・Q の平面 — 位相のずれ・周波数のずれ・雑音（シミュレーション）
+# =====================================================================
+def _f04_corrsim(n, dtau, dpsi, df, cn0, T_=1e-3, seed=5, fs=16.368e6):
+    """中間周波数の標本（√(2C) = 1）から E・P・L の I・Q を n 回計算する（Δ_EL = 1 チップ）。返り値 [n, 3, 2]。"""
+    rg = _f04_np.random.default_rng(seed)
+    J = int(round(fs * T_)); t = _f04_np.arange(J) / fs
+    tau = 100.3 / _F04_RC; psi = 0.7
+    sig = _F04_PM[(_f04_np.floor((t - tau) * _F04_RC).astype(int)) % 1023] * _f04_np.cos(2 * math.pi * (_F04_FIF + df) * t + psi)
+    sd = math.sqrt(0.5 / 10 ** (cn0 / 10) * fs / 2) if cn0 is not None else 0.0
+    th = 2 * math.pi * _F04_FIF * t + psi - math.radians(dpsi)
+    c2, s2 = 2 * _f04_np.cos(th), 2 * _f04_np.sin(th)
+    loc = [_F04_PM[(_f04_np.floor((t - tau - (dtau + off) / _F04_RC) * _F04_RC).astype(int)) % 1023] for off in (-0.5, 0.0, 0.5)]
+    out = _f04_np.zeros((n, 3, 2))
+    for i in range(n):
+        y = sig + (sd * rg.standard_normal(J) if sd > 0 else 0)
+        for j in range(3):
+            out[i, j, 0] = (y * loc[j] * c2).sum() / J
+            out[i, j, 1] = (y * loc[j] * s2).sum() / J
+    return out
+
+
+def _f04_iq_fig():
+    o = []
+    def plane(x, y, w, lab):
+        p = Plot(x, y, w, w, (-1.25, 1.25), (-1.25, 1.25))
+        o.append(p.axes(xl="I（√(2C) = 1）", yl="Q", xt=[-1, 0, 1], yt=[-1, 0, 1], xfmt=_f04_m, yfmt=_f04_m))
+        o.append(W(p.X(0), p.y, p.X(0), p.y + p.h, c=MUT, lw=1))
+        o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1))
+        o.append(p.line([(math.cos(a), math.sin(a)) for a in _f04_np.linspace(0, 2 * math.pi, 121)], c=FNT, lw=1.1, dash="4 3"))
+        o.append(T(x - 6, 17, lab, "start", 11, INK, True))
+        return p
+    p = plane(60, 40, 170, "(a) 位相のずれと、データ")
+    pts = [(0, 1, SIG, "Δψ = 0°", (6, -8)), (30, 1, GRN, "30°", (6, 14)), (90, 1, GLD, "90°", (8, 4)), (30, -1, ALI, "30°・d = −1", (-6, -8))]
+    for dp, d, c, lab, off in pts:
+        I_ = d * math.cos(math.radians(dp)); Q_ = -d * math.sin(math.radians(dp))
+        o.append(ARR(p.X(0), p.Y(0), p.X(I_), p.Y(Q_), c=c, lw=1.8, head=6))
+        o.append(D(p.X(I_), p.Y(Q_), c, 4))
+        o.append(TX(p.X(I_) + off[0], p.Y(Q_) + off[1], lab, "start" if off[0] > 0 else "end", 9.5, c, True, True))
+    # (b) 周波数のずれ
+    q = plane(300, 40, 170, "(b) 周波数のずれ（1 ms）")
+    dfs = _f04_np.linspace(0, 1000, 201)
+    cur = [(float(_f04_np.sinc(f * 1e-3)) * math.cos(math.pi * f * 1e-3), -float(_f04_np.sinc(f * 1e-3)) * math.sin(math.pi * f * 1e-3)) for f in dfs]
+    o.append(q.line(cur, c=PUR, lw=1.8))
+    for f, off in ((0, (6, -8)), (250, (8, -6)), (500, (8, 16)), (750, (-8, 14))):
+        sc = float(_f04_np.sinc(f * 1e-3)); I_ = sc * math.cos(math.pi * f * 1e-3); Q_ = -sc * math.sin(math.pi * f * 1e-3)
+        o.append(D(q.X(I_), q.Y(Q_), PUR, 4))
+        o.append(T(q.X(I_) + off[0], q.Y(Q_) + off[1], "%d Hz（%.2f）" % (f, sc), "start" if off[0] > 0 else "end", 9, PUR, True, halo=True))
+    o.append(T(q.X(0) + 6, q.Y(0) - 6, "1000 Hz（0）", "start", 9, PUR, True, halo=True))
+    # (c) 雑音のある E・P・L（シミュレーション）
+    r = plane(530, 40, 150, "(c) 雑音（45 dB-Hz）")
+    sim = _f04_corrsim(60, 0.25, 30, 0, 45.0)
+    for j, c in ((0, GRN), (2, GLD), (1, SIG)):
+        for i in range(sim.shape[0]):
+            o.append(D(r.X(sim[i, j, 0]), r.Y(sim[i, j, 1]), c, 1.8))
+    for lab, v, c, off in (("E", 0.75, GRN, (-8, -6)), ("P", 0.75, SIG, (8, 14)), ("L", 0.25, GLD, (-8, 14))):
+        I_ = v * math.cos(math.radians(30)); Q_ = -v * math.sin(math.radians(30))
+        o.append(CIRC(r.X(I_), r.Y(Q_), 4.5, c=INK, lw=1.6, fill=SCR))
+    o.append(T(r.X(0.72), r.Y(0.05), "E と P", "middle", 9, SIG, True, halo=True))
+    o.append(T(r.X(0.0), r.Y(-0.5), "L", "middle", 9, GLD, True, halo=True))
+    o.append(T(530, 284, "Δτ = +0.25 チップ、Δψ = 30°、60 回", "start", 9, MUT))
+    o.append(T(530, 298, "○: 式の値、点: 標本からの計算", "start", 9, MUT))
+    return SVG(700, 312, o, "相関器の出力 I・Q を平面の点として見る（√(2C) = 1、積分の時間 1 ms）。(a) 搬送波の位相のずれ Δψ は点を回し、データのビットが −1 になると点は原点の反対側に移る。(b) 周波数のずれは、点を sinc(Δf T_coh) 倍に縮め、平均の位相 πΔf T_coh だけ回す。1 kHz で 0 になる。(c) C/N0 = 45 dB-Hz の雑音を足した中間周波数の標本（16.368 MHz、PRN 1）から計算した E・P・L の点（局部の符号が 0.25 チップ遅れ、位相が 30° ずれている場合）。雑音の散らばりの標準偏差は、I と Q のそれぞれで √(N₀/T_coh) = 0.126 である。")
+F["e04_iq"] = _f04_iq_fig()
+
+
+# =====================================================================
+# 4 節: E・P・L の 3 点と三角形
+# =====================================================================
+def _f04_epl_fig():
+    o = []
+    lam = lambda x: max(0.0, 1 - abs(x))
+    cases = [(0.0, "(a) 合っている（Δτ = 0）"), (0.25, "(b) 局部の符号が 0.25 チップ遅れ"), (-0.5, "(c) 局部の符号が 0.5 チップ早い")]
+    for i, (dt, ttl) in enumerate(cases):
+        x0 = 56 + i * 222
+        p = Plot(x0, 40, 180, 130, (-1.6, 1.6), (0, 1.15))
+        o.append(T(x0 - 40, 17, ttl, "start", 10.5, INK, True))
+        o.append(p.axes(xl="局部の符号のずれ [チップ]", yl="大きさ" if i == 0 else None, xt=[-1.5, -1, -0.5, 0, 0.5, 1, 1.5], yt=[0, 0.5, 1], xfmt=_f04_m, yfmt=_f04_m))
+        o.append(p.line([(-1.6, 0), (-1, 0), (0, 1), (1, 0), (1.6, 0)], c=FNT, lw=1.6))
+        vals = []
+        for off, lab, c in ((-0.5, "E", GRN), (0.0, "P", SIG), (0.5, "L", GLD)):
+            x = dt + off; v = lam(x); vals.append(v)
+            o.append(W(p.X(x), p.Y(0), p.X(x), p.Y(v), c=c, lw=1.4, dash="3 2"))
+            o.append(D(p.X(x), p.Y(v), c, 4.6))
+            ax, dx = {"E": ("end", -6), "P": ("middle", 0), "L": ("start", 6)}[lab]
+            o.append(T(p.X(x) + dx, p.Y(v) - (12 if lab == "P" else 6), "%s %.2f" % (lab, v), ax, 9.5, c, True, halo=True))
+        dd = vals[0] - vals[2]
+        o.append(T(p.x + p.w / 2, p.y + p.h + 48, "E − L = %s" % _f04_m(dd, 2), "middle", 10, ALI if abs(dd) > 1e-9 else GRN, True))
+        o.append(T(p.x + p.w / 2, p.y + p.h + 63, ("ずれ (E − L)/2 = %s チップ" % _f04_m(dd / 2, 2)) if abs(dd) > 1e-9 else "ずれなし", "middle", 9.5, MUT))
+    return SVG(700, 250, o, "E・P・L の 3 つの相関器の値（E と L の間隔 1 チップ、大きさは √(2C) で割った値）。横軸は、受けた符号に対する局部の符号のずれで、三角形は 2 章 3 節の相関の山である。(a) 合っていると E と L が等しい。(b) 局部の符号が遅れていると E が大きくなり、(c) 早いと L が大きくなる。E − L の半分が、ずれの大きさ（三角形の辺の上にある間）を表す。")
+F["e04_epl"] = _f04_epl_fig()
+
+
+# =====================================================================
+# 5 節: 衛星ごとの符号の位相とドップラー（1 章の近似の GPS の配置、東京）
+# =====================================================================
+_F04_MU = 3.986004418e14; _F04_WE = 7.2921151467e-5; _F04_AW = 6378137.0; _F04_FW = 1 / 298.257223563
+_F04_E2 = _F04_FW * (2 - _F04_FW); _F04_D2R = math.pi / 180
+
+
+def _f04_geod(B, L, h):
+    B *= _F04_D2R; L *= _F04_D2R
+    N = _F04_AW / math.sqrt(1 - _F04_E2 * math.sin(B) ** 2)
+    return _f04_np.array([(N + h) * math.cos(B) * math.cos(L), (N + h) * math.cos(B) * math.sin(L), (N * (1 - _F04_E2) + h) * math.sin(B)])
+
+
+_F04_RX = (35.681, 139.767, _f04_geod(35.681, 139.767, 40.0))
+_F04_SATS = [dict(nm="G%d" % (p * 4 + s + 1), a=26560e3, i=55.0, Om=60.0 * p, M=90.0 * s + 15.0 * p) for p in range(6) for s in range(4)]
+
+
+def _f04_satpos(s, t):
+    """円軌道の衛星の ECEF の位置（1 章のデモと同じ近似の配置）。"""
+    n = math.sqrt(_F04_MU / s["a"] ** 3) / _F04_D2R
+    u = (s["M"] + n * t) * _F04_D2R; O = s["Om"] * _F04_D2R; inc = s["i"] * _F04_D2R; a = s["a"]
+    q = _f04_np.array([a * (math.cos(O) * math.cos(u) - math.sin(O) * math.sin(u) * math.cos(inc)),
+                       a * (math.sin(O) * math.cos(u) + math.cos(O) * math.sin(u) * math.cos(inc)), a * math.sin(u) * math.sin(inc)])
+    th = _F04_WE * t; c, sn = math.cos(th), math.sin(th)
+    return _f04_np.array([q[0] * c + q[1] * sn, -q[0] * sn + q[1] * c, q[2]])
+
+
+def _f04_elaz(pp):
+    B, L, r0 = _F04_RX
+    d = pp - r0; b = B * _F04_D2R; l = L * _F04_D2R
+    e = -math.sin(l) * d[0] + math.cos(l) * d[1]
+    n = -math.sin(b) * math.cos(l) * d[0] - math.sin(b) * math.sin(l) * d[1] + math.cos(b) * d[2]
+    u = math.cos(b) * math.cos(l) * d[0] + math.cos(b) * math.sin(l) * d[1] + math.sin(b) * d[2]
+    return math.atan2(u, math.hypot(e, n)) / _F04_D2R, (math.atan2(e, n) / _F04_D2R + 360) % 360, float(_f04_np.linalg.norm(d))
+
+
+def _f04_visible(t, mask=5.0):
+    lam = _F04_C / _F04_FL1
+    out = []
+    for s in _F04_SATS:
+        el, az, r = _f04_elaz(_f04_satpos(s, t))
+        if el < mask:
+            continue
+        rr = (_f04_elaz(_f04_satpos(s, t + 0.5))[2] - _f04_elaz(_f04_satpos(s, t - 0.5))[2])
+        fd = -rr / lam
+        cp = ((r / _F04_C) * 1e3 % 1.0) * 1023
+        out.append((s["nm"], el, az, r, fd, cp))
+    return sorted(out, key=lambda v: -v[1])
+
+
+def _f04_skyxy(cx, cy, R, el, az):
+    rr = R * (90.0 - el) / 90.0
+    return cx + rr * math.sin(az * _F04_D2R), cy - rr * math.cos(az * _F04_D2R)
+
+
+def _f04_sky(cx, cy, R, sats, trails=(), dot=4.2, sz=9.5):
+    """スカイプロット（1 章と同じ見た目: 中心が真上、外の円が仰角 0°、上が北）。sats = [(仰角, 方位角, 名前, 色)]"""
+    o = [CIRC(cx, cy, R, c=MUT, lw=1.3, fill=SCR)]
+    for az in range(0, 360, 30):
+        x, y = _f04_skyxy(cx, cy, R, 0, az)
+        o.append(W(cx, cy, x, y, c=GRD, lw=1))
+    for e in (30, 60):
+        o.append(CIRC(cx, cy, R * (90 - e) / 90, c=FNT, lw=0.9, dash="3 3"))
+    for e in (0, 30, 60):
+        o.append(T(cx + 3, cy - R * (90 - e) / 90 + 11, "%d°" % e, "start", 9.5, MUT, False, halo=True))
+    for az, lab in ((0, "北"), (90, "東"), (180, "南"), (270, "西")):
+        x, y = _f04_skyxy(cx, cy, R + 11, 0, az)
+        o.append(T(x, y + 4, lab, "middle", 10, INK, True))
+    for pts, c in trails:
+        seg = [_f04_skyxy(cx, cy, R, el, az) for el, az in pts if el >= 0]
+        if len(seg) > 1:
+            o.append(PL(seg, c=c, lw=1.2, dash="2 2"))
+    for el, az, nm, c in sats:
+        x, y = _f04_skyxy(cx, cy, R, el, az)
+        o.append(D(x, y, c, dot))
+        o.append(T(x + dot + 2, y + 3.5, nm, "start", sz, c, True, halo=True))
+    return "".join(o)
+
+
+_F04_T0 = 3600.0   # 例の時刻（1 章の近似の配置で、初めの位置から 1 時間後）
+
+
+def _f04_sats_fig():
+    o = []
+    vis = _f04_visible(_F04_T0)
+    o.append(T(14, 17, "(a) 東京の空（GPS、例の時刻）", "start", 11, INK, True))
+    trails = []
+    for s in _F04_SATS:
+        if any(v[0] == s["nm"] for v in vis):
+            pts = [(_f04_elaz(_f04_satpos(s, _F04_T0 - k * 120))[:2]) for k in range(16)]
+            trails.append((pts, FNT))
+    o.append(_f04_sky(150, 150, 112, [(v[1], v[2], v[0], SIG) for v in vis], trails=trails))
+    o.append(T(14, 292, "点線: それまでの 30 分の動き", "start", 9, MUT))
+    # (b) 符号の位相とドップラーの平面
+    xb = 360
+    o.append(T(xb - 20, 17, "(b) 衛星ごとの符号の位相とドップラー", "start", 11, INK, True))
+    p = Plot(xb + 30, 40, 290, 200, (0, 1023), (-4000, 4000))
+    o.append(p.axes(xl="符号の位相 [チップ]", yl="ドップラー f_D [Hz]", xt=[0, 200, 400, 600, 800, 1000], yt=[-4000, -2000, 0, 2000, 4000], xfmt=_f04_m, yfmt=_f04_m))
+    shift = -0.5e-6 * _F04_FL1
+    for nm, el, az, r, fd, cp in vis:
+        o.append(CIRC(p.X(cp), p.Y(fd + shift), 3.6, c=GLD, lw=1.2, dash="2 1.5"))
+        o.append(D(p.X(cp), p.Y(fd), SIG, 4.2))
+        o.append(T(p.X(cp) + 6, p.Y(fd) + 4, nm, "start", 9, SIG, True, halo=True))
+    o.append(T(p.x + p.w, p.y + p.h + 44, "○（金）: TCXO が +0.5 ppm のとき（全部が 788 Hz 下がる）", "end", 9, GLD, True))
+    # (c) チャネルの表
+    y0 = 320
+    o.append(W(14, y0 - 14, 686, y0 - 14, c=LIN, lw=0.8))
+    hdr = [("チャネル", 30, "start"), ("衛星", 110, "start"), ("仰角", 200, "end"), ("方位角", 270, "end"), ("符号の位相", 380, "end"),
+           ("ドップラー", 480, "end"), ("搬送波の NCO の周波数", 670, "end")]
+    for s_, x, a in hdr:
+        o.append(T(x, y0, s_, a, 9.5, MUT, True))
+    o.append(W(14, y0 + 5, 686, y0 + 5, c=LIN, lw=0.8))
+    for i, (nm, el, az, r, fd, cp) in enumerate(vis):
+        yy = y0 + 20 + i * 15.5
+        o.append(T(30, yy, "%d" % (i + 1), "start", 9.5, INK))
+        o.append(T(110, yy, nm, "start", 9.5, SIG, True))
+        o.append(T(200, yy, "%.1f°" % el, "end", 9.5, INK))
+        o.append(T(270, yy, "%.0f°" % az, "end", 9.5, INK))
+        o.append(T(380, yy, "%.2f チップ" % cp, "end", 9.5, INK))
+        o.append(T(480, yy, _f04_m(fd, 0).replace("−", "−") + " Hz", "end", 9.5, INK))
+        o.append(T(670, yy, _f04_g(4.092e6 + fd, 0) + " Hz", "end", 9.5, GLD))
+    yy = y0 + 20 + len(vis) * 15.5
+    o.append(T(30, yy, "9〜12", "start", 9.5, MUT))
+    o.append(T(110, yy, "（空き。まだ見えない衛星を探すのに使う）", "start", 9.5, MUT))
+    return SVG(700, int(yy + 12), o, "1 章の近似の GPS の配置で、東京から見える 8 機（仰角 5° 以上）と、各チャネルが合わせる値（受信機の時計のずれと、基準の発振器の誤差を 0 とした）。(a) 空の衛星の並び。(b) 符号の位相（届いた符号の遅れの 1 ms に満たない端数）は 0〜1023 チップのどこにでもあり、ドップラーは衛星の動く向きで正にも負にもなる。TCXO の周波数が +0.5 ppm ずれると、全部の衛星のドップラーが同じ 788 Hz だけ下がって見える。(c) 各チャネルの搬送波の NCO は、中間周波数 4.092 MHz にドップラーを加えた周波数に合わせる。")
+F["e04_sats"] = _f04_sats_fig()
+
+
+# =====================================================================
+# 5 節: チャネルの並びと、1 ms ごとの分担
+# =====================================================================
+def _f04_bank_fig():
+    o = []
+    _f04_box(o, 14, 130, 96, 52, "A/D 変換", "16.368 MHz", SIG, None)
+    o.append(W(110, 156, 140, 156, c=SIG, lw=2.2))
+    o.append(W(140, 44, 140, 284, c=SIG, lw=2.2))
+    o.append(T(136, 36, "同じ標本の列", "end", 9.5, SIG, True))
+    chs = [("CH 1", "G9"), ("CH 2", "G2"), ("CH 3", "G6"), ("…", ""), ("CH 12", "空き")]
+    for i, (c1, c2) in enumerate(chs):
+        yy = 44 + i * 52
+        if c1 == "…":
+            o.append(T(290, yy + 26, "…（チャネルの数だけ並ぶ）", "middle", 10, MUT, True))
+            continue
+        o.append(ARR(140, yy + 20, 160, yy + 20, c=SIG, lw=1.4))
+        o.append(RECT(160, yy, 270, 40, 6, PAN, PUR, 1.3))
+        o.append(T(170, yy + 16, c1, "start", 10, PUR, True))
+        o.append(T(170, yy + 31, c2 if c2 != "空き" else "空き", "start", 9.5, SIG if c2 != "空き" else MUT, True))
+        for k, lab in enumerate(("搬送波 NCO", "符号 NCO", "E・P・L")):
+            o.append(RECT(222 + k * 68, yy + 8, 62, 24, 4, SOFT[GLD] if k < 2 else PSOFT, GLD if k < 2 else PUR, 1.0))
+            o.append(T(253 + k * 68, yy + 24, lab, "middle", 9, INK))
+        o.append(ARR(430, yy + 20, 470, yy + 20, c=SIG, lw=1.4))
+    o.append(T(450, 36, "6 つの数", "middle", 9.5, SIG, True))
+    o.append(T(450, 290, "1 ms ごと", "middle", 9.5, SIG, True))
+    o.append(RECT(470, 44, 8, 240, 2, SSOFT, SIG, 1.0))
+    o.append(ARR(478, 160, 520, 160, c=SIG, lw=2.0))
+    _f04_box(o, 520, 116, 166, 88, "CPU のプログラム", "追尾・擬似距離・位置", PUR, "5・6 章")
+    o.append(W(603, 204, 603, 236, 400, 236, c=GLD, lw=1.5, dash="5 3"))
+    o.append(T(596, 230, "NCO の K を書き込む", "end", 9.5, GLD, True, halo=True))
+    # 計算の量
+    y0 = 318
+    o.append(W(14, y0 - 12, 686, y0 - 12, c=LIN, lw=0.8))
+    o.append(T(14, y0 + 4, "1 秒あたりの計算（16.368 MHz、12 チャネル）", "start", 10.5, INK, True))
+    o.append(T(30, y0 + 24, "相関器（回路）: 6 × 1636.8 万 × 12 ≈ 12 億回の「掛けて足す」", "start", 9.5, PUR, True))
+    o.append(T(30, y0 + 42, "プログラム: 6 × 1000 × 12 = 7.2 万個の数から、ずれと擬似距離を計算する", "start", 9.5, GRN, True))
+    return SVG(700, 372, o, "チャネルの並び。全部のチャネルが、A/D 変換の同じ標本の列を使う。チャネルごとに、搬送波の NCO・符号の NCO（PRN 番号）・E・P・L の相関器を持ち、1 ms ごとに 6 つの数（I_E・Q_E・I_P・Q_P・I_L・Q_L）を CPU のプログラムに渡す。プログラムはずれを計算して、NCO の K を書き込む。回数の多い単純な計算は回路で、回数の少ない複雑な計算はプログラムで行う。")
+F["e04_bank"] = _f04_bank_fig()
+
+
+# =====================================================================
+# 6 節: 受信用のチップ・モジュール・機器の入れ子
+# =====================================================================
+def _f04_module_fig():
+    o = []
+    o.append(RECT(10, 10, 680, 330, 12, "none", MUT, 1.2, dash="6 4"))
+    o.append(T(22, 30, "機器の基板（自分で設計する）", "start", 10.5, INK, True))
+    o.append(RECT(130, 44, 420, 250, 10, SOFT[GLD], GLD, 1.4))
+    o.append(T(142, 64, "モジュール（例）", "start", 10.5, GLD, True))
+    o.append(RECT(146, 76, 286, 206, 8, PAN, SIG, 1.5))
+    o.append(T(158, 96, "受信用のチップ", "start", 10.5, SIG, True))
+    for bx, ttl, l1, l2, c in ((158, "RF フロントエンド", "LNA・混合器・PLL", "フィルタ・AGC・A/D", SIG), (294, "ベースバンド処理", "チャネル・探す相関器", "CPU・メモリ", PUR)):
+        o.append(RECT(bx, 108, 128, 76, 7, PAN, c, 1.4))
+        o.append(T(bx + 64, 128, ttl, "middle", 10.5, INK, True))
+        o.append(T(bx + 64, 152, l1, "middle", 9, MUT))
+        o.append(T(bx + 64, 167, l2, "middle", 9, MUT))
+    o.append(ARR(286, 146, 294, 146, c=SIG, lw=1.4, head=5))
+    _f04_box(o, 158, 196, 264, 34, "通信の回路（UART・I2C・SPI）・時計（RTC）", None, MUT, None, tsz=9.5)
+    _f04_box(o, 158, 238, 264, 34, "電源の管理・省電力", None, MUT, None, tsz=9.5)
+    items = [("TCXO", "基準の発振器"), ("SAW フィルタ", "（と LNA）"), ("フラッシュメモリ", "プログラム・設定"), ("時計の水晶", "32.768 kHz"), ("電源の回路", "LDO など")]
+    for i, (a, b) in enumerate(items):
+        yy = 80 + i * 41
+        o.append(RECT(442, yy, 98, 34, 6, PAN, GLD, 1.1))
+        o.append(T(491, yy + 15, a, "middle", 9.5, INK, True))
+        o.append(T(491, yy + 28, b, "middle", 8.5, MUT))
+    o.append(T(345, 288, "金属のふた（シールド）をかぶせる", "middle", 9, GLD))
+    # 外
+    o.append(_f04_ant(64, 70))
+    o.append(T(64, 112, "アンテナ", "middle", 9.5, GLD, True))
+    o.append(T(64, 126, "8・9 章", "middle", 9, MUT))
+    o.append(ARR(80, 90, 158, 140, c=SIG, lw=1.6))
+    o.append(T(100, 146, "RF の入力", "middle", 9, SIG, True, halo=True))
+    o.append(T(100, 160, "（11 章）", "middle", 9, MUT, halo=True))
+    outs = [("電源・バックアップ電源", "10 章", 230), ("UART など（マイコンへ）", "10・12〜15 章", 262), ("1PPS（時刻）", "14 章", 294)]
+    for a, b, yy in outs:
+        o.append(ARR(550, yy - 4, 574, yy - 4, c=PUR, lw=1.4))
+        o.append(T(578, yy - 8, a, "start", 9, INK, True))
+        o.append(T(578, yy + 5, b, "start", 8.5, MUT))
+    o.append(T(22, 330, "（構成は例。どの部品をチップに入れ、どれをモジュールに載せるかは、製品によって違う）", "start", 9, MUT))
+    return SVG(700, 350, o, "受信用のチップ・モジュール・機器の入れ子（構成は例）。RF フロントエンドとベースバンド処理を 1 つのチップに入れ、TCXO・SAW フィルタ・フラッシュメモリ・時計の水晶・電源の回路を加えて 1 つの小さな基板にまとめたものが、モジュールである。機器の側では、アンテナから RF の入力まで（8・9・11 章）と、電源・通信・1PPS（10・12〜15 章）を設計する。")
+F["e04_module"] = _f04_module_fig()
+
+
+# =====================================================================
+# 6 節: どこまで自分で設計するか
+# =====================================================================
+def _f04_split_fig():
+    o = []
+    cols = ["アンテナ", "LNA・フィルタ", "RF フロントエンド・A/D", "相関器・追尾", "位置の計算", "出力・設定"]
+    rows = [("アンテナ付きのモジュール", [1, 1, 1, 1, 1, 0]), ("モジュール + 外付けのアンテナ", [0, 0, 1, 1, 1, 0]),
+            ("受信用のチップを載せる", [0, 0, 1, 1, 1, 0]), ("ソフトウェア受信機", [0, 0, 1, 2, 2, 2])]
+    x0, cw, rh, y0 = 190, 82, 34, 40
+    for j, c in enumerate(cols):
+        o.append(T(x0 + j * cw + cw / 2, y0 - 8, c, "middle", 9, INK, True))
+    col = {0: (GLD, "設計する"), 1: (SIG, "部品に任せる"), 2: (PUR, "プログラム")}
+    for i, (nm, v) in enumerate(rows):
+        yy = y0 + i * (rh + 8)
+        o.append(T(x0 - 10, yy + rh / 2 + 4, nm, "end", 10, INK, True))
+        for j, k in enumerate(v):
+            c, lab = col[k]
+            if i == 2 and j in (2, 3, 4):
+                c, lab = SIG, "チップ"
+            o.append(RECT(x0 + j * cw + 2, yy, cw - 4, rh, 4, soft(c), c, 1.2))
+            o.append(T(x0 + j * cw + cw / 2, yy + rh / 2 + 4, lab, "middle", 9, c, True))
+        if i == 2:
+            o.append(T(x0 - 10, yy + rh + 2, "（TCXO・フィルタ・メモリも選ぶ）", "end", 8.5, MUT))
+    y1 = y0 + 4 * (rh + 8) + 14
+    o.append(W(14, y1 - 8, 686, y1 - 8, c=LIN, lw=0.8))
+    notes = [("上から下へ: RF の設計の手間が増える（評価の道具と時間も要る）", INK),
+             ("下ほど: 大きさ・費用・信号の処理を自由に選べる", INK),
+             ("組み込みの機器で多いのは「モジュール + 外付けのアンテナ」（代表的な選び方）", GLD)]
+    for i, (s_, c) in enumerate(notes):
+        o.append(T(30, y1 + 10 + i * 17, s_, "start", 9.5, c, i == 2))
+    return SVG(700, int(y1 + 60), o, "受信機のどこまでを自分で設計し、どこからを部品（モジュール・チップ）やプログラムに任せるか。金: 自分で設計する部分、青: 部品に任せる部分、紫: 計算機のプログラムで行う部分。どの選び方でも、出力の読み方と設定（12〜15 章）は自分で行う。")
+F["e04_split"] = _f04_split_fig()
