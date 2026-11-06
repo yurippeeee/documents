@@ -869,8 +869,8 @@ def _f02_subframes_fig():
     o.append(T(14, y0 + 23, "時間 →", "start", 9.5, MUT))
     # ワードへの拡大
     yw = 112
-    o.append(W(x0, y0 + 36, x0, yw, c=FNT, lw=1, dash="3 3"))
-    o.append(W(x0 + wsf - 2, y0 + 36, x0 + 5 * wsf - 2, yw, c=FNT, lw=1, dash="3 3"))
+    o.append(W(x0, y0 + 55, x0, yw, c=FNT, lw=1, dash="3 3"))
+    o.append(W(x0 + wsf - 2, y0 + 55, x0 + 5 * wsf - 2, yw, c=FNT, lw=1, dash="3 3"))
     ww = (5 * wsf - 2) / 10
     for k in range(10):
         lab = ["TLM", "HOW"][k] if k < 2 else str(k + 1)
@@ -1006,7 +1006,7 @@ def _f02_nest_fig():
                 if labs:
                     o.append(T(X0 + k * w + w / 2, y + 13, labs[k], "middle", 9 if n == 5 else 8.5, c if on else MUT, on))
             if li == 3:
-                o.append(T(X0 + 27 * w, y - 4, "パリティ", "middle", 8.5, TEA, False, halo=True))
+                o.append(T(X0 + 27 * w, y + bh + 11, "パリティ", "middle", 8.5, TEA, False, halo=True))
             hx0, hx1 = X0 + hl * w, X0 + (hl + 1) * w
         elif li == 5:
             v = list(_f02_pm(1))
@@ -1022,7 +1022,7 @@ def _f02_nest_fig():
             o.append(PL(pts, c=MUT, lw=0.9))
             hx0, hx1 = X0, X0 + (X1 - X0) / ncy
             o.append(RECT(hx0, y - 2, hx1 - hx0, bh + 4, 1, "none", INK, 1.6))
-            o.append(T(X1, y - 4, "図は 40 周期に間引いた（実際は 1540 周期）", "end", 8.5, MUT, False, halo=True))
+            o.append(T(X1, y + bh + 11, "図は 40 周期に間引いた（実際は 1540 周期）", "end", 8.5, MUT, False, halo=True))
         else:
             pts = [(X0 + (X1 - X0) * k / 200, y + bh / 2 - 9 * math.sin(2 * math.pi * k / 200)) for k in range(201)]
             o.append(W(X0, y + bh / 2, X1, y + bh / 2, c=GRD, lw=1))
