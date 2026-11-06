@@ -297,7 +297,7 @@ def _f19_quad_fig():
         o.append(P.clip([(q[0], q[1]) for q in pts], c=c, lw=2.0, dash=dash))
     o.append(TX(P.X(0.012), P.Y(1.22), "diag(100, 1)", "start", 9.5, SIG, True, halo=True))
     o.append(TX(P.X(0.052), P.Y(-0.62), "diag(400, 1)", "start", 9.5, TEA, True, halo=True))
-    o.append(TX(P.X(-0.145), P.Y(-1.28), "対角の外 6: 傾く", "start", 9.5, PUR, True, halo=True))
+    o.append(TX(P.X(-0.145), P.Y(-1.28), "q_{12} = q_{21} = 6: 傾く", "start", 9.5, PUR, True, halo=True))
     o.append(T(P.X(0.1), P.Y(0) + 13, "0.1", "middle", 9, SIG, halo=True))
     return SVG(700, 254, o,
                "状態の重み行列 Q。(a) 状態変数が 2 つのとき、xᵀQx は 2 乗と積に重みを掛けて足した 1 つの数になる。(b) 台車とばね・ダンパの状態 (p, ṗ) で、xᵀQx が 1 になる点を結んだ楕円。位置の重みを 4 倍にすると、半分のずれ（0.05 m）で同じ大きさに数える。対角の外の要素は楕円を傾ける。")
@@ -560,8 +560,8 @@ _F19_SIMB10 = _f19_sim(_F19_FB, _F19_X10, 4.0)
 def _f19_bryson_fig():
     o = []
     th10 = 10 * _F19_D2R
-    for k, (sim, title, parts, angle_on) in enumerate(((_F19_SIMB10, "(a) 最初の案（0.5 m・10°・5 N）", ("0.036", "0.087", "0.074", "0.197"), True),
-                                                      (_F19_SIMA10, "(b) 例（0.5 m・角度は評価しない・5 N）", ("0.034", "0", "0.053", "0.087"), False))):
+    for k, (sim, title, angle_on) in enumerate(((_F19_SIMB10, "(a) 最初の案（0.5 m・10°・5 N）", True),
+                                               (_F19_SIMA10, "(b) 例（0.5 m・角度は評価しない・5 N）", False))):
         x00 = 62 + k * 340
         o.append(T(x00 - 48, 18, title, "start", 11.5, INK, True))
         P = Plot(x00, 34, 270, 170, (0, 1.5), (0, 3))
@@ -577,6 +577,14 @@ def _f19_bryson_fig():
         else:
             o.append(TX(P.X(0.30), P.Y(0.62), "(φ/10°)^2（J には入れない）", "start", 9.5, MUT, True, halo=True))
         o.append(TX(P.X(0.62), P.Y(0.22), "(p/0.5 m)^2", "start", 9.5, SIG, True, halo=True))
+        # J の内訳は、描いた曲線と同じ線形でない式の応答（4 s まで。その先の残りは 0.0001 より小さい）を台形公式で積分する。
+        # 丸めた項の和が丸めた合計と合う桁数で表示する。
+        qa = 1.0 / th10 ** 2 if angle_on else 0.0
+        jp = float(_f19_np.trapezoid(4.0 * p ** 2, t)); ja = float(_f19_np.trapezoid(qa * ph ** 2, t)); ju = float(_f19_np.trapezoid(0.04 * u ** 2, t))
+        for d in (3, 4):
+            if abs(sum(round(v, d) for v in (jp, ja, ju)) - round(jp + ja + ju, d)) < 0.5 * 10 ** (-d):
+                break
+        parts = tuple("0" if v == 0 else "%.*f" % (d, v) for v in (jp, ja, ju)) + ("%.*f" % (d, jp + ja + ju),)
         yb = 246
         o.append(T(x00 - 48, yb, "J の内訳: 位置 %s ＋ 角度 %s ＋ 力 %s ＝ %s" % parts, "start", 10, INK))
     o.append(LEGL(62, 272, [(SIG, None, "(p/0.5 m)^2"), (TEA, None, "(φ/10°)^2"), (GLD, None, "(u/5 N)^2")]))
