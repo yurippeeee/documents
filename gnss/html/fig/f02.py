@@ -779,3 +779,312 @@ def _f02_boc_fig():
     o.append(T(q.X(-0.62), q.Y(0.62), "C/A", "end", 9.5, SIG, True, halo=True))
     return SVG(700, yb + 18 + 130 + 42, o, "BOC(1,1) と C/A 符号の信号（BPSK）の比較（実際の L1C・E1 の信号は、これに BOC(6,1) を少し混ぜた形）。(a) BOC(1,1) は、各チップの前半と後半で符号が反転する。(b) 電力は中心で 0 になり、左右に分かれる。C/A 符号の信号の電力が集まる中心の近くを避けるので、同じ 1575.42 MHz に載せても互いの妨げになりにくい。(c) 相関の山は、三角形より 3 倍急に下がり、±0.5 チップに負の横の山がある。")
 F["e02_boc"] = _f02_boc_fig()
+
+
+# =====================================================================
+# 5 節: 航法メッセージの中身と、受信機の使い道
+# =====================================================================
+def _f02_txseq(x, y, segs, sz=11, b=True):
+    """色の違う部分を含む式を、1 つの text 要素で書く（TX と同じ添字・上付きの書き方）。segs = [(文字, 色), ...]。返り値 (svg, 見積もった幅)。"""
+    toks = [(k, t, c) for txt, c in segs for k, t in _tx_tokens(txt)]
+    w = sum(tw(t, sz * _TX_SMALL[k]) if k in _TX_SMALL else tw(t, sz) for k, t, c in toks)
+    if _CHECK:
+        _BOXES.append((x, y - sz * 0.82, x + w, y + sz * 0.22 + 2, "".join(t for _, t, _ in toks)))
+    o = ['<text x="%g" y="%g" font-size="%g" font-family="var(--sans)" font-weight="%s">' % (round(x, 2), round(y, 2), sz, "700" if b else "400")]
+    cur = 0.0
+    for kind, t, c in toks:
+        want = 3.0 if kind == "sub" else (-sz * 0.38 if kind == "sup" else (-sz * 0.18 if kind == "supsub" else 0.0))
+        dy = want - cur
+        cur = want
+        fs = ' font-size="%g"' % round(sz * _TX_SMALL[kind], 2) if kind in _TX_SMALL else ""
+        o.append('<tspan fill="%s"%s%s>%s</tspan>' % (c, (' dy="%g"' % round(dy, 2)) if abs(dy) > 1e-9 else "", fs, E(t)))
+    o.append("</text>")
+    return "".join(o), w
+
+
+def _f02_navuse_fig():
+    o = []
+    o.append(T(14, 18, "航法メッセージの中身（左）と、受信機がそれで知ること（右）", "start", 11.5, INK, True))
+    items = [
+        ("衛星の時計のずれを計算する値", PUR, "衛星の時計のずれ δt_i^s → 擬似距離を直す（この節）"),
+        ("その衛星の精密な軌道", SIG, "電波を送った時刻の衛星の位置 (x_i, y_i, z_i)（6 章）"),
+        ("全部の衛星の大まかな軌道", GRN, "見えていそうな衛星と、探す範囲の予想（5 章）"),
+        ("電離層のモデルの 8 つの係数", TEA, "電離層の遅れの見積もり（7 章）"),
+        ("週番号・GPS 時刻と UTC の差", GLD, "日付と、UTC の時刻（14 章）"),
+        ("衛星の健康状態", MUT, "その衛星を測位に使ってよいか"),
+    ]
+    for k, (lab, c, use) in enumerate(items):
+        y = 36 + k * 38
+        o.append(RECT(14, y, 236, 28, 6, soft(c), c, 1.3))
+        o.append(T(24, y + 18.5, lab, "start", 10.5, c, True))
+        o.append(ARR(254, y + 14, 312, y + 14, c=c, lw=1.5, head=6))
+        o.append(RECT(316, y, 370, 28, 6, PAN, c, 1.1))
+        o.append(TX(326, y + 18.5, use, "start", 10, INK))
+    y = 36 + 6 * 38 + 22
+    o.append(T(14, y, "1 章 3 節の式に、これらを入れる（色は上の行に対応）", "start", 10, MUT, True))
+    seq, xe = _f02_txseq(30, y + 32, [("ρ_i", INK), (" + c δt_i^s", PUR), (" = √((", INK), ("x_i", SIG), (" − x)^2 + (", INK), ("y_i", SIG),
+                                       (" − y)^2 + (", INK), ("z_i", SIG), (" − z)^2) + b", INK)], sz=13)
+    o.append(seq)
+    o.append(T(30, y + 56, "測った擬似距離を衛星の時計で直したもの ＝ 衛星までの距離 ＋ 受信機の時計のずれ（距離に直した値）", "start", 9.5, MUT))
+    return SVG(700, y + 66, o, "航法メッセージ（GPS の L1 の C/A 符号の信号の LNAV）の主な中身と、受信機がそれで知ること。衛星の時計のずれを計算する値で擬似距離を直し、精密な軌道から電波を送った時刻の衛星の位置を計算すると、1 章 3 節の式の未知数は、受信機の位置と時計のずれだけになる。")
+F["e02_navuse"] = _f02_navuse_fig()
+
+
+# =====================================================================
+# 5 節: サブフレーム・フレーム・ページ
+# =====================================================================
+_F02_CONT = [("時計の補正の値・週番号・健康状態など", PUR), ("その衛星の精密な軌道", SIG), ("全部の衛星の大まかな軌道", GRN),
+             ("電離層の係数・UTC との差", TEA), ("全部の衛星の健康状態", GLD), ("そのほか（予備など）", MUT)]
+
+
+def _f02_page_cont(sf, pg):
+    """サブフレーム sf・ページ pg の主な内容の番号（_F02_CONT の添字）。"""
+    if sf == 1:
+        return 0
+    if sf in (2, 3):
+        return 1
+    if sf == 5:
+        return 2 if pg <= 24 else 4
+    if pg in (2, 3, 4, 5, 7, 8, 9, 10):
+        return 2
+    if pg == 18:
+        return 3
+    if pg == 25:
+        return 4
+    return 5
+
+
+def _f02_subframes_fig():
+    o = []
+    o.append(T(14, 18, "(a) 1 フレーム（30 s）= 5 つのサブフレーム（6 s、300 bit）", "start", 11.5, INK, True))
+    x0, wsf, y0 = 80, 122, 32
+    sub = ["時計の補正の値など", "精密な軌道（前半）", "精密な軌道（後半）", "ページごとに変わる", "ページごとに変わる"]
+    cc = [PUR, SIG, SIG, MUT, MUT]
+    for k in range(5):
+        o.append(RECT(x0 + k * wsf, y0, wsf - 2, 36, 4, soft(cc[k]), cc[k], 1.3))
+        o.append(T(x0 + k * wsf + (wsf - 2) / 2, y0 + 15, "サブフレーム %d" % (k + 1), "middle", 10, cc[k], True))
+        o.append(T(x0 + k * wsf + (wsf - 2) / 2, y0 + 29, sub[k], "middle", 9, INK))
+    for k in range(6):
+        o.append(T(x0 + k * wsf - (1 if k == 5 else 0), y0 + 50, "%d s" % (6 * k), "middle", 9, MUT))
+    o.append(T(14, y0 + 23, "時間 →", "start", 9.5, MUT))
+    # ワードへの拡大
+    yw = 112
+    o.append(W(x0, y0 + 36, x0, yw, c=FNT, lw=1, dash="3 3"))
+    o.append(W(x0 + wsf - 2, y0 + 36, x0 + 5 * wsf - 2, yw, c=FNT, lw=1, dash="3 3"))
+    ww = (5 * wsf - 2) / 10
+    for k in range(10):
+        lab = ["TLM", "HOW"][k] if k < 2 else str(k + 1)
+        c = GLD if k < 2 else PUR
+        o.append(RECT(x0 + k * ww, yw, ww - 2, 22, 3, soft(c), c, 1.1))
+        o.append(T(x0 + k * ww + (ww - 2) / 2, yw + 15, lab, "middle", 9.5, c, True))
+    o.append(T(14, yw + 15, "10 ワード", "start", 9.5, MUT))
+    o.append(T(x0, yw + 38, "1 ワード = 30 bit = 0.6 s（最後の 6 bit はパリティ）。TLM と HOW はどのサブフレームにもある（6 節）", "start", 9.5, MUT))
+    # (b) 25 ページ
+    yb = 186
+    o.append(T(14, yb, "(b) 25 フレーム（12.5 分）の並び: サブフレーム 4・5 は、フレームごとに違うページを送る", "start", 11.5, INK, True))
+    gx, gy, cw, ch = 96, yb + 30, 23.6, 18
+    for pg in range(1, 26):
+        if pg in (1, 5, 10, 15, 20, 25):
+            o.append(T(gx + (pg - 0.5) * cw, gy - 5, str(pg), "middle", 9, MUT))
+    o.append(T(gx - 8, gy - 5, "ページ", "end", 9, MUT))
+    for sf in range(1, 6):
+        yy = gy + (sf - 1) * (ch + 2)
+        o.append(T(gx - 8, yy + 13, "サブフレーム %d" % sf, "end", 9, MUT))
+        for pg in range(1, 26):
+            ci = _f02_page_cont(sf, pg)
+            c = _F02_CONT[ci][1]
+            o.append(RECT(gx + (pg - 1) * cw, yy, cw - 1.6, ch, 1.5, soft(c), c, 0.9))
+    ya = gy + 5 * (ch + 2) + 4
+    for pg, lab in ((0, "0"), (10, "5 分"), (20, "10 分"), (25, "12.5 分")):
+        o.append(W(gx + pg * cw, ya - 4, gx + pg * cw, ya + 2, c=MUT, lw=1))
+        o.append(T(gx + pg * cw + (2 if pg == 25 else 0), ya + 13, lab, "end" if pg == 25 else "middle", 9, MUT))
+    ly = ya + 34
+    xs = [14, 248, 458]
+    for k, (lab, c) in enumerate(_F02_CONT):
+        xx = xs[k % 3]
+        yy = ly + (k // 3) * 18
+        o.append(RECT(xx, yy - 10, 12, 12, 2, soft(c), c, 1.1))
+        o.append(T(xx + 17, yy, lab, "start", 9.5, INK))
+    return SVG(700, ly + 30, o, "LNAV の航法メッセージの並び（IS-GPS-200 による）。(a) 1 フレームは 5 つのサブフレームで、各サブフレームは 30 bit のワード 10 個（300 bit、50 bit/s で 6 s）。サブフレーム 1〜3 は、どのフレームでも同じ内容（その衛星の値）を繰り返す。(b) サブフレーム 4・5 は 25 通りのページを順に送るので、全部を送るのに 12.5 分かかる。大まかな軌道は、サブフレーム 5 の 1〜24 ページに衛星 1〜24 の分、サブフレーム 4 の 2〜5・7〜10 ページに衛星 25〜32 の分が入る。")
+F["e02_subframes"] = _f02_subframes_fig()
+
+
+# =====================================================================
+# 5 節: 衛星の時計のずれと補正
+# =====================================================================
+def _f02_satclock_fig():
+    o = []
+    # (a) 3 つの時計
+    o.append(T(14, 18, "(a) 3 つの時計の読み（横の位置は読みの値）", "start", 11.5, INK, True))
+    ax0, ax1 = 36, 340
+    axs = [(56, "GPS 時刻（正しい時刻）", GRN), (110, "衛星 i の時計", SIG), (164, "受信機の時計", ALI)]
+    for y, lab, c in axs:
+        o.append(ARR(ax0, y, ax1, y, c=c, lw=1.2, head=6))
+        o.append(T(ax1, y - 7, lab, "end", 9.5, c, True))
+    xt, xr, ds, dr = 76, 236, 40, 26
+    o.append(W(xt, 48, xt, 64, c=INK, lw=1.6))
+    o.append(TX(xt, 80, "送った t_{tx,i}", "middle", 9.5, INK, True, halo=True))
+    o.append(W(xr, 48, xr, 64, c=INK, lw=1.6))
+    o.append(TX(xr, 80, "届いた t_{rx}", "middle", 9.5, INK, True, halo=True))
+    o.append(W(xt, 64, xt, 118, c=FNT, lw=1, dash="3 3"))
+    o.append(W(xt + ds, 102, xt + ds, 118, c=SIG, lw=1.8))
+    o.append(DIM(xt, 96, xt + ds, 96, None, c=SIG))
+    o.append(TX(xt + ds / 2, 92, "δt_i^s", "middle", 9.5, SIG, True, halo=True))
+    o.append(TX(xt + ds - 6, 134, "読み t_{tx,i} + δt_i^s（目印）", "start", 9.5, SIG, True, halo=True))
+    o.append(W(xr, 64, xr, 172, c=FNT, lw=1, dash="3 3"))
+    o.append(W(xr + dr, 156, xr + dr, 172, c=ALI, lw=1.8))
+    o.append(DIM(xr, 150, xr + dr, 150, None, c=ALI))
+    o.append(TX(xr + dr / 2, 146, "δt_r", "middle", 9.5, ALI, True, halo=True))
+    o.append(TX(xr + dr, 188, "読み t_{rx} + δt_r", "middle", 9.5, ALI, True, halo=True))
+    o.append(DIM(xt + ds, 206, xr + dr, 206, None, c=GLD))
+    o.append(TX((xt + ds + xr + dr) / 2, 222, "2 つの読みの差 = ρ_i / c", "middle", 9.5, GLD, True, halo=True))
+    # (b) δt^s の計算
+    xb = 410
+    o.append(TX(xb - 20, 18, "(b) 時計の補正の値で計算した δt_i^s（例の値）", "start", 11.5, INK, True))
+    p = Plot(xb + 30, 44, 200, 140, (-2, 2), (99.9, 100.1))
+    o.append(p.axes(xl="t − t_{oc} [時間]", yl=None, xt=[-2, -1, 0, 1, 2], yt=[99.9, 99.95, 100, 100.05, 100.1], xfmt=_f02_fmt, yfmt=lambda v: "%.2f" % v))
+    o.append(TX(p.x - 48, p.y + p.h / 2, "δt_i^s [μs]", "middle", 9.5, MUT, rot=-90))
+    af0, af1 = 1.0e-4, 1.0e-11
+    o.append(p.line([(h, (af0 + af1 * h * 3600) * 1e6) for h in (-2, 2)], c=PUR, lw=2.2))
+    o.append(D(p.X(0), p.Y(100), PUR, 4))
+    o.append(TX(p.X(0) + 6, p.Y(100) + 14, "t_{oc} で a_{f0} = 100 μs", "start", 9.5, PUR, True, halo=True))
+    o.append(TX(p.X(-1.9), p.Y(100.085), "傾き a_{f1} = 1.0 × 10^{−11}", "start", 9.5, PUR, True, halo=True))
+    o.append(T(p.X(-1.9), p.Y(100.085) + 13, "1 時間で 36 ns（10.8 m）", "start", 9.5, PUR, False, halo=True))
+    # 右の目盛（距離）
+    o.append(W(p.x + p.w, p.y, p.x + p.w, p.y + p.h, c=MUT, lw=1))
+    for km in (29.96, 29.97, 29.98, 29.99, 30.0):
+        us = km * 1e3 / _F02_C * 1e6
+        yy = p.Y(us)
+        o.append(W(p.x + p.w, yy, p.x + p.w + 4, yy, c=MUT, lw=1))
+        o.append(T(p.x + p.w + 7, yy + 3.3, "%.2f" % km, "start", 9, MUT))
+    o.append(TX(p.x + p.w + 50, p.y + p.h / 2, "c δt_i^s [km]", "middle", 9.5, MUT, rot=90))
+    # (c) 擬似距離の直し方
+    yc = 262
+    o.append(T(14, yc, "(c) 擬似距離の直し方", "start", 11.5, INK, True))
+    xa, xb2 = 150, 560
+    o.append(W(60, yc + 34, 660, yc + 34, c=LIN, lw=1.2))
+    o.append(W(xa, yc + 26, xa, yc + 42, c=ALI, lw=2))
+    o.append(TX(xa, yc + 58, "測った ρ_i = r_i + b − c δt_i^s", "middle", 10, ALI, True, halo=True))
+    o.append(W(xb2, yc + 26, xb2, yc + 42, c=GRN, lw=2))
+    o.append(TX(xb2, yc + 58, "直した値 ρ_i + c δt_i^s = r_i + b", "middle", 10, GRN, True, halo=True))
+    o.append(CARR(xa + 6, yc + 24, xb2 - 6, yc + 24, bend=-0.08, c=PUR, lw=1.6))
+    o.append(TX((xa + xb2) / 2, yc + 6, "+ c δt_i^s（例の値で 29.98 km）", "middle", 10, PUR, True, halo=True))
+    o.append(T(660, yc + 50, "距離 →", "end", 9, MUT))
+    return SVG(700, yc + 70, o, "衛星の時計のずれの補正。(a) 衛星は自分の時計の読みを送った時刻の目印にするので、受信機が測る 2 つの読みの差には、受信機の時計のずれ δt<sub>r</sub> だけでなく、衛星の時計のずれ δt<sup>s</sup><sub>i</sub> も入る。(b) 時計の補正の値（例: a<sub>f0</sub> = 100 μs、a<sub>f1</sub> = 1.0 × 10<sup>−11</sup>、a<sub>f2</sub> = 0）から計算した δt<sup>s</sup><sub>i</sub>。右の目盛は光の速さを掛けた距離。(c) 測った擬似距離に c δt<sup>s</sup><sub>i</sub> を足すと、1 章 3 節の式 ρ<sub>i</sub> = r<sub>i</sub> + b と同じ形になる。")
+F["e02_satclock"] = _f02_satclock_fig()
+
+
+# =====================================================================
+# 6 節: 時間の入れ子（12.5 分から搬送波の 1 周期まで）
+# =====================================================================
+def _f02_nest_fig():
+    o = []
+    o.append(T(14, 18, "L1 の C/A 符号の信号の時間の区切り（上の段の色の付いた 1 つを、下の段で拡大する）", "start", 11.5, INK, True))
+    X0, X1 = 196, 690
+    levels = [
+        ("全部のページ 12.5 分", "25 フレーム。光で 2.2 億 km", 25, 6, MUT, None),
+        ("フレーム 30 s", "5 サブフレーム。光で 900 万 km", 5, 0, PUR, ["サブフレーム %d" % (k + 1) for k in range(5)]),
+        ("サブフレーム 6 s", "10 ワード。光で 180 万 km", 10, 3, PUR, ["TLM", "HOW"] + [str(k) for k in range(3, 11)]),
+        ("ワード 0.6 s", "30 bit。光で 18 万 km", 30, 17, GLD, None),
+        ("ビット 20 ms", "符号 20 周期。光で 6000 km", 20, 6, GLD, None),
+        ("符号の周期 1 ms", "1023 チップ。光で 300 km", 1023, 412, SIG, None),
+        ("チップ 977.5 ns", "搬送波 1540 周期。光で 293 m", 1540, 0, SIG, None),
+        ("搬送波の 1 周期 0.635 ns", "光で 19.0 cm", 1, 0, MUT, None),
+    ]
+    y = 40
+    bh, gap = 18, 34
+    for li, (nm, sub, n, hl, c, labs) in enumerate(levels):
+        o.append(T(14, y + 8, nm, "start", 10, c if c != MUT else INK, True))
+        o.append(T(14, y + 21, sub, "start", 9, MUT))
+        w = (X1 - X0) / n
+        if li <= 4:
+            for k in range(n):
+                on = k == hl
+                par = li == 3 and k >= 24
+                fc = soft(c) if on else (TSOFT if par else PAN)
+                o.append(RECT(X0 + k * w, y, w - (1.2 if n < 40 else 0.6), bh, 1.5, fc, c if on else (TEA if par else LIN), 1.6 if on else 0.8))
+                if labs:
+                    o.append(T(X0 + k * w + w / 2, y + 13, labs[k], "middle", 9 if n == 5 else 8.5, c if on else MUT, on))
+            if li == 3:
+                o.append(T(X0 + 27 * w, y - 4, "パリティ", "middle", 8.5, TEA, False, halo=True))
+            hx0, hx1 = X0 + hl * w, X0 + (hl + 1) * w
+        elif li == 5:
+            v = list(_f02_pm(1))
+            o.append(RECT(X0, y, X1 - X0, bh, 1.5, PAN, LIN, 0.8))
+            o.append(_f02_wave(X0, y + bh / 2, 6.5, v, w, c=SIG, lw=0.7))
+            hx0, hx1 = X0 + hl * w - 1.5, X0 + (hl + 1) * w + 1.5
+            o.append(RECT(hx0, y - 2, hx1 - hx0, bh + 4, 1, SSOFT, SIG, 1.6))
+            o.append(T(hx1 + 3, y - 4, "チップ %d" % hl, "start", 8.5, SIG))
+        elif li == 6:
+            ncy = 40
+            pts = [(X0 + (X1 - X0) * k / (ncy * 16), y + bh / 2 - 7 * math.sin(2 * math.pi * k / 16)) for k in range(ncy * 16 + 1)]
+            o.append(RECT(X0, y, X1 - X0, bh, 1.5, SSOFT, SIG, 1.0))
+            o.append(PL(pts, c=MUT, lw=0.9))
+            hx0, hx1 = X0, X0 + (X1 - X0) / ncy
+            o.append(RECT(hx0, y - 2, hx1 - hx0, bh + 4, 1, "none", INK, 1.6))
+            o.append(T(X1, y - 4, "図は 40 周期に間引いた（実際は 1540 周期）", "end", 8.5, MUT, False, halo=True))
+        else:
+            pts = [(X0 + (X1 - X0) * k / 200, y + bh / 2 - 9 * math.sin(2 * math.pi * k / 200)) for k in range(201)]
+            o.append(W(X0, y + bh / 2, X1, y + bh / 2, c=GRD, lw=1))
+            o.append(PL(pts, c=INK, lw=1.8))
+        if li < len(levels) - 1:
+            o.append(W(hx0, y + bh, X0, y + bh + gap, c=FNT, lw=1, dash="3 3"))
+            o.append(W(hx1, y + bh, X1, y + bh + gap, c=FNT, lw=1, dash="3 3"))
+        y += bh + gap
+    return SVG(700, y - gap + 12, o, "L1 の C/A 符号の信号の時間の区切りは、1 つの 10.23 MHz から作るので、ずれずに入れ子になっている。上から順に、12.5 分の全部のページ → 30 s のフレーム → 6 s のサブフレーム → 0.6 s のワード → 20 ms のビット → 1 ms の符号の周期（1023 チップ。図は PRN 1 の実際の並び）→ 977.5 ns のチップ → 0.635 ns の搬送波の 1 周期。各段の左に、光がその時間に進む距離を書いた。")
+F["e02_nest"] = _f02_nest_fig()
+
+
+# =====================================================================
+# 6 節: 送った時刻を数える（筆算）と、1 ms ごとの候補
+# =====================================================================
+def _f02_txtime_fig():
+    o = []
+    o.append(T(14, 18, "(a) いま届いているチップを送った時刻を、区切りを数えて足し合わせる", "start", 11.5, INK, True))
+    xn = 470
+    rows = [
+        ("", "サブフレームの始まり（HOW の 57 601 × 6 s − 6 s）", "345 600.000 000 00 s", PUR, "HOW から"),
+        ("＋", "0.6 s × 3 ワード", "1.800 000 00 s", PUR, "ワードを数える"),
+        ("＋", "20 ms × 17 bit", "0.340 000 00 s", GLD, "ビットを数える"),
+        ("＋", "1 ms × 6 周期", "0.006 000 00 s", SIG, "符号の周期を数える"),
+        ("＋", "977.517 ns × 412.30 チップ", "0.000 403 03 s", SIG, "チップと端数（3 節）"),
+    ]
+    y = 44
+    for sg, lab, val, c, how in rows:
+        o.append(T(30, y, sg, "middle", 11, INK, True))
+        o.append(T(44, y, lab, "start", 10, c, True))
+        o.append(T(xn, y, val, "end", 10.5, INK, False, True))
+        o.append(CHIP(xn + 16, y, how, c, 9)[0])
+        y += 21
+    o.append(W(40, y - 12, xn + 4, y - 12, c=INK, lw=1.2))
+    o.append(T(30, y + 4, "＝", "middle", 11, INK, True))
+    o.append(T(44, y + 4, "送った時刻", "start", 10.5, INK, True))
+    o.append(T(xn, y + 4, "345 602.146 403 03 s", "end", 10.5, GRN, True, True))
+    y += 26
+    o.append(T(44, y, "受信機の時計で、このチップが届いた時刻", "start", 10, ALI, True))
+    o.append(T(xn, y, "345 602.218 750 00 s", "end", 10.5, ALI, False, True))
+    y += 21
+    o.append(T(44, y, "差（届いた時間 ＋ 受信機の時計のずれ）", "start", 10, INK))
+    o.append(T(xn, y, "0.072 346 97 s", "end", 10.5, INK, False, True))
+    y += 21
+    o.append(T(44, y, "× 光の速さ ＝ 擬似距離", "start", 10, GLD, True))
+    o.append(T(xn, y, "21 689.08 km", "end", 10.5, GLD, True, True))
+    # (b) 1 ms ごとの候補
+    yb = y + 40
+    o.append(T(14, yb, "(b) 符号のずれだけでは、1 ms の何周期目かが分からない", "start", 11.5, INK, True))
+    p = Plot(70, yb + 30, 600, 10, (66, 87), (0, 1))
+    ya = yb + 50
+    o.append(W(p.x, ya, p.x + p.w, ya, c=MUT, lw=1.2))
+    for t in range(66, 88, 2):
+        o.append(W(p.X(t), ya, p.X(t), ya + 4, c=MUT, lw=1))
+        o.append(T(p.X(t), ya + 15, "%d" % t, "middle", 9, MUT))
+    o.append(T(p.x + p.w / 2, ya + 31, "電波が届くまでの時間 [ms]（受信機の時計のずれを含む）", "middle", 10, MUT))
+    frac = 0.34697
+    for k in range(67, 87):
+        t = k + frac
+        hl = k == 72
+        o.append(W(p.X(t), ya - (34 if hl else 14), p.X(t), ya, c=GLD if hl else FNT, lw=2.4 if hl else 1.4))
+    o.append(T(p.X(72 + frac) + 6, ya - 25, "区切りを数えると 72.347 ms に決まる", "start", 9.5, GLD, True, halo=True))
+    o.append(T(p.x, ya + 48, "灰色の線: 符号のずれだけで分かる候補（0.347 ms ＋ 整数 ms。1 ms ごとに 20 通り、1 ms は光の速さで 300 km）", "start", 9.5, MUT))
+    return SVG(700, ya + 58, o, "送った時刻の数え方（例の値）。(a) HOW から、いま受けているサブフレームの始まりの時刻（345 600 s。週の始まりから）が分かる。そこから、ワード・ビット・符号の周期・チップを数え、チップの端数を相関の頂点から読んで足すと、いま届いているチップを送った時刻になる。受信機の時計の読みとの差に光の速さを掛けたものが擬似距離である。(b) 符号のずれ（1 ms の中の位置）だけでは、届いた時間の候補が 1 ms ごとに並ぶ。区切りを数えることで 1 つに決まる。")
+F["e02_txtime"] = _f02_txtime_fig()
