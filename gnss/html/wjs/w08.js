@@ -156,7 +156,7 @@
       o.push(P1.axes({xt:[0,15,30,45,60,75,90],yt:[-1,-0.5,0,0.5,1],xfmt:function(v){return String(v);},yfmt:function(v){return _w08_f(v,1);}}));
       var lh=[],lv=[],i;for(i=0;i<=180;i++){var ps=i/2,G=_w08_fres(e,ps*_W08_D);lh.push([ps,G[0]]);lv.push([ps,G[1]]);}
       o.push(P1.line(lh,"teal",1.8,"5 3"));o.push(P1.line(lv,"purple",2.2));
-      if(e<1e8){var pb=Math.atan(1/Math.sqrt(e))/_W08_D;o.push(S.D(P1.X(pb),P1.Y(0),"purple",3.6));o.push(S.T(P1.X(pb)+4,P1.Y(0)-6,"ブルースター "+_w08_f(pb,1)+"°","start",9,"purple",true,false,null,true));}
+      if(e<1e8){var pb=Math.atan(1/Math.sqrt(e))/_W08_D;o.push(S.D(P1.X(pb),P1.Y(0),"purple",3.6));o.push(S.T(P1.X(pb)+4,P1.Y(0)+13,"ブルースター "+_w08_f(pb,1)+"°","start",9,"purple",true,false,null,true));}
       o.push(S.L(P1.X(c.psi),P1.y,P1.X(c.psi),P1.y+P1.h,"gold",1.2,"3 3"));
       o.push(S.D(P1.X(c.psi),P1.Y(c.GV),"purple",4.4));o.push(S.D(P1.X(c.psi),P1.Y(c.GH),"teal",4.4));
       o.push(S.LEGL(px-10,py+ph+32,[["purple",null,"Γ_V（垂直）"],["teal","5 3","Γ_H（水平）"]],9.5,12));
@@ -225,7 +225,7 @@
       var nar=_w08_nar(box),Wd=nar?400:700,o=[],e=er.get(),L5=fq.get()===1,f0=L5?_W08_F5:_W08_F1,Q=qq.get(),k=sp.get(),g=gp.get();
       var lam=_W08_C/f0,ell=lam/(2*Math.sqrt(e)),lamd=lam/Math.sqrt(e),bwh=f0/Q;
       /* (a) 同じ縮尺のパッチ */
-      var ax=nar?14:14,ay=36,scl=1.5,cx=nar?110:118,cy=ay+100;
+      var ax=14,ay=36,scl=1.5,cx=nar?200:118,cy=ay+96;
       o.push(S.T(ax,18,"(a) パッチ（同じ縮尺。点線は 25 mm 角）","start",10.5,"ink",true));
       var Lp=ell*1000*scl,c5=Math.min(0.3,0.12*Math.sqrt(k))*Lp,hl=Lp/2;
       var pts=[[cx-hl+c5,cy-hl],[cx+hl,cy-hl],[cx+hl,cy+hl-c5],[cx+hl-c5,cy+hl],[cx-hl,cy+hl],[cx-hl,cy-hl+c5]];
@@ -233,10 +233,10 @@
       o.push(S.PL(pts.concat([pts[0]]),"signal",1.6,U.soft("signal")));
       o.push(S.RECT(cx-12.5*scl,cy-12.5*scl,25*scl,25*scl,0,"none","muted",1,"2 3"));
       o.push(S.D(cx+Lp/6,cy,"alias",3.4));
-      o.push(S.L(ax+8,cy+80,ax+8+20*scl,cy+80,"ink",1.6));o.push(S.T(ax+8+10*scl,cy+94,"20 mm","middle",9,"ink"));
+      o.push(S.L(ax+8,ay+16,ax+8+20*scl,ay+16,"ink",1.6));o.push(S.T(ax+8+20*scl+5,ay+20,"20 mm","start",9,"ink"));
       o.push(S.T(cx,cy+hl+18>cy+76?cy+76:cy+hl+18,"一辺 ℓ = "+_w08_f(ell*1000,1)+" mm","middle",10,"signal",true,false,null,true));
       /* (b) 2 つのモードの振幅と軸比 */
-      var span=Math.max(25,Math.ceil(1.6*bwh/1e6/5)*5),px=nar?50:290,py=nar?250:40,pw=nar?330:380,ph1=70,ph2=80;
+      var span=Math.max(25,Math.ceil(1.6*bwh/1e6/5)*5),px=nar?50:290,py=nar?264:40,pw=nar?330:380,ph1=70,ph2=80;
       o.push(S.T(px-40,py-12,"(b) 2 つのモードの振幅と、軸比（"+(L5?"L5":"L1")+" から ±"+span+" MHz）","start",10.5,"ink",true));
       var fu=f0*(1-k/(2*Q)),fv=f0*(1+k/(2*Q)),P1=U.plot(px,py,pw,ph1,[-span,span],[0,1.05]);
       o.push(P1.axes({yl:"振幅",xt:[-span,-span/2,0,span/2,span],yt:[0,0.5,1],xfmt:function(){return "";},yfmt:function(v){return _w08_f(v,1);}}));
@@ -259,8 +259,8 @@
       o.push(S.T(P2.x+P2.w-4,P2.y+12,"緑: 軸比 3 dB 以下 "+(okl===null?"なし":_w08_f(okh-okl,1)+" MHz"),"end",9,"green",true,false,null,true));
       o.push(S.T(P2.x+P2.w-4,P2.y+25,"金: 信号の主ローブ "+mlw+" MHz","end",9,"gold",true,false,null,true));
       /* (c) 地板と放射パターン（2 次元の近似） */
-      var gx=nar?110:140,gyc=nar?py+ph1+ph2+150:340,GR=nar?92:110,gmin=-25,gmax=5;
-      o.push(S.T(nar?10:14,gyc-GR-26,"(c) 地板の大きさとパターン（εr 20・L1 のパッチ。2 次元の近似）","start",10.5,"ink",true));
+      var gx=nar?200:140,gyc=nar?py+ph1+ph2+194:400,GR=nar?100:110,gmin=-25,gmax=5;
+      o.push(S.T(nar?10:14,gyc-GR-26,"(c) 地板とパターン（2 次元の近似）","start",10.5,"ink",true));
       o.push(S.CIRC(gx,gyc,GR,"muted",1.2,"screen"));
       [-20,-10,0].forEach(function(v){var rr=GR*(v-gmin)/(gmax-gmin);o.push(S.CIRC(gx,gyc,rr,"faint",0.9,null,"3 3"));o.push(S.T(gx+3,gyc-rr+11,String(v).replace("-","−"),"start",8.5,"muted",false,false,null,true));});
       o.push(S.L(gx-GR-6,gyc,gx+GR+6,gyc,"muted",1.2));o.push(S.L(gx,gyc-GR,gx,gyc+GR,"grid",1));
@@ -271,11 +271,11 @@
       var zen=cur[180]/10,hor=cur[90]/10,nad=cur[0]/10;
       /* (d) 地板の一辺と、真上・地平線・真下 */
       var dx=nar?50:330,dy=nar?gyc+GR+60:gyc-GR-4,dw=nar?330:340,dh=nar?120:200;
-      o.push(S.T(dx-40,dy-12,"(d) 地板の一辺と、向きごとの値 [dB]","start",10.5,"ink",true));
+      o.push(S.T(dx-40,dy-12,"(d) 地板の一辺と向きごとの値 [dB]","start",10.5,"ink",true));
       var P3=U.plot(dx,dy,dw,dh,[30,200],[-16,5]);
       o.push(P3.axes({xl:"地板の一辺 [mm]",xt:[30,50,70,100,150,200],yt:[-15,-10,-5,0,5],xfmt:function(v){return String(v);},yfmt:function(v){return String(v).replace("-","−");}}));
       [[180,"signal","真上"],[90,"gold","地平線"],[0,"alias","真下"]].forEach(function(z){var q=_W08_GPS.map(function(sz){return [sz,_W08_GP[String(sz)][z[0]]/10];});o.push(P3.line(q,z[1],2));
-        o.push(S.T(P3.X(200)-2,P3.Y(q[q.length-1][1])+(z[0]===90?14:-6),z[2],"end",9.5,z[1],true,false,null,true));});
+        o.push(S.T(P3.X(200)-2,P3.Y(q[q.length-1][1])+(z[0]===180?-6:14),z[2],"end",9.5,z[1],true,false,null,true));});
       if(g<1e8){o.push(S.L(P3.X(g),P3.y,P3.X(g),P3.y+P3.h,"ink",1.2,"3 3"));[[zen,"signal"],[hor,"gold"],[nad,"alias"]].forEach(function(z){o.push(S.D(P3.X(g),P3.Y(z[0]),z[1],4.4));});}
       box.set(S.svg(Wd,nar?dy+dh+44:Math.max(gyc+GR+30,dy+dh+44),o));
       /* 読み出し */
@@ -320,7 +320,7 @@
       o.push(S.T(10,18,"(a) スミスチャート（青: L1 ± 25 MHz の軌跡、点は L1）","start",10.5,"ink",true));
       o.push(S.CIRC(cx,cy,R,"ink",1.3,"screen"));o.push(S.L(cx-R,cy,cx+R,cy,"muted",1));
       var rs=[0.2,0.5,1,2,5],xs=[0.2,0.5,1,2,5],lg=[];for(i=-40;i<=40;i++)lg.push(Math.pow(10,i/10));
-      rs.forEach(function(r){var q=[];lg.forEach(function(x){q.push(g2(zg(r,-x),cx,cy,R));});q.reverse();q.push(g2(zg(r,0),cx,cy,R));lg.forEach(function(x){q.push(g2(zg(r,x),cx,cy,R));});o.push(S.PL(q,r===1?"signal":"faint",r===1?1.2:0.9,null,r===1?null:"3 3"));});
+      rs.forEach(function(r){var q=[];lg.forEach(function(x){q.push(g2(zg(r,-x),cx,cy,R));});q.reverse();q.push(g2(zg(r,0),cx,cy,R));lg.forEach(function(x){q.push(g2(zg(r,x),cx,cy,R));});o.push(S.PL(q,r===1?"muted":"faint",r===1?1.1:0.9,null,r===1?null:"3 3"));});
       xs.forEach(function(x){[1,-1].forEach(function(sg){var q=[g2(zg(0,sg*x),cx,cy,R)];lg.forEach(function(r){q.push(g2(zg(r,sg*x),cx,cy,R));});o.push(S.PL(q,"faint",0.9,null,"3 3"));});});
       o.push(S.CIRC(cx,cy,R/3,"purple",1.1,null,"2 3"));
       o.push(S.T(cx-R-4,cy-6,"短絡","end",9,"ink",true));o.push(S.T(cx+R+4,cy-6,"開放","start",9,"ink",true));
@@ -352,7 +352,7 @@
       var h="L1 で Z<sub>A</sub> = "+(r0.open?"∞（開放）":_w08_f(Z[0],1)+(Z[1]<0?" − j":" + j")+_w08_f(Math.abs(Z[1]),1)+" Ω")+" → Γ = "+_w08_f(G0[0],3)+(G0[1]<0?" − ":" + ")+_w08_f(Math.abs(G0[1]),3)+"j、|Γ| = "+_w08_f(mg,3)+"<br>";
       h+="リターンロス <b>"+(rl>99?"∞":_w08_f(rl,1)+" dB")+"</b>（|S11| = "+(rl>99?"−∞":_w08_f(-rl,1))+" dB）、VSWR <b>"+(isFinite(vs)?_w08_f(vs,2):"∞")+"</b>、不整合損失 <b>"+(isFinite(ml)?_w08_f(ml,2)+" dB":"∞（全部跳ね返る）")+"</b>（渡る電力 "+_w08_f(100*(1-mg*mg),1)+" %）<br>";
       if(k===0){var a1=_w08_ar(r0.PR,r0.PL),pp=r0.PR/(r0.PR+r0.PL),lr=r0.PL/(r0.PR+r0.PL);
-        h+="軸比 <b>"+_w08_f(a1,1)+" dB</b>。右旋の電波を受ける強さ: 不整合 "+_w08_f(ml,2)+" dB + 偏波 "+_w08_f(-_w08_db(pp),2)+" dB = <b>"+_w08_f(-_w08_db(r0.PR/0.25),2)+" dB</b> の損失。左旋の反射波は "+(lr<1e-12?"−∞":_w08_f(_w08_db(lr),1))+" dB で受ける（偏波の分だけ）";}
+        h+="軸比 <b>"+_w08_f(a1,1)+" dB</b>。右旋の電波を受ける強さ: 不整合 "+_w08_f(ml,2)+" dB + 偏波 "+_w08_f(-_w08_db(pp),2)+" dB = <b>"+_w08_f(-_w08_db(r0.PR/0.25),2)+" dB</b> の損失。左旋の反射波は "+(lr<1e-5?"−50 dB より小さく":_w08_f(_w08_db(lr),1)+" dB で")+"受ける（偏波の分だけ）";}
       else if(k===1)h+="直線偏波なので、右旋の電波は偏波でさらに 3.01 dB 損する（合計 "+_w08_f(ml+3.0103,2)+" dB）";
       ro.innerHTML=h+'<div class="wnote">パッチは 3 節の 2 つのモードの共振回路を直列につないだモデル（それぞれ共振で 50 Ω、Q は共通）で、ずれ 0 のとき L1 で 50 Ω・軸比 0 dB になる。直線偏波のパッチは 1 つのモード。基準は 50 Ω。右旋の損失は、1 V・50 Ω の信号源で送ったときの右旋の電力を、合っているときと比べた値（不整合損失と偏波の損失の和に等しい）。</div>';
     }
