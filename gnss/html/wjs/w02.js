@@ -320,7 +320,7 @@
             o.push(S.RECT(X0+k*w,y,w-(n<40?1.2:0.6),bh,1.5,fc,cc,on?1.8:0.8));
             if(labs[i]&&w>=14)o.push(S.T(X0+k*w+w/2,y+13,labs[i][k],"middle",nar?8:9,on?L.c:"muted",on));}
           if(i===0&&!nar)for(k=0;k<n;k+=4)o.push(S.T(X0+k*w+w/2,y-3,String(k+1),"middle",8,"muted"));
-          if(i===3)o.push(S.T(X0+27*w,y-3,"パリティ","middle",8.5,"teal",false,false,null,true));
+          if(i===3)o.push(S.T(nar?6:14,y+33,"最後の 6 bit はパリティ","start",nar?8.5:9,"teal"));
           var nx0=X0+idx[i]*w,nx1=X0+(idx[i]+1)*w;}
         else{var v=_w02_pm(1);o.push(S.RECT(X0,y,X1-X0,bh,1.5,"panel","line",0.8));o.push(_w02_wave(S,X0,y+bh/2,6.5,Array.prototype.slice.call(v),w,"signal",0.7));
           nx0=X0+idx[5]*w-1.5;nx1=X0+(idx[5]+1)*w+1.5;o.push(S.RECT(nx0,y-2,nx1-nx0,bh+4,1,U.soft("signal"),"signal",1.6));}
@@ -328,13 +328,14 @@
         hx0=nx0;hx1=nx1;y+=bh+gap;}
       /* チップの中: 搬送波（間引いて 40 周期）と端数の位置 */
       o.push(S.T(nar?6:14,y+8,"チップ 1 つ","start",nar?9:10,"signal",true));
-      o.push(S.T(nar?6:14,y+21,"搬送波 1540 周期・977.5 ns","start",9,"muted"));
+      o.push(S.T(nar?6:14,y+21,nar?"搬送波 1540 周期":"搬送波 1540 周期・977.5 ns","start",9,"muted"));
+      if(nar)o.push(S.T(6,y+33,"977.5 ns","start",9,"muted"));
+      o.push(S.T(nar?6:14,y+(nar?45:33),"図は 40 周期に間引いた","start",9,"muted"));
       o.push(S.L(hx0,y-gap,X0,y,"faint",1,"3 3"));o.push(S.L(hx1,y-gap,X1,y,"faint",1,"3 3"));
       var ch=_w02_ca(1)[idx[5]],sgn=ch?-1:1,pts=[];for(k=0;k<=640;k++){pts.push([X0+(X1-X0)*k/640,y+bh/2-7*sgn*Math.sin(2*Math.PI*40*k/640)]);}
       o.push(S.RECT(X0,y,X1-X0,bh,1.5,U.soft("signal"),"signal",1));o.push(S.PL(pts,"muted",0.9));
-      var xf=X0+(X1-X0)*frac;o.push(S.L(xf,y-4,xf,y+bh+4,"gold",2.4));o.push(S.T(xf,y+bh+14,"端数 "+_w02_f(frac,2),"middle",9,"gold",true,false,null,true));
-      o.push(S.T(X1,y-3,"図は 40 周期に間引いた","end",8.5,"muted",false,false,null,true));
-      box.set(S.svg(Wd,y+bh+22,o));
+      var xf=X0+(X1-X0)*frac;o.push(S.L(xf,y-4,xf,y+bh+4,"gold",2.4));o.push(S.T(Math.min(Math.max(xf,X0+24),X1-24),y+bh+14,"端数 "+_w02_f(frac,2),"middle",9,"gold",true,false,null,true));
+      box.set(S.svg(Wd,y+(nar?52:42),o));
       /* 読み出し */
       var tsf=idx[2]*0.6+idx[3]*0.02+idx[4]*0.001+(idx[5]+frac)*_W02_TC,tcy=idx[0]*30+idx[1]*6+tsf,ct=cont(idx[1]+1,idx[0]+1),h="";
       h+="12.5 分の一巡の始まりからの時刻: "+idx[0]+" × 30 s + "+idx[1]+" × 6 s + "+idx[2]+" × 0.6 s + "+idx[3]+" × 20 ms + "+idx[4]+" × 1 ms + "+_w02_f(idx[5]+frac,2)+" × 977.517 ns = <b>"+_w02_g(tcy,9)+" s</b><br>";
