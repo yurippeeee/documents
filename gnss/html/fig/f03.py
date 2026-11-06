@@ -550,7 +550,7 @@ def _f03_snr_fig():
     o.append(T(r.X(1.08), r.Y(6.6), "35 dB-Hz", "start", 9.5, GRN, True, halo=True))
     o.append(LEGL(r.x - 30, r.y + r.h + 48, [(INK, None, "SNR = (C/N_0) T_{coh}"), (INK, "5 3", "SNR_I（2 倍）")], 9.5, 12))
     o.append(TX(r.x + r.w, r.y + r.h + 64, "○・□: シミュレーション（SNR・SNR_I）", "end", 9, MUT))
-    return SVG(700, 358, o, "相関の後の SN 比。(a) 中間周波数の実数の標本に雑音を足して計算した Y<sub>I</sub> と Y<sub>Q</sub> を、何回も繰り返した点（C/N0 = 35 dB-Hz、受けた搬送波と手元の搬送波の位相の差 30°）。信号の点（黒）は半径 √(2C) の円の上にあり、雑音による散らばりは 1/√T<sub>coh</sub> に比例して小さくなる。(b) 式の SNR = (C/N0) × T<sub>coh</sub>（実線）と、Y<sub>I</sub> だけで見た SNR<sub>I</sub> = 2 (C/N0) T<sub>coh</sub>（破線）を、シミュレーションで測った値（○・□）と比べた。")
+    return SVG(700, 358, o, "相関の後の SN 比。(a) 搬送波の周波数を下げた実数の標本に雑音を足して計算した Y<sub>I</sub> と Y<sub>Q</sub> を、何回も繰り返した点（C/N0 = 35 dB-Hz、受けた搬送波と手元の搬送波の位相の差 30°）。信号の点（黒）は半径 √(2C) の円の上にあり、雑音による散らばりは 1/√T<sub>coh</sub> に比例して小さくなる。(b) 式の SNR = (C/N0) × T<sub>coh</sub>（実線）と、Y<sub>I</sub> だけで見た SNR<sub>I</sub> = 2 (C/N0) T<sub>coh</sub>（破線）を、シミュレーションで測った値（○・□）と比べた。")
 F["e03_snr"] = _f03_snr_fig()
 
 
@@ -858,7 +858,7 @@ def _f03_rangenoise_fig():
         o.append(D(p.X(t), p.Y(0.5), GLD, 4))
     o.append(T(p.X(-0.5) - 8, p.Y(0.5 + sw35) + 2, "早い所", "end", 9.5, GLD, True, halo=True))
     o.append(T(p.X(0.5) + 8, p.Y(0.5 + sw35) + 2, "遅い所", "start", 9.5, GLD, True, halo=True))
-    o.append(T(p.X(0.5) + 8, p.Y(0.5 - sw35) + 12, "±1σ（35 dB-Hz）", "start", 9, GLD, False, halo=True))
+    o.append(T(p.X(0.5) + 8, p.Y(0.72), "±1σ（35 dB-Hz）", "start", 9, GLD, False, halo=True))
     o.append(T(p.X(0), p.Y(1) - 6, "頂点", "middle", 9.5, SIG, True, halo=True))
     for k, (cn0, seed, c) in enumerate(((45.0, 2, SIG), (35.0, 5, GRN))):
         y = 212 + k * 22
@@ -879,10 +879,10 @@ def _f03_rangenoise_fig():
     o.append(q.axes(xl="C/N0 [dB-Hz]", yl="σ_ρ [m]", xt=[20, 25, 30, 35, 40, 45, 50], yt=[1, 10, 100], xfmt=_f03_m, yfmt=_f03_m))
     cm = _F03_C * _F03_TC
     cs = _f03_np.linspace(20, 50, 61)
-    for Ta, c, lab, xl_ in ((1e-3, TEA, "1 ms", 22), (20e-3, GLD, "20 ms", 22), (1.0, SIG, "平均 1 s", 22)):
+    for Ta, c, lab, xl_, dy_ in ((1e-3, TEA, "1 ms", 22, 16), (20e-3, GLD, "20 ms", 28.5, -7), (1.0, SIG, "平均 1 s", 22, 16)):
         o.append(q.clip([(cv, cm / (2 * math.sqrt(10 ** (cv / 10) * Ta))) for cv in cs], c=c, lw=2.2))
         yv = cm / (2 * math.sqrt(10 ** (xl_ / 10) * Ta))
-        o.append(T(q.X(xl_) + 2, q.Y(yv) + 16, lab, "start", 9.5, c, True, halo=True))
+        o.append(T(q.X(xl_) + 2, q.Y(yv) + dy_, lab, "start", 9.5, c, True, halo=True))
     for cv, Tm, sdc in _F03_RNSIM:
         c = TEA if Tm == 1.0 else GLD
         o.append(CIRC(q.X(cv), q.Y(sdc * cm), 3.8, c=ALI, lw=1.6, fill=SCR))
@@ -895,8 +895,8 @@ def _f03_rangenoise_fig():
     o.append(DIM(q.X(48), q.Y(v45), q.X(48), q.Y(v35), None, c=INK))
     o.append(T(q.X(48) + 5, q.Y(math.sqrt(v45 * v35)) - 2, "× 3.16", "start", 9.5, INK, True, halo=True))
     o.append(T(q.X(48) + 5, q.Y(math.sqrt(v45 * v35)) + 11, "（10 dB）", "start", 9, INK, False, halo=True))
-    o.append(TX(q.x + q.w, q.y + q.h + 46, "線: 式 cT_c/(2√((C/N0)T))　○: シミュレーション", "end", 9, MUT))
-    return SVG(700, 298, o, "距離の雑音。(a) 追尾している受信機は、頂点の左右 0.5 チップの 2 点（早い所・遅い所）の相関から、2 章の式で頂点を求める。2 点の値の雑音で、求めた頂点が揺れる（1 ms の 1 回の測定を 40 回。点の散らばりの標準偏差は、45 dB-Hz で 0.089 チップ、35 dB-Hz で 0.281 チップ）。(b) 擬似距離の雑音の標準偏差 σ<sub>ρ</sub> = cT<sub>c</sub>/(2√((C/N0)T)) は C/N0 の平方根に反比例し、10 dB 下がると 3.16 倍になる。1 s の平均では、45 dB-Hz で 0.82 m、35 dB-Hz で 2.61 m。")
+    o.append(TX(q.x + q.w, q.y + q.h + 46, "線: 式 cT_c/(2√((C/N0)T_{coh}))　○: シミュレーション", "end", 9, MUT))
+    return SVG(700, 298, o, "距離の雑音。(a) 追尾している受信機は、頂点の左右 0.5 チップの 2 点（早い所・遅い所）の相関から、2 章の式で頂点を求める。2 点の値の雑音で、求めた頂点が揺れる（1 ms の 1 回の測定を 40 回。点の散らばりの標準偏差は、45 dB-Hz で 0.089 チップ、35 dB-Hz で 0.281 チップ）。(b) 擬似距離の雑音の標準偏差 σ<sub>ρ</sub> = cT<sub>c</sub>/(2√((C/N0)T<sub>coh</sub>)) は C/N0 の平方根に反比例し、10 dB 下がると 3.16 倍になる。1 s の平均（T<sub>coh</sub> を平均した時間 T<sub>avg</sub> = 1 s に置き換える）では、45 dB-Hz で 0.82 m、35 dB-Hz で 2.61 m。")
 F["e03_rangenoise"] = _f03_rangenoise_fig()
 
 
