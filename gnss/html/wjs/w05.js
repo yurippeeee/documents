@@ -104,8 +104,8 @@
       o.push(S.L(x0,y0+4,x0+WW,y0+4,"muted",1.1));
       [0,200,400,600,800,1000].forEach(function(v){var xx=x0+v/1023*WW;o.push(S.L(xx,y0+4,xx,y0+8,"muted",1));o.push(S.T(xx,y0+20,String(v),"middle",9.5,"muted"));});
       o.push(S.T(x0+WW/2,y0+36,"符号の位相 [チップ]","middle",10,"muted"));
-      [0,Math.floor((nr-1)/2),nr-1].forEach(function(r){var b0=r*gr,b1=Math.min(c.nb,(r+1)*gr)-1,f=(c.bins[b0]+c.bins[b1])/2;
-        o.push(S.T(x0+WW+r*dx+6,y0-r*dy+4,(f>0.5?"+":"")+_w05_f(f/1000,f%1000===0?0:2).replace("−0.00","0")+" kHz","start",9.5,"muted"));});
+      [0,(c.nb-1)/2,c.nb-1].forEach(function(b){var r=Math.floor(b/gr),f=c.bins[b];
+        o.push(S.T(x0+WW+r*dx+6,y0-r*dy+4,(f>0.5?"+":"")+_w05_f(f/1000,Math.abs(f%1000)<1e-6?0:2)+" kHz","start",9.5,"muted"));});
       if(gr>1)o.push(S.T(x0+WW+(nr-1)*dx-60,y0-(nr-1)*dy-12,"1 本の線 = "+gr+" ビンの最大","start",9,"muted"));
       o.push(S.L(x0-8,y0,x0-8,y0-pd*hz,"muted",1));
       var yth=y0-c.thr*hz;
@@ -129,8 +129,8 @@
           o.push(Pb.clip(cb,"green",1.6,"4 3"));o.push(Pc.clip(cc,"green",1.6,"4 3"));}
         for(var k3=ki-6;k3<=ki+6;k3++){var kk=((k3%J)+J)%J,pv2=P[bi*J+kk],xx2=tau+(k3-ki)*_W05_RC/_W05_FS;o.push(S.L(Pb.X(xx2),Pb.Y(0),Pb.X(xx2),Pb.Y(Math.min(pv2,top)),"faint",1));o.push(S.D(Pb.X(xx2),Pb.Y(Math.min(pv2,top)),pv2>c.thr?"signal":"muted",k3===ki?4:2.8));}
         for(var b3=0;b3<c.nb;b3++){var f3=c.bins[b3];if(f3<Pc.xr[0]-1e-9||f3>Pc.xr[1]+1e-9)continue;var pv3=P[b3*J+ki];o.push(S.L(Pc.X(f3),Pc.Y(0),Pc.X(f3),Pc.Y(Math.min(pv3,top)),"faint",1));o.push(S.D(Pc.X(f3),Pc.Y(Math.min(pv3,top)),pv3>c.thr?"signal":"muted",b3===bi?4:2.8));}
-        var lg=[["signal",null,"ビン（しきい値を超えると青）"],["alias","5 3","しきい値"]];if(onT)lg.push(["green","4 3","本当の山の式の値"]);
-        o.push(S.LEGL(nar?14:60,nar?yb+352:yb+176,lg,9.5,14));
+        var lx=nar?14:60,ly=nar?yb+352:yb+176;o.push(S.D(lx+5,ly-4,"signal",3.4));o.push(S.T(lx+13,ly,"ビン（しきい値を超えると青）","start",9.5,"muted"));lx+=13+U.tw("ビン（しきい値を超えると青）",9.5)+14;
+        o.push(S.LEGL(lx,ly,onT?[["alias","5 3","しきい値"],["green","4 3","本当の山の式の値"]]:[["alias","5 3","しきい値"]],9.5,14));
         box.set(S.svg(Wd,nar?yb+362:yb+186,o));}
       else box.set(S.svg(Wd,y0+46,o));
       /* 読み出し */
@@ -144,7 +144,9 @@
         if(full){var vd;if(sat)vd=near>0?(far>0?'<span class="warn">見つかったが、誤警報もある</span>':'<span class="ok">見つかった</span>'):(far>0?'<span class="warn">山を見逃し、誤警報だけがある</span>':'<span class="warn">見逃した（しきい値を超えるビンが無い）</span>');
           else vd=far>0?'<span class="warn">誤警報（いない衛星を「いる」と決めた）</span>':'<span class="ok">この衛星はいない、と正しく決めた</span>';h+=" → "+vd;}}
       var ser=c.nb*2046*c.T*1e-3,opS=c.nb*c.T*(J+2046*J),opF=c.nb*(c.T*(J+FOPS+J)+(c.T-1)*J+FOPS);
-      h+="<br>1 組の相関器で直列に全部を試す時間: "+_w05_g(2046*c.nb,0)+" × "+c.T+" ms = <b>"+_w05_t(ser)+"</b>"+(P&&st.first>=0?"（最初にしきい値を超えたビンまで "+_w05_t((st.first+1)*c.T*1e-3*2046/J)+"）":"");
+      h+="<br>1 組の相関器で直列に全部を試す時間: "+_w05_g(2046*c.nb,0)+" × "+c.T+" ms = <b>"+_w05_t(ser)+"</b>";
+      if(P&&!full)h+="。ここまで "+_w05_g(Math.round(st.rev*2046/J),0)+" ビン（1 組の相関器なら "+_w05_t(st.rev*c.T*1e-3*2046/J)+"）";
+      if(P&&st.first>=0&&st.rev>st.first)h+="。最初にしきい値を超えたビンまで "+_w05_t((st.first+1)*c.T*1e-3*2046/J)+"（直列の受信機は、ここで探すのを止めて確かめる）";
       h+="<br>計算の回数（1 つの衛星）: 直列 "+_w05_sci(opS,2)+" 回、FFT "+_w05_sci(opF,2)+" 回（直列の "+_w05_g(opS/opF,0)+" 分の 1）";
       ro.innerHTML=h+'<div class="wnote">受けた信号は、PRN 1（120.25 チップ・+1630 Hz）と PRN 2（731.6 チップ・−2380 Hz）の C/A 符号の信号（例の値。どちらも同じ C/N0）に雑音を足した、1 ms に 2048 個の複素数の標本。データのビットの反転と、符号のドップラー（1 秒に 1 チップほど）は入れていない。ドップラーは 0 Hz から外へ順に探す。立体の図は、隣り合う '+cw+' 個の符号の位相（行が多いときは、隣り合うドップラーのビンも）の最大を 1 点にした。直列の順に見せるときも、値は FFT で求めた相関を使った（2 節の図で、両者が一致することを確かめた）。計算の回数は、本文の表と同じ数え方。</div>';
     }
@@ -182,7 +184,7 @@
     var cn=U.slider(r2,"C/N0",{min:15,max:50,step:1,value:45,fmt:function(v){return v+" dB-Hz";},onInput:run});
     var tc=U.slider(r2,"積分の時間 T<sub>coh</sub>",{values:[1,2,5,10,20],value:1,fmt:function(v){return v+" ms";},onInput:run});
     var r3=U.ctrls(el);
-    var sp=U.slider(r3,"3 s からの受信機の速さ（衛星へ向かう向き）",{values:[0,10,30,100,300],value:0,fmt:function(v){return v+" m/s";},onInput:run});
+    var sp=U.slider(r3,"3 s からの受信機の速さ",{values:[0,10,30,100,300],value:0,fmt:function(v){return v+" m/s";},onInput:run});
     var e0=U.slider(r3,"初めのずれ",{values:[0,0.25,0.5,1,1.4],value:0.25,fmt:function(v){return _w05_f(v,2)+" チップ";},onInput:run});
     var ai=U.checkbox(r3,"搬送波による支援",true,run);
     var br=U.btnrow(el),seed=1,cur=10,R=null,SG=null,tk=U.ticker(function(){cur=Math.min(10,cur+0.08);if(cur>=10)tk.stop();draw();},40);
@@ -208,7 +210,7 @@
       var W=Math.max(20,Math.round(0.2/o.T)),dots=[];for(var k=Math.max(0,kc-W);k<kc;k++){var ex=R.e[k],dv=R.D[k];if(ex>=-2&&ex<=2&&dv>=-ya&&dv<=ya)dots.push(S.D(A.X(ex),A.Y(dv),"gold",1.7));}
       s.push(dots.join(""));
       if(kc>0){var ek=R.e[kc-1],dk=R.D[kc-1];if(ek>=-2&&ek<=2)s.push(S.D(A.X(ek),A.Y(Math.max(-ya,Math.min(ya,dk))),"gold",4.6));}
-      s.push(S.TX(A.X(0),A.y+12,"緑の帯: ±Δ_{EL}/2","middle",9,"green",false,true));
+      s.push(S.TX(A.X(-1.95),A.y+A.h-6,"緑の帯: ±Δ_{EL}/2","start",9,"green",false,true));
       s.push(S.TX(A.X(lim)-3,A.y+A.h-6,"1 + Δ_{EL}/2","end",9,"alias",false,true));
       /* (b) ずれの時間の変化 */
       var mx=0;for(k=0;k<=R.n;k++)mx=Math.max(mx,Math.abs(R.e[k]));
@@ -239,7 +241,7 @@
 
   /* ---- 4 節: FLL と PLL（I・Q の平面の点 ↔ 周波数と位相のずれの時間の変化） ---- */
   /* 1 ms ごとの FLL → PLL。mode 0: FLL（0.2 s）から PLL、1: PLL だけ、2: FLL だけ。disc 0: コスタス arctan(−Q/I)、1: 4 象限 */
-  function _w05_pll(U,o){var T=1e-3,n=Math.round(o.tend/T),c=Math.pow(10,o.cn0/10),sd=Math.sqrt(1/(2*c*T)),g=U.rng(o.seed);
+  function _w05_pll(U,o){var T=1e-3,n=Math.round(o.tend/T),c=Math.pow(10,o.cn0/10),sd=Math.sqrt(1/(2*c*T)),g=U.rng(o.seed*7+10);
     var w0=o.order===3?o.B/0.7845:o.B/0.53,ffl=o.mode===0?0.2:(o.mode===2?1e9:0),kf=4*T*10/(1+2*T*10),ta=0.7,aa=o.acc*9.81/_W05_LAM;
     var nb=Math.ceil(o.tend/0.02)+2,bits=new Int8Array(nb),i;for(i=0;i<nb;i++)bits[i]=o.data?(g.next()<0.5?1:-1):1;
     var psh=0,wh=0,x1=null,x2=0,pI=null,pQ=0,I=new Float32Array(n),Q=new Float32Array(n),dF=new Float32Array(n),dP=new Float64Array(n),sw=-1;
@@ -325,10 +327,13 @@
       h+="ループ: "+(o.mode===2?"FLL（帯域 10 Hz）だけ":(o.mode===0?"FLL（帯域 10 Hz）で 0.2 s 周波数を寄せてから、":"")+o.order+" 次の PLL（B<sub>L</sub> = "+o.B+" Hz、ω<sub>n</sub> = B<sub>L</sub>/"+(o.order===2?"0.53":"0.785")+" = "+_w05_f(R.w0,1)+" rad/s）")+"。1 ms ごとに直す";
       if(o.mode===2)h+="<br>周波数のずれ: 最後の 0.1 s の平均 "+_w05_f(st.res,1)+" Hz"+(st.pull>=0?"。2 Hz より小さくなった時刻 "+_w05_f(st.pull,2)+" s":"")+"。FLL は位相を合わせないので、I・Q の点は回り続け、データを I で読めない";
       else{h+="<br>引き込み（位相のずれが ±15° の中に 50 ms 続けて入った最初の時刻）: "+(st.pull>=0?"<b>"+_w05_f(st.pull,2)+" s</b>":'<span class="warn">'+_w05_f(TE,1)+" s までに引き込めない</span>");
-        h+="<br>落ち着いた後の位相の揺れ（シミュレーション、動き無しで 3 s）: <b>"+_w05_f(st.sig,2)+"°</b>、式 σ<sub>ψ</sub> = √{B<sub>L</sub>/(C/N0) × (1 + 1/(2T<sub>coh</sub>(C/N0)))} = "+_w05_f(sfm,2)+"°";
-        if(o.acc>0)h+="<br>加速度 "+o.acc+" g（ドップラーが 1 秒に "+_w05_f(o.acc*9.81/_W05_LAM,1)+" Hz ずつ変わる）による位相のずれ: 式 "+(o.order===2?"θ<sub>e</sub> = (2πa/λ)/ω<sub>n</sub><sup>2</sup> = <b>"+_w05_f(th,1)+"°</b>":"3 次の PLL では 0")+"、シミュレーション（1.2〜1.5 s の平均）"+(st.th!=null?_w05_f(st.th,1):"−")+"°";
-        var rule=3*sfm+Math.abs(th);h+="<br>追尾の目安（3σ<sub>ψ</sub> + 動きによるずれ ≤ 45°）: "+_w05_f(rule,1)+"° → "+(rule<=45?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>');
-        h+="<br>引き込んだ後、ロックする点が "+(q?"360°":"180°")+" 跳んだ回数: "+(st.pull>=0?(st.slip?'<span class="warn">'+st.slip+" 回</span>":"0 回"):"−")+(o.disc===0?"（180° でロックすると、ビットが全部反転して読める。プリアンブルで気づいて直す）":(o.data?"（データのビットで I・Q の点が反対側へ移ると、4 象限の判別器は 180° のずれと見て直そうとする）":""));}
+        var bad=o.disc===1&&o.data;
+        h+="<br>落ち着いた後の位相の揺れ（シミュレーション、動き無しで 3 s）: "+(st.sig>20?'<span class="warn">'+_w05_f(st.sig,0)+"°（ロックを保てない）</span>":"<b>"+_w05_f(st.sig,2)+"°</b>")+"、式 σ<sub>ψ</sub> = √{B<sub>L</sub>/(C/N0) × (1 + 1/(2T<sub>coh</sub>(C/N0)))} = "+_w05_f(sfm,2)+"°"+(bad?"（式はコスタスの判別器のもの）":"");
+        var okp=st.pull>=0&&st.pull<1.1;
+        if(o.acc>0)h+="<br>加速度 "+o.acc+" g（ドップラーが 1 秒に "+_w05_f(o.acc*9.81/_W05_LAM,1)+" Hz ずつ変わる）による位相のずれ: 式 "+(o.order===2?"θ<sub>e</sub> = (2πa/λ)/ω<sub>n</sub><sup>2</sup> = <b>"+_w05_f(th,1)+"°</b>":"3 次の PLL では 0")+"、シミュレーション（1.2〜1.5 s の平均）"+(okp&&st.th!=null&&!bad?_w05_f(st.th,1)+"°":"−（引き込めていない）");
+        var rule=3*sfm+Math.abs(th);h+="<br>追尾の目安（3σ<sub>ψ</sub> + 動きによるずれ ≤ 45°。式の値で）: "+_w05_f(rule,1)+"° → "+(rule<=45?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+(st.pull<0?"。ただし、初めの周波数のずれが PLL の引き込める範囲より大きく、ロックしていない（FLL で寄せてから PLL に渡す）":"");
+        if(bad)h+='<br><span class="warn">4 象限の判別器は、データのビットがあると使えない</span>（ビットが変わって I・Q の点が反対側へ移るたびに、位相が 180° ずれたと測る。データの無い信号（パイロット）に使う）';
+        h+="<br>引き込んだ後、ロックする点が "+(q?"360°":"180°")+" 跳んだ回数: "+(st.pull>=0?(st.slip?'<span class="warn">'+st.slip+" 回</span>":"0 回"):"−")+(o.disc===0?"（コスタスでは 180° 違う点でもロックする。そのときはビットが全部反転して読め、プリアンブルで気づいて直す）":"");}
       ro.innerHTML=h+'<div class="wnote">P の I・Q は、振幅を √(2C) で割った値（周波数のずれによる sinc の倍率を含む）に、各成分の分散 1/{2(C/N0)T<sub>coh</sub>} の雑音を足した。T<sub>coh</sub> = 1 ms。FLL は 4 節の判別器と、1 次のループ（帯域 10 Hz）。2 次の PLL は減衰比 0.707、3 次の PLL は係数 1.1 と 2.4。受信機は 0.7 s から一定の加速度で動く。紫の帯は FLL が動いている時間。</div>';
     }
     run();
@@ -336,10 +341,10 @@
 
   /* ---- 6 節: TTFF（手順の時間の帯 ↔ 受けたサブフレーム、1000 回のばらつき） ---- */
   /* P_d = 0.9・格子全体の誤警報 1 %（1 つの衛星のビンの数 10^L）に要る SNR [dB]。N は非コヒーレントに足す回数。刻みの損失の平均を含む（本文と同じ計算） */
-  var _W05_REQ={N:[1,2,4,10,30,100],L:[3,4,5,6,7,8],db:[[14.31,14.98,15.55,16.06,16.5,16.91],[11.83,12.46,13.0,13.47,13.89,14.28],[9.48,10.07,10.57,11.01,11.41,11.77],[6.58,7.11,7.57,7.97,8.33,8.66],[3.39,3.87,4.29,4.65,4.98,5.28],[0.2,0.65,1.03,1.37,1.66,1.93]]};
+  var _W05_REQ={N:[1,2,4,10,30,100,300,1000],L:[3,4,5,6,7,8],db:[[14.31,14.98,15.55,16.06,16.5,16.91],[11.83,12.46,13.0,13.47,13.89,14.28],[9.48,10.07,10.57,11.01,11.41,11.77],[6.58,7.11,7.57,7.97,8.33,8.66],[3.39,3.87,4.29,4.65,4.98,5.28],[0.2,0.65,1.03,1.37,1.66,1.93],[-2.51,-2.09,-1.72,-1.4,-1.12,-0.87],[-5.34,-4.93,-4.57,-4.27,-4.0,-3.75]]};
   function _w05_req(N,L){var r=_W05_REQ.db[_W05_REQ.N.indexOf(N)],x=Math.max(3,Math.min(8,L)),i=Math.min(4,Math.floor(x-3)),f=x-3-i;return r[i]+(r[i+1]-r[i])*f;}
   /* 1 つのビンの積分の候補: [コヒーレント積分の時間 T [ms], 足す回数 N] */
-  var _W05_DW=[[1,1],[1,2],[1,4],[1,10],[10,1],[10,4],[10,10],[20,10],[20,30],[20,100]];
+  var _W05_DW=[[1,1],[1,2],[1,4],[1,10],[10,1],[10,4],[10,10],[20,10],[20,30],[20,100],[20,300],[20,1000]];
   /* 受信機が持っているもの: 探す PRN の数・符号の位相のビンの数・ドップラーの範囲 ±fr [Hz]・データを読むか */
   var _W05_MODES=[{nm:"コールドスタート（何も無い）",prn:32,cp:2046,fr:6000,data:true},{nm:"ウォームスタート（アルマナック・時刻・位置）",prn:9,cp:2046,fr:800,data:true},
     {nm:"ホットスタート（有効なエフェメリスも）",prn:9,cp:2046,fr:500,data:false},{nm:"A-GNSS（時刻は秒の単位）",prn:9,cp:2046,fr:500,data:false},{nm:"A-GNSS（精密な時刻）",prn:9,cp:40,fr:500,data:false}];
@@ -374,8 +379,9 @@
     var md=U.select(r1,"電源を入れたときに受信機が持っているもの",_W05_MODES.map(function(m){return m.nm;}),0,run);
     var r2=U.ctrls(el);
     var cn=U.slider(r2,"C/N0（どの衛星も同じ）",{min:15,max:50,step:1,value:45,fmt:function(v){return v+" dB-Hz";},onInput:run});
-    var on=U.slider(r2,"電源を入れた時刻（フレームの頭から）",{min:0,max:29.9,step:0.1,value:15,fmt:function(v){return _w05_f(v,1)+" s";},onInput:run});
-    var en=U.slider(r2,"探す回路が同時に計算するビン",{values:[1000,4000,16000,64000],value:4000,fmt:function(v){return _w05_g(v,0)+" 個";},onInput:run});
+    var en=U.slider(r2,"探す回路の大きさ",{values:[1000,4000,16000,64000],value:4000,fmt:function(v){return "同時に "+_w05_g(v,0)+" ビン";},onInput:run});
+    var r3=U.ctrls(el);
+    var on=U.slider(r3,"電源を入れた時刻（30 s のフレームの頭から）",{min:0,max:29.9,step:0.1,value:15,fmt:function(v){return _w05_f(v,1)+" s";},onInput:run});on.el.style.flex="1 1 100%";
     var br=U.btnrow(el),seed=1,R=null,H=null;
     U.button(br,"本文の例（コールドスタート・45 dB-Hz）",function(){md.set(0);cn.set(45);on.set(15);en.set(4000);run();});
     U.button(br,"1000 回くり返す",function(){rep();});
@@ -386,12 +392,13 @@
       for(var i=0;i<1000;i++){var r=_w05_ttff1(U,m,cn.get(),en.get(),g.next()*30,g);if(r.fail)fail++;else v.push(r.ttff);}
       v.sort(function(a,b){return a-b;});var sm=0;v.forEach(function(x){sm+=x;});
       H={v:v,fail:fail,med:v.length?v[Math.floor(v.length/2)]:NaN,mean:v.length?sm/v.length:NaN,p95:v.length?v[Math.min(v.length-1,Math.floor(0.95*v.length))]:NaN,mode:md.get(),cn:cn.get(),eng:en.get()};draw();}
+    function fT(t){return t<100?_w05_f(t,1)+" s":_w05_t(t);}
     function draw(){
       var m=_W05_MODES[md.get()],nar=_w05_nar(box),Wd=nar?400:700,s=[],x0=nar?58:92,w=nar?328:592,st=R.st,i,k;
       var tsum=st[0]+st[1]+st[2]+st[3]+st[4],tmax=R.fail?Math.max(10,(st[0]+st[1])*1.2):Math.max(m.data?40:3,tsum*1.08);
       var nt=U.nice(0,tmax,nar?4:7);tmax=Math.max(tmax,nt[nt.length-1]);
       function X(t){return x0+t/tmax*w;}
-      s.push(S.T(nar?6:14,18,"(a) 手順ごとの時間"+(R.fail?"（位置が出ない）":"（TTFF "+_w05_f(R.ttff,1)+" s）"),"start",11,"ink",true));
+      s.push(S.T(nar?6:14,18,"(a) 手順ごとの時間"+(R.fail?"（位置が出ない）":"（TTFF "+fT(R.ttff)+"）"),"start",11,"ink",true));
       var t=0;for(i=0;i<5;i++){var d=st[i];if(d>0){s.push(S.RECT(X(t),32,Math.max(X(t+d)-X(t),1.5),22,2,U.soft(SC[i][1]),SC[i][1],1));if(X(t+d)-X(t)>U.tw(SC[i][0],9.5)+6)s.push(S.T((X(t)+X(t+d))/2,47,SC[i][0],"middle",9.5,SC[i][1],true));}t+=d;}
       if(R.fail)s.push(S.T(X(t)+6,47,R.fail,"start",9.5,"alias",true,false,null,true));
       s.push(S.L(x0,60,x0+w,60,"muted",1.1));
@@ -399,50 +406,53 @@
       s.push(S.T(x0+w/2,92,"電源を入れてからの時間 [s]","middle",10,"muted"));
       var lx=nar?8:x0;SC.forEach(function(q){s.push(S.RECT(lx,101,12,10,2,U.soft(q[1]),q[1],1));s.push(S.T(lx+16,110,q[0],"start",9.5,"muted"));lx+=16+U.tw(q[0],9.5)+(nar?10:16);});
       var y=nar?134:138;
-      /* (b) 受けたサブフレーム */
+      /* (b) 受けたサブフレーム（データを読み始める少し前から、4 機目がそろった後までを、自分の時間の目盛で描く） */
       s.push(S.L(nar?6:10,y-10,Wd-(nar?6:10),y-10,"line",0.8));
       if(m.data&&R.sats){
         s.push(S.T(nar?6:14,y+6,"(b) 各衛星が受けたサブフレーム 1〜3（緑: 読めた、赤: 読み誤った）","start",11,"ink",true));
-        var yf=y+16,ton=R.ton;
-        /* フレームの区切り（サブフレーム 1〜5 の並び） */
+        var ta=Math.max(0,R.tr-3),tb=Math.max(ta+40,R.ttff+4),ton=R.ton,yf=y+32,nt2=U.nice(ta,tb,nar?4:7).filter(function(v){return v>=ta-1e-9&&v<=tb+1e-9;});
+        var X2=function(u){return x0+(u-ta)/(tb-ta)*w;};
         s.push(S.T(x0-6,yf+9,"フレーム","end",9.5,"muted"));
-        for(k=Math.floor(ton/6)*6;k-ton<tmax;k+=6){var a=Math.max(0,k-ton),b=Math.min(tmax,k+6-ton),sn=(Math.round(k/6)%5)+1;if(b<=a)continue;
-          s.push(S.RECT(X(a),yf,X(b)-X(a),12,0,sn<=3?U.soft("signal"):"screen","line",0.7));if(X(b)-X(a)>10)s.push(S.T((X(a)+X(b))/2,yf+9.5,String(sn),"middle",8.5,sn<=3?"signal":"muted"));}
-        s.push(S.L(X(R.tr),yf-4,X(R.tr),yf+16+9*12,"teal",1.2,"3 2"));
-        R.sats.forEach(function(q,j){var yy=yf+18+j*12;s.push(S.T(x0-6,yy+8,"衛星 "+(j+1),"end",9,"muted"));
-          q.tr.forEach(function(p){var a2=p[0]-R.t0+R.tr,b2=a2+6;if(a2>=tmax)return;s.push(S.RECT(X(a2),yy,X(Math.min(b2,tmax))-X(a2),9,1,U.soft(p[1]?"green":"alias"),p[1]?"green":"alias",0.8));});
-          var ee=q.end-R.t0+R.tr;if(ee<=tmax)s.push(S.L(X(ee),yy-1,X(ee),yy+10,"ink",1.6));});
+        for(k=Math.floor((ton+ta)/6)*6;k-ton<tb;k+=6){var a=Math.max(ta,k-ton),b=Math.min(tb,k+6-ton),sn=(Math.round(k/6)%5)+1;if(b<=a)continue;
+          s.push(S.RECT(X2(a),yf,X2(b)-X2(a),12,0,sn<=3?U.soft("signal"):"screen","line",0.7));if(X2(b)-X2(a)>10)s.push(S.T((X2(a)+X2(b))/2,yf+9.5,String(sn),"middle",8.5,sn<=3?"signal":"muted"));}
         var yz=yf+18+9*12;
-        if(R.ttff<=tmax){s.push(S.L(X(R.ttff),yf-4,X(R.ttff),yz,"green",1.6,"5 3"));s.push(S.T(X(R.ttff)-3,yz+12,"4 機目がそろう","end",9.5,"green",true,false,null,true));}
-        s.push(S.T(X(R.tr)+3,yz+12,"データを読み始める","start",9.5,"teal",false,false,null,true));
-        y=yz+30;}
+        R.sats.forEach(function(q,j){var yy=yf+18+j*12;s.push(S.T(x0-6,yy+8,"衛星 "+(j+1),"end",9,"muted"));
+          q.tr.forEach(function(p){var a2=p[0]-R.t0+R.tr,b2=Math.min(tb,a2+6);if(a2>=tb)return;s.push(S.RECT(X2(a2),yy,X2(b2)-X2(a2),9,1,U.soft(p[1]?"green":"alias"),p[1]?"green":"alias",0.8));});
+          var ee=q.end-R.t0+R.tr;if(ee<=tb)s.push(S.L(X2(ee),yy-1,X2(ee),yy+10,"ink",1.6));});
+        s.push(S.L(X2(R.tr),yf-4,X2(R.tr),yz,"teal",1.2,"3 2"));s.push(S.T(X2(R.tr)+3,yf-6,"読み始める","start",9,"teal",true,false,null,true));
+        s.push(S.L(X2(R.ttff),yf-4,X2(R.ttff),yz,"green",1.6,"5 3"));s.push(S.T(X2(R.ttff)-3,yf-6,"4 機目がそろう","end",9,"green",true,false,null,true));
+        s.push(S.L(x0,yz+2,x0+w,yz+2,"muted",1.1));
+        nt2.forEach(function(v){s.push(S.L(X2(v),yz+2,X2(v),yz+6,"muted",1));s.push(S.T(X2(v),yz+18,U.sig(v,4),"middle",9.5,"muted"));});
+        s.push(S.T(x0+w/2,yz+33,"電源を入れてからの時間 [s]（(a) と目盛が違う）","middle",10,"muted"));
+        y=yz+54;}
       else{s.push(S.T(nar?6:14,y+6,"(b) サブフレーム","start",11,"ink",true));
         s.push(S.T(nar?6:14,y+24,R.fail?"位置が出ないので、描かない":"エフェメリスは持っている（A-GNSS なら通信で受け取る）ので、サブフレームを待たない","start",9.5,"muted"));y+=40;}
       /* (c) 1000 回のばらつき */
       s.push(S.L(nar?6:10,y-6,Wd-(nar?6:10),y-6,"line",0.8));
-      if(H&&H.v.length){var hm=H.v[H.v.length-1],bw=hm<=12?0.25:(hm<=60?1:(hm<=300?5:30)),nb=Math.max(1,Math.ceil((hm+1e-9)/bw)),cnts=new Array(nb).fill(0),cm=0;
-        H.v.forEach(function(v){var b=Math.min(nb-1,Math.floor(v/bw));cnts[b]++;});cnts.forEach(function(c){cm=Math.max(cm,c);});
-        var P=U.plot(x0,y+26,w,96,[0,nb*bw],[0,cm*1.15]);
+      if(H&&H.v.length){var lo0=H.v[0],hi0=H.v[H.v.length-1],sp=Math.max(1e-3,hi0-lo0),bw=[0.05,0.1,0.25,0.5,1,2,5,10,20,50,100,200,500,1000,2000,5000,10000].filter(function(q){return q>=sp/40;})[0]||20000;
+        var lo=Math.floor(lo0/bw)*bw,nb=Math.max(1,Math.ceil((hi0-lo)/bw+1e-9)),hi=lo+nb*bw,cnts=new Array(nb).fill(0),cm=0;
+        H.v.forEach(function(v){var b=Math.min(nb-1,Math.floor((v-lo)/bw));cnts[b]++;});cnts.forEach(function(c){cm=Math.max(cm,c);});
+        var P=U.plot(x0,y+26,w,96,[lo,hi],[0,cm*1.15]);
         s.push(S.T(nar?6:14,y+10,"(c) 1000 回の TTFF（電源を入れる時刻と雑音を変えた）","start",11,"ink",true));
-        s.push(P.axes({xt:U.nice(0,nb*bw,nar?4:7).filter(function(v){return v<=nb*bw+1e-9;}),yt:U.nice(0,cm*1.15,3).filter(function(v){return v<=cm*1.15;}),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return String(v);},xl:"TTFF [s]",yl:"回数",ylOff:36}));
-        cnts.forEach(function(c,b){if(c>0)s.push(S.RECT(P.X(b*bw)+0.5,P.Y(c),Math.max(1,P.X((b+1)*bw)-P.X(b*bw)-1),P.Y(0)-P.Y(c),0,U.soft("signal"),"signal",0.8));});
+        s.push(P.axes({xt:U.nice(lo,hi,nar?4:7).filter(function(v){return v>=lo-1e-9&&v<=hi+1e-9;}),yt:U.nice(0,cm*1.15,3).filter(function(v){return v<=cm*1.15;}),xfmt:function(v){return U.sig(v,4);},yfmt:function(v){return String(v);},xl:"TTFF [s]",yl:"回数",ylOff:36}));
+        cnts.forEach(function(c,b){if(c>0)s.push(S.RECT(P.X(lo+b*bw)+0.5,P.Y(c),Math.max(1,P.X(lo+(b+1)*bw)-P.X(lo+b*bw)-1),P.Y(0)-P.Y(c),0,U.soft("signal"),"signal",0.8));});
         s.push(S.L(P.X(H.med),P.y,P.X(H.med),P.y+P.h,"gold",1.6,"4 3"));s.push(S.T(P.X(H.med)+3,P.y+10,"中央値","start",9.5,"gold",true,false,null,true));
         y=P.y+P.h+42;}
       else{s.push(S.T(nar?6:14,y+12,"(c) 「1000 回くり返す」を押すと、TTFF のばらつきを描く","start",10,"muted"));y+=20;}
       box.set(S.svg(Wd,y,s));
       /* 読み出し */
-      var dw=R.dw,h="";
-      if(dw){h+="探す格子: "+m.prn+" 機 × "+m.cp+" × "+dw.nd+"（ドップラー ±"+_w05_g(m.fr,0)+" Hz を 1/(2T<sub>coh</sub>) ごと）= <b>"+_w05_g(dw.cells,0)+"</b> ビン";
+      var dw=R.dw,h="",frs=m.fr>=1000?_w05_f(m.fr/1000,0)+" kHz":m.fr+" Hz";
+      if(dw){h+="探す格子: "+m.prn+" 機 × "+m.cp+" × "+dw.nd+"（符号の位相"+(m.cp<1000?"は ±10 チップを 1/2 チップごと":"は 1/2 チップごと")+"、ドップラーは ±"+frs+" を 1/(2T<sub>coh</sub>) ごと）= <b>"+_w05_g(dw.cells,0)+"</b> ビン";
         h+="<br>1 つのビン: "+dw.T+" ms のコヒーレント積分"+(dw.N>1?"の電力を "+dw.N+" 回足す（合わせて "+_w05_g(dw.T*dw.N,0)+" ms）":"")+"。要る SNR "+_w05_f(dw.need,1)+" dB（P<sub>d</sub> = 0.9・格子全体の誤警報 1 %・3 dB の余裕）に対し、1 回の SNR "+_w05_f(dw.have,1)+" dB";
         h+="<br>探す時間: "+_w05_g(dw.cells,0)+" × "+_w05_g(dw.T*dw.N,0)+" ms ÷ "+_w05_g(en.get(),0)+" = <b>"+_w05_t(dw.t)+"</b>。合わせる 0.3 s（FLL・PLL）";}
-      else h+='<span class="warn">表のどの積分の組み合わせでも、要る SNR に届かない</span>（最も長い 20 ms × 100 回でも足りない）';
+      else h+='<span class="warn">表のどの積分の組み合わせ（最も長いのは 20 ms × 1000 回）でも、要る SNR に届かない</span>';
       if(!R.fail&&m.data){h+="、ビット同期 "+_w05_f(st[2],0)+" s";
-        h+="<br>データを読み始めた時刻: フレームの頭から "+_w05_f(R.t0,2)+" s → 4 機目のサブフレーム 1〜3 がそろうまで <b>"+_w05_f(st[3],2)+" s</b>（読み誤りが無ければ "+_w05_f(_w05_teph(R.t0),2)+" s）";
-        h+="<br>1 つのサブフレームを全部正しく読む確率 (1 − P<sub>b</sub>)<sup>300</sup> = "+_w05_f(R.pok,3)+"（P<sub>b</sub> = Q(√(2(C/N0) × 20 ms)) = "+_w05_sci(R.pb,1)+"）";}
+        h+="<br>データを読み始めた時刻: フレームの頭から "+_w05_f(R.t0,2)+" s → 4 機目のサブフレーム 1〜3 がそろうまで <b>"+fT(st[3])+"</b>（読み誤りが無ければ "+_w05_f(_w05_teph(R.t0),2)+" s）";
+        h+="<br>1 つのサブフレームを全部正しく読む確率 (1 − P<sub>b</sub>)<sup>300</sup> = "+_w05_f(R.pok,3)+"（P<sub>b</sub> = Q(√(2(C/N0) × 20 ms)) "+(R.pb<1e-10?"は 10⁻¹⁰ より小さい":"= "+_w05_sci(R.pb,1))+"）";}
       if(!R.fail&&!m.data)h+="<br>エフェメリスは待たない。HOW も待たずに擬似距離を作り、次の 1 s の区切りで位置を出す（"+_w05_f(st[4],2)+" s 後）";
-      if(R.fail)h+='<br><span class="warn">'+R.fail+"</span>";else h+="<br>TTFF = <b>"+_w05_f(R.ttff,1)+" s</b>";
-      if(H)h+="<br>1000 回（"+_W05_MODES[H.mode].nm.replace(/（.*）/,"")+"・"+H.cn+" dB-Hz）: "+(H.v.length?"中央値 <b>"+_w05_f(H.med,1)+" s</b>、平均 "+_w05_f(H.mean,1)+" s、95 % が "+_w05_f(H.p95,1)+" s 以内":"")+(H.fail?'（<span class="warn">位置が出なかった '+H.fail+" 回</span>）":"");
-      ro.innerHTML=h+'<div class="wnote">どれも例の値の簡単なモデル。見えている衛星は 9 機（どれも同じ C/N0）で、4 機目のエフェメリスがそろったら位置を出す。探す時間は、格子の全部を探す時間とした。1 つのビンの積分は、表の組み合わせ（1 ms × 1〜10 回、10 ms × 1〜10 回、20 ms × 10〜100 回）のうち、要る SNR に 3 dB を足して届く中で最も速いもの（ビットの境目の損失は入れていない）。ビット同期は、1 s ごとに、境目の位置の回数がほかのどの位置より 5 回以上多いかを調べる。C/N0 が 23 dB-Hz（4 節の目安で、10 ms・10 Hz の PLL）より低いとデータを読めないとした。</div>';
+      if(R.fail&&dw)h+='<br><span class="warn">'+R.fail+"</span>";else if(!R.fail)h+="<br>TTFF = <b>"+fT(R.ttff)+"</b>";
+      if(H)h+="<br>1000 回（"+_W05_MODES[H.mode].nm.replace(/（.*）/,"")+"・"+H.cn+" dB-Hz）: "+(H.v.length?"中央値 <b>"+fT(H.med)+"</b>、平均 "+fT(H.mean)+"、95 % が "+fT(H.p95)+" 以内":"")+(H.fail?'（<span class="warn">位置が出なかった '+H.fail+" 回</span>）":"");
+      ro.innerHTML=h+'<div class="wnote">どれも例の値の簡単なモデル。見えている衛星は 9 機（どれも同じ C/N0）で、4 機目のエフェメリスがそろったら位置を出す。探す時間は、格子の全部を探す時間とした。1 つのビンの積分は、表の組み合わせ（1 ms × 1〜10 回、10 ms × 1〜10 回、20 ms × 10〜1000 回）のうち、要る SNR に 3 dB を足して届く中で最も速いもの（ビットの境目の損失は入れていない）。ビット同期は、1 s ごとに、境目の位置の回数がほかのどの位置より 5 回以上多いかを調べる。C/N0 が 23 dB-Hz（4 節の目安で、10 ms・10 Hz の PLL）より低いとデータを読めないとした。</div>';
     }
     run();
   };
