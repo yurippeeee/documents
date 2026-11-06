@@ -693,7 +693,7 @@ def _f20_obs_trade_fig():
         a, b = _f20_cart_noise(w)[1] * 1000, _f20_cart_push_err(w) * 1000
         o.append(D(P.X(w), P.Y(a), TEA, 3.6)); o.append(D(P.X(w), P.Y(b), PUR, 3.6))
         o.append(T(P.X(w) + 4, P.Y(a) + 14, _f20_g(a, 3), "start", 9, TEA, True, halo=True))
-        o.append(T(P.X(w) + 4, P.Y(b) - 6, _f20_g(b, 2), "start", 9, PUR, True, halo=True))
+        o.append(T(P.X(w) + 4, P.Y(b) - 6, _f20_g(b, 3), "start", 9, PUR, True, halo=True))
     o.append(T(P.X(98), P.Y(1414) + 13, "1 節の差分（1 ms）: 1414 mm/s", "end", 9.5, ALI, True, halo=True))
     o.append(T(P.X(98), P.Y(55), "モデルに無い力（0.5 N で 0.5 s 押す）", "end", 9.5, PUR, True, halo=True))
     o.append(T(P.X(98), P.Y(55) + 14, "による最大のずれ", "end", 9.5, PUR, True, halo=True))
@@ -845,7 +845,7 @@ def _f20_kf1(ys, W, V, s0=1e9, x0=0.0):
     for y in ys:
         sp = s + W; xp = x
         h = sp / (sp + V)
-        x = xp + h * (y - xp); s = (1 - h) * sp
+        x = xp + h * (y - xp); s = h * V
         X.append(x); SP.append(sp); HH.append(h); SS.append(s); XP.append(xp)
     return tuple(_f20_np.array(v) for v in (X, SP, HH, SS, XP))
 
