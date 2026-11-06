@@ -85,8 +85,8 @@ def _f01_const():
     S += _f01_walker("GLONASS", 25510e3, 64.8, 3, 8, 1, 15.0)
     S += _f01_walker("Galileo", 29600e3, 56.0, 3, 8, 1, 40.0)
     S += _f01_walker("BeiDou", 27906e3, 55.0, 3, 8, 1, 70.0)
-    for k in range(3):   # 準天頂軌道（3 機が同じ 8 の字をたどるように、面を 120° ずつ回し、8 時間ずつずらす）
-        S.append(dict(sys="QZSS", a=42164e3, e=0.075, i=41.0, w=270.0, Om=226.0 + 120 * k, M=-120.0 * k, nm="J%d" % (k + 1)))
+    for k in range(3):   # 準天頂軌道（3 機が同じ 8 の字をたどるように、面を 120° ずつ回し、8 時間ずつずらす。8 の字の中心は東経 136°。時刻 0 で 3 機が離れて見える位相にした）
+        S.append(dict(sys="QZSS", a=42164e3, e=0.075, i=41.0, w=270.0, Om=166.0 + 120 * k, M=60.0 - 120.0 * k, nm="J%d" % (k + 1)))
     S.append(dict(sys="QZSS", a=42164e3, geo=127.0, nm="J4"))   # 静止軌道（東経 127°）
     return S
 
@@ -402,8 +402,10 @@ def _f01_region(S, rho, sig, xr, yr, step=0.03):
 
 
 def _f01_dirmark(p, S, c=SIG):
-    """拡大した枠の縁に、受信機（原点）から見た点 S の向きを衛星の印で示す。"""
+    """拡大した枠の縁に、受信機（原点）から見た点 S の向きを衛星の印で示す。向きが近いときは印を小さくする。"""
     o = []
+    angs = sorted(math.atan2(s[1], s[0]) for s in S)
+    small = min(abs(angs[k + 1] - angs[k]) for k in range(len(angs) - 1)) < 0.35
     for i, s in enumerate(S):
         a = math.atan2(s[1], s[0])
         best = None
@@ -413,7 +415,7 @@ def _f01_dirmark(p, S, c=SIG):
                 break
             best = (x, y)
         x, y = p.X(best[0]), p.Y(best[1])
-        o.append(_f01_sat(x, y, c, 0.62))
+        o.append(_f01_sat(x, y, c, 0.45 if small else 0.62))
         o.append(T(x + (0 if abs(math.cos(a)) < 0.6 else (-15 if math.cos(a) > 0 else 15)), y + 14, "S%d" % (i + 1), "middle", 9.5, c, True, halo=True))
     return "".join(o)
 
@@ -778,7 +780,7 @@ def _f01_eqs_fig():
         o.append(T(xe + 150, yy, "%s km" % ("{:,.3f}".format(d / 1e3).replace(",", " ")), "end", 9.5, GRN))
         o.append(T(xe + 260, yy, "%s km" % ("{:,.3f}".format(d / 1e3 + bkm).replace(",", " ")), "end", 9.5, SIG))
         o.append(T(xe + 362, yy, "%.3f km" % bkm, "end", 9.5, GLD, True))
-    return SVG(700, 306, o, "4 つの衛星の擬似距離の式。(a) 受信機は 4 つの衛星までの擬似距離を測る（図は南から見た向きで、衛星は 5 節の配置で東京から見える GPS の衛星 4 つ）。(b) 式の中で、擬似距離（青）は測る値、衛星の位置（紫）は衛星が送る軌道の値から計算できる値で、受信機の位置 x, y, z と時計のずれ b（金）の 4 つが未知数である。表のとおり、受信機の時計が 1 ms 進んでいると、どの擬似距離も本当の距離より同じ 299.792 km だけ長い。")
+    return SVG(700, 306, o, "4 つの衛星の擬似距離の式。(a) 受信機は 4 つの衛星までの擬似距離を測る（図は南から見た向きで、衛星は 5 節の配置で東京から見える GPS の衛星 4 つ。G9 などは、この章の配置で付けた衛星の名前）。(b) 式の中で、擬似距離（青）は測る値、衛星の位置（紫）は衛星が送る軌道の値から計算できる値で、受信機の位置 x, y, z と時計のずれ b（金）の 4 つが未知数である。表のとおり、受信機の時計が 1 ms 進んでいると、どの擬似距離も本当の距離より同じ 299.792 km だけ長い。")
 F["e01_eqs"] = _f01_eqs_fig()
 
 
@@ -921,11 +923,14 @@ def _f01_orbits_fig():
     o.append(T(p.X(1), p.Y(sid / 2) - 5, "その半分", "start", 9.5, SIG, False, halo=True))
     aa = _f01_np.linspace(6.371e6, 45e6, 200)
     o.append(p.line([(a / 1e6, _f01_period(a) / 3600) for a in aa], c=INK, lw=1.6))
-    pts = [("ISS", _F01_RE + 400e3, ALI, (8, 4)), ("GLONASS", 25510e3, PUR, (-8, 4)), ("GPS", 26560e3, SIG, (-8, -22)), ("BeiDou", 27906e3, GLD, (10, 10)), ("Galileo", 29600e3, GRN, (10, -14)), ("静止軌道", 42164e3, MUT, (-10, 12))]
+    pts = [("ISS", _F01_RE + 400e3, ALI, (22, 4)), ("GLONASS", 25510e3, PUR, (-8, 4)), ("GPS", 26560e3, SIG, (-8, -22)), ("BeiDou", 27906e3, GLD, (10, 10)), ("Galileo", 29600e3, GRN, (10, -14)), ("静止軌道", 42164e3, MUT, (-10, 12))]
     for nm, a, c, (dx, dy) in pts:
         Tp = _f01_period(a)
         x, y = p.X(a / 1e6), p.Y(Tp / 3600)
         o.append(D(x, y, c, 4))
+        if nm == "ISS":   # 横軸のすぐ上なので 1 行にまとめ、曲線の下に置く
+            o.append(T(x + dx, y + dy, "ISS（%s）" % _f01_hm(Tp), "start", 9.5, c, True, halo=True))
+            continue
         o.append(T(x + dx, y + dy, nm, "start" if dx > 0 else "end", 9.5, c, True, halo=True))
         o.append(T(x + dx, y + dy + 12, _f01_hm(Tp), "start" if dx > 0 else "end", 9.5, c, False, halo=True))
     o.append(TX(p.X(16), p.Y(4.5), "T_{orb} = 2π√(a^3/μ)", "start", 11, INK, True, halo=True))
@@ -1019,7 +1024,7 @@ def _f01_qzss_fig():
     tr = [_f01_lonlat(_f01_ecef(qz[0], t)) for t in _f01_np.linspace(0, _F01_SID, 721)]
     o.append(p.line(tr, c=TEA, lw=2.4))
     for s in qz:
-        lo, la = _f01_lonlat(_f01_ecef(s, 4 * 3600.0))
+        lo, la = _f01_lonlat(_f01_ecef(s, 0.0))
         o.append(D(p.X(lo), p.Y(la), TEA, 4.6))
         lft = lo < 136
         o.append(T(p.X(lo) + (-7 if lft else 7), p.Y(la) + 4, s["nm"], "end" if lft else "start", 9.5, TEA, True, halo=True))
@@ -1047,7 +1052,7 @@ def _f01_qzss_fig():
     elG = [_f01_elaz(*_F01_TOK, _f01_ecef(g, t))[0] for t in ts]
     o.append(q.clip(list(zip(ts / 3600, elG)), c=SIG, lw=1.6))
     o.append(LEGL(424, 310, [(TEA, None, "J1"), (TEA, "6 3", "J2"), (TEA, "2 3", "J3"), (SIG, None, "GPS の衛星 1 機")], 9.5, 14))
-    return SVG(700, 330, o, "みちびきの準天頂軌道（この章のモデル: 軌道の長半径 42 164 km・離心率 0.075・傾き 41°・8 の字の中心は東経 136°。値は近似で、実際の軌道とは少し違う）。(a) 3 機（J1〜J3。点は時刻 4 時間の位置）は 8 時間ずつずれて、同じ 8 の字をたどる。8 の字は南北で形が違い、衛星は北の側（地球から遠い側）をゆっくり進むので、24 時間のうち 13.1 時間を北半球の上で過ごす。静止軌道の J4 は赤道の上の 1 点にとどまる。(b) 東京から見ると、準天頂軌道の 1 機は 1 日に約 9 時間、地平線から 70° 以上の高さにあり、3 機のどれかはいつも 75° 以上にある。GPS の衛星（青）は数時間で空を横切る。")
+    return SVG(700, 330, o, "みちびきの準天頂軌道（この章のモデル: 軌道の長半径 42 164 km・離心率 0.075・傾き 41°・8 の字の中心は東経 136°。値は近似で、実際の軌道とは少し違う）。(a) 準天頂軌道の 3 機（J1〜J3。点は時刻 0 の位置）は 8 時間ずつずれて、同じ 8 の字をたどる。8 の字は南北で形が違い、衛星は北の側（地球から遠い側）をゆっくり進むので、24 時間のうち 13.1 時間を北半球の上で過ごす。静止軌道の J4 は赤道の上の 1 点にとどまる。(b) 東京から見ると、準天頂軌道の 1 機は 1 日に約 9 時間、地平線から 70° 以上の高さにあり、3 機のどれかはいつも 75° 以上にある。GPS の衛星（青）は数時間で空を横切る。")
 F["e01_qzss"] = _f01_qzss_fig()
 
 
@@ -1253,7 +1258,7 @@ def _f01_sky_fig():
         o.append(T(xx + 11, 312, lab, "start", 9.5, _F01_SYSC[key], True))
         xx += 22 + tw(lab, 9.5)
     o.append(T(352, 328, "地平線より上の衛星は合計 %d 機（数字は衛星系ごとの数）" % sum(cnt.values()), "start", 9.5, MUT))
-    return SVG(700, 338, o, "受信機から見た衛星の向き。(a) 受信機を原点とし、東・北・上に軸をとった ENU 座標で衛星の向きを表すと、仰角 θ は向きと水平面のなす角、方位角 α は水平面に投影した向き（紫の破線）を北から東へ測った角である。(b) スカイプロットは、中心が真上、外の円が地平線で、中心からの距離を 90° − θ に比例させ、上を北、右を東にとる。この章の近似の配置（時刻 0）で東京から見える衛星を、衛星系ごとの色で描いた（G6 は (a) の衛星）。")
+    return SVG(700, 338, o, "受信機から見た衛星の向き。(a) 受信機を原点とし、東・北・上に軸をとった ENU 座標で衛星の向きを表すと、仰角 θ は向きと水平面のなす角、方位角 α は水平面に投影した向き（紫の破線）を北から東へ測った角である。(b) スカイプロットは、中心が真上、外の円が地平線で、中心からの距離を 90° − θ に比例させ、上を北、右を東にとる。この章の近似の配置（時刻 0）で東京から見える衛星を、衛星系ごとの色で描いた（G6 は (a) の衛星。名前の最初の文字は衛星系で、G は GPS、R は GLONASS、E は Galileo、C は BeiDou、J はみちびき）。")
 F["e01_sky"] = _f01_sky_fig()
 
 

@@ -290,7 +290,7 @@
   function _w01_walker(sys,a,inc,P,S,F,Om0){var o=[];for(var p=0;p<P;p++)for(var s=0;s<S;s++)o.push({sys:sys,a:a,e:0,i:inc,w:0,Om:Om0+360*p/P,M:360*s/S+360*F*p/(P*S),nm:_W01_SYS[sys][2]+(p*S+s+1)});return o;}
   var _W01_CON=null;
   function _w01_const(){if(_W01_CON)return _W01_CON;var S=[].concat(_w01_walker("GPS",26560e3,55,6,4,1,0),_w01_walker("GLONASS",25510e3,64.8,3,8,1,15),_w01_walker("Galileo",29600e3,56,3,8,1,40),_w01_walker("BeiDou",27906e3,55,3,8,1,70));
-    for(var k=0;k<3;k++)S.push({sys:"QZSS",a:42164e3,e:0.075,i:41,w:270,Om:226+120*k,M:-120*k,nm:"J"+(k+1)});
+    for(var k=0;k<3;k++)S.push({sys:"QZSS",a:42164e3,e:0.075,i:41,w:270,Om:166+120*k,M:60-120*k,nm:"J"+(k+1)});
     S.push({sys:"QZSS",a:42164e3,geo:127,nm:"J4"});_W01_CON=S;return S;}
   function _w01_eci(s,t){if(s.geo!=null){var th=_W01_WE*t+s.geo*_W01_D;return [s.a*Math.cos(th),s.a*Math.sin(th),0];}
     var n=Math.sqrt(_W01_MU/Math.pow(s.a,3))/_W01_D;return _w01_kep(s.a,s.e,s.i,s.w,s.Om,s.M+n*t);}
