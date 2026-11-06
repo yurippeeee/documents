@@ -200,7 +200,7 @@
     var S=U.S,TE=3,H=0.001,EV=5;
     U.head(el,"LQR VS PLACEMENT","同じ速さの極配置と最適レギュレータ");
     var r1=U.ctrls(el);
-    var sw=U.slider(r1,U.htx("極配置の速さ ω_p"),{values:[3,3.5,4,4.5,5,5.5,5.6978,6,6.5,7,8],value:5.6978,fmt:function(v){return _w19_g(v,3)+" rad/s";},onInput:function(){run();}});
+    var sw=U.slider(r1,U.htx("極配置の速さ ω_p"),{values:[3,3.5,4,4.5,5,5.5,5.7,6,6.5,7,8],value:5.7,fmt:function(v){return _w19_g(v,3)+" rad/s";},onInput:function(){run();}});
     var sa=U.select(r1,"最適レギュレータの角度の重み",["評価しない（本文の例と同じ形）","角度の最大値 30°","角度の最大値 10°"],0,function(){run();});
     var stst=U.select(r1,"試験",["10° 傾けて静かに放す","おもりを右へ 1 N で 0.1 s 押す"],0,function(){run();});
     var r3=U.ctrls(el);
@@ -209,7 +209,7 @@
     var tk=U.ticker(function(){var t=st.get()+0.02;if(t>=TE){t=TE;tk.stop();}st.set(t);draw();},40);
     U.button(br,"▶ 再生",function(){if(st.get()>=TE-0.001)st.set(0);tk.start();});
     U.button(br,"■ 止める",function(){tk.stop();});
-    U.button(br,"本文の例（ω_p = 5.70）",function(){tk.stop();sw.set(5.6978);sa.set(0);stst.set(0);st.set(0.3);run();});
+    U.button(br,"本文の例（ω_p = 5.70）",function(){tk.stop();sw.set(5.7);sa.set(0);stst.set(0);st.set(0.3);run();});
     U.button(br,"18 章の −4 × 4",function(){tk.stop();sw.set(4);sa.set(0);stst.set(0);st.set(0.3);run();});
     U.button(br,"速い設計（ω_p = 7）",function(){tk.stop();sw.set(7);sa.set(0);stst.set(0);st.set(0.3);run();});
     var box=U.svgbox(el),ro=U.readout(el),R=null;
@@ -302,7 +302,7 @@
     function Lof(F,s){var s2=cx.mul(s,s),n1=cx.mul(cx.add(U.ctl.c(F[0],0),cx.scale(s,F[1])),cx.scale(cx.sub(s2,U.ctl.c(gl,0)),im)),n2=cx.mul(cx.add(U.ctl.c(F[2],0),cx.scale(s,F[3])),cx.scale(s2,iml));
       return cx.div(cx.sub(n1,n2),cx.mul(s2,cx.sub(s2,U.ctl.c(aph,0))));}
     function prep(){var i=+sel.get();spm.el.style.display=i===1?"":"none";
-      var F=i===0?_w19_design(U,0.5,null,5).F:(i===1?_w19_design(U,spm.get(),null,5).F:(i===2?_w19_acker(U,[[-4],[-4],[-4],[-4]]):(i===3?_w19_acker(U,[[-3,3],[-3,-3],[-3,3],[-3,-3]]):_w19_acker(U,[[-5.6978],[-5.6978],[-5.6978],[-5.6978]]))));
+      var F=i===0?_w19_design(U,0.5,null,5).F:(i===1?_w19_design(U,spm.get(),null,5).F:(i===2?_w19_acker(U,[[-4],[-4],[-4],[-4]]):(i===3?_w19_acker(U,[[-3,3],[-3,-3],[-3,3],[-3,-3]]):_w19_acker(U,[[-5.7],[-5.7],[-5.7],[-5.7]]))));
       /* 余裕: −1 からの最短距離、力の下限（固有値で二分法）、ゲイン交差と位相余裕、許されるむだ時間 */
       var ws=U.ctl.logspace(-1,3,3000),best=1e9,wb=0,gcs=[];
       for(var j=0;j<ws.length;j++){var v=Lof(F,U.ctl.c(0,ws[j])),d=cx.abs(cx.add(U.ctl.c(1,0),v));if(d<best&&ws[j]<500){best=d;wb=ws[j];}
