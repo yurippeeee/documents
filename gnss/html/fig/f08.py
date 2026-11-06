@@ -1069,3 +1069,345 @@ def _f08_gpsize_fig():
     o.append(T(xb, 352, "（50 mm 以上。1 波長は 190 mm）", "start", 9.5, MUT))
     return SVG(700, 376, o, "地板の大きさによるパターンの違い（例の比誘電率 20 のパッチを、正方形の地板の中心に置いた。地板の奥行きを無限とした 2 次元のモーメント法の計算で、パッチの 2 つの縁を通る切り口の、地板に垂直な成分。値は無限の地板の真上に対する [dB]）。(a) 地板が小さいほど、真下へ漏れる電波（後ろのローブ）が大きく、真上が弱い。(b) 真上・地平線・真下の値と、地板の一辺。真上と真下の差（前後比）は、地板 50 mm で %.1f dB、150 mm で %.1f dB。地平線の値は、一辺が 50 mm 以上ならあまり変わらず、無限の地板のとき（%s dB）より %.1f〜%.1f dB 低い（電界でほぼ半分）。実際の 3 次元の地板では値が変わるので、傾向として見る。" % (fb[50], fb[150], _f08_f(hinf, 1), hinf - hmax, hinf - hmin))
 F["e08_gpsize"] = _f08_gpsize_fig()
+
+
+def _f08_types_fig():
+    o = []
+    np = _f08_np
+    cols = [(14, "(a) チップアンテナ"), (248, "(b) パッチアンテナ（セラミック）"), (482, "(c) ヘリカルアンテナ（四線巻き）")]
+    for x0, t in cols:
+        o.append(T(x0, 18, t, "start", 11.5, INK, True))
+    o.append(W(238, 30, 238, 176, c=LIN, lw=0.8)); o.append(W(472, 30, 472, 176, c=LIN, lw=0.8))
+    # (a) 基板の端のチップ（上から見る）
+    bx, by, bw, bh = 24, 44, 196, 92
+    o.append(RECT(bx, by, bw, bh, 3, GSOFT, GRN, 1.2))
+    o.append(RECT(bx + bw - 56, by, 56, bh, 0, SCR, GRN, 1.0, dash="3 3"))
+    o.append(RECT(bx + bw - 39, by + 6, 22, 9, 1, GOSOFT, GLD, 1.4))
+    o.append(T(bx + 8, by + 40, "基板のグラウンド", "start", 9.5, GRN, True))
+    o.append(T(bx + 8, by + 56, "（電流が流れ、", "start", 9.5, GRN))
+    o.append(T(bx + 8, by + 70, "アンテナの一部）", "start", 9.5, GRN))
+    o.append(T(bx + bw - 28, by + 40, "銅を", "middle", 9.5, MUT, True))
+    o.append(T(bx + bw - 28, by + 54, "置かない", "middle", 9.5, MUT, True))
+    o.append(T(bx + bw - 28, by + bh + 16, "キープアウト", "middle", 9.5, MUT, True))
+    o.append(T(bx + bw - 28, by - 6, "チップ", "middle", 9.5, GLD, True))
+    o.append(T(bx, by + bh + 36, "部品は数 mm〜10 mm。直線偏波に近い", "start", 9.5, INK))
+    # (b) パッチ（上から見る）
+    cx, cy = 360, 92
+    o.append(RECT(cx - 50, cy - 48, 100, 96, 2, MSOFT, MUT, 1.2))
+    o.append(RECT(cx - 24, cy - 24, 48, 48, 2, GOSOFT, GLD, 1.4))
+    o.append(RECT(cx - 17, cy - 17, 34, 34, 1, SSOFT, SIG, 1.4))
+    o.append(D(cx + 6, cy, ALI, 3.2))
+    o.append(T(cx + 56, cy - 34, "地板", "start", 9.5, MUT, True))
+    o.append(T(cx + 56, cy - 20, "（50〜100 mm）", "start", 9.5, MUT))
+    o.append(T(cx + 56, cy + 4, "セラミック", "start", 9.5, GLD, True))
+    o.append(T(cx + 56, cy + 18, "（15〜25 mm）", "start", 9.5, GLD))
+    o.append(T(cx + 56, cy + 40, "パッチ", "start", 9.5, SIG, True))
+    o.append(T(248, by + bh + 36, "右旋。地板が要る（4 節）", "start", 9.5, INK))
+    # (c) 四線巻き（横から見る）
+    hx, hy0, hy1, rr = 600, 50, 132, 22
+    o.append(RECT(hx - rr, hy0, 2 * rr, hy1 - hy0, 3, MSOFT, MUT, 1.0, op=0.6))
+    zs = np.linspace(0, 1, 120)
+    for k in range(4):
+        ph = k * math.pi / 2
+        pts_f, pts_b = [], []
+        for z in zs:
+            a = 2 * math.pi * 0.75 * z + ph
+            xx = hx + rr * math.sin(a); yy = hy1 - (hy1 - hy0) * z
+            (pts_f if math.cos(a) > 0 else pts_b).append((xx, yy, z))
+        for pts, front in ((pts_f, True), (pts_b, False)):
+            seg = []
+            for p_ in pts:
+                if seg and abs(p_[2] - seg[-1][2]) > 0.02:
+                    if len(seg) > 1:
+                        o.append(PL([(a_, b_) for a_, b_, _ in seg], c=PUR, lw=1.8 if front else 1.0, dash=None if front else "3 2"))
+                    seg = []
+                seg.append(p_)
+            if len(seg) > 1:
+                o.append(PL([(a_, b_) for a_, b_, _ in seg], c=PUR, lw=1.8 if front else 1.0, dash=None if front else "3 2"))
+    o.append(T(hx + rr + 10, hy0 + 14, "4 本の導線", "start", 9.5, PUR, True))
+    o.append(T(hx + rr + 10, hy0 + 28, "（90° ずつ", "start", 9.5, PUR))
+    o.append(T(hx + rr + 10, hy0 + 42, "ずらす）", "start", 9.5, PUR))
+    o.append(T(hx - rr - 8, hy1 - 4, "直径 1〜4 cm", "end", 9.5, MUT))
+    o.append(T(482, by + bh + 36, "右旋。大きな地板が要らない", "start", 9.5, INK))
+    # パターン（形の例）
+    yp = 290
+    o.append(W(14, 188, 686, 188, c=LIN, lw=0.8))
+    o.append(T(14, 206, "仰角の切り口の右旋の利得（形の例。製品で大きく違う）", "start", 10, INK, True))
+    def chip(e):
+        a = math.radians(e)
+        return 10 * math.log10(max(0.82 * math.cos(a) ** 2 * 0.5 + 1e-4, 1e-4)) if e >= -90 else -40
+    def patch(e):
+        gr, gl = _f08_ex(e)
+        return 10 * math.log10(max(gr, 1e-6))
+    def helix(e):
+        if e >= 0:
+            return 3 - 5 * ((90 - e) / 90) ** 2
+        return -2 - 10 * (abs(e) / 90) ** 0.7
+    els = np.arange(-90, 91, 1.0)
+    for (x0, _), fn, c in zip(cols, (chip, patch, helix), (GLD, SIG, PUR)):
+        pcx = x0 + 110
+        o.append(_f08_polar(pcx, yp, 66, -25, 5, [-20, -10, 0], full=True, lab=True, unit="[dBi]", sz=9))
+        gs = [fn(e) for e in els]
+        for side in (1, -1):
+            o.append(PL(_f08_ppts(pcx, yp, 66, -25, 5, els, gs, side), c=c, lw=2.0))
+        o.append(T(pcx - 70, yp + 4, "地平線", "end", 9, MUT))
+    o.append(T(124, yp + 86, "直線偏波なので最大でも 3 dB 低い", "middle", 9.5, GLD))
+    o.append(T(358, yp + 86, "例のアンテナ（1 節）", "middle", 9.5, SIG))
+    o.append(T(592, yp + 86, "地平線に近い向きが下がりにくい", "middle", 9.5, PUR))
+    return SVG(700, 384, o, "GNSS の 3 つの形のアンテナ（形と寸法は代表的な例）。(a) チップアンテナ: 基板の端の、銅を置かない領域（キープアウト）に小さなセラミックの部品を載せる。基板のグラウンドにも電流が流れ、基板の全体がアンテナとして働く。(b) パッチアンテナ: 地板の上のセラミックの板とパッチ（3 節）。(c) ヘリカルアンテナ（四線巻き）: 円筒のまわりに 4 本の導線を巻き、90° ずつずらした位相で働かせる。下は、右旋の電波に対する利得の形の例（チップは直線偏波の小さなアンテナの例、パッチは 1 節の例のアンテナ、ヘリカルは地平線の利得を高めにした例。どれも例の値）。")
+F["e08_types"] = _f08_types_fig()
+
+
+def _f08_bands_fig():
+    o = []
+    np = _f08_np
+    # (a) 積み重ねたパッチ
+    o.append(T(14, 18, "(a) 積み重ねたパッチ（横から）", "start", 11.5, INK, True))
+    gx, gy = 30, 150
+    o.append(RECT(gx, gy, 180, 8, 0, MSOFT, MUT, 1.0))
+    o.append(RECT(gx + 30, gy - 22, 120, 22, 1, GOSOFT, GLD, 1.0))
+    o.append(W(gx + 36, gy - 23, gx + 144, gy - 23, c=PUR, lw=2.6))
+    o.append(RECT(gx + 52, gy - 44, 76, 20, 1, GOSOFT, GLD, 1.0))
+    o.append(W(gx + 58, gy - 45, gx + 122, gy - 45, c=SIG, lw=2.6))
+    o.append(W(gx + 80, gy + 8, gx + 80, gy - 45, c=ALI, lw=1.4))
+    o.append(W(gx + 104, gy + 8, gx + 104, gy - 23, c=ALI, lw=1.4))
+    o.append(T(gx + 90, gy - 56, "L1 のパッチ（小さい）", "middle", 9.5, SIG, True))
+    o.append(T(gx + 150, gy - 6, "L5 のパッチ", "start", 9.5, PUR, True))
+    o.append(T(gx + 150, gy + 8, "（大きい）", "start", 9.5, PUR, True))
+    o.append(T(gx + 90, gy + 28, "地板", "middle", 9.5, MUT, True))
+    o.append(T(gx + 90, gy + 44, "給電のピン（赤）は各パッチへ", "middle", 9.5, ALI))
+    o.append(T(14, 232, "比誘電率 20 のセラミックで", "start", 9.5, INK))
+    o.append(T(14, 248, "L1 は 21.3 mm、L5 は 28.5 mm", "start", 9.5, INK, True))
+    # (b)(c) 信号の幅とアンテナの軸比の幅
+    def ar_curve(f0, Q, offs):
+        fu, fv = f0 * (1 - 1 / (2 * Q)), f0 * (1 + 1 / (2 * Q))
+        out = []
+        for d in offs:
+            f = f0 + d
+            a = 1 / (1 + 1j * Q * (f / fu - fu / f)); b = 1 / (1 + 1j * Q * (f / fv - fv / f))
+            aR = abs(a - 1j * b); aL = abs(a + 1j * b)
+            out.append(20 * math.log10((aR + aL) / max(abs(aR - aL), 1e-12)))
+        return out
+    def band3(f0, Q):
+        offs = np.linspace(-15e6, 15e6, 6001); ar = ar_curve(f0, Q, offs)
+        ok = [d for d, a in zip(offs, ar) if a <= 3]
+        return min(ok) / 1e6, max(ok) / 1e6
+    offs = np.linspace(-15e6, 15e6, 601)
+    for k, (x0, name, f0, Rc, Qs) in enumerate(((244, "L1 C/A", _F08_F1, 1.023e6, [(100, SIG, None)]),
+                                                (476, "L5", _F08_F5, 10.23e6, [(100, SIG, None), (20, GRN, "5 3")]))):
+        o.append(T(x0 - 8, 18, "(%s) %s の信号と軸比" % ("bc"[k], name), "start", 11.5, INK, True))
+        p = Plot(x0 + 34, 38, 176, 92, (-15, 15), (-30, 3))
+        o.append(p.axes(xl=None, yl="信号 [dB]", xt=[-15, -10, -5, 0, 5, 10, 15], yt=[-30, -20, -10, 0], xfmt=lambda v: "", yfmt=_f08_m, sz=9))
+        for Q, c, da in Qs:
+            b0, b1 = band3(f0, Q)
+            o.append(RECT(p.X(b0), p.y, p.X(b1) - p.X(b0), p.h, 0, soft(c), "none", 0, op=0.55))
+        spec = [(d / 1e6, 10 * math.log10(max(np.sinc(d / Rc) ** 2, 1e-4))) for d in offs]
+        o.append(p.clip(spec, c=INK, lw=1.8))
+        o.append(DARR(p.X(-Rc / 1e6), p.y + 10, p.X(Rc / 1e6), p.y + 10, c=ALI, lw=1.2, head=5))
+        o.append(T(p.X(0), p.y + 24, "主ローブ %s MHz" % ("2.046" if k == 0 else "20.46"), "middle", 9, ALI, True, halo=True))
+        q = Plot(x0 + 34, 150, 176, 80, (-15, 15), (0, 12))
+        o.append(q.axes(xl="中心からの周波数 [MHz]", yl="軸比 [dB]", xt=[-15, -10, -5, 0, 5, 10, 15], yt=[0, 3, 6, 9, 12], xfmt=_f08_m, yfmt=_f08_m, sz=9))
+        o.append(W(q.x, q.Y(3), q.x + q.w, q.Y(3), c=MUT, lw=1, dash="3 3"))
+        for Q, c, da in Qs:
+            o.append(q.clip([(d / 1e6, a) for d, a in zip(offs, ar_curve(f0, Q, offs))], c=c, lw=2.0, dash=da))
+        ys = 292
+        for i, (Q, c, da) in enumerate(Qs):
+            b0, b1 = band3(f0, Q)
+            o.append(LEGL(x0, ys + i * 18, [(c, da, "Q = %d: 軸比 3 dB 以下 %.1f MHz" % (Q, b1 - b0))], 9.5, 10))
+    return SVG(700, 336, o, "多周波アンテナ。(a) L5 用の大きいパッチの上に L1 用の小さいパッチを重ねる形（構造は例）。(b) L1 C/A の信号（BPSK、主ローブの幅 2.046 MHz）は、Q = 100（例の値）の 1 点給電のパッチの、軸比 3 dB 以下の幅（青の地）に入る。(c) L5 の信号は主ローブの幅が 20.46 MHz あり、同じ Q = 100 のパッチを L5 に作ると、軸比 3 dB 以下の幅は主ローブの 1/5 しか覆えない。Q を 20 まで下げると、ほぼ覆える（緑の地）。信号の電力密度は、主ローブの中心を 0 dB にした。")
+F["e08_bands"] = _f08_bands_fig()
+
+
+def _f08_mismatch_fig():
+    o = []
+    np = _f08_np
+    # (a) 回路
+    o.append(T(14, 18, "(a) 信号源とアンテナ（送るときで考える）", "start", 11.5, INK, True))
+    y = 92
+    o.append(CIRC(44, y, 16, c=INK, lw=1.4, fill=SCR))
+    o.append(PATH("M%g,%g Q%g,%g %g,%g Q%g,%g %g,%g" % (34, y, 39, y - 9, 44, y, 49, y + 9, 54, y), c=INK, lw=1.4))
+    o.append(TX(20, y + 4, "V_s", "end", 10, INK, True))
+    o.append(W(44, y - 16, 44, y - 40, 70, y - 40, c=INK, lw=1.4))
+    o.append(RECT(70, y - 47, 40, 14, 2, PAN, INK, 1.3))
+    o.append(TX(90, y - 54, "Z_0 = 50 Ω", "middle", 9.5, INK, True))
+    o.append(W(110, y - 40, 250, y - 40, c=INK, lw=1.6))
+    o.append(W(44, y + 16, 44, y + 40, 250, y + 40, c=INK, lw=1.6))
+    o.append(RECT(250, y - 52, 40, 104, 4, GOSOFT, GLD, 1.4))
+    o.append(TX(270, y + 4, "Z_A", "middle", 11, GLD, True))
+    o.append(T(270, y + 68, "アンテナ", "middle", 9.5, GLD, True))
+    o.append(ARR(130, y - 18, 226, y - 18, c=SIG, lw=2.0))
+    o.append(T(178, y - 24, "入っていく波", "middle", 9.5, SIG, True, halo=True))
+    o.append(ARR(226, y + 14, 130, y + 14, c=ALI, lw=2.0, dash="5 3"))
+    o.append(T(178, y + 30, "跳ね返る波（Γ 倍）", "middle", 9.5, ALI, True, halo=True))
+    o.append(TX(20, 186, "Γ = (Z_A − Z_0)/(Z_A + Z_0)", "start", 10.5, INK, True))
+    o.append(TX(20, 206, "渡る電力の割合 = 1 − |Γ|^2", "start", 10.5, GRN, True))
+    # (b) 線路の上の定在波
+    xb = 330
+    o.append(T(xb, 18, "(b) 線路の上の電圧の振幅（定在波）", "start", 11.5, INK, True))
+    p = Plot(xb + 42, 36, 300, 140, (0, 1), (0, 1.8))
+    o.append(p.axes(xl="アンテナからの距離 [波長]", yl="電圧の振幅", xt=[0, 0.25, 0.5, 0.75, 1], yt=[0, 0.5, 1, 1.5], xfmt=lambda v: {0: "0", 0.25: "1/4", 0.5: "1/2", 0.75: "3/4", 1: "1"}[v], yfmt=_f08_m))
+    zs = np.linspace(0, 1, 301)
+    G = 0.5
+    o.append(p.line([(z, abs(1 + G * np.exp(-1j * 4 * math.pi * z))) for z in zs], c=ALI, lw=2.4))
+    o.append(p.line([(0, 1), (1, 1)], c=GRN, lw=2.0, dash="5 3"))
+    o.append(T(p.X(0.25), p.Y(0.5) + 16, "最小 1 − |Γ| = 0.5", "middle", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(0.5), p.Y(1.5) - 8, "最大 1 + |Γ| = 1.5", "middle", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(0.98), p.Y(1) + 14, "|Γ| = 0（整合）", "end", 9.5, GRN, True, halo=True))
+    o.append(T(xb, 230, "|Γ| = 0.5: VSWR = 1.5/0.5 = 3、リターンロス 6.0 dB", "start", 9.5, INK, True))
+    # (c) リターンロスと不整合損失
+    yc = 262
+    o.append(W(14, 246, 686, 246, c=LIN, lw=0.8))
+    o.append(T(14, yc, "(c) リターンロスと不整合損失（点の横の数字は VSWR）", "start", 11.5, INK, True))
+    q = Plot(70, yc + 16, 560, 100, (0, 25), (0, 3.5))
+    o.append(q.axes(xl="リターンロス RL [dB]", yl="不整合損失 [dB]", xt=[0, 3, 6, 10, 15, 20, 25], yt=[0, 1, 2, 3], xfmt=_f08_m, yfmt=_f08_m))
+    rls = np.linspace(0.5, 25, 300)
+    o.append(q.clip([(r, -10 * math.log10(1 - 10 ** (-r / 10))) for r in rls], c=SIG, lw=2.4))
+    for Gm in (0.707, 0.5, 0.316, 0.178, 0.1):
+        r = -20 * math.log10(Gm); ml = -10 * math.log10(1 - Gm * Gm); vs = (1 + Gm) / (1 - Gm)
+        o.append(D(q.X(r), q.Y(ml), SIG, 4))
+        o.append(T(q.X(r) + 7, q.Y(ml) - 7, "%s dB（%.2f）" % (_f08_f(ml, 2), vs), "start", 9.5, SIG, True, halo=True))
+    o.append(W(q.X(10), q.y, q.X(10), q.y + q.h, c=GRN, lw=1.2, dash="4 3"))
+    o.append(T(q.X(10) + 4, q.y + 14, "目安 10 dB", "start", 9.5, GRN, True, halo=True))
+    return SVG(700, 424, o, "整合。(a) 内部の抵抗 50 Ω の信号源にアンテナをつなぐと、アンテナのインピーダンス Z<sub>A</sub> が 50 Ω と違う分だけ、電圧の波が跳ね返る。アンテナに渡る電力の割合は 1 − |Γ|² である（受けるときも同じ）。(b) 線路の上では、入っていく波と跳ね返る波が重なって定在波ができ、電圧の振幅は 1 − |Γ| と 1 + |Γ| の間で変わる。その比が VSWR である（図は |Γ| = 0.5）。(c) リターンロス −20 log<sub>10</sub>|Γ| と、不整合損失 −10 log<sub>10</sub>(1 − |Γ|²)。リターンロスが 10 dB を超えると、損失は 0.5 dB より小さい。")
+F["e08_mismatch"] = _f08_mismatch_fig()
+
+
+def _f08_smith_fig():
+    o = []
+    np = _f08_np
+    pts = [(25, 0, GLD, "25 Ω"), (50, 0, GRN, "50 Ω"), (100, 0, PUR, "100 Ω"), (50, 50, ALI, "50 + j50 Ω"), (50, -50, TEA, "50 − j50 Ω")]
+    # (a) インピーダンスの平面
+    o.append(T(14, 18, "(a) インピーダンスの平面", "start", 11.5, INK, True))
+    p = Plot(64, 40, 240, 230, (0, 200), (-150, 150))
+    o.append(p.axes(xl="抵抗 R_A [Ω]", yl="リアクタンス X_A [Ω]", xt=[0, 25, 50, 100, 150, 200], yt=[-100, -50, 0, 50, 100], xfmt=_f08_m, yfmt=_f08_m, grid=False))
+    for R in (25, 50, 100):
+        o.append(W(p.X(R), p.y, p.X(R), p.y + p.h, c=SIG, lw=1.2, dash=None if R == 50 else "4 3"))
+    for X in (-100, -50, 50, 100):
+        o.append(W(p.x, p.Y(X), p.x + p.w, p.Y(X), c=GLD, lw=1.2, dash="4 3"))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=1.2))
+    for R, X, c, nm in pts:
+        o.append(D(p.X(R), p.Y(X), c, 5))
+    o.append(T(p.X(50) + 6, p.Y(50) - 8, "50 + j50", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(50) + 6, p.Y(-50) + 16, "50 − j50", "start", 9.5, TEA, True, halo=True))
+    o.append(T(p.X(25) - 4, p.Y(0) - 8, "25", "end", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(100) + 6, p.Y(0) - 8, "100", "start", 9.5, PUR, True, halo=True))
+    o.append(T(p.X(50) + 6, p.Y(0) + 16, "50", "start", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(196), p.Y(120), "コイルの性質", "end", 9.5, MUT, False, halo=True))
+    o.append(T(p.X(196), p.Y(-120) + 8, "コンデンサの性質", "end", 9.5, MUT, False, halo=True))
+    o.append(T(64, 324, "開放（∞）はこの平面に描けない", "start", 9.5, MUT))
+    # (b) Γ の平面（スミスチャート）
+    xb = 360
+    o.append(T(xb, 18, "(b) 同じものを Γ の平面に（スミスチャート）", "start", 11.5, INK, True))
+    cx, cy, Rr = 530, 170, 130
+    def g2xy(G):
+        return cx + Rr * G.real, cy - Rr * G.imag
+    def zg(R, X):
+        z = complex(R, X) / 50.0
+        return (z - 1) / (z + 1)
+    o.append(CIRC(cx, cy, Rr, c=INK, lw=1.4, fill=SCR))
+    o.append(W(cx - Rr, cy, cx + Rr, cy, c=MUT, lw=1.2))
+    xs_ = np.concatenate([-np.logspace(4, -2, 200), np.logspace(-2, 4, 200)])
+    for R in (25, 50, 100):
+        o.append(PL([g2xy(zg(R, X)) for X in xs_], c=SIG, lw=1.2, dash=None if R == 50 else "4 3"))
+    rs_ = np.concatenate([[0], np.logspace(-2, 4.5, 300)])
+    for X in (-100, -50, 50, 100):
+        o.append(PL([g2xy(zg(R, X)) for R in rs_], c=GLD, lw=1.2, dash="4 3"))
+    o.append(CIRC(cx, cy, Rr / 3, c=PUR, lw=1.2, dash="2 3"))
+    for R, X, c, nm in pts:
+        x_, y_ = g2xy(zg(R, X)); o.append(D(x_, y_, c, 5))
+    gx, gy = g2xy(zg(50, 50)); o.append(T(gx + 7, gy - 4, "0.2 + 0.4j", "start", 9.5, ALI, True, halo=True))
+    gx, gy = g2xy(zg(50, -50)); o.append(T(gx + 7, gy + 12, "0.2 − 0.4j", "start", 9.5, TEA, True, halo=True))
+    gx, gy = g2xy(zg(25, 0)); o.append(T(gx - 4, gy - 8, "−1/3", "end", 9.5, GLD, True, halo=True))
+    gx, gy = g2xy(zg(100, 0)); o.append(T(gx + 5, gy + 15, "+1/3", "start", 9.5, PUR, True, halo=True))
+    o.append(T(cx + 4, cy + 15, "0", "start", 9.5, GRN, True, halo=True))
+    o.append(D(cx - Rr, cy, INK, 4)); o.append(D(cx + Rr, cy, INK, 4))
+    o.append(T(cx - Rr - 6, cy - 6, "短絡", "end", 9.5, INK, True))
+    o.append(T(cx - Rr - 6, cy + 9, "−1", "end", 9.5, INK))
+    o.append(T(cx + Rr + 6, cy - 6, "開放", "start", 9.5, INK, True))
+    o.append(T(cx + Rr + 6, cy + 9, "+1", "start", 9.5, INK))
+    o.append(T(cx, cy - Rr - 8, "X > 0（コイルの性質）", "middle", 9.5, MUT))
+    o.append(T(cx, cy + Rr + 18, "X < 0（コンデンサの性質）", "middle", 9.5, MUT))
+    o.append(LEGL(xb, 336, [(SIG, None, "R が一定（実線 50 Ω）"), (GLD, "4 3", "X が一定"), (PUR, "2 3", "VSWR 2")], 9.5, 12))
+    return SVG(700, 350, o, "スミスチャートの読み方。(a) アンテナのインピーダンスを、抵抗とリアクタンスの平面に描いた。抵抗が一定の縦の線（25・50・100 Ω）と、リアクタンスが一定の横の線（±50・±100 Ω）。(b) 同じ点と線を、反射係数 Γ = (Z<sub>A</sub> − 50)/(Z<sub>A</sub> + 50) の平面に移したものがスミスチャートである。抵抗が一定の線は円に、リアクタンスが一定の線は円弧になり、全部が半径 1 の円に入る。中心が 50 Ω（整合）、左の端が短絡、右の端が開放である。中心からの距離が |Γ| なので、25 Ω と 100 Ω は、同じ VSWR 2 の円（紫の破線）の上にある。")
+F["e08_smith"] = _f08_smith_fig()
+
+
+def _f08_s11_model(f, shift=0.0, Q=None, kind="cp"):
+    """1 点給電の円偏波のパッチ（2 つのモードの共振回路を直列）。返り値 (Z, Γ, 右旋の電力, 左旋の電力)。信号源は 1 V・50 Ω。"""
+    Q = Q or _F08_Q; f0 = _F08_F1 + shift; Z0 = 50.0
+    def K(fk):
+        return 1 / (1 + 1j * Q * (f / fk - fk / f))
+    if kind == "cp":
+        ku, kv = K(f0 * (1 - 1 / (2 * Q))), K(f0 * (1 + 1 / (2 * Q)))
+    else:
+        ku, kv = K(f0), 0.0
+    Z = Z0 * (ku + kv); G = (Z - Z0) / (Z + Z0)
+    I = 1 / (Z0 + Z); Vu, Vv = I * Z0 * ku, I * Z0 * kv
+    return Z, G, abs(Vu - 1j * Vv) ** 2 / 2, abs(Vu + 1j * Vv) ** 2 / 2
+
+
+def _f08_s11_fig():
+    o = []
+    np = _f08_np
+    # (a) 測り方
+    o.append(T(14, 18, "(a) ネットワークアナライザで測る", "start", 11.5, INK, True))
+    o.append(RECT(20, 40, 120, 64, 8, SSOFT, SIG, 1.4))
+    o.append(T(80, 68, "ネットワーク", "middle", 10.5, INK, True))
+    o.append(T(80, 86, "アナライザ", "middle", 10.5, INK, True))
+    o.append(D(140, 92, INK, 3.4))
+    o.append(T(146, 118, "端子 1", "start", 9.5, MUT))
+    o.append(PATH("M140,92 C190,92 190,150 236,150", c=INK, lw=2.4))
+    o.append(T(196, 170, "ケーブル", "middle", 9.5, MUT))
+    o.append(W(236, 140, 236, 160, c=GLD, lw=1.6, dash="3 2"))
+    o.append(T(236, 132, "校正する面", "middle", 9.5, GLD, True))
+    o.append(_f08_patchicon(280, 154, 52))
+    o.append(T(280, 176, "アンテナ", "middle", 9.5, INK, True))
+    o.append(ARR(160, 66, 220, 66, c=SIG, lw=1.8)); o.append(T(190, 58, "送る波 a", "middle", 9.5, SIG, True))
+    o.append(ARR(220, 84, 160, 84, c=ALI, lw=1.8, dash="5 3")); o.append(T(190, 100, "戻る波 b", "middle", 9.5, ALI, True))
+    o.append(TX(20, 206, "S_{11} = b/a = Γ", "start", 11, INK, True))
+    o.append(T(20, 230, "校正: ケーブルの先に、短絡・開放・", "start", 9.5, MUT))
+    o.append(T(20, 246, "50 Ω をつないで、ケーブルの分を除く", "start", 9.5, MUT))
+    # (b) S11 と (c) 軸比
+    xb = 362
+    o.append(T(xb - 10, 18, "(b) S11（Q = 100、例のパッチ）", "start", 11.5, INK, True))
+    p = Plot(xb + 36, 36, 280, 120, (-25, 25), (-40, 0))
+    o.append(p.axes(xl=None, yl="|S11| [dB]", xt=[-20, -10, 0, 10, 20], yt=[-40, -30, -20, -10, 0], xfmt=lambda v: "", yfmt=_f08_m))
+    fs = np.linspace(-25e6, 25e6, 1001)
+    f0 = _F08_F1
+    s_t = [20 * math.log10(max(abs(_f08_s11_model(f0 + d)[1]), 1e-4)) for d in fs]
+    s_d = [20 * math.log10(max(abs(_f08_s11_model(f0 + d, -5e6)[1]), 1e-4)) for d in fs]
+    ok = [d for d, v in zip(fs, s_t) if v <= -10]
+    w10 = (max(ok) - min(ok)) / 1e6
+    o.append(RECT(p.X(min(ok) / 1e6), p.y, p.X(max(ok) / 1e6) - p.X(min(ok) / 1e6), p.h, 0, SSOFT, "none", 0, op=0.5))
+    o.append(W(p.x, p.Y(-10), p.x + p.w, p.Y(-10), c=MUT, lw=1, dash="3 3"))
+    o.append(p.clip([(d / 1e6, v) for d, v in zip(fs, s_t)], c=SIG, lw=2.4))
+    o.append(p.clip([(d / 1e6, v) for d, v in zip(fs, s_d)], c=ALI, lw=2.0, dash="5 3"))
+    vd = 20 * math.log10(abs(_f08_s11_model(f0, -5e6)[1]))
+    o.append(D(p.X(0), p.Y(vd), ALI, 4.2))
+    o.append(T(p.X(0) + 6, p.Y(vd) + 14, "L1 で %s dB" % _f08_f(vd, 1), "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(12), p.Y(-34), "−10 dB 以下:", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(12), p.Y(-34) + 14, "%.1f MHz（青の地）" % w10, "start", 9.5, SIG, True, halo=True))
+    o.append(W(p.X(0), p.y, p.X(0), p.y + p.h, c=INK, lw=1, dash="2 3"))
+    q = Plot(xb + 36, 186, 280, 100, (-25, 25), (0, 15))
+    o.append(T(xb - 10, 178, "(c) 軸比", "start", 11.5, INK, True))
+    o.append(q.axes(xl="L1 からの周波数 [MHz]", yl="軸比 [dB]", xt=[-20, -10, 0, 10, 20], yt=[0, 3, 6, 10, 15], xfmt=_f08_m, yfmt=_f08_m))
+    def arv(d, sh):
+        Z, G, PR, PL = _f08_s11_model(f0 + d, sh)
+        aR, aL = math.sqrt(PR), math.sqrt(PL)
+        return 20 * math.log10((aR + aL) / max(abs(aR - aL), 1e-12))
+    a_t = [arv(d, 0) for d in fs]; a_d = [arv(d, -5e6) for d in fs]
+    oka = [d for d, v in zip(fs, a_t) if v <= 3]
+    o.append(RECT(q.X(min(oka) / 1e6), q.y, q.X(max(oka) / 1e6) - q.X(min(oka) / 1e6), q.h, 0, GSOFT, "none", 0, op=0.7))
+    o.append(W(q.x, q.Y(3), q.x + q.w, q.Y(3), c=MUT, lw=1, dash="3 3"))
+    o.append(q.clip([(d / 1e6, v) for d, v in zip(fs, a_t)], c=SIG, lw=2.4))
+    o.append(q.clip([(d / 1e6, v) for d, v in zip(fs, a_d)], c=ALI, lw=2.0, dash="5 3"))
+    ad = arv(0, -5e6)
+    o.append(D(q.X(0), q.Y(ad), ALI, 4.2))
+    o.append(T(q.X(0) + 6, q.Y(ad) - 6, "L1 で %.1f dB" % ad, "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(0), q.y + 12, "%.1f MHz" % ((max(oka) - min(oka)) / 1e6), "middle", 9.5, GRN, True, halo=True))
+    o.append(W(q.X(0), q.y, q.X(0), q.y + q.h, c=INK, lw=1, dash="2 3"))
+    o.append(LEGL(20, 286, [(SIG, None, "合っている"), (ALI, "5 3", "共振が 5 MHz 下がった")], 9.5, 14))
+    o.append(T(20, 310, "S11 の良い幅は、軸比の良い幅より", "start", 9.5, INK, True))
+    o.append(T(20, 326, "ずっと広い", "start", 9.5, INK, True))
+    return SVG(700, 340, o, "S11 の測り方と、例のパッチの S11。(a) ネットワークアナライザは、端子から送った波 a と戻ってきた波 b の比 S<sub>11</sub> を、周波数を変えながら測る。前もって、ケーブルの先で短絡・開放・50 Ω の 3 つの基準を測り、ケーブルの影響を除く（校正）。(b) 3 節の例のパッチ（1 点給電、Q = 100）の S11。2 つのモードの共振回路を直列につないだモデルで計算した（L1 で 50 Ω）。−10 dB 以下の幅は %.1f MHz ある。(c) 同じパッチの軸比。3 dB 以下は %.1f MHz しかない。樹脂の筐体などで共振が 5 MHz 下がると（例の値）、L1 での S11 は %s dB でまだ良いが、軸比は %.1f dB に悪くなる。" % (w10, (max(oka) - min(oka)) / 1e6, _f08_f(vd, 1), ad))
+F["e08_s11"] = _f08_s11_fig()
