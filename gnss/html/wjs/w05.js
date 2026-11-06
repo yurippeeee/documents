@@ -17,9 +17,6 @@
     function flush(){if(col===null)return;var x=col+0.5;pts.push([x,P.Y(a)],[x,P.Y(mn)],[x,P.Y(mx)],[x,P.Y(z)]);}
     for(var k=0;k<n;k++){var y=Math.max(lo,Math.min(hi,v[k])),x=Math.floor(P.X(k*dt));if(x!==col){flush();col=x;a=mn=mx=z=y;}else{if(y<mn)mn=y;if(y>mx)mx=y;z=y;}}
     flush();return pts.length>1?U.S.PL(pts,c,lw||1.2):"";}
-  /* 枠 (x, y, w, h) の外を切って描く */
-  var _W05_CID=0;
-  function _w05_clip(x,y,w,h,body){var id="w05cp"+(++_W05_CID);return '<clipPath id="'+id+'"><rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'"/></clipPath><g clip-path="url(#'+id+')">'+body+'</g>';}
 
   /* ---- 2 節: FFT による捕捉（格子の立体の図 ↔ 山の断面） ---- */
   /* 受けた信号に入れる衛星（例の値）: PRN、符号の位相 [チップ]、ドップラー [Hz]、搬送波の位相 [rad] */
@@ -330,8 +327,8 @@
         var bad=o.disc===1&&o.data;
         h+="<br>落ち着いた後の位相の揺れ（シミュレーション、動き無しで 3 s）: "+(st.sig>20?'<span class="warn">'+_w05_f(st.sig,0)+"°（ロックを保てない）</span>":"<b>"+_w05_f(st.sig,2)+"°</b>")+"、式 σ<sub>ψ</sub> = √{B<sub>L</sub>/(C/N0) × (1 + 1/(2T<sub>coh</sub>(C/N0)))} = "+_w05_f(sfm,2)+"°"+(bad?"（式はコスタスの判別器のもの）":"");
         var okp=st.pull>=0&&st.pull<1.1;
-        if(o.acc>0)h+="<br>加速度 "+o.acc+" g（ドップラーが 1 秒に "+_w05_f(o.acc*9.81/_W05_LAM,1)+" Hz ずつ変わる）による位相のずれ: 式 "+(o.order===2?"θ<sub>e</sub> = (2πa/λ)/ω<sub>n</sub><sup>2</sup> = <b>"+_w05_f(th,1)+"°</b>":"3 次の PLL では 0")+"、シミュレーション（1.2〜1.5 s の平均）"+(okp&&st.th!=null&&!bad?_w05_f(st.th,1)+"°":"−（引き込めていない）");
-        var rule=3*sfm+Math.abs(th);h+="<br>追尾の目安（3σ<sub>ψ</sub> + 動きによるずれ ≤ 45°。式の値で）: "+_w05_f(rule,1)+"° → "+(rule<=45?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+(st.pull<0?"。ただし、初めの周波数のずれが PLL の引き込める範囲より大きく、ロックしていない（FLL で寄せてから PLL に渡す）":"");
+        if(o.acc>0)h+="<br>加速度 "+o.acc+" g（ドップラーが 1 秒に "+_w05_f(o.acc*9.81/_W05_LAM,1)+" Hz ずつ変わる）による位相のずれ: 式 "+(o.order===2?"ψ<sub>e</sub> = (2π"+U.htx("\\dot{v}")+"/λ)/ω<sub>n</sub><sup>2</sup> = <b>"+_w05_f(th,1)+"°</b>":"3 次の PLL では 0")+"、シミュレーション（1.2〜1.5 s の平均）"+(okp&&st.th!=null&&!bad?_w05_f(st.th,1)+"°":"−（引き込めていない）");
+        var rule=3*sfm+Math.abs(th);h+="<br>追尾の目安（3σ<sub>ψ</sub> + 動きによるずれ ≤ 45°。式の値で）: "+_w05_f(rule,1)+"° → "+(rule<=45?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+(st.pull<0?(bad?"。ただし、データのビットのためにロックしていない":(o.mode===1?"。ただし、初めの周波数のずれが PLL の引き込める範囲より大きく、ロックしていない（FLL で寄せてから PLL に渡す）":"。ただし、ロックしていない")):"");
         if(bad)h+='<br><span class="warn">4 象限の判別器は、データのビットがあると使えない</span>（ビットが変わって I・Q の点が反対側へ移るたびに、位相が 180° ずれたと測る。データの無い信号（パイロット）に使う）';
         h+="<br>引き込んだ後、ロックする点が "+(q?"360°":"180°")+" 跳んだ回数: "+(st.pull>=0?(st.slip?'<span class="warn">'+st.slip+" 回</span>":"0 回"):"−")+(o.disc===0?"（コスタスでは 180° 違う点でもロックする。そのときはビットが全部反転して読め、プリアンブルで気づいて直す）":"");}
       ro.innerHTML=h+'<div class="wnote">P の I・Q は、振幅を √(2C) で割った値（周波数のずれによる sinc の倍率を含む）に、各成分の分散 1/{2(C/N0)T<sub>coh</sub>} の雑音を足した。T<sub>coh</sub> = 1 ms。FLL は 4 節の判別器と、1 次のループ（帯域 10 Hz）。2 次の PLL は減衰比 0.707、3 次の PLL は係数 1.1 と 2.4。受信機は 0.7 s から一定の加速度で動く。紫の帯は FLL が動いている時間。</div>';
