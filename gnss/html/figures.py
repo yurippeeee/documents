@@ -1062,6 +1062,35 @@ def BODEPH(num, den, ws, delay=0.0):
     ph = ph + 360.0 * round((_np.degrees(ref) - ph[0]) / 360.0)
     return db, ph - _np.degrees(ws * delay)
 
+# ---- GNSS の計算部品（02 章で作った C/A 符号の生成を共通にした） ----
+# CA_TAPS[prn]: G2 の 2 つのタップ（IS-GPS-200 の表。PRN 1〜32）
+CA_TAPS = {1: (2, 6), 2: (3, 7), 3: (4, 8), 4: (5, 9), 5: (1, 9), 6: (2, 10), 7: (1, 8), 8: (2, 9), 9: (3, 10), 10: (2, 3),
+           11: (3, 4), 12: (5, 6), 13: (6, 7), 14: (7, 8), 15: (8, 9), 16: (9, 10), 17: (1, 4), 18: (2, 5), 19: (3, 6), 20: (4, 7),
+           21: (5, 8), 22: (6, 9), 23: (1, 3), 24: (4, 6), 25: (5, 7), 26: (6, 8), 27: (7, 9), 28: (8, 10), 29: (1, 6), 30: (2, 7),
+           31: (3, 8), 32: (4, 9)}
+_CA_CACHE = {}
+
+
+def ca_code(prn):
+    """C/A 符号 1023 チップ（0/1 のリスト）。G1・G2 は全部 1 から始め、出力 = G1[10] xor G2[a] xor G2[b]。"""
+    if prn in _CA_CACHE:
+        return _CA_CACHE[prn]
+    g1, g2, (a, b), out = [1] * 10, [1] * 10, CA_TAPS[prn], []
+    for _ in range(1023):
+        out.append(g1[9] ^ g2[a - 1] ^ g2[b - 1])
+        f1 = g1[2] ^ g1[9]
+        f2 = g2[1] ^ g2[2] ^ g2[5] ^ g2[7] ^ g2[8] ^ g2[9]
+        g1 = [f1] + g1[:9]
+        g2 = [f2] + g2[:9]
+    _CA_CACHE[prn] = out
+    return out
+
+
+def ca_pm(prn):
+    """0 → +1、1 → −1 に直した C/A 符号（+1/−1 の int のリスト）。"""
+    return [1 - 2 * q for q in ca_code(prn)]
+
+
 # 章ごとの図は fig/fNN.py に置く（このファイルの関数と F をそのまま使える）
 import glob as _glob
 _SEL = [s for s in _os.environ.get("GNSS_FIGS", "").split(",") if s]
@@ -1070,3 +1099,4 @@ for _p in sorted(_glob.glob(_os.path.join(_os.path.dirname(_os.path.abspath(__fi
         continue
     _CUR[0], _CUR[1] = _os.path.basename(_p), 0
     exec(compile(open(_p, encoding="utf-8").read(), _p, "exec"), globals())
+

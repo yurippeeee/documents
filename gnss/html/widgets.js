@@ -644,9 +644,27 @@
   })();
   /* ===== END 制御の計算部品 ===== */
 
+  /* ===== GNSS の計算部品（02 章で作った C/A 符号の生成と FFT を共通にした） =====
+     U.gnss.TAPS[prn]: G2 の 2 つのタップ（IS-GPS-200 の表。PRN 1〜32）
+     U.gnss.ca(prn): C/A 符号 1023 チップ（0/1 の Int8Array）。G1・G2 は全部 1 から始め、出力 = G1[10] xor G2[a] xor G2[b]
+     U.gnss.pm(prn): 0 → +1、1 → −1 に直した列（Int8Array）
+     U.gnss.fft(re, im): 長さが 2 のべきの配列を、その場で離散フーリエ変換する（基数 2） */
+  var gnss=(function(){
+    var TAPS=[null,[2,6],[3,7],[4,8],[5,9],[1,9],[2,10],[1,8],[2,9],[3,10],[2,3],[3,4],[5,6],[6,7],[7,8],[8,9],[9,10],[1,4],[2,5],[3,6],[4,7],[5,8],[6,9],[1,3],[4,6],[5,7],[6,8],[7,9],[8,10],[1,6],[2,7],[3,8],[4,9]];
+    var CODES={},PMS={};
+    function ca(prn){if(CODES[prn])return CODES[prn];var g1=[1,1,1,1,1,1,1,1,1,1],g2=[1,1,1,1,1,1,1,1,1,1],t=TAPS[prn],o=new Int8Array(1023);
+      for(var n=0;n<1023;n++){o[n]=g1[9]^g2[t[0]-1]^g2[t[1]-1];var f1=g1[2]^g1[9],f2=g2[1]^g2[2]^g2[5]^g2[7]^g2[8]^g2[9];g1.unshift(f1);g1.pop();g2.unshift(f2);g2.pop();}
+      CODES[prn]=o;return o;}
+    function pm(prn){if(PMS[prn])return PMS[prn];var c=ca(prn),o=new Int8Array(1023);for(var n=0;n<1023;n++)o[n]=1-2*c[n];PMS[prn]=o;return o;}
+    function fft(re,im){var n=re.length,i,j=0,k,len;for(i=1;i<n;i++){var bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){var t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t;}}
+      for(len=2;len<=n;len<<=1){var ang=-2*Math.PI/len,wr=Math.cos(ang),wi=Math.sin(ang),h=len>>1;for(i=0;i<n;i+=len){var cr=1,ci=0;for(k=0;k<h;k++){var a=i+k,b=a+h,br=re[b]*cr-im[b]*ci,bi=re[b]*ci+im[b]*cr;re[b]=re[a]-br;im[b]=im[a]-bi;re[a]+=br;im[a]+=bi;var t2=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t2;}}}}
+    return {TAPS:TAPS,ca:ca,pm:pm,fft:fft};
+  })();
+  /* ===== END GNSS の計算部品 ===== */
+
   var REG={};
   var U={C:C,col:col,soft:soft,mk:mk,esc:esc,head:head,ctrls:ctrls,btnrow:btnrow,readout:readout,note:note,slider:slider,select:select,checkbox:checkbox,textin:textin,
-    htx:htx,button:button,seg:seg,svgbox:svgbox,tbl:tbl,fmt:fmt,sig:sig,tw:tw,S:S,plot:plot,nice:nice,seq:seq,hexView:hexView,fieldsSvg:fieldsSvg,rng:rng,ticker:ticker,ctl:ctl};
+    htx:htx,button:button,seg:seg,svgbox:svgbox,tbl:tbl,fmt:fmt,sig:sig,tw:tw,S:S,plot:plot,nice:nice,seq:seq,hexView:hexView,fieldsSvg:fieldsSvg,rng:rng,ticker:ticker,ctl:ctl,gnss:gnss};
 
   /* ===== CHAPTER WIDGETS (build_site.py が wjs/*.js から生成) ===== */
   /* ===== 01 章 GNSS とは何か ===== */
