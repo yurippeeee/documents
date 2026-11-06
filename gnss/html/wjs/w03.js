@@ -290,7 +290,7 @@
         if(cn.get()<25)o.push(S.T(ex,dy+92,"25 dB-Hz より下では、搬送波の","start",9,"alias",true));
         if(cn.get()<25)o.push(S.T(ex,dy+105,"位相を合わせ続けにくい（代表値）","start",9,"alias",true));}
       /* (c) 距離 */
-      var ry=nar?336:300,cm=_W03_C*_W03_TC,sig1=cm/(2*Math.sqrt(q*1.0)),ymax=30,R=U.plot(64,ry,nar?320:600,110,[0,60],[-ymax,ymax]);
+      var ry=nar?336:316,cm=_W03_C*_W03_TC,sig1=cm/(2*Math.sqrt(q*1.0)),ymax=30,R=U.plot(64,ry,nar?320:600,110,[0,60],[-ymax,ymax]);
       o.push(S.T(nar?6:14,ry-12,"(c) 距離: 1 s ごとの擬似距離の雑音（60 s）","start",11,"ink",true));
       o.push(R.axes({xt:[0,10,20,30,40,50,60],yt:[-30,-15,0,15,30],xfmt:function(v){return String(v);},yfmt:function(v){return String(v).replace("-","−");},xl:"時間 [s]",yl:"[m]",ylOff:30}));
       if(sig1<ymax){o.push(R.line([[0,sig1],[60,sig1]],"signal",1,"4 3"));o.push(R.line([[0,-sig1],[60,-sig1]],"signal",1,"4 3"));}
