@@ -247,9 +247,9 @@ def _f04_image_fig():
     o.append(T(q.X(9.9), q.Y(0) + 12, "イメージを除いたとき", "end", 9, TEA, False, halo=True))
     o.append(T(q.X(4.092), q.Y(-17.5), "信号は L1 からだけ", "middle", 9, SIG, True, halo=True))
     # (c) 弱める量と C/N0 の減り
-    o.append(T(14, 222, "(c) イメージを弱める量と C/N0 の減り", "start", 11, INK, True))
+    o.append(TX(14, 222, "(c) イメージを弱める量と C/N_0 の減り", "start", 11, INK, True))
     r = Plot(70, 240, 270, 120, (0, 30), (0, 3.2))
-    o.append(r.axes(xl="混合器の前でイメージを弱める量 A [dB]", yl="C/N0 の減り [dB]", xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 1, 2, 3], yfmt=_f04_m))
+    o.append(r.axes(xl="混合器の前でイメージを弱める量 A [dB]", yl="C/N_0 の減り [dB]", xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 1, 2, 3], yfmt=_f04_m))
     aa = _f04_np.linspace(0, 30, 121)
     o.append(r.line([(A, 10 * math.log10(1 + 10 ** (-A / 10))) for A in aa], c=ALI, lw=2.2))
     for A, lab in ((0, "3.01"), (10, "0.41"), (20, "0.04")):
@@ -711,7 +711,7 @@ def _f04_iq_fig():
         sc = float(_f04_np.sinc(f * 1e-3)); I_ = sc * math.cos(math.pi * f * 1e-3); Q_ = -sc * math.sin(math.pi * f * 1e-3)
         o.append(D(q.X(I_), q.Y(Q_), PUR, 4))
         o.append(T(q.X(I_) + off[0], q.Y(Q_) + off[1], "%d Hz（%.2f）" % (f, sc), "start" if off[0] > 0 else "end", 9, PUR, True, halo=True))
-    o.append(T(q.X(0) + 6, q.Y(0) - 6, "1000 Hz（0）", "start", 9, PUR, True, halo=True))
+    o.append(T(q.X(0) - 6, q.Y(0) - 6, "1000 Hz（0）", "end", 9, PUR, True, halo=True))
     # (c) 雑音のある E・P・L（シミュレーション）
     r = plane(530, 40, 150, "(c) 雑音（45 dB-Hz）")
     sim = _f04_corrsim(60, 0.25, 30, 0, 45.0)

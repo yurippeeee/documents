@@ -73,7 +73,8 @@
       for(var i=0;i<5;i++){var xx=x0+i*(bw+gap),sel=i===k,c=i<3?"gold":(i===3?"purple":"signal");
         if(i===0){g.push(S.RECT(xx,y0,bw,bh,7,sel?U.soft("gold"):"panel",sel?"alias":"gold",sel?2.4:1.3));}
         else g.push(S.RECT(xx,y0,bw,bh,7,sel?U.soft(c):"panel",sel?"alias":c,sel?2.4:1.3));
-        g.push(S.T(xx+bw/2,y0+bh/2+4,_W04_ST[i].nm,"middle",nar?9:10.5,"ink",true));
+        if(nar&&i===4){g.push(S.T(xx+bw/2,y0+bh/2-2,"IF フィルタ","middle",9,"ink",true));g.push(S.T(xx+bw/2,y0+bh/2+10,"と増幅","middle",9,"ink",true));}
+        else g.push(S.T(xx+bw/2,y0+bh/2+4,_W04_ST[i].nm,"middle",nar?9:10.5,"ink",true));
         HB.push([xx,y0,bw,bh]);
         var px=xx+bw+gap/2;g.push(S.CIRC(px,y0+bh/2,8,sel?"alias":"muted",1.4,sel?U.soft("alias"):"screen"));g.push(S.T(px,y0+bh/2+3.5,String.fromCharCode(65+i),"middle",9,sel?"alias":"muted",true));
         if(i<4)g.push(S.ARR(xx+bw,y0+bh/2,xx+bw+gap,y0+bh/2,"signal",1.4,5));}
@@ -108,8 +109,9 @@
       }
       if(!rf){var fi=M.fIF;if(fi<=30){o.push(S.L(P.X(fi),P.y,P.X(fi),P.y+P.h,"signal",1,"3 3"));o.push(S.T(P.X(fi)+4,P.y+24,"中間周波数 "+_w04_f(fi,3),"start",9,"signal",true,false,null,true));}
         o.push(S.T(P.X(5.115)+4,P.y+40,"← IF フィルタの範囲","start",9,"muted",false,false,null,true));
-        o.push(S.T(P.x+P.w,P.y-4,"和の成分は "+_w04_f(_W04_FL1+M.fLO,1)+" MHz（図の外。IF フィルタで除く）","end",9,"purple",true));}
+        }
       var ly=P.y+P.h+46;o.push(S.LEGL(nar?52:66,ly,[["teal",null,"雑音"],["signal",null,"信号"],["alias",null,"妨害（連続波。矢印と電力の値）"]],9,12));
+      if(!rf){var sumT="和の成分は "+_w04_f(_W04_FL1+M.fLO,1)+" MHz（図の外。IF フィルタで除く）";if(nar){ly+=18;o.push(S.T(6,ly,sumT,"start",9,"purple",true));}else o.push(S.T(P.x+P.w,P.y-4,sumT,"end",9,"purple",true));}
       box.set(S.svg(Wd,ly+10,o));
       /* 時間の見方（周波数は縮めて描く: L1 を 1 チップに 16 周期、中間周波数は実際の比） */
       var q=[],NS=2*400,chips=[1,-1],rg=U.rng(seed*7919+5),RFs=16,IFs=M.fIF/_W04_RC,LOs=RFs-M.side*IFs,IMs=2*LOs-RFs;
@@ -194,7 +196,7 @@
     var S=U.S;
     U.head(el,"SAMPLING & QUANTIZATION","サンプリングと量子化 — 相関の後の SN 比の損失");
     var r1=U.ctrls(el);
-    var fsS=U.select(r1,"サンプリング周波数 f<sub>s</sub>",["32.736 MHz","16.368 MHz（本文の例）","10.912 MHz","10.23 MHz（n = 1 の下限）","8.184 MHz（f_s/2 = 中間周波数）","5.456 MHz（帯域通過サンプリング）","4.092 MHz（f_s = 中間周波数）"],1,function(){mc=null;draw();});
+    var fsS=U.select(r1,"サンプリング周波数 f<sub>s</sub>",["32.736 MHz","16.368 MHz（本文の例）","10.912 MHz","10.23 MHz（n = 1 の下限）","8.184 MHz（半分が中間周波数）","5.456 MHz（帯域通過サンプリング）","4.092 MHz（中間周波数と同じ）"],1,function(){mc=null;draw();});
     var bS=U.select(r1,"前段のフィルタの幅 B",["2.046 MHz（本文の例）","4.092 MHz"],0,function(){mc=null;draw();});
     var r2=U.ctrls(el);
     var qs=U.seg(r2,["1 bit","2 bit","3 bit","量子化しない"],1,function(i){bt.set(i===2?0.6:1.0);mc=null;draw();});
@@ -228,7 +230,7 @@
     function draw(){
       var c=cfg(),F=_w04_fold(4.092e6,c.B,c.fs),nar=_w04_nar(box),Wd=nar?400:700,o=[];
       /* (a) 標本にした後のスペクトラム */
-      var x0=nar?20:30,pw=nar?370:640,P=U.plot(x0,30,pw,40,[0,17],[0,1]);
+      var x0=nar?20:30,pw=nar?370:640,P=U.plot(x0,nar?46:30,pw,40,[0,17],[0,1]);
       o.push(S.T(nar?6:14,14,"(a) 帯域（"+_w04_f(F.fL/1e6,3)+"〜"+_w04_f(F.fH/1e6,3)+" MHz）が、標本の列でどこに見えるか","start",10.5,"ink",true));
       var h=c.fs/2e6;o.push(S.RECT(P.X(0),P.y,P.X(Math.min(17,h))-P.X(0),P.h,0,"var(--muted-soft)","none",0));
       o.push(P.axes({xl:"周波数 [MHz]（灰色: 0〜f_s/2、破線: f_s/2 の整数倍）",xt:[0,2,4,6,8,10,12,14,16],yt:[],grid:false}));
@@ -240,10 +242,10 @@
         o.push(S.RECT(P.X(lo1),P.y+7,P.X(hi1)-P.X(lo1),P.h-14,1,U.soft("signal"),"signal",1.2));o.push(S.RECT(P.X(lo2),P.y+7,P.X(hi2)-P.X(lo2),P.h-14,1,"signal","signal",1.2));}
       else{/* 重なる所を赤で */var segs=[];for(var j=0;j<=200;j++){var f=fl+(fh-fl)*j/200;segs.push(fd(f));}var mn=Math.min.apply(null,segs),mx=Math.max.apply(null,segs);
         o.push(S.RECT(P.X(mn),P.y+7,P.X(mx)-P.X(mn),P.h-14,1,U.soft("alias"),"alias",1.4));o.push(S.T(P.X((mn+mx)/2),P.y+P.h/2+4,"重なる","middle",9,"alias",true));}
-      o.push(S.TX(P.x+P.w,P.y-6,"f_s = "+_w04_f(c.fs/1e6,3)+" MHz、見かけの中間周波数 "+_w04_f(F.fa/1e6,3)+" MHz"+(F.inv?"（裏返る）":""),"end",9.5,F.ok?"green":"alias",true));
+      o.push(S.TX(nar?6:P.x+P.w,nar?30:P.y-6,"f_s = "+_w04_f(c.fs/1e6,3)+" MHz、見かけの中間周波数 "+_w04_f(F.fa/1e6,3)+" MHz"+(F.inv?"（裏返る）":""),nar?"start":"end",9.5,F.ok?"green":"alias",true));
       /* (b) 損失の棒 */
       var deg=F.deg,L0=deg?null:_w04_semi(U,c.B,c.fs,3,1),Lq=deg?null:_w04_semi(U,c.B,c.fs,c.mode,c.beta);
-      var yb=126,Q=U.plot(nar?150:220,yb+18,nar?220:300,74,[-3,0],[0,3]);
+      var yb=nar?142:126,Q=U.plot(nar?150:220,yb+18,nar?220:300,74,[-3,0],[0,3]);
       o.push(S.TX(nar?6:14,yb,"(b) 相関の後の SN 比の損失（(C/N_0) T_{coh} に対して。弱い信号の近似の計算）","start",10.5,"ink",true));
       o.push(Q.axes({xl:"損失 [dB]",xt:[-3,-2.5,-2,-1.5,-1,-0.5,0],yt:[],xfmt:function(v){return _w04_f(v,1);}}));
       var bars=deg?[]:[["フィルタと標本の間隔",L0,"muted"],["量子化の分",Lq-L0,"purple"],["合わせた損失",Lq,"alias"]];
@@ -254,7 +256,7 @@
       /* (c) A/D 変換の入力の値の分布と量子化の段 */
       var g=[],rg=U.rng(seed*31+3),nb=40,hist=new Float64Array(nb),NSm=4000;for(var i=0;i<NSm;i++){var x=rg.normal(),bi=Math.floor((x+4)/8*nb);if(bi>=0&&bi<nb)hist[bi]++;}
       var hx=nar?44:64,H=U.plot(hx,26,nar?340:600,110,[-4,4],[0,1.15]),hmax=0;for(i=0;i<nb;i++)hmax=Math.max(hmax,hist[i]);
-      g.push(S.T(nar?6:14,14,"(c) A/D 変換の入力の値（雑音でほぼ決まる。σ = 雑音の標準偏差）と、量子化の段","start",10.5,"ink",true));
+      g.push(S.T(nar?6:14,14,nar?"(c) A/D 変換の入力の値（σ: 雑音の標準偏差）と量子化の段":"(c) A/D 変換の入力の値（雑音でほぼ決まる。σ = 雑音の標準偏差）と、量子化の段","start",10.5,"ink",true));
       g.push(H.axes({xl:"入力 x/σ",xt:[-4,-3,-2,-1,0,1,2,3,4],yt:[],xfmt:function(v){return _w04_f(v,0);}}));
       for(i=0;i<nb;i++){var xa=-4+8*i/nb,xb2=xa+8/nb;g.push(S.RECT(H.X(xa)+0.5,H.Y(hist[i]/hmax),H.X(xb2)-H.X(xa)-1,H.Y(0)-H.Y(hist[i]/hmax),0,"var(--teal-soft)","teal",0.6));}
       var md=c.mode,Qz=_w04_quantizer(md,c.beta),lvmax=md===0?1:(md===1?3:7);
@@ -274,7 +276,7 @@
         t+="この f_s と B での比較（2 bit は 1.0σ、3 bit は 0.59σ）: "+row.join("、")+"<br>";
         t+="相関器の計算: 1 チャネルあたり 1 秒に "+_w04_g(6*c.fs/1e6,1)+" M 回（f_s に比例）<br>";}
       if(mc){if(mc.msg)t+=mc.msg;else t+="シミュレーション（"+mc.K+" 回、雑音の探り "+mc.M+" 本）: 量子化しない "+_w04_f(mc.n,2)+" dB、"+names[md]+" "+_w04_f(mc.q,2)+" dB、量子化の分 <b>"+_w04_f(mc.q-mc.n,2)+" dB</b>（近似の計算 "+_w04_f(Lq-L0,2)+" dB。ばらつきの目安 ±"+_w04_f(mc.se,2)+" dB）";}
-      ro.innerHTML=t+'<div class="wnote">中間周波数 4.092 MHz、PRN 1、積分の時間 1 ms。前段は幅 B の理想のフィルタ。損失は、信号が雑音より十分弱いとして、標本どうしの雑音の相関を含めて計算した値（本文の図の線と同じ計算）。シミュレーションは、同じ雑音で量子化したものとしないものを比べ、信号の分は ± の信号の差、雑音の分は乱数の符号との相関で測る。</div>';
+      ro.innerHTML=U.htx(t)+'<div class="wnote">中間周波数 4.092 MHz、PRN 1、積分の時間 1 ms。前段は幅 B の理想のフィルタ。損失は、信号が雑音より十分弱いとして、標本どうしの雑音の相関を含めて計算した値（本文の図の線と同じ計算）。シミュレーションは、同じ雑音で量子化したものとしないものを比べ、信号の分は ± の信号の差、雑音の分は乱数の符号との相関で測る。</div>';
     }
     draw();
   };
@@ -289,7 +291,7 @@
     var dp=U.slider(r1,"搬送波の位相のずれ Δψ",{min:-180,max:180,step:5,value:30,fmt:function(v){return _w04_f(v,0)+"°";},onInput:function(){draw();}});
     var r2=U.ctrls(el);
     var dfS=U.slider(r2,"周波数のずれ Δf",{min:-1000,max:1000,step:25,value:0,fmt:function(v){return _w04_f(v,0)+" Hz";},onInput:function(){draw();}});
-    var del=U.slider(r2,"E と L の間隔",{values:[0.1,0.2,0.5,1.0],value:1.0,fmt:function(v){return v+" チップ";},onInput:function(){draw();}});
+    var del=U.slider(r2,"E と L の間隔 Δ<sub>EL</sub>",{values:[0.1,0.2,0.5,1.0],value:1.0,fmt:function(v){return v+" チップ";},onInput:function(){draw();}});
     var r3=U.ctrls(el);
     var cn=U.slider(r3,"C/N0",{values:[30,35,40,45,50,99],value:45,fmt:function(v){return v>90?"雑音なし":v+" dB-Hz";},onInput:function(){draw();}});
     var tc=U.slider(r3,"積分の時間 T<sub>coh</sub>",{values:[1,2,5,10,20],value:1,fmt:function(v){return v+" ms";},onInput:function(){draw();}});
@@ -331,7 +333,7 @@
         o.push(S.T(P.X(xI)+6,P.Y(xQ)-5,nm[q],"start",9.5,cols[q],true,false,null,true));}
       /* (b) 三角形の上の 3 点 */
       var bx=nar?230:370,Q=U.plot(bx,28,nar?160:300,nar?110:150,[-1.6,1.6],[0,1.15]);
-      o.push(S.T(bx-(nar?20:30),16,"(b) 大きさ √(I² + Q²) と局部の符号のずれ","start",10.5,"ink",true));
+      o.push(S.T(bx-(nar?20:30),16,nar?"(b) 大きさ √(I² + Q²)":"(b) 大きさ √(I² + Q²) と局部の符号のずれ","start",10.5,"ink",true));
       o.push(Q.axes({xl:"局部の符号のずれ [チップ]",xt:[-1.5,-1,-0.5,0,0.5,1,1.5],yt:[0,0.5,1],xfmt:function(v){return _w04_f(v,1);},yfmt:function(v){return _w04_f(v,1);}}));
       var tri=[];for(i=0;i<=160;i++){var x=-1.6+3.2*i/160;tri.push([x,lam(x)*Math.abs(sc)]);}o.push(Q.line(tri,"faint",1.8));
       for(q=0;q<3;q++){var xo=Dt+offs[q],mag=Math.hypot(reps[0][2*q],reps[0][2*q+1]);if(xo<-1.6||xo>1.6)continue;
@@ -383,7 +385,7 @@
     tm.el.style.flex="1 1 100%";
     var r2=U.ctrls(el);
     var pp=U.slider(r2,"基準の発振器（TCXO）の周波数の誤差",{min:-2,max:2,step:0.1,value:0,fmt:function(v){return _w04_f(v,1)+" ppm";},onInput:function(){draw();}});
-    var ck=U.slider(r2,"受信機の時計のずれ δt_r",{min:0,max:1000,step:1,value:0,fmt:function(v){return v+" μs";},onInput:function(){draw();}});
+    var ck=U.slider(r2,"受信機の時計のずれ δt<sub>r</sub>",{min:0,max:1000,step:1,value:0,fmt:function(v){return v+" μs";},onInput:function(){draw();}});
     var r3=U.ctrls(el);
     var nch=U.slider(r3,"チャネルの数",{values:[4,6,8,12],value:12,fmt:function(v){return v+" チャネル";},onInput:function(){draw();}});
     var msk=U.slider(r3,"使う衛星の仰角の下限",{values:[0,5,10,15],value:5,fmt:function(v){return v+"°";},onInput:function(){draw();}});
