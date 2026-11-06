@@ -11,6 +11,18 @@
 > どこかで**「これは無条件に信じる」**と決めなければならない。
 > それが **Root of Trust（信頼の基点）**である。
 
+> **この章で学ぶこと.** 節ごとに、新しく出てくる用語と、読み終えたときに説明できるようになることを並べる。全部を説明できれば、この章は理解できている（まとめは [8 節](#この章のまとめ)）。
+>
+> | 節 | 新しく出てくる用語 | 説明できるようになること |
+> |---|---|---|
+> | [1 節](#定義と性質) | Root of Trust (RoT)・Immutable・minimal | Root of Trust が、検証できないので無条件に信じるしかない基点であること。改変できないことと、できるだけ小さいことの 2 つの性質が必要な理由 |
+> | [2 節](#4-つの-root-of-trust) | RTM (Root of Trust for Measurement)・RTV (Root of Trust for Verification)・RTS (Root of Trust for Storage)・RTR (Root of Trust for Reporting)・PSA-RoT | Root of Trust を測定・検証・保管・報告の 4 つの役割に分ける考え方。実装では 1 つのセキュリティサブシステムにまとまっていることが多いこと |
+> | [3 節](#immutable-rot-と-updatable-rot) | Immutable RoT・Updatable RoT | 改変できない Root of Trust の強みと弱み。Immutable と Updatable の 2 段構成で、弱みをどう補うか |
+> | [4 節](#鍵の階層) | HUK（Hardware Unique Key）・PUF・KDF（鍵導出関数）・ROTPK（Root of Trust Public Key） | 鍵の階層化。HUK から鍵導出関数で鍵を派生させる仕組みと、OTP に公開鍵のハッシュだけを焼く理由 |
+> | [5 節](#アテステーション-証明) | アテステーション・IAK（Initial Attestation Key）・PSA Attestation Token・IETF EAT・TCG DICE・TPM Quote | アテステーションが、機器の状態を外部に証明する Root of Trust for Reporting の役割であること。DICE が鍵をコードのハッシュに縛る仕組み |
+> | [6 節](#rot-が守れないもの) | — | Root of Trust が守れないもの（起動後の脆弱性、物理攻撃、サプライチェーンの汚染、設計上の欠陥、秘密鍵の流出）。完全性と安全性が別であること |
+> | [7 節](#time-of-check-to-time-of-use-問題) | Time of Check to Time of Use (TOCTOU)・XIP（直接実行）・オンザフライ認証 | 検証した時刻と使う時刻の間に内容が変わりうる TOCTOU 問題。外付けフラッシュからの XIP が特に難しい理由と対策 |
+
 > **この章で使う既出の用語（定義は各リンク先）.**
 > セキュアブート（[02 章 3 節](02_脅威モデリング.md#stride-脅威の分類)）、検証時（[02 章 7 節](02_脅威モデリング.md#実務での進め方)）
 

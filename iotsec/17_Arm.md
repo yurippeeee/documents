@@ -8,6 +8,19 @@
 > だから **Arm の考え方（TrustZone-M、PSA、TF-M）を先に理解すると、
 > [18 章](18_ST.md)〜[21 章](21_その他ベンダ.md)の各社の説明が「その会社流の実装」として整理できる。**
 
+> **この章で学ぶこと.** 節ごとに、新しく出てくる用語と、読み終えたときに説明できるようになることを並べる。全部を説明できれば、この章は理解できている（まとめは [9 節](#この章のまとめ)）。
+>
+> | 節 | 新しく出てくる用語 | 説明できるようになること |
+> |---|---|---|
+> | [1 節](#arm-のセキュリティ製品群の地図) | TrustZone-M・TrustZone-A・PACBTI・CCA / RME・CryptoCell / CryptoIsland・PSA・Trusted Firmware-M / -A・ADAC・PSA Certified | Arm のセキュリティを、アーキテクチャ（TrustZone、PACBTI、CCA）、IP（CryptoCell）、仕様（PSA）、実装（TF-M）、認証（PSA Certified）に分けた地図 |
+> | [2 節](#cortex-m-のセキュリティ機能の世代) | Cortex-M23・Cortex-M33・Cortex-M35P・Cortex-M55・Cortex-M85・PAC・BTI | Cortex-M の世代ごとの違い（M0〜M7 には TrustZone がなく、M23 以降にある）。M35P が物理攻撃対策を加えたコアであること、PACBTI が ROP / JOP 攻撃への対策であること |
+> | [3 節](#trustzone-m-の実装詳細) | IDAU・SAU・CMSE・ベニア (veneer) | 7 章の概念を実装に落とすときの点（IDAU はチップベンダが決める、プロジェクトの分割、CMSE の属性、ベニア、デバッグ） |
+> | [4 節](#psa-platform-security-architecture) | PSA (Platform Security Architecture)・Analyze・Architect・Implement・Certify・PSA-RoT・ARoT | PSA の 4 段階（Analyze・Architect・Implement・Certify）と 10 のセキュリティ目標。PSA-RoT と ARoT を分けることが Secure 側を小さく保つ実装であること |
+> | [5 節](#psa-functional-api) | PSA Functional API・PSA Crypto API・ハンドル・PSA Internal Trusted Storage (ITS)・PSA Protected Storage (PS)・PSA Initial Attestation API・PSA Firmware Update API | PSA Functional API の各 API（Crypto、ITS、PS、Initial Attestation、Firmware Update）。鍵をハンドルで扱う Crypto API が Mbed TLS の標準 API になり、TrustZone のないチップでも同じ API で書けること |
+> | [6 節](#trusted-firmware-m-tf-m) | Trusted Firmware-M (TF-M)・SPM・BL1 / BL2・Crypto Service・Platform Service・Isolation Level 1・Isolation Level 2・Isolation Level 3 | TF-M の構成（SPM、BL1 / BL2、各サービス）と、分離レベル 1・2・3 の違い。TF-M を使うことが推奨で、自作は強く非推奨なこと |
+> | [7 節](#cortex-a-のセキュリティ) | TrustZone-A・OP-TEE・TF-A・MTE・CCA / RME | Cortex-A のセキュリティ（TrustZone-A、OP-TEE、TF-A、PAC / BTI、MTE）。Armv9 CCA がハイパーバイザからも隔離できること |
+> | [8 節](#arm-系を選ぶときの確認事項) | — | Arm 系の SoC を選ぶときの確認事項（コアの世代、PACBTI、IDAU、周辺・DMA の分離、TF-M の対応、PSA Certified のレベル、ADAC） |
+
 > **注意:** 以下は執筆時点の公開情報に基づく概観である。
 > 具体的な対応状況は、**必ず対象品種のデータシートと Arm の公式資料で確認すること。**
 

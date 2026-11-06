@@ -10,6 +10,20 @@
 >
 > 機能自体は充実している。**問題は「使われていない」ことである。**
 
+> **この章で学ぶこと.** 節ごとに、新しく出てくる用語と、読み終えたときに説明できるようになることを並べる。全部を説明できれば、この章は理解できている（まとめは [10 節](#この章のまとめ)）。
+>
+> | 節 | 新しく出てくる用語 | 説明できるようになること |
+> |---|---|---|
+> | [1 節](#ファミリの整理) | ESP32・ESP32-S2・ESP32-S3・ESP32-C3・ESP32-C6・ESP32-H2・ESP32-P4 | ESP32 系の品種（ESP32、S2、S3、C3、C6、H2、P4）ごとに持つセキュリティ機能の違い。初代 ESP32 では v2 がリビジョン 3 以降であること |
+> | [2 節](#efuse-すべての土台) | eFuse・BLOCK_KEYn・KEY_PURPOSE | ESP32 のセキュリティ設定がすべて eFuse で制御され不可逆なこと。KEY_PURPOSE で鍵ブロックの用途を宣言する設計 |
+> | [3 節](#secure-boot-v2) | Secure Boot v2・RSA-PSS 3072・`DIS_DOWNLOAD_MODE`・`SOFT_DIS_JTAG` / `HARD_DIS_JTAG` | Secure Boot v2 の署名アルゴリズム（RSA-PSS 3072、ECDSA）と、ダイジェストを 3 個持ち個別に失効できること。ダウンロードモードと JTAG の無効化 |
+> | [4 節](#flash-encryption) | Flash Encryption・AES-256 XTS・Development モード・Release モード | Flash Encryption（AES-256 XTS）が外付けフラッシュを透過的に暗号化すること。Development モードと Release モードの決定的な違い |
+> | [5 節](#hmac-と-ds-ペリフェラル) | HMAC ペリフェラル・DS（Digital Signature）ペリフェラル | HMAC ペリフェラルと DS ペリフェラルが、秘密鍵を CPU に見せずに署名でき、鍵がチップに縛られること |
+> | [6 節](#nvs-暗号化) | NVS (Non-Volatile Storage)・NVS 暗号化 | NVS（設定値やユーザデータ）も暗号化でき、その鍵を Flash Encryption で保護する仕組み |
+> | [7 節](#esp-tee-新しい取り組み) | ESP-TEE・APM | ESP-IDF v5.4 以降の ESP32-C6 向けの ESP-TEE が、RISC-V での分離機構であること |
+> | [8 節](#esp32-の設定チェックリスト) | One-time flash | ESP32 の設定チェックリスト（Secure Boot v2、One-time flash、Flash Encryption の Release モード、NVS 暗号化、ダウンロードモードと JTAG の無効化など） |
+> | [9 節](#実務上の注意点) | — | 一度きりの設定のため捨ててよいチップで全手順を検証する理由。ブートローダのサイズ制限や起動時間の増加 |
+
 > **注意:** ESP32 系は品種（ESP32 / S2 / S3 / C3 / C6 / H2 / P4 など）と
 > **シリコンリビジョン**で機能が大きく異なる。
 > **必ず対象品種の Technical Reference Manual と

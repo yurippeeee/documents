@@ -10,6 +10,21 @@
 >
 > スマートカード事業と自動車事業の蓄積が、汎用 MCU に降りてきている構図である。
 
+> **この章で学ぶこと.** 節ごとに、新しく出てくる用語と、読み終えたときに説明できるようになることを並べる。全部を説明できれば、この章は理解できている（まとめは [11 節](#この章のまとめ)）。
+>
+> | 節 | 新しく出てくる用語 | 説明できるようになること |
+> |---|---|---|
+> | [1 節](#nxp-のファミリ構成) | Kinetis・LPC5500・i.MX RT・MCX | NXP のファミリ構成（Kinetis、LPC5500、i.MX RT、i.MX 6/7/8/9、S32、MCX）と、ファミリごとに持つセキュリティ機能の違い |
+> | [2 節](#セキュアブート-hab-と-ahab) | HAB・AHAB・SRK・CSF | NXP のセキュアブートが世代で 2 系統（HAB と AHAB）あること。HAB の CSF が柔軟だが、記述を誤ると保護が抜けること |
+> | [3 節](#puf-nxp-の特徴的な機能) | Activation Code (AC)・Key Code (KC) | NXP の SRAM PUF が Activation Code と Key Code で鍵を再生成する仕組み。エンロールメントを工場で 1 回だけ行う必要があること |
+> | [4 節](#prince-bee-otfad-メモリ暗号化) | PRINCE・BEE・OTFAD | メモリの種類ごとの暗号化機構（内部フラッシュは PRINCE、外部は BEE・OTFAD）と、CAAM の Blob の位置づけ |
+> | [5 節](#暗号アクセラレータ) | CAAM・Black Key / Blob・DCP・HASHCRYPT・CASPER・ELS / PKC・ELE（EdgeLock secure enclave） | 暗号アクセラレータ（CAAM、DCP、HASHCRYPT、CASPER、ELS / PKC）と、独立したセキュリティサブシステム ELE。CAAM の Black Key / Blob が 6 章の鍵ラッピングの NXP における実装であること |
+> | [6 節](#debug-authentication) | Debug Authentication | NXP の Debug Authentication が対象デバイスを限定した証明書で認証付きデバッグを提供すること |
+> | [7 節](#ライフサイクル状態) | SEC_CONFIG・Blank / NXP Provisioned・Development・Deployed・Returned (RMA)・Bricked | i.MX の HAB が eFuse の SEC_CONFIG で管理する状態（Blank、Development、Deployed、Returned、Bricked） |
+> | [8 節](#i.mx-cortex-a-のセキュリティ) | OP-TEE・セキュア JTAG | Linux が動く i.MX（Cortex-A）のセキュリティ構成（ブート、OP-TEE、セキュアストレージ、セキュア JTAG） |
+> | [9 節](#edgelock-ブランドの全体像) | EdgeLock SE050 / SE051・EdgeLock A5000・EdgeLock 2GO | EdgeLock ブランドの製品群（ELE、SE050 / SE051、A5000、EdgeLock 2GO）の全体像 |
+> | [10 節](#nxp-を選ぶときのチェックリスト) | — | NXP を選ぶときの確認事項（セキュアブートの方式、SRK のスロット数、PUF、メモリ暗号化、ライフサイクル、プロビジョニングサービス） |
+
 > **注意:** 以下は執筆時点の公開情報に基づく概観である。
 > **必ず対象品種のリファレンスマニュアルと、
 > NXP のセキュリティアプリケーションノートで確認すること。**
