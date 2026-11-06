@@ -285,7 +285,7 @@ def _f02_lfsr_fig():
     o.append(W(138, yb - 8, 138, y1 + 12, c=SIG, lw=1.4))
     o.append(ARR(138, y1 + 12, x0, y1 + 12, c=SIG, lw=1.4, head=6))
     o.append(T(cx(6), yb + 13, "帰還のタップ: 3・10 段目", "middle", 9.5, SIG, False, halo=True))
-    o.append(TX(470, yb + 13, "規格の書き方 1 + x^3 + x^{10}", "start", 9.5, SIG))
+    o.append(TX(470, yb + 13, "多項式 1 + D^3 + D^{10}", "start", 9.5, SIG))
     o.append(T(x0 + 10 * cw, y1 - 16, "1 クロックごとに 1 段ずつ右へ送る →", "end", 9, MUT))
     # ---- G2 ----
     y2 = 156
@@ -300,7 +300,7 @@ def _f02_lfsr_fig():
     o.append(W(138, yb2 - 8, 138, y2 + 12, c=GRN, lw=1.4))
     o.append(ARR(138, y2 + 12, x0, y2 + 12, c=GRN, lw=1.4, head=6))
     o.append(T(cx(7) + 8, yb2 + 13, "帰還のタップ: 2・3・6・8・9・10 段目", "middle", 9.5, GRN, False, halo=True))
-    o.append(TX(470, yb2 + 13, "1 + x^2 + x^3 + x^6 + x^8 + x^9 + x^{10}", "start", 9.5, GRN))
+    o.append(TX(470, yb2 + 13, "1 + D^2 + D^3 + D^6 + D^8 + D^9 + D^{10}", "start", 9.5, GRN))
     # ---- PRN 1 の 2 つの段（2・6）----
     ys = y2 - 22
     for j in (2, 6):
