@@ -204,7 +204,7 @@
     U.button(br,"もう一度（別の乱数で）",function(){seed++;run();});
     var box=U.svgbox(el),ro=U.readout(el),R=null;
     function run(){var mode=smode.get(),sw=stw.get(),sv=stv.get(),W=Math.pow(sfw.get(),2),V=Math.pow(sfv.get(),2),Nm=sma.get();
-      var d=_w20_kfdata(U,N,mode,seed,sw,sv),x=0,s=1e9,X=[],XP=[],SP=[],SS=[],HH=[],OK=[],MA=[],buf=[];
+      var d=_w20_kfdata(U,N,mode,seed,sw,sv),x=0,s=1e6,X=[],XP=[],SP=[],SS=[],HH=[],OK=[],MA=[],buf=[];
       for(var k=0;k<N;k++){var ok=!(smis.get()&&k+1>=121&&k+1<=150),sp=s+W,xp=x;XP.push(xp);SP.push(sp);OK.push(ok);
         if(ok){var h=sp/(sp+V);x=xp+h*(d.y[k]-xp);s=h*V;HH.push(h);buf.push(d.y[k]);if(buf.length>Nm)buf.shift();}else{s=sp;HH.push(0);}
         X.push(x);SS.push(s);var m=0;for(var i=0;i<buf.length;i++)m+=buf[i];MA.push(buf.length?m/buf.length:NaN);}
@@ -253,7 +253,7 @@
       h+="<br>定常のゲイン（式）: "+(Wv>0?"<b>"+_w20_g(Hs,3)+"</b>（W/V = "+_w20_g(Wv/Vv,3)+"、一次の IIR の時定数 "+_w20_g(-1/Math.log(1-Hs),3)+" s）、推定誤差の標準偏差の式 √(HV) = "+_w20_g(Math.sqrt(Hs*Vv),3)+" K":"W = 0 なので一定にならない（H<sub>k</sub> = 1/k に近づく）");
       h+="<br>50〜300 回目の推定誤差（この乱数の列）: カルマンフィルタ <b>"+_w20_g(Math.sqrt(e1/n),3)+" K</b>、移動平均（N = "+R.Nm+"） <b>"+_w20_g(Math.sqrt(e2/n),3)+" K</b>";
       if(R.mode===0){var Nm=R.Nm,ma=Math.sqrt(R.sw*R.sw*(Nm-1)*(2*Nm-1)/(6*Nm)+R.sv*R.sv/Nm);h+="（ランダムウォークの式では、移動平均 "+_w20_g(ma,3)+" K）";}
-      ro.innerHTML=h+'<div class="wnote">本文の C のコードと同じ式（初めの分散 Σ<sub>0</sub> = 10<sup>9</sup> K²）。乱数の種 '+seed+'（本文の図は種 20）。山は、推定の確からしさを正規分布の形で描いたもの。</div>';
+      ro.innerHTML=h+'<div class="wnote">本文の C のコードと同じ式（初めの分散 Σ<sub>0</sub> = 10<sup>6</sup> K²）。乱数の種 '+seed+'（本文の図は種 20）。山は、推定の確からしさを正規分布の形で描いたもの。</div>';
     }
     run();
   };

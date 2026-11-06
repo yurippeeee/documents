@@ -695,8 +695,8 @@ def _f20_obs_trade_fig():
         o.append(T(P.X(w) + 4, P.Y(a) + 14, _f20_g(a, 3), "start", 9, TEA, True, halo=True))
         o.append(T(P.X(w) + 4, P.Y(b) - 6, _f20_g(b, 3), "start", 9, PUR, True, halo=True))
     o.append(T(P.X(98), P.Y(1414) + 13, "1 節の差分（1 ms）: 1414 mm/s", "end", 9.5, ALI, True, halo=True))
-    o.append(T(P.X(98), P.Y(55), "モデルに無い力（0.5 N で 0.5 s 押す）", "end", 9.5, PUR, True, halo=True))
-    o.append(T(P.X(98), P.Y(55) + 14, "による最大のずれ", "end", 9.5, PUR, True, halo=True))
+    o.append(T(P.X(98), P.Y(400), "モデルに無い力（0.5 N で 0.5 s 押す）", "end", 9.5, PUR, True, halo=True))
+    o.append(T(P.X(98), P.Y(400) + 14, "による最大のずれ", "end", 9.5, PUR, True, halo=True))
     o.append(T(P.X(98), P.Y(0.16), "観測ノイズ（1 mm）によるばらつき", "end", 9.5, TEA, True, halo=True))
     o.append(T(P.X(98), P.Y(0.16) + 14, "（標準偏差）", "end", 9.5, TEA, True, halo=True))
     xr = 484
@@ -706,7 +706,7 @@ def _f20_obs_trade_fig():
         if l:
             o.append(T(xr, 48 + i * 18, l, "start", 10, INK if i not in (7, 8, 9) else SIG, i in (0, 5)))
     return SVG(700, 300, o,
-               "台車とばね・ダンパの位置を測るオブザーバで、2 つの極を置く位置（極の速さ）を変えたときの、速度の推定誤差。観測ノイズ（1 ms ごとに新しい値、標準偏差 1 mm）によるばらつきは極を速くするほど増え、オブザーバの知らない力で押されたときのずれは極を速くするほど減る。どの ω_o でも、1 節の差分よりずっと小さい。")
+               "台車とばね・ダンパの位置を測るオブザーバで、2 つの極を置く位置（極の速さ）を変えたときの、速度の推定誤差。観測ノイズ（1 ms ごとに新しい値、標準偏差 1 mm）によるばらつきは極を速くするほど増え、オブザーバの知らない力で押されたときのずれは極を速くするほど減る。どの ω<sub>o</sub> でも、1 節の差分よりずっと小さい。")
 
 
 F["e20_obs_trade"] = _f20_obs_trade_fig()
@@ -839,7 +839,7 @@ def _f20_kf1_data(n, mode="walk", seed=20, sw=0.02, sv=0.2, kstep=100, dstep=0.5
     return _f20_np.array(xs), _f20_np.array(ys)
 
 
-def _f20_kf1(ys, W, V, s0=1e9, x0=0.0):
+def _f20_kf1(ys, W, V, s0=1e6, x0=0.0):
     """1 次のカルマンフィルタ（本文の C のコードと同じ式）。返り値 (推定, 予測の分散 Σ⁻, ゲイン H, 更新の分散 Σ, 予測 x̂⁻)。"""
     x, s = x0, s0; X, SP, HH, SS, XP = [], [], [], [], []
     for y in ys:
@@ -995,7 +995,7 @@ def _f20_kf_ratio_fig():
     o.append(T(Q.X(3), Q.Y(0.13), "短いとノイズが残る", "start", 9.5, MUT, halo=True))
     o.append(T(Q.X(59), Q.Y(0.122), "長いと温度の変化に遅れる", "end", 9.5, MUT, halo=True))
     return SVG(700, 266, o,
-               "(a) ゲインが一定になった後のカルマンゲインは、乱れの分散 W とノイズの分散 V の比だけで決まる（T_s = 1 s での一次の IIR フィルタの時定数も示した）。(b) 本文の例（W/V = 0.01）で、移動平均の長さを変えたときの推定誤差（式で求めた値）。どの長さの移動平均も、カルマンフィルタより誤差が大きい。")
+               "(a) ゲインが一定になった後のカルマンゲインは、乱れの分散 W とノイズの分散 V の比だけで決まる（T<sub>s</sub> = 1 s での一次の IIR フィルタの時定数も示した）。(b) 本文の例（W/V = 0.01）で、移動平均の長さを変えたときの推定誤差（式で求めた値）。どの長さの移動平均も、カルマンフィルタより誤差が大きい。")
 
 
 F["e20_kf_ratio"] = _f20_kf_ratio_fig()
