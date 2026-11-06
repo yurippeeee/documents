@@ -481,7 +481,7 @@ def _f06_lsplane_fig():
     xs_, res = _f06_pls()
     bh = xs_[2]
     # (a) 全体
-    o.append(T(14, 18, "(a) 5 つの点と、半径 ρ_i − b̂ の円", "start", 11, INK, True))
+    o.append(TX(14, 18, "(a) 5 つの点と、半径 ρ_i − b̂ の円", "start", 11, INK, True))
     p = Plot(24, 32, 206, 206 * 25 / 42, (-21, 21), (-5, 20))
     o.append(RECT(p.x, p.y, p.w, p.h, 3, SCR, LIN, 1.0))
     for k, (sx, sy) in enumerate(_F06_PS):
@@ -501,6 +501,7 @@ def _f06_lsplane_fig():
         o.append(W(q.X(v), q.y, q.X(v), q.y + q.h, c=GRD, lw=1))
         o.append(W(q.x, q.Y(v), q.x + q.w, q.Y(v), c=GRD, lw=1))
     ph = xs_[:2]
+    placed = []
     for k, (sx, sy) in enumerate(_F06_PS):
         R = _F06_PRHO[k] - bh
         a0 = math.atan2(-sy, -sx)
@@ -509,11 +510,15 @@ def _f06_lsplane_fig():
         u = (ph - _F06_PS[k]) / _f06_np.linalg.norm(ph - _F06_PS[k])
         qq = _F06_PS[k] + R * u
         o.append(W(q.X(ph[0]), q.Y(ph[1]), q.X(qq[0]), q.Y(qq[1]), c=ALI, lw=2.4))
-        # 円の端に点の番号
-        ends = [pt for pt in arc if abs(pt[0]) <= 1.15 and abs(pt[1]) <= 1.15]
+        # 円の端に点の番号（ほかの番号から遠い方の端に置く）
+        ends = [pt for pt in arc if abs(pt[0]) <= 1.1 and abs(pt[1]) <= 1.1]
         if ends:
-            ex, ey = ends[0] if k in (0, 3) else ends[-1]
-            o.append(T(q.X(ex), q.Y(ey) + (11 if ey < 0 else -4), "S%d" % (k + 1), "middle", 9, SIG, True, halo=True))
+            cand = [ends[0], ends[-1]]
+            best = max(cand, key=lambda e: min([math.hypot(e[0] - a, e[1] - b) for a, b in placed] + [9.0]))
+            placed.append(best)
+            ex, ey = best
+            o.append(T(q.X(ex) + (8 if ex > 0.9 else (-8 if ex < -0.9 else 0)), q.Y(ey) + (12 if ey < -0.9 else (-5 if ey > 0.9 else 4)),
+                       "S%d" % (k + 1), "middle", 9, SIG, True, halo=True))
     o.append(_f06_rx(q.X(0), q.Y(0)))
     o.append(D(q.X(ph[0]), q.Y(ph[1]), GLD, 4.4))
     o.append(T(q.X(ph[0]) + 7, q.Y(ph[1]) - 6, "解", "start", 10, GLD, True, halo=True))
@@ -534,13 +539,14 @@ def _f06_lsplane_fig():
             Z[j, i] = _f06_np.sum((qv - qv.mean()) ** 2)
     for lev, lw in ((0.82, 1.0), (0.9, 1.0), (1.0, 1.0), (1.2, 1.0), (1.6, 1.0), (2.4, 1.0), (4.0, 1.0)):
         o.append(_f06_segpath(c, _f06_contour(gx, gx, Z, lev), SIG, lw))
-    for lev, xv in ((1.0, 0.0), (1.6, 0.0), (2.4, 0.0), (4.0, 0.0)):
-        # 縦の線 x = 0 の上で、等高線の高さを探して数を書く
-        col = Z[:, len(gx) // 2]
-        idx = [j for j in range(len(gx) - 1) if (col[j] - lev) * (col[j + 1] - lev) < 0]
+    jrow = int(_f06_np.argmin(abs(gx - ph[1])))
+    row = Z[jrow, :]
+    for lev in (1.0, 1.6, 2.4, 4.0):
+        # 解を通る横の線の右側で、等高線を横切る所に値を書く
+        idx = [i for i in range(len(gx) // 2, len(gx) - 1) if (row[i] - lev) * (row[i + 1] - lev) < 0]
         if idx:
-            j = idx[-1]
-            o.append(T(c.X(0.02), c.Y(gx[j]) + 3, "%g" % lev, "start", 8.5, SIG, False, halo=True))
+            i = idx[0]
+            o.append(T(c.X(gx[i]) + 1, c.Y(ph[1]) - 3, "%g" % lev, "start", 8.5, SIG, False, halo=True))
     o.append(D(c.X(ph[0]), c.Y(ph[1]), GLD, 4.4))
     o.append(T(c.X(ph[0]) - 7, c.Y(ph[1]) - 6, "最小 0.797", "end", 9, GLD, True, halo=True))
     o.append(W(c.X(0) - 5, c.Y(0), c.X(0) + 5, c.Y(0), c=GRN, lw=2))
@@ -581,18 +587,23 @@ F["e06_lsn"] = _f06_lsn_fig()
 def _f06_wls_fig():
     o = []
     el = {q[0]: q[1] for q in _F06_VL}
-    o.append(T(14, 18, "(a) 誤差のモデル σ_i = σ_0 / sin θ_i（σ_0 = 1 m）", "start", 11, INK, True))
+    o.append(TX(14, 18, "(a) 誤差のモデル σ_i = σ_0 / sin θ_i（σ_0 = 1 m）", "start", 11, INK, True))
     p = Plot(56, 34, 250, 150, (0, 90), (0, 15))
     o.append(p.axes(xl="仰角 θ [°]", yl="擬似距離の誤差 σ [m]", xt=[0, 15, 30, 45, 60, 75, 90], yt=[0, 5, 10, 15]))
     th = _f06_np.linspace(3.8, 90, 200)
     o.append(p.line([(t, 1 / math.sin(t * _F06_D2R)) for t in th], c=MUT, lw=1.6))
-    for q in _F06_VL:
+    ly = 66
+    for q in sorted(_F06_VL, key=lambda q: q[1]):
         nm, e_ = q[0], q[1]
         sg = 1 / math.sin(e_ * _F06_D2R)
         o.append(D(p.X(e_), p.Y(sg), PUR, 3.8))
-        dy = -6 if nm not in ("G2", "G22") else (12 if nm == "G2" else -6)
-        dx = 6 if nm not in ("G22",) else -6
-        o.append(T(p.X(e_) + dx, p.Y(sg) + dy, "%s %.2f" % (nm, sg), "start" if dx > 0 else "end", 9, PUR, True, halo=True))
+        if sg > 5:
+            o.append(T(p.X(e_) + 7, p.Y(sg) + 4, "%s %.2f m" % (nm, sg), "start", 9, PUR, True, halo=True))
+        else:
+            # 混んだ所の名前は、右の空いた所に並べて線でつなぐ
+            o.append(W(p.X(e_), p.Y(sg) - 4, p.X(e_), ly + 4, p.X(68), ly + 4, c=FNT, lw=0.8))
+            o.append(T(p.X(69), ly + 7, "%s %.2f m" % (nm, sg), "start", 9, PUR, True, halo=True))
+            ly += 16
     # (b) RMS の棒
     xb = 380
     o.append(T(xb, 18, "(b) 解の誤差の RMS [m]", "start", 11, INK, True))
@@ -622,3 +633,667 @@ def _f06_wls_fig():
         o.append(T(pp.x + pp.w / 2, pp.y + pp.h + 28, "%s: 水平 %.2f m・上下 %.2f m" % (lab, h, v), "middle", 9.5, c, True))
     return SVG(700, 448, o, "仰角の低い衛星ほど誤差が大きいとき（σ<sub>i</sub> = σ<sub>0</sub>/sin θ<sub>i</sub>、σ<sub>0</sub> = 1 m。例のモデル）の重み付き最小二乗法。(a) 東京の 8 つの衛星の誤差の大きさ。(b) 8 つを同じ重さで解くと、誤差の大きい G16・G5 に引きずられ、4 つだけの解より悪くなる。重み 1/σ² を付けると、4 つだけの解より良くなる（RMS は回数を十分に増やしたときの値）。(c) 同じ誤差の列から解いた散らばり（3 枚とも ±20 m）。")
 F["e06_wls"] = _f06_wls_fig()
+
+
+# =====================================================================
+# 4 節の補助: ガウス・ニュートン法（東京の例。誤差 0、受信機の時計は 1 ms 進む）
+# =====================================================================
+def _f06_gn(names, x0=(0.0, 0.0, 0.0, 0.0), nit=8, P=None, rho=None):
+    """ガウス・ニュートン法。返り値は仮の値の並び [x̂_0, x̂_1, …]（発散したら途中で止める）。"""
+    P = _f06_np.array([_F06_V[n][4] for n in names]) if P is None else P
+    rho = _f06_np.linalg.norm(P - _F06_RX, axis=1) + _F06_BT if rho is None else rho
+    x = _f06_np.array(x0, float)
+    hist = [x.copy()]
+    for _ in range(nit):
+        d = P - x[:3]
+        r = _f06_np.linalg.norm(d, axis=1)
+        G = _f06_np.hstack([-d / r[:, None], _f06_np.ones((len(P), 1))])
+        try:
+            dx = _f06_np.linalg.solve(G.T @ G, G.T @ (rho - (r + x[3])))
+        except _f06_np.linalg.LinAlgError:
+            break
+        x = x + dx
+        hist.append(x.copy())
+        if not _f06_np.all(_f06_np.isfinite(x)) or _f06_np.linalg.norm(x[:3]) > 1e9:
+            break
+        if _f06_np.linalg.norm(dx[:3]) < 1e-3:
+            break
+    return hist
+
+
+_F06_UH = _f06_np.array([math.cos(_f06_L), math.sin(_f06_L), 0.0])   # 東京の経度の向き（子午線を含む面の横の軸）
+
+
+def _f06_mer(p):
+    """ECEF の点を、東京を通る子午線を含む面に投影した (横 [km], z [km])。"""
+    return float(p[:3] @ _F06_UH) / 1e3, float(p[2]) / 1e3
+
+
+# =====================================================================
+# 4 節: ガウス・ニュートン法の手順
+# =====================================================================
+def _f06_gnflow_fig():
+    o = []
+    y = 44
+    boxes = [(14, "0. 初めの仮の値", ["地球の中心と b̂ = 0、", "または前に求めた位置"], GRN),
+             (184, "1. 衛星ごとに計算", ["r̂_i・ρ̂_i・残差 Δρ_i・l_i", "（衛星の位置は自転を直す）"], SIG),
+             (354, "2. 正規方程式を解く", ["G^T G Δx = G^T Δρ", "（重みを付けるなら G^T W G）"], GLD),
+             (524, "3. 仮の値を直す", ["x̂_{k+1} = x̂_k + Δx", "k を 1 増やす"], GLD)]
+    bw, bh = 162, 64
+    for x, ttl, lines, c in boxes:
+        o.append(RECT(x, y, bw, bh, 7, soft(c), c, 1.3))
+        o.append(T(x + bw / 2, y + 18, ttl, "middle", 10.5, c, True))
+        for j, ln in enumerate(lines):
+            o.append(TX(x + bw / 2, y + 36 + j * 15, ln, "middle", 9.5, INK))
+    for k in range(3):
+        o.append(ARR(boxes[k][0] + bw, y + bh / 2, boxes[k + 1][0], y + bh / 2, c=MUT, lw=1.5, head=6))
+    # 4. 判定
+    dx, dy = 605, 150
+    o.append(ARR(605, y + bh, 605, dy - 22, c=MUT, lw=1.5, head=6))
+    o.append(PL([(dx, dy - 22), (dx + 78, dy), (dx, dy + 22), (dx - 78, dy)], c=PUR, lw=1.4, fill=PSOFT))
+    o.append(TX(dx, dy - 2, "4. |Δp| < 1 mm ?", "middle", 10, PUR, True))
+    o.append(T(dx, dy + 12, "（位置の修正量）", "middle", 8.5, MUT))
+    # いいえ → 1 へ戻る
+    o.append(W(dx - 78, dy, 265, dy, c=ALI, lw=1.5))
+    o.append(ARR(265, dy, 265, y + bh, c=ALI, lw=1.5, head=6))
+    o.append(T(470, dy - 6, "いいえ: 1 に戻る", "middle", 10, ALI, True))
+    # はい → 終わり
+    o.append(ARR(dx, dy + 22, dx, dy + 46, c=GRN, lw=1.5, head=6))
+    o.append(T(dx + 8, dy + 38, "はい", "start", 10, GRN, True))
+    o.append(RECT(dx - 90, dy + 48, 180, 30, 7, GSOFT, GRN, 1.3))
+    o.append(T(dx, dy + 67, "終わり: 位置と時計のずれ", "middle", 10, GRN, True))
+    # 例の値
+    hist = _f06_gn(_F06_N4)
+    steps = [_f06_np.linalg.norm(hist[k + 1][:3] - hist[k][:3]) for k in range(len(hist) - 1)]
+    def ln(v):
+        return ("%.0f km" % (v / 1e3)) if v >= 1e5 else (("%.1f km" % (v / 1e3)) if v >= 1e4 else (("%.0f m" % v) if v >= 1 else "%.2f mm" % (v * 1e3)))
+    o.append(T(14, 256, "東京の例（4 つの衛星、地球の中心から）の位置の修正量 |Δp|:", "start", 9.5, INK, True))
+    o.append(T(14, 272, " → ".join("%d 回目 %s" % (k + 1, ln(v)) for k, v in enumerate(steps)) + "（5 回目で 1 mm を下回って終わる）", "start", 9.5, GLD))
+    o.append(T(14, 18, "ガウス・ニュートン法: 線形化（1）と最小二乗法（2）を、修正量が十分小さくなるまで繰り返す", "start", 11, INK, True))
+    return SVG(700, 282, o, "ガウス・ニュートン法の手順。1 で、今の仮の値のまわりで線形化し（残差と G を計算し）、2 で正規方程式を解いて修正量を求め、3 で仮の値を直す。位置の修正量が決めた値（ここでは 1 mm）より小さくなったら終わる。")
+F["e06_gnflow"] = _f06_gnflow_fig()
+
+
+# =====================================================================
+# 4 節: 地球の中心から始めたときの収束
+# =====================================================================
+def _f06_conv_fig():
+    o = []
+    h4 = _f06_gn(_F06_N4)
+    h8 = _f06_gn(_F06_ALL)
+    o.append(T(14, 18, "(a) 仮の位置の動き（子午線を含む面に投影）", "start", 11, INK, True))
+    p = Plot(24, 34, 260, 260, (-6000, 26000), (-6000, 26000))
+    o.append(RECT(p.x, p.y, p.w, p.h, 3, SCR, LIN, 1.0))
+    o.append(CIRC(p.X(0), p.Y(0), p.X(6371) - p.X(0), c=GRN, lw=1.3, fill=GSOFT))
+    o.append(T(p.X(0), p.Y(-2600), "地球", "middle", 9.5, GRN, True, halo=True))
+    for nm in _F06_N4:
+        sx, sz = _f06_mer(_F06_V[nm][4])
+        o.append(_f06_sat(p.X(sx), p.Y(sz), PUR, 0.6))
+        o.append(T(p.X(sx), p.Y(sz) - 8, nm, "middle", 9, PUR, True, halo=True))
+    tk = _f06_mer(_F06_RX)
+    pts = [_f06_mer(h) for h in h4]
+    o.append(ARR(p.X(pts[0][0]), p.Y(pts[0][1]), p.X(pts[1][0]), p.Y(pts[1][1]), c=GLD, lw=1.6, head=7))
+    o.append(D(p.X(pts[0][0]), p.Y(pts[0][1]), GLD, 3.6))
+    o.append(T(p.X(pts[0][0]) - 5, p.Y(pts[0][1]) + 13, "k = 0（中心）", "end", 9, GLD, True, halo=True))
+    o.append(D(p.X(pts[1][0]), p.Y(pts[1][1]), GLD, 3.6))
+    o.append(T(p.X(pts[1][0]) + 6, p.Y(pts[1][1]) + 12, "k = 1", "start", 9, GLD, True, halo=True))
+    o.append(_f06_rx(p.X(tk[0]), p.Y(tk[1]) - 2))
+    o.append(T(p.X(tk[0]) - 7, p.Y(tk[1]) - 6, "東京", "end", 9.5, GRN, True, halo=True))
+    # 拡大（東京のまわり ±1600 km）
+    zx, zy, zw = p.x + 6, p.y + 6, 106
+    z = Plot(zx, zy, zw, zw, (tk[0] - 2000, tk[0] + 2000), (tk[1] - 2000, tk[1] + 2000))
+    o.append(RECT(z.x, z.y, z.w, z.h, 2, PAN, GLD, 1.0))
+    zp = [(min(max(a, z.xr[0]), z.xr[1]), min(max(b, z.yr[0]), z.yr[1])) for a, b in pts[1:4]]
+    o.append(PL([(z.X(a), z.Y(b)) for a, b in zp], c=GLD, lw=1.2, dash="3 2"))
+    for k, (a, b) in enumerate(pts[1:4], start=1):
+        if z.xr[0] <= a <= z.xr[1] and z.yr[0] <= b <= z.yr[1]:
+            o.append(D(z.X(a), z.Y(b), GLD, 2.8))
+    o.append(_f06_rx(z.X(tk[0]), z.Y(tk[1]) - 2))
+    o.append(T(z.x + 4, z.y + 11, "拡大: 東京 ±2000 km", "start", 8.5, MUT))
+    a1, b1 = pts[1]
+    o.append(T(z.X(a1) + 4, z.Y(b1) + 11, "k=1", "start", 8.5, GLD, True, halo=True))
+    o.append(T(z.X(tk[0]) - 4, z.Y(tk[1]) + 12, "k=2〜", "end", 8.5, GLD, True, halo=True))
+    o.append(T(p.x, p.y + p.h + 14, "k = 2 以降は、この大きさでは東京の点に重なる（左上の枠は拡大）", "start", 9, MUT))
+    # (b) 誤差の減り方
+    xb = 366
+    o.append(T(xb - 20, 18, "(b) 位置の誤差と、2 節の近似からの見積もり", "start", 11, INK, True))
+    q = Plot(xb + 30, 36, 290, 230, (0, 6), (1e-9, 1e7), ylog=True)
+    o.append(q.axes(xl="繰り返した回数 k", yl="位置の誤差 [m]", xt=[0, 1, 2, 3, 4, 5, 6], yt=[1e-9, 1e-6, 1e-3, 1, 1e3, 1e6],
+                    yfmt=lambda v: "10" + str(int(round(math.log10(v)))).translate(_F06_SUP) if v != 1 else "1"))
+    o.append(W(q.x, q.Y(1e-3), q.x + q.w, q.Y(1e-3), c=PUR, lw=1.1, dash="4 3"))
+    o.append(T(q.x + 4, q.Y(1e-3) - 5, "1 mm（終わりの判定）", "start", 9, PUR, halo=True))
+    for hist, c, lab in ((h4, SIG, "4 つ"), (h8, GLD, "8 つ")):
+        es = [max(_f06_np.linalg.norm(h[:3] - _F06_RX), 2e-9) for h in hist]
+        o.append(q.clip([(k, e) for k, e in enumerate(es)], c=c, lw=2))
+        for k, e in enumerate(es):
+            o.append(D(q.X(k), q.Y(e), c, 3.4))
+    es4 = [_f06_np.linalg.norm(h[:3] - _F06_RX) for h in h4]
+    for k in range(len(es4) - 1):
+        pred = es4[k] ** 2 / (2 * 21000e3)
+        if pred > 1e-9:
+            o.append(CIRC(q.X(k + 1), q.Y(pred), 4.2, c=MUT, lw=1.3))
+    o.append(T(q.X(2) + 8, q.Y(es4[2]) - 2, "62.6 km", "start", 9, SIG, True, halo=True))
+    o.append(T(q.X(3) + 8, q.Y(es4[3]) - 2, "126 m", "start", 9, SIG, True, halo=True))
+    o.append(T(q.X(4) + 8, q.Y(es4[4]) - 2, "0.52 mm", "start", 9, SIG, True, halo=True))
+    o.append(LEGL(xb - 10, 312, [(SIG, None, "4 つの衛星"), (GLD, None, "8 つの衛星")]))
+    o.append(CIRC(xb + 200, 308, 4.2, c=MUT, lw=1.3))
+    o.append(TX(xb + 210, 312, "d^2/(2r̂) の見積もり", "start", 10, MUT))
+    o.append(T(q.x + q.w, q.Y(2e-9) - 4, "計算の桁の限り", "end", 9, MUT, halo=True))
+    return SVG(700, 322, o, "地球の中心と b̂ = 0 から始めたガウス・ニュートン法（東京、誤差 0、受信機の時計は 1 ms 進む）。(a) 1 回目は東京を通り越して 1441 km 先に出るが、2 回目で 62.6 km まで近づく。(b) 誤差は回ごとにほぼ 2 乗で縮み、5 回目で計算の桁の限りに届く。○は、前の回の誤差 d から 2 節の近似の誤差 d²/(2r̂)（r̂ = 21 000 km）で見積もった次の回の誤差で、実際の値とおよそ合う。")
+F["e06_conv"] = _f06_conv_fig()
+
+
+# =====================================================================
+# 4 節: どこから始めると収束するか（子午線を含む面の上の初めの位置）
+# =====================================================================
+def _f06_basin_run(x0):
+    """初めの位置 x0（ECEF [m]、b̂ = 0）から繰り返した結果: (収束したか, 回数)。"""
+    P = _f06_np.array([_F06_V[n][4] for n in _F06_N4])
+    rho = _f06_np.linalg.norm(P - _F06_RX, axis=1) + _F06_BT
+    x = _f06_np.concatenate([x0, [0.0]])
+    for k in range(30):
+        d = P - x[:3]
+        r = _f06_np.linalg.norm(d, axis=1)
+        G = _f06_np.hstack([-d / r[:, None], _f06_np.ones((4, 1))])
+        try:
+            dx = _f06_np.linalg.solve(G, rho - (r + x[3]))
+        except _f06_np.linalg.LinAlgError:
+            return False, k
+        x = x + dx
+        if not _f06_np.all(_f06_np.isfinite(x)) or _f06_np.linalg.norm(x[:3]) > 1e9:
+            return False, k + 1
+        if _f06_np.linalg.norm(dx[:3]) < 1e-3:
+            return _f06_np.linalg.norm(x[:3] - _F06_RX) < 1.0, k + 1
+    return False, 30
+
+
+def _f06_basin_fig():
+    o = []
+    o.append(T(14, 18, "初めの仮の位置（b̂ = 0）を子午線を含む面の上に置いたとき、東京の解に収束するか（1 章の 4 つの衛星）", "start", 11, INK, True))
+    lim, step = 40000.0, 2500.0
+    p = Plot(56, 34, 340, 340, (-lim, lim), (-lim, lim))
+    o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 1.0))
+    vals = _f06_np.arange(-lim + step / 2, lim, step)
+    for zc in vals:
+        run, prev = None, None
+        cells = []
+        for sc in vals:
+            ok, k = _f06_basin_run(sc * 1e3 * _F06_UH + _f06_np.array([0, 0, zc * 1e3]))
+            key = ("ok", min(k, 9)) if ok else ("ng", 0)
+            cells.append((sc, key))
+        # 同じ種類が続く所は 1 つの長方形にまとめる
+        i = 0
+        while i < len(cells):
+            j = i
+            while j + 1 < len(cells) and cells[j + 1][1] == cells[i][1]:
+                j += 1
+            x1, x2 = cells[i][0] - step / 2, cells[j][0] + step / 2
+            kind, k = cells[i][1]
+            if kind == "ok":
+                fill, op = GRN, {5: 0.55, 6: 0.42, 7: 0.3, 8: 0.2}.get(k, 0.12)
+            else:
+                fill, op = ALI, 0.22
+            o.append(RECT(p.X(x1), p.Y(zc + step / 2), p.X(x2) - p.X(x1), p.Y(zc - step / 2) - p.Y(zc + step / 2), 0, fill, "none", 0, op=op))
+            i = j + 1
+    for v in (-40000, -20000, 0, 20000, 40000):
+        o.append(T(p.X(v), p.y + p.h + 14, ("%g" % (v / 1000)).replace("-", "−"), "middle", 9, MUT))
+        o.append(T(p.x - 6, p.Y(v) + 3, ("%g" % (v / 1000)).replace("-", "−"), "end", 9, MUT))
+    o.append(T(p.x + p.w / 2, p.y + p.h + 30, "東京の経度の向き [1000 km]", "middle", 10, MUT))
+    o.append(T(p.x - 32, p.y + p.h / 2, "z [1000 km]", "middle", 10, MUT, rot=-90))
+    o.append(CIRC(p.X(0), p.Y(0), p.X(26560) - p.X(0), c=PUR, lw=1.1, dash="4 3"))
+    o.append(CIRC(p.X(0), p.Y(0), p.X(6371) - p.X(0), c=GRN, lw=1.4, fill=GSOFT))
+    for nm in _F06_N4:
+        sx, sz = _f06_mer(_F06_V[nm][4])
+        o.append(_f06_sat(p.X(sx), p.Y(sz), PUR, 0.55))
+    tk = _f06_mer(_F06_RX)
+    o.append(_f06_rx(p.X(tk[0]), p.Y(tk[1]) - 2))
+    # 例: 地球の裏側の遠くから始めると発散する道
+    x0 = -20000e3 * _F06_UH
+    hist = _f06_gn(_F06_N4, (x0[0], x0[1], x0[2], 0.0), nit=3)
+    pts = [_f06_mer(h) for h in hist]
+    o.append(p.clip([(a * 1, b * 1) for a, b in pts], c=ALI, lw=1.6))
+    o.append(D(p.X(pts[0][0]), p.Y(pts[0][1]), ALI, 3.6))
+    o.append(T(p.X(pts[0][0]), p.Y(pts[0][1]) + 14, "ここから始めると", "middle", 9, ALI, True, halo=True))
+    o.append(T(p.X(pts[0][0]), p.Y(pts[0][1]) + 27, "遠ざかって発散", "middle", 9, ALI, True, halo=True))
+    # 説明
+    xr = 420
+    items = [(GRN, 0.55, "収束（5 回）"), (GRN, 0.42, "収束（6 回）"), (GRN, 0.3, "収束（7 回）"), (GRN, 0.2, "収束（8 回）"),
+             (GRN, 0.12, "収束（9 回以上）"), (ALI, 0.22, "発散（遠ざかる）")]
+    for k, (c, op, lab) in enumerate(items):
+        yy = 56 + k * 20
+        o.append(RECT(xr, yy - 11, 22, 14, 2, c, c, 0.8, op=op))
+        o.append(T(xr + 30, yy, lab, "start", 10, INK))
+    o.append(W(xr, 186, xr + 22, 186, c=PUR, lw=1.1, dash="4 3"))
+    o.append(T(xr + 30, 190, "GPS の衛星の軌道の半径 26 560 km", "start", 10, PUR))
+    o.append(T(xr, 220, "地球の中心から 1.6 万〜2.4 万 km ほどの", "start", 10, INK))
+    o.append(T(xr, 236, "範囲（およそ衛星の軌道の内側）なら、", "start", 10, INK))
+    o.append(T(xr, 252, "どこから始めても 5〜9 回で収束する。", "start", 10, INK))
+    o.append(T(xr, 276, "衛星の外側では、どの衛星も同じような", "start", 10, INK))
+    o.append(T(xr, 292, "向きに見え、1 次の近似も成り立たない", "start", 10, INK))
+    o.append(T(xr, 308, "ので、修正量が大きくなり続けて発散する。", "start", 10, INK))
+    o.append(T(xr, 334, "衛星の印は、4 つの衛星の位置をこの面に", "start", 9.5, MUT))
+    o.append(T(xr, 348, "投影したもの。格子は 2 500 km おき", "start", 9.5, MUT))
+    return SVG(700, 412, o, "初めの仮の位置と収束（東京、1 章の 4 つの衛星、誤差 0、受信機の時計は 1 ms 進む）。東京の経度の子午線を含む面の上に、2 500 km おきに初めの位置を置き、b̂ = 0 からガウス・ニュートン法を繰り返した。緑は東京の解に収束した所（濃いほど少ない回数）、赤は発散した所。")
+F["e06_basin"] = _f06_basin_fig()
+
+
+# =====================================================================
+# 4 節: 電波が届く間に地球が回る（サニャック効果）
+# =====================================================================
+def _f06_rotz(p, th):
+    return _f06_np.array([p[0] * math.cos(th) + p[1] * math.sin(th), -p[0] * math.sin(th) + p[1] * math.cos(th), p[2]])
+
+
+def _f06_sagnac_vals():
+    """衛星ごとの、電波が届く時間と、地球の自転の直しで変わる距離 [m]（衛星の位置を西へ ω_e τ 回したとき）。"""
+    out = []
+    for nm in _F06_ALL:
+        s = _F06_CON[nm]
+        tau = 0.07
+        for _ in range(6):
+            p_tx = _f06_np.array(sat_ecef(s, -tau))
+            p_rx = _f06_rotz(p_tx, _F06_WE * tau)
+            tau = _f06_np.linalg.norm(p_rx - _F06_RX) / _F06_C
+        out.append((nm, tau, _f06_np.linalg.norm(p_rx - _F06_RX) - _f06_np.linalg.norm(p_tx - _F06_RX), _f06_np.linalg.norm(p_rx - p_tx), p_tx, p_rx))
+    return out
+
+
+def _f06_sagnac_fig():
+    o = []
+    o.append(T(14, 18, "(a) 北極の上から見た図（回る角度は大きく描いた）", "start", 11, INK, True))
+    cx, cy, Re = 118, 236, 78
+    o.append(CIRC(cx, cy, Re, c=GRN, lw=1.4, fill=GSOFT))
+    o.append(D(cx, cy, GRN, 2.6))
+    o.append(T(cx, cy + 16, "地球", "middle", 9.5, GRN, True, halo=True))
+    phi = 30 * _F06_D2R
+    a_tx = -8 * _F06_D2R              # 送ったときの受信機の向き（画面の角度。反時計回りが東）
+    rtx = (cx + Re * math.cos(a_tx), cy - Re * math.sin(a_tx))
+    rrx = (cx + Re * math.cos(a_tx + phi), cy - Re * math.sin(a_tx + phi))
+    ra = Re + 16
+    o.append(PATH("M%g,%g A%g,%g 0 0,0 %g,%g" % (cx + ra * math.cos(a_tx), cy - ra * math.sin(a_tx), ra, ra,
+                                                 cx + ra * math.cos(a_tx + phi + 0.05), cy - ra * math.sin(a_tx + phi + 0.05)), c=GLD, lw=1.4))
+    o.append(_head(cx + ra * math.cos(a_tx + phi - 0.05), cy - ra * math.sin(a_tx + phi - 0.05),
+                   cx + ra * math.cos(a_tx + phi + 0.06), cy - ra * math.sin(a_tx + phi + 0.06), GLD, 7))
+    o.append(T(cx + (ra + 8) * math.cos(a_tx + phi / 2), cy - (ra + 8) * math.sin(a_tx + phi / 2) + 4, "自転（東へ）", "start", 9.5, GLD, True, halo=True))
+    sat = (288, 62)
+    o.append(_f06_sat(sat[0], sat[1], PUR, 0.9))
+    o.append(T(sat[0] - 6, sat[1] - 12, "電波を送ったときの衛星", "middle", 9.5, PUR, True, halo=True))
+    o.append(W(sat[0], sat[1], rtx[0], rtx[1], c=ALI, lw=1.4, dash="5 3"))
+    o.append(ARR(sat[0], sat[1], rrx[0], rrx[1], c=SIG, lw=2, head=8))
+    o.append(_f06_rx(rtx[0], rtx[1] - 3, MUT))
+    o.append(_f06_rx(rrx[0], rrx[1] - 3))
+    o.append(T(rtx[0] + 10, rtx[1] + 18, "送ったときの受信機", "start", 9, MUT, True, halo=True))
+    o.append(T(rrx[0] - 10, rrx[1] - 8, "受けたときの受信機", "end", 9, GRN, True, halo=True))
+    o.append(T(14, 352, "青: 電波が実際に通る道（受けたときの受信機まで）", "start", 9.5, SIG, True))
+    o.append(T(14, 368, "赤の破線: 直さずに ECEF の座標どうしで計算した距離", "start", 9.5, ALI, True))
+    o.append(T(14, 384, "（送ったときの受信機までの距離と同じになる）", "start", 9.5, ALI))
+    # (b) 衛星ごとの直し
+    xb = 372
+    o.append(T(xb - 10, 18, "(b) 東京の 8 つの衛星の、距離の直し [m]", "start", 11, INK, True))
+    vals = _f06_sagnac_vals()
+    q = Plot(xb + 60, 46, 240, 200, (-40, 40), (0, len(vals)))
+    o.append(q.axes(xl="距離の直し Δr_i [m]", yl=None, xt=[-40, -20, 0, 20, 40], yt=[], xfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(W(q.X(0), q.y, q.X(0), q.y + q.h, c=MUT, lw=1.2))
+    for k, (nm, tau, dr, mv, ptx, prx) in enumerate(vals):
+        yy = q.y + (k + 0.5) * q.h / len(vals)
+        o.append(RECT(min(q.X(0), q.X(dr)), yy - 8, abs(q.X(dr) - q.X(0)), 16, 2, soft(SIG), SIG, 1.1))
+        o.append(T(q.x - 8, yy + 4, "%s（%.1f ms）" % (nm, tau * 1e3), "end", 9, PUR, True))
+        o.append(T(q.X(dr) + (5 if dr >= 0 else -5), yy + 4, ("%+.1f" % dr).replace("-", "−"), "start" if dr >= 0 else "end", 9, SIG, True, halo=True))
+    o.append(T(q.x - 8, q.y - 6, "衛星（届く時間）", "end", 9, MUT))
+    # 位置の誤差
+    o.append(T(xb - 10, 318, "直しを省いて解くと（8 つの衛星）:", "start", 10, INK, True))
+    o.append(T(xb - 10, 336, "位置が東へ 29.5 m、北へ −0.6 m、上へ 1.3 m ずれる", "start", 10, ALI, True))
+    o.append(TX(xb - 10, 356, "式: Δr_i ≈ (ω_e/c)(x_i y − y_i x)。直しの大きさは", "start", 9.5, MUT))
+    o.append(T(xb - 10, 371, "衛星の位置と受信機の位置で決まる", "start", 9.5, MUT))
+    return SVG(700, 394, o, "電波が届く間（67〜86 ms）に地球が回る分の直し（サニャック効果）。(a) 衛星の位置は送ったときの ECEF の座標なので、そのまま受信機の ECEF の座標との距離を計算すると、送ったときの受信機の位置までの距離になってしまう（角度は大きく描いた。実際は 5 × 10⁻⁶ rad ほど）。(b) 東京の 8 つの衛星では、衛星の位置を西へ ω<sub>e</sub>τ<sub>i</sub> 回して直すと、距離が −25.7〜+31.0 m 変わる。")
+F["e06_sagnac"] = _f06_sagnac_fig()
+
+
+# =====================================================================
+# 5 節の補助: 衛星の速度とドップラーの内訳（受信機は東へ 20 m/s、TCXO +0.5 ppm）
+# =====================================================================
+_F06_VRX = _F06_RENU.T @ _f06_np.array([20.0, 0.0, 0.0])    # 受信機の速度（ECEF）
+_F06_BDOT = _F06_C * 0.5e-6                                  # 時計のドリフトを距離に直した値 [m/s]
+
+
+def _f06_satvel(nm, t=0.0, h=0.5):
+    s = _F06_CON[nm]
+    return (_f06_np.array(sat_ecef(s, t + h)) - _f06_np.array(sat_ecef(s, t - h))) / (2 * h)
+
+
+def _f06_dopparts():
+    """衛星ごとのドップラーの内訳 [(名前, 衛星の動き, 受信機の動き, 時計, 合計)] [Hz]。"""
+    out = []
+    for nm in _F06_ALL:
+        p = _F06_V[nm][4]
+        l = (p - _F06_RX) / _f06_np.linalg.norm(p - _F06_RX)
+        fs = -float(l @ _f06_satvel(nm)) / _F06_LAM
+        fr = float(l @ _F06_VRX) / _F06_LAM
+        fc = -_F06_BDOT / _F06_LAM
+        out.append((nm, fs, fr, fc, fs + fr + fc))
+    return out
+
+
+# =====================================================================
+# 5 節: ドップラーの内訳（衛星の動き・受信機の動き・時計のドリフト）
+# =====================================================================
+def _f06_dopgeom_fig():
+    o = []
+    o.append(T(14, 18, "(a) 距離の変わる速さは、視線の向きの速度の差", "start", 11, INK, True))
+    rx, ry = 66, 196
+    sx, sy = 300, 76
+    o.append(W(rx, ry, sx, sy, c=MUT, lw=1.1, dash="4 3"))
+    L = _f06_np.array([sx - rx, sy - ry], float)
+    L /= _f06_np.linalg.norm(L)
+    vs = _f06_np.array([-84.0, 22.0])
+    o.append(_f06_sat(sx, sy, PUR, 0.9))
+    o.append(ARR(sx, sy, sx + vs[0], sy + vs[1], c=PUR, lw=1.8, head=7))
+    o.append(TX(sx + vs[0] - 4, sy + vs[1] + 4, "v_i", "end", 10.5, PUR, True, halo=True))
+    pr = float(vs @ L)
+    o.append(W(sx + vs[0], sy + vs[1], sx + pr * L[0], sy + pr * L[1], c=PUR, lw=1, dash="3 3"))
+    o.append(W(sx, sy, sx + pr * L[0], sy + pr * L[1], c=PUR, lw=3.4))
+    o.append(TX(sx + pr * L[0] + 8, sy + pr * L[1] + 14, "l_i·v_i", "start", 10, PUR, True, halo=True))
+    o.append(_f06_rx(rx, ry))
+    vr = _f06_np.array([76.0, 0.0])
+    o.append(ARR(rx, ry, rx + vr[0], ry + vr[1], c=SIG, lw=1.8, head=7))
+    o.append(TX(rx + vr[0] + 4, ry + 4, "v（東へ 20 m/s）", "start", 10, SIG, True, halo=True))
+    pr2 = float(vr @ L)
+    o.append(W(rx + vr[0], ry, rx + pr2 * L[0], ry + pr2 * L[1], c=SIG, lw=1, dash="3 3"))
+    o.append(W(rx, ry, rx + pr2 * L[0], ry + pr2 * L[1], c=SIG, lw=3.4))
+    o.append(TX(rx + pr2 * L[0] - 8, ry + pr2 * L[1] - 6, "l_i·v", "end", 10, SIG, True, halo=True))
+    o.append(TX(176, 124, "視線 l_i", "middle", 10, MUT, True, halo=True))
+    xf = 360
+    o.append(T(xf, 50, "距離の変わる速さ:", "start", 10, INK, True))
+    o.append(TX(xf, 70, "ṙ_i = l_i·(v_i − v)", "start", 11, INK, True))
+    o.append(T(xf, 98, "擬似距離の変化率（時計のドリフト ḃ が加わる）:", "start", 10, INK, True))
+    o.append(TX(xf, 118, "ρ̇_i = ṙ_i + ḃ = −λ f_{D,i}", "start", 11, INK, True))
+    o.append(TX(xf, 146, "ドップラー f_D は、距離が縮むとき正（4 章 2 節）。", "start", 9.5, MUT))
+    o.append(T(xf, 162, "したがってドップラーは、", "start", 9.5, MUT))
+    o.append(TX(xf, 178, "−l_i·v_i/λ（衛星）＋ l_i·v/λ（受信機）− ḃ/λ（時計）", "start", 9.5, INK, True))
+    o.append(T(xf, 194, "の 3 つの和になる（λ = 19.03 cm）", "start", 9.5, MUT))
+    # (b) 内訳（全幅）
+    y0 = 252
+    o.append(T(14, y0 - 22, "(b) 東京の 8 つの衛星のドップラーの内訳 [Hz]（受信機は東へ 20 m/s、TCXO +0.5 ppm）", "start", 11, INK, True))
+    parts = _f06_dopparts()
+    rh = 22
+    cols = [("衛星の動きによる分", 190, 110, 3500, PUR, 1), ("受信機の動きによる分", 420, 76, 120, SIG, 2), ("時計のドリフト", 600, 48, 1000, GLD, 3)]
+    for ttl, xc, half, vmax, c, idx in cols:
+        o.append(T(xc, y0 - 4, ttl, "middle", 9.5, c, True))
+        o.append(W(xc, y0 + 2, xc, y0 + rh * len(parts) + 2, c=MUT, lw=1))
+        o.append(W(xc - half, y0 + rh * len(parts) + 2, xc + half, y0 + rh * len(parts) + 2, c=MUT, lw=1))
+        for v in (-vmax, 0, vmax):
+            o.append(T(xc + half * v / vmax, y0 + rh * len(parts) + 15, ("%+g" % v if v else "0").replace("-", "−"), "middle", 8.5, MUT))
+        for k, row in enumerate(parts):
+            v = row[idx]
+            yy = y0 + 4 + k * rh
+            w_ = half * v / vmax
+            o.append(RECT(min(xc, xc + w_), yy + 2, abs(w_), rh - 8, 2, soft(c), c, 1.0))
+            txt = ("+" if v > 0 else "") + _f06_m(v, 1)
+            o.append(T(xc + (-5 if v > 0 else 5), yy + 13, txt, "end" if v > 0 else "start", 9, c, True))
+    o.append(T(694, y0 - 4, "合計", "end", 9.5, INK, True))
+    for k, (nm, fs, fr, fc, ft) in enumerate(parts):
+        yy = y0 + 4 + k * rh
+        o.append(T(16, yy + 13, nm, "start", 10, PUR, True))
+        o.append(T(694, yy + 13, _f06_m(ft, 1), "end", 9.5, INK, True))
+    return SVG(700, y0 + rh * len(parts) + 24, o, "ドップラーの内訳（東京、受信機は東へ 20 m/s、TCXO の周波数のずれは +0.5 ppm。例の値）。(a) 距離の変わる速さは、衛星と受信機の速度の差の、視線の向きの成分である。(b) 衛星の動きによる分は衛星ごとに大きく違い、受信機の動きによる分は東の空の衛星（G13・G3 など）で正になる。時計のドリフトによる分は、どの衛星も同じ −787.7 Hz である（棒の目盛は列ごとに違う）。")
+F["e06_dopgeom"] = _f06_dopgeom_fig()
+
+
+# =====================================================================
+# 5 節: 位置の差から求める速度と、ドップラーから求める速度
+# =====================================================================
+def _f06_velnoise_fig():
+    o = []
+    Ge = _f06_Genu(_F06_ALL)
+    A = _f06_np.linalg.solve(Ge.T @ Ge, Ge.T)
+    rng = _f06_np.random.default_rng(16)
+    n = 61
+    pos = (rng.standard_normal((n, len(_F06_ALL))) * 0.82) @ A.T          # 位置の誤差（1 s ごと）
+    vd = (rng.standard_normal((n, len(_F06_ALL))) * 0.05 * _F06_LAM) @ A.T  # ドップラーから求めた速度の誤差
+    ve_pos = 20.0 + (pos[1:, 0] - pos[:-1, 0]) / 1.0
+    ve_dop = 20.0 + vd[1:, 0]
+    ts = _f06_np.arange(1, n)
+    o.append(T(14, 18, "(a) 東向きの速度（本当は 20 m/s 一定）", "start", 11, INK, True))
+    p = Plot(56, 34, 400, 200, (0, 60), (16, 24))
+    o.append(p.axes(xl="時間 t [s]", yl="東向きの速度 [m/s]", xt=[0, 10, 20, 30, 40, 50, 60], yt=[16, 18, 20, 22, 24]))
+    o.append(p.line([(0, 20), (60, 20)], c=GRN, lw=1.4, dash="5 3"))
+    o.append(p.clip(list(zip(ts, ve_pos)), c=ALI, lw=1.4))
+    o.append(p.line(list(zip(ts, ve_dop)), c=GLD, lw=2))
+    sd_pos = float(_f06_np.sqrt(2 * (A @ A.T)[0, 0]) * 0.82)
+    sd_dop = float(_f06_np.sqrt((A @ A.T)[0, 0]) * 0.05 * _F06_LAM)
+    o.append(LEGL(56, 288, [(ALI, None, "位置の差 ÷ 1 s"), (GLD, None, "ドップラーから"), (GRN, "5 3", "本当の値")]))
+    # (b) 拡大
+    xb = 500
+    o.append(T(xb - 14, 18, "(b) ドップラーから（拡大）", "start", 11, INK, True))
+    q = Plot(xb + 36, 34, 150, 200, (0, 60), (19.95, 20.05))
+    o.append(q.axes(xl="時間 t [s]", yl=None, xt=[0, 30, 60], yt=[19.95, 20.0, 20.05], yfmt=lambda v: "%.2f" % v))
+    o.append(q.line([(0, 20), (60, 20)], c=GRN, lw=1.4, dash="5 3"))
+    o.append(q.clip(list(zip(ts, ve_dop)), c=GLD, lw=1.8))
+    o.append(T(14, 312, "誤差の標準偏差（東向きの成分）: 位置の差から %.2f m/s、ドップラーから %.3f m/s（約 %.0f 分の 1）" % (sd_pos, sd_dop, sd_pos / sd_dop), "start", 10, INK, True))
+    return SVG(700, 322, o, "位置の差から求めた速度と、ドップラーから求めた速度（東京、8 つの衛星。擬似距離の雑音は 1 s ごとに 0.82 m（3 章 6 節の 45 dB-Hz の値）、ドップラーの雑音は 0.05 Hz（例の値））。位置の揺れは、差をとるとそのまま速度の揺れになる。ドップラーから求めた速度の揺れは、その 100 分の 1 ほどである。ゆっくり変わる誤差（大気の遅れなど）は、どちらでもほとんど消える。")
+F["e06_velnoise"] = _f06_velnoise_fig()
+
+
+# =====================================================================
+# 6 節: 楕円体の切り口・法線・緯度と、逆の変換の繰り返し
+# =====================================================================
+_F06_A = GNSS_AW
+_F06_AP = GNSS_AW * (1 - GNSS_FW)
+
+
+def _f06_inv(x, y, z, n=4):
+    """ECEF → 緯度・楕円体高の繰り返し。返り値 [(B [°], h [m]), …]（B_0 は h = 0 とおいた値）。"""
+    s = math.hypot(x, y)
+    k2 = _F06_AP ** 2 / _F06_A ** 2
+    B = math.atan2(z, s * k2)
+    out = []
+    for _ in range(n):
+        RN = _F06_A ** 2 / math.sqrt(_F06_A ** 2 * math.cos(B) ** 2 + _F06_AP ** 2 * math.sin(B) ** 2)
+        h = s / math.cos(B) - RN
+        out.append((B / _F06_D2R, h))
+        B = math.atan2(z * (RN + h), s * (k2 * RN + h))
+    return out
+
+
+def _f06_ellip_fig():
+    o = []
+    o.append(T(14, 18, "(a) 子午線を含む面の切り口（扁平率を大きくして描いた）", "start", 11, INK, True))
+    A, Bp = 146.0, 103.0           # 描くときの赤道の半径と極の半径 [px]
+    cx, cy = 226, 196
+    o.append(W(cx - A - 16, cy, cx + A + 24, cy, c=MUT, lw=1))
+    o.append(W(cx, cy + Bp + 20, cx, cy - Bp - 22, c=MUT, lw=1))
+    o.append(T(cx + A + 26, cy + 4, "s", "start", 10, MUT, True))
+    o.append(T(cx + 5, cy - Bp - 22, "z", "start", 10, MUT, True))
+    pts = [(cx + A * math.cos(t), cy - Bp * math.sin(t)) for t in _f06_np.linspace(0, 2 * math.pi, 181)]
+    o.append(PL(pts, c=GRN, lw=1.8, fill=GSOFT))
+    Bd = 35.681 * _F06_D2R
+    RN = A * A / math.sqrt(A * A * math.cos(Bd) ** 2 + Bp * Bp * math.sin(Bd) ** 2)
+    ps, pz = RN * math.cos(Bd), (Bp * Bp / (A * A)) * RN * math.sin(Bd)
+    P = (cx + ps, cy - pz)
+    qz = -(1 - Bp * Bp / (A * A)) * RN * math.sin(Bd)
+    Q = (cx, cy - qz)
+    hh = 34.0
+    P2 = (P[0] + hh * math.cos(Bd), P[1] - hh * math.sin(Bd))
+    o.append(W(Q[0], Q[1], P2[0], P2[1], c=SIG, lw=1.6))
+    o.append(W(cx, cy, P[0], P[1], c=MUT, lw=1.2, dash="4 3"))
+    o.append(D(P[0], P[1], SIG, 3.8))
+    o.append(D(Q[0], Q[1], SIG, 3.4))
+    o.append(_f06_rx(P2[0], P2[1] - 3))
+    o.append(T(P2[0], P2[1] - 16, "受信機", "middle", 9.5, GRN, True, halo=True))
+    o.append(TX((P[0] + P2[0]) / 2 + 8, (P[1] + P2[1]) / 2 + 8, "h", "start", 10.5, SIG, True, halo=True))
+    o.append(TX((Q[0] + P[0]) / 2 - 2, (Q[1] + P[1]) / 2 - 10, "R_N", "end", 10.5, SIG, True, halo=True))
+    # 緯度 B（Q での法線と水平の角）
+    ra = 26
+    o.append(W(Q[0], Q[1], Q[0] + 44, Q[1], c=SIG, lw=1, dash="2 2"))
+    o.append(PATH("M%g,%g A%g,%g 0 0,0 %g,%g" % (Q[0] + ra, Q[1], ra, ra, Q[0] + ra * math.cos(Bd), Q[1] - ra * math.sin(Bd)), c=SIG, lw=1.3))
+    o.append(TX(Q[0] + ra + 6, Q[1] - 6, "B", "start", 10.5, SIG, True, halo=True))
+    # 地球の中心から見た角度
+    gc = math.atan2(pz, ps)
+    rg = 44
+    o.append(PATH("M%g,%g A%g,%g 0 0,0 %g,%g" % (cx + rg, cy, rg, rg, cx + rg * math.cos(gc), cy - rg * math.sin(gc)), c=MUT, lw=1.2))
+    o.append(T(cx + rg + 4, cy + 14, "中心から見た角度", "start", 9, MUT, halo=True))
+    o.append(T(Q[0] - 6, Q[1] + 4, "法線が z 軸を横切る点", "end", 9, SIG, True, halo=True))
+    o.append(DIM(cx, cy + Bp + 12, cx + A, cy + Bp + 12, None, c=INK))
+    o.append(TX(cx + A / 2, cy + Bp + 26, "a（赤道の半径）", "middle", 9.5, INK))
+    o.append(DIM(cx - A - 10, cy, cx - A - 10, cy - Bp, None, c=INK))
+    o.append(TX(cx - A - 14, cy - Bp / 2, "a_p", "end", 10, INK, True))
+    o.append(T(cx - A - 14, cy - Bp / 2 + 14, "（極の半径）", "end", 9, INK))
+    # (b) WGS 84 と東京の値
+    xb = 420
+    o.append(T(xb, 18, "(b) WGS 84 と東京の値", "start", 11, INK, True))
+    rows = [("赤道の半径 a", "6 378 137 m（規格の値）"), ("扁平率", "1/298.257 223 563（規格の値）"),
+            ("極の半径 a_p", "6 356 752.314 m"), ("a − a_p", "21 384.686 m")]
+    for k, (l1, l2) in enumerate(rows):
+        o.append(TX(xb, 42 + k * 17, l1, "start", 9.5, MUT))
+        o.append(T(xb + 104, 42 + k * 17, l2, "start", 9.5, INK, True))
+    RNt = _F06_A ** 2 / math.sqrt(_F06_A ** 2 * math.cos(_f06_B) ** 2 + _F06_AP ** 2 * math.sin(_f06_B) ** 2)
+    zc = (1 - _F06_AP ** 2 / _F06_A ** 2) * RNt * math.sin(_f06_B)
+    s_t = math.hypot(_F06_RX[0], _F06_RX[1])
+    gct = math.atan2(_F06_RX[2], s_t) / _F06_D2R
+    o.append(T(xb, 122, "東京（35.681°、139.767°、40 m）:", "start", 9.5, INK, True))
+    o.append(TX(xb, 139, "R_N = %s km、法線は中心の %.1f km 南を通る" % (_f06_g3(RNt / 1e3, 3), zc / 1e3), "start", 9.5, SIG))
+    o.append(T(xb, 156, "中心から見た角度 %.3f°（緯度との差 %.3f°）" % (gct, 35.681 - gct), "start", 9.5, MUT))
+    # (c) 逆の変換の繰り返し
+    o.append(T(xb, 190, "(c) ECEF → 緯度・楕円体高の繰り返し（東京）", "start", 11, INK, True))
+    hd = [("回", xb + 10, "middle"), ("緯度 B [°]", xb + 132, "end"), ("緯度の誤差", xb + 210, "end"), ("h [m]", xb + 270, "end")]
+    for t_, x, a_ in hd:
+        o.append(T(x, 210, t_, a_, 9.5, MUT, True))
+    o.append(W(xb, 215, xb + 276, 215, c=LIN, lw=0.8))
+    for k, (Bk, hk) in enumerate(_f06_inv(*_F06_RX, n=4)):
+        yy = 230 + k * 16
+        err_m = abs(Bk - 35.681) * _F06_D2R * 6.37e6
+        o.append(T(xb + 10, yy, "%d" % k, "middle", 9.5, INK))
+        o.append(T(xb + 132, yy, "%.10f" % Bk, "end", 9.5, SIG, True))
+        es = "%.2f m" % err_m if err_m >= 0.01 else ("%.1f mm" % (err_m * 1e3) if err_m >= 1e-4 else ("%.1f μm" % (err_m * 1e6) if err_m >= 1e-8 else "0"))
+        o.append(T(xb + 210, yy, es, "end", 9.5, MUT))
+        o.append(T(xb + 270, yy, "%.4f" % hk, "end", 9.5, SIG))
+    o.append(T(xb, 306, "0 回目は h = 0 とおいて求めた値。誤差は地上の距離", "start", 9, MUT))
+    o.append(T(xb, 320, "に直したもの。2 回で 1 mm よりはるかに小さくなる", "start", 9, MUT))
+    return SVG(700, 334, o, "楕円体の幾何（WGS 84）。(a) 緯度 B は、楕円体の法線が赤道面となす角で、法線は地球の中心を通らず、z 軸を中心より南で横切る。R<sub>N</sub> は、面の点から法線に沿って z 軸まで測った長さ、h は法線に沿った高さ（扁平率を大きくして描いた）。(b) WGS 84 の寸法と、東京の値。(c) ECEF の座標から緯度と楕円体高を求める繰り返し。")
+F["e06_ellip"] = _f06_ellip_fig()
+
+
+# =====================================================================
+# 6 節: ENU の軸と、ECEF の差を ENU の成分に直す回転
+# =====================================================================
+def _f06_enu_fig():
+    o = []
+    o.append(T(14, 18, "(a) 地球と、東京の ENU の軸", "start", 11, INK, True))
+    az, el = (_F06_TOK[1] + 60) * _F06_D2R, 38 * _F06_D2R
+    r_ = _f06_np.array([-math.sin(az), math.cos(az), 0.0])
+    u_ = _f06_np.array([-math.sin(el) * math.cos(az), -math.sin(el) * math.sin(az), math.cos(el)])
+    d_ = _f06_np.array([math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)])
+    cx, cy, R = 186, 188, 110
+
+    def pj(q):
+        q = _f06_np.asarray(q, float)
+        return cx + R * float(q @ r_), cy - R * float(q @ u_), float(q @ d_)
+    o.append(CIRC(cx, cy, R, c=GRN, lw=1.4, fill=GSOFT))
+
+    def curve(pts3, c, lw=0.8, dash=None):
+        seg, out = [], []
+        for q in pts3:
+            x, y, dd = pj(q)
+            if dd >= 0:
+                seg.append((x, y))
+            else:
+                if len(seg) > 1:
+                    out.append(PL(seg, c=c, lw=lw, dash=dash))
+                seg = []
+        if len(seg) > 1:
+            out.append(PL(seg, c=c, lw=lw, dash=dash))
+        return "".join(out)
+    for lat in (-60, -30, 0, 30, 60):
+        b = lat * _F06_D2R
+        o.append(curve([(math.cos(b) * math.cos(t), math.cos(b) * math.sin(t), math.sin(b)) for t in _f06_np.linspace(0, 2 * math.pi, 145)], GRN, 1.0 if lat == 0 else 0.6))
+    for lon in range(0, 360, 30):
+        l = lon * _F06_D2R
+        o.append(curve([(math.cos(b) * math.cos(l), math.cos(b) * math.sin(l), math.sin(b)) for b in _f06_np.linspace(-math.pi / 2, math.pi / 2, 73)], GRN, 1.0 if lon == 0 else 0.6))
+    # ECEF の軸
+    for vec, lab in (((1.3, 0, 0), "x"), ((0, 1.35, 0), "y"), ((0, 0, 1.38), "z")):
+        x, y, _ = pj(vec)
+        o.append(ARR(cx, cy, x, y, c=INK, lw=1.3, head=6))
+        o.append(T(x + (6 if x >= cx else -6), y - 4, lab, "start" if x >= cx else "end", 10.5, INK, True, halo=True))
+    # 東京の ENU
+    Bt, Lt = _f06_B, _f06_L
+    P = _f06_np.array([math.cos(Bt) * math.cos(Lt), math.cos(Bt) * math.sin(Lt), math.sin(Bt)])
+    px, py, _ = pj(P)
+    o.append(D(px, py, SIG, 3.6))
+    for row, lab in ((_F06_RENU[0], "東"), (_F06_RENU[1], "北"), (_F06_RENU[2], "上")):
+        x, y, _ = pj(P + 0.42 * row)
+        o.append(ARR(px, py, x, y, c=SIG, lw=1.8, head=7))
+        o.append(T(x + (5 if x >= px else -5), y + (12 if y > py else -3), lab, "start" if x >= px else "end", 10, SIG, True, halo=True))
+    o.append(T(px - 8, py + 15, "東京", "end", 9.5, SIG, True, halo=True))
+    # (b) 回転の行列（東京の値）
+    xb = 350
+    o.append(T(xb, 18, "(b) 東京の回転の行列（緯度 35.681°、経度 139.767°）", "start", 11, INK, True))
+    names = [("東", "(−sin L, cos L, 0)"), ("北", "(−sin B cos L, −sin B sin L, cos B)"), ("上", "(cos B cos L, cos B sin L, sin B)")]
+    for k, (lab, f) in enumerate(names):
+        yy = 46 + k * 34
+        o.append(T(xb, yy, lab, "start", 10.5, SIG, True))
+        o.append(TX(xb + 22, yy, f, "start", 9.5, MUT))
+        o.append(T(xb + 22, yy + 15, "= (%s, %s, %s)" % tuple(_f06_m(v, 4) for v in _F06_RENU[k]), "start", 10, INK, True))
+    # 例: G9 への向き
+    p9 = _F06_V["G9"][4]
+    dvec = p9 - _F06_RX
+    enu = _F06_RENU @ dvec
+    th = math.atan2(enu[2], math.hypot(enu[0], enu[1])) / _F06_D2R
+    al = (math.atan2(enu[0], enu[1]) / _F06_D2R) % 360
+    yc = 168
+    o.append(T(xb, yc, "例: 受信機から G9 へのベクトル [km]", "start", 10, INK, True))
+    o.append(TX(xb, yc + 18, "ECEF の差 (x_i − x, y_i − y, z_i − z)", "start", 9.5, PUR))
+    o.append(TX(xb + 14, yc + 34, "= (%s, %s, %s)" % tuple(_f06_g3(v / 1e3, 1) for v in dvec), "start", 9.5, PUR, True))
+    o.append(TX(xb, yc + 52, "→ (e, n, u) = (%s, %s, %s)" % tuple(_f06_g3(v / 1e3, 1) for v in enu), "start", 9.5, SIG, True))
+    o.append(TX(xb, yc + 70, "→ 仰角 θ = %.1f°、方位角 α = %.1f°（1 章 5 節の式）" % (th, al), "start", 9.5, SIG, True))
+    o.append(T(xb, yc + 96, "東・北・上は互いに直交する長さ 1 のベクトルなので、", "start", 9.5, MUT))
+    o.append(T(xb, yc + 110, "ENU の成分は、それぞれとの内積で求まる", "start", 9.5, MUT))
+    o.append(T(xb, yc + 130, "使い道: 衛星の仰角と方位角、解の誤差の水平と上下、", "start", 9.5, MUT))
+    o.append(T(xb, yc + 144, "速度の東・北・上の成分（速さと進む向き）", "start", 9.5, MUT))
+    return SVG(700, 322, o, "ENU 座標の軸と回転。(a) 東京の ENU の 3 つの軸（青）。上は楕円体の法線の向き、東は経度を増やす向き、北は緯度を増やす向きで、どれも緯度 B と経度 L で決まる（地球の網目は 30° ごと）。(b) 3 つの向きを行に並べた行列を ECEF の差のベクトルに掛けると、ENU の成分になる。")
+F["e06_enu"] = _f06_enu_fig()
+
+
+# =====================================================================
+# 6 節: 楕円体・ジオイド・地面と、楕円体高・ジオイド高・標高
+# =====================================================================
+def _f06_geoid_fig():
+    o = []
+    o.append(TX(14, 18, "楕円体高 h、ジオイド高 h_g、標高 H の関係（高さの向きは大きく引き伸ばした）", "start", 11, INK, True))
+    x0, x1, ye = 30, 670, 250
+    o.append(W(x0, ye, x1, ye, c=MUT, lw=1.6))
+    o.append(T(x1, ye + 16, "楕円体（WGS 84）", "end", 10, MUT, True))
+    xs = _f06_np.linspace(x0, x1, 161)
+    geo = [ye - 110 - 26 * math.sin((x - x0) / 120.0) - 12 * math.sin((x - x0) / 47.0) for x in xs]
+    # 海（左側）
+    sea_end = 250
+    sea = [(x, g) for x, g in zip(xs, geo) if x <= sea_end]
+    o.append(PL(sea + [(sea_end, ye - 20), (x0, ye - 20)], c="none", lw=0, fill=SSOFT))
+    o.append(T(80, ye - 36, "海", "middle", 10, SIG, True))
+    # 地面（右側の陸）
+    land = []
+    for x, g in zip(xs, geo):
+        if x >= sea_end - 10:
+            land.append((x, max(52.0, g - 8 - max(0.0, (x - sea_end + 10)) * 0.2 - 30 * math.sin((x - sea_end) / 70.0) ** 2)))
+    o.append(PL(land + [(x1, ye - 20), (sea_end - 10, ye - 20)], c=GRN, lw=1.4, fill=GSOFT))
+    o.append(T(620, ye - 34, "陸", "middle", 10, GRN, True))
+    o.append(PL(list(zip(xs, geo)), c=PUR, lw=1.8, dash="6 3"))
+    o.append(T(150, geo[30] - 10, "ジオイド（平均の海面にほぼ一致する、重力の向きに垂直な面）", "start", 9.5, PUR, True, halo=True))
+    # 受信機の点
+    k = 112
+    xp, yg = xs[k], geo[k]
+    yp = land[k - (len(xs) - len(land))][1]
+    o.append(_f06_rx(xp, yp - 4))
+    o.append(T(xp + 10, yp - 12, "受信機", "start", 10, GRN, True, halo=True))
+    o.append(DIM(xp - 34, ye, xp - 34, yp, None, c=SIG))
+    o.append(TX(xp - 40, (ye + yp) / 2 + 4, "楕円体高 h", "end", 10, SIG, True, halo=True))
+    o.append(DIM(xp + 26, ye, xp + 26, yg, None, c=PUR))
+    o.append(TX(xp + 32, (ye + yg) / 2 + 4, "ジオイド高 h_g", "start", 10, PUR, True, halo=True))
+    o.append(DIM(xp + 6, yg, xp + 6, yp, None, c=GLD))
+    o.append(TX(xp + 12, (yg + yp) / 2 + 4, "標高 H", "start", 10, GLD, True, halo=True))
+    o.append(W(xp - 50, yg, xp + 30, yg, c=PUR, lw=0.8, dash="2 2"))
+    # 式と東京の値
+    o.append(TX(30, 290, "H ≈ h − h_g（楕円体の法線と重力の向きの違いは、ごく小さい）", "start", 10.5, INK, True))
+    o.append(TX(30, 310, "例: 東京駅のあたり  h = 40 m（1 章の例）、h_g ≈ 37 m（代表値）→ H ≈ 3 m", "start", 10, GLD, True))
+    o.append(T(30, 328, "GNSS で求まるのは h。標高にするには、その場所のジオイド高（国土地理院のジオイド・モデルなど）が要る", "start", 9.5, MUT))
+    return SVG(700, 338, o, "楕円体高・ジオイド高・標高。GNSS で求まるのは楕円体から測った高さ（楕円体高）で、地図の標高は、平均の海面にほぼ一致するジオイドから測る。ジオイドは楕円体に対して波打っていて、日本の陸地ではジオイド高が数十 m ある（東京のあたりで約 37 m。代表値）。")
+F["e06_geoid"] = _f06_geoid_fig()
