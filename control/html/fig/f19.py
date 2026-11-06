@@ -781,9 +781,10 @@ def _f19_front_fig():
     o.append(P.clip(list(zip(wps, Js)), c=PUR, lw=2.2))
     o.append(W(P.X(3), P.Y(JA), P.X(8), P.Y(JA), c=SIG, lw=2.0))
     o.append(T(P.X(7.95), P.Y(JA) + 14, "最適レギュレータ 0.0868", "end", 9.5, SIG, True, halo=True))
-    for wp, lab, dy in ((4.0, "ω_p = 4（18 章）: +23 %", -26), (5.0, "5: +1.0 %", -12), (_F19_WPS, "5.70（同じ速さ）: +9 %", -10)):
+    for wp, lab, dy in ((4.0, "ω_p = 4（18 章）: +%s %%", -26), (5.0, "5: +%s %%", -12), (_F19_WPS, "5.70（同じ速さ）: +%s %%", -10)):
         Fw = _f19_acker(_F19_A, _F19_B, [-wp] * 4)
         Jw = _f19_lyapJ(_F19_A - _f19_np.outer(_F19_B, Fw), _F19_QA + _F19_RA * _f19_np.outer(Fw, Fw), x0)
+        lab = lab % _f19_f(100 * (Jw / JA - 1), 1)
         o.append(D(P.X(wp), P.Y(Jw), PUR, 3.8))
         o.append(TX(P.X(wp) + (6 if wp != 5.0 else 0), P.Y(Jw) + dy, lab, "start" if wp != 5.0 else "middle", 9.5, PUR, True, halo=True))
     # (b) 速さと最大の力
@@ -888,7 +889,7 @@ def _f19_disk_fig():
         o.append(T(P.X(-1 / kk), P.Y(0) + dy, lab, "middle", 9.5, GRN if kk != 1 else ALI, True, halo=True))
     o.append(T(P.X(-0.05), P.Y(0) + 16, "k → ∞", "end", 9.5, GRN, True, halo=True))
     o.append(T(P.X(-1), P.Y(-1.25), "−1/k（k > 1/2）は円の中", "middle", 9.5, GRN, True, halo=True))
-    ob, Q = _f19_disk_common(406, 30, "(b) 位相が θ 遅れる: −e^{jθ} を見る")
+    ob, Q = _f19_disk_common(406, 30, "(b) 単位円を横切る点（ゲイン交差）の位相")
     o += ob
     arc = [(math.cos(a), math.sin(a)) for a in _f19_np.linspace(2 * math.pi / 3, 4 * math.pi / 3, 61)]
     o.append(Q.line(arc, c=GRN, lw=4))
@@ -901,10 +902,10 @@ def _f19_disk_fig():
     a60 = [(0.32 * math.cos(a), 0.32 * math.sin(a)) for a in _f19_np.linspace(2 * math.pi / 3, math.pi, 20)]
     o.append(Q.line(a60, c=GRN, lw=1.4))
     o.append(T(Q.X(-0.36), Q.Y(0.32), "60°", "end", 9.5, GRN, True, halo=True))
-    o.append(T(Q.X(-1), Q.Y(-1.25), "|θ| < 60° の点は円の中", "middle", 9.5, GRN, True, halo=True))
+    o.append(T(Q.X(-1), Q.Y(-1.25), "−1 から ±60° の弧は円の中", "middle", 9.5, GRN, True, halo=True))
     o.append(LEGL(56, 286, [(ALI, None, "線図が入らない円 |1 + F(jωI − A)^{−1}B| < 1"), (FNT, None, "例の線図（ω > 0）"), (FNT, "4 3", "鏡像")]))
     return SVG(700, 296, o,
-               "最適レギュレータのナイキスト線図は、−1 を中心とする半径 1 の円（赤）に入らない。回る回数は、見る点が線図を横切らなければ変わらない。(a) 力が k 倍になったときは、元の線図が −1/k を回る回数を見ればよい。k > 1/2 なら −1/k は円の中なので、回る回数は −1 のときと同じで、安定なままである。(b) 位相が θ 遅れたときは、−1 を原点のまわりに θ 回した点を見る。|θ| < 60° なら円の中なので、位相余裕は 60° 以上ある。")
+               "最適レギュレータのナイキスト線図は、−1 を中心とする半径 1 の円（赤）に入らない。回る回数は、見る点が線図を横切らなければ変わらない。(a) 力が k 倍になったときは、元の線図が −1/k を回る回数を見ればよい。k > 1/2 なら −1/k は円の中なので、回る回数は −1 のときと同じで、安定なままである。(b) ゲイン交差角周波数では、線図は単位円の上にある。単位円のうち −1 から ±60° の弧（緑）は円の中にあり、線図はそこを通れないので、位相は −180° から 60° 以上離れる。位相余裕は 60° 以上である。")
 
 
 F["e19_disk"] = _f19_disk_fig()

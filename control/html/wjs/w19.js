@@ -270,7 +270,7 @@
         ["最大の力",_w19_g(m1.um,3)+" N",_w19_g(m2.um,3)+" N"],
         ["台車が動く最大の距離",_w19_g(m1.pm,3)+" cm",_w19_g(m2.pm,3)+" cm"],
         ["角度が ±0.2° に収まる時間",tf(m1.ta),tf(m2.ta)],
-        ["力のノイズの標準偏差（18 章 6 節の測定のノイズ）",_w19_g(m1.ns,3)+" N",_w19_g(m2.ns,3)+" N"],
+        ["力のノイズの標準偏差（18 章 6 節の観測ノイズ）",_w19_g(m1.ns,3)+" N",_w19_g(m2.ns,3)+" N"],
         ["J（10° から、最適レギュレータの重み）",_w19_g(R.J1,4),_w19_g(R.J2,4)]];
       var h=(R.ok?"":'<span class="warn">この角度の重みでは、台車の戻りの速さを極配置に合わせられなかった（表示は最も近いもの）</span><br>')+
         "最適レギュレータの重み: Q = diag("+R.d.Q.map(function(v){return v===0?"0":_w19_g(v,3);}).join(", ")+")、R = 0.04（位置の最大値 "+_w19_g(R.pm,3)+" m"+(R.ph?"・角度 "+R.ph+"°":"")+"・力 5 N）"+(R.ts===1?"。試験はおもりを押す（下の表の時間と J は 10° から放したときの値）":"");
@@ -338,7 +338,7 @@
       o.push(_w19_wave(S,U,gx,gy0,gw,gh,TE,Math.max(ra[0],-95),Math.min(ra[1],95),"角度 φ [°]（2° から放す）",[[t,phs,"signal"]],null,false).svg);
       o.push(_w19_wave(S,U,gx,gy0+gh+34,gw,gh,TE,Math.max(rp[0],-200),Math.min(rp[1],200),"台車の位置 p [cm]",[[t,ps,"signal"]],null,true).svg);
       var stable=R.n===1;
-      o.push(S.T(gx,gy0+2*gh+84,stable?"−1 を反時計回りに 1 回: 安定":"−1 を反時計回りに 1 回まわらない（"+R.n+" 回）: 不安定","start",10,stable?"green":"alias",true));
+      o.push(S.T(gx,gy0+2*gh+84,stable?"−1 を反時計回りに 1 回: 安定":"−1 を反時計回りに 1 回まわらない（"+String(R.n).replace("-","−")+" 回）: 不安定","start",10,stable?"green":"alias",true));
       box.set(S.svg(Wd,nar?gy0+2*gh+96:Math.max(310,gy0+2*gh+96),o));
       /* 読み出し */
       var g0=C.gcs.length?C.gcs[0]:null,dm=null;C.gcs.forEach(function(g){if(dm===null||g[2]<dm)dm=g[2];});
@@ -346,7 +346,7 @@
       h+="−1 からの最短距離 |1 + F(jωI − A)<sup>−1</sup>B| = <b>"+_w19_g(C.dmin,3)+"</b>"+(C.dmin>=0.9995?'（角周波数が高いと 1 に近づく）：<span class="ok">円に入らない</span>':"（"+_w19_g(C.wd,3)+' rad/s）：<span class="warn">円の中を通る</span>')+"<br>";
       h+="力の倍率の下限 <b>"+_w19_g(C.kmin,3)+" 倍</b>（上は何倍でも安定）"+(g0?"、位相余裕 <b>"+_w19_f(g0[1],1)+"°</b>（ω<sub>gc</sub> = "+_w19_g(g0[0],3)+" rad/s）、許されるむだ時間 φ<sub>m</sub>/ω<sub>gc</sub> = <b>"+_w19_g(dm*1000,3)+" ms</b>":"")+"<br>";
       var mx=_w19_maxabs(phs.slice(Math.floor(phs.length*0.8)));
-      h+="いまの設定（k = "+_w19_g(k,3)+"、L = "+Math.round(L*1000)+" ms）: 線図と鏡像が −1 を反時計回りに回る回数 "+R.n+"（開ループの右半平面の固有値は +6.77 の 1 つ）→ "+(stable?'<span class="ok">安定</span>':'<span class="warn">不安定</span>')+"。2° から放した振子は"+(res.fall!=null?'<span class="warn"> '+_w19_f(res.fall,2)+" s に倒れた</span>":(stable?(mx<0.01?"立ち直る":"立ち直る（最後の 1.2 s の振れ "+_w19_f(mx,2)+"°）"):"大きく振れる"))+"<br>";
+      h+="いまの設定（k = "+_w19_g(k,3)+"、L = "+Math.round(L*1000)+" ms）: 線図と鏡像が −1 を反時計回りに回る回数 "+String(R.n).replace("-","−")+"（開ループの右半平面の固有値は +6.77 の 1 つ）→ "+(stable?'<span class="ok">安定</span>':'<span class="warn">不安定</span>')+"。2° から放した振子は"+(res.fall!=null?'<span class="warn"> '+_w19_f(res.fall,2)+" s に倒れた</span>":(stable?(mx<0.01?"立ち直る":"立ち直る（最後の 1.2 s の振れ "+_w19_f(mx,2)+"°）"):"大きく振れる"))+"<br>";
       ro.innerHTML=h+'<div class="wnote">一巡伝達関数は 17 章 3 節の伝達関数から F(sI − A)<sup>−1</sup>B = {(f₁ + f₂s)(s² − g/l)/M − (f₃ + f₄s)s²/(Ml)} / {s²(s² − (M + m)g/(Ml))} として計算した。回る回数は、虚軸を下から上へ進み、原点を右側の小さな半円で迂回する経路で数えた。振子の動きは線形でない式で、力は k 倍し、L だけ前の状態から決める（刻み 1 ms）。</div>';
     }
     prep();
