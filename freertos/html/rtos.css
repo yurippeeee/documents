@@ -127,3 +127,4 @@ blockquote.learn{background:var(--panel);border:1px solid var(--line);border-lef
 blockquote.learn td:first-child{white-space:nowrap}
 @media (max-width:640px){blockquote.learn .tablewrap{overflow:visible}blockquote.learn table,blockquote.learn tbody,blockquote.learn tr,blockquote.learn td{display:block;width:auto}blockquote.learn thead{display:none}blockquote.learn tr{padding:.45rem 0;border-bottom:1px solid var(--line)}blockquote.learn tr:last-child{border-bottom:0}blockquote.learn td{border:0;padding:.12rem .7rem}blockquote.learn td:nth-child(2)::before{content:"用語: ";color:var(--muted)}blockquote.learn td:nth-child(3)::before{content:"説明できること: ";color:var(--muted)}}
 blockquote.learn td{overflow-wrap:anywhere}
+@media (max-width:640px){blockquote.learn td:first-child{white-space:normal}}
