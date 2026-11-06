@@ -12,6 +12,20 @@
 > Border Router、Operational Dataset。**これらを知らないと必ず詰まる。**
 > しかも Thread は Matter とは別団体（Thread Group）の仕様である。
 
+> **この章で学ぶこと.** 節ごとに、新しく出てくる用語と、読み終えたときに説明できるようになることを並べる。全部を説明できれば、この章は理解できている（まとめは [10 節](#まとめ)）。
+>
+> | 節 | 新しく出てくる用語 | 説明できるようになること |
+> |---|---|---|
+> | [1 節](#thread-の位置づけ) | Thread・IEEE 802.15.4 | Thread が IEEE 802.15.4 の上に IPv6 を載せた低消費電力メッシュであり、Matter はその上に載る別のレイヤであること。Thread はリンク層を、Matter はアプリ層を暗号化して二重になること |
+> | [2 節](#ノードの役割) | Leader・Router・Router Eligible End Device・Full End Device・Minimal End Device・Sleepy End Device (SED)・Synchronized SED・親 | Leader・Router・End Device・Sleepy End Device の役割。Leader はネットワークに 1 台で、電池機器の Sleepy End Device は普段眠って親へ問い合わせ、その間隔が電池寿命と下り方向の遅延を決めること |
+> | [3 節](#thread-border-router-matter-で最も重要な要素) | Border Router・SRP・mDNS プロキシ・NAT64 | Border Router が Thread と Wi-Fi／Ethernet を繋ぎ、ルーティング、プレフィックス配布、SRP サーバ、mDNS の中継を担うこと。ないと Thread の機器がスマホから見えず、コミッショニングも完了しないこと |
+> | [4 節](#operational-dataset-thread-の-ネットワーク設定) | Operational Dataset・Extended PAN ID・Channel・Network Key | Thread への参加に要る設定をまとめた Operational Dataset の中身（チャネル、Extended PAN ID、Network Key など）。TLV の 1 本のバイト列で扱われ、Network Key が本体の秘密であること |
+> | [5 節](#チャネルと-wi-fi-の干渉) | — | Thread と Wi-Fi が同じ 2.4 GHz 帯を使い干渉すること。比較的空いているのは 15・20・25・26 とされるが、環境依存のため現地でスペクトラムを見るのが確実であること |
+> | [6 節](#thread-と-zigbee-の違い) | Zigbee | Thread と Zigbee は 802.15.4 が同じだけで、上位が根本的に違うこと。既存の Zigbee 機器を Matter 化するには必ずブリッジが要ること |
+> | [7 節](#開発環境の作り方) | OpenThread・ot-br-posix・ot-ctl・ot-cli・RCP・NCP | OpenThread と ot-br-posix で開発環境を作る方法。ot-ctl で SRP サーバに機器のサービスが登録されているかを確かめる手順 |
+> | [8 節](#落とし穴) | — | 最頻出の失敗が Dataset の不一致（チャネル・Extended PAN ID・Network Key のどれか 1 つの食い違い）であること。エラーが「参加できません」としか出ないことが多い |
+> | [9 節](#thread-を選ぶべきか) | — | Thread を選ぶかの判断。Border Router が要るかどうかが商品企画上の分岐点で、ユーザーが持っていなければ、箱を開けても使えないこと |
+
 > **この章で使う既出の用語（定義は各リンク先）.**
 > アプリケーション層（[01 章 3 節](01_Matterとは何か.md#matter-は何であって-何でないか)）、コミッショニング（[01 章 3 節](01_Matterとは何か.md#matter-は何であって-何でないか)）、セキュリティ（[01 章 2 節](01_Matterとは何か.md#matter-の設計目標)）、ネットワーク（[01 章 3 節](01_Matterとは何か.md#matter-は何であって-何でないか)）、トランスポート（[02 章 1 節](02_アーキテクチャと用語.md#レイヤ構造)）、リンク（[02 章 1 節](02_アーキテクチャと用語.md#レイヤ構造)）、Mesh-Local（[03 章 9 節](03_IPv6の基礎.md#まとめ)）、OMR（[03 章 9 節](03_IPv6の基礎.md#まとめ)）、mDNS（[03 章 4 節](03_IPv6の基礎.md#マルチキャスト-探索の要)）、マルチキャスト（[03 章 3 節](03_IPv6の基礎.md#アドレスの種類-ここを取り違えると詰まる)）
 
