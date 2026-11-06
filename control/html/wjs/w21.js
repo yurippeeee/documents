@@ -38,7 +38,7 @@
   /* ---- 対象（線形でない式 + クーロン摩擦）と、T_s ごとに測って推定し、次の周期の頭で力を出す制御器（図の _f21_run と同じ計算） ----
      o = {T, Ts, x0, F（u = −F x̂）, est:"kf"|"true", kf:{H,Ad,Bd}, M, m, l, Fc, ffc（摩擦の補償）, umax（null で上限なし）, noise, seed,
           Ls（測る値の遅れ [s]）, push:[開始, 長さ, 力], every, stop（倒れたとみなす角度 [°]）, safe（推定した角度 30°・位置 0.45 m で力を 0 にする）, sgn:[位置, 角度, 力] } */
-  function _w21_run(U,o){var P=_W21,Ts=o.Ts||P.TS,h=Ts,nd=Math.round((o.Ls||0)/h),n=Math.round(o.T/Ts),g=P.g;
+  function _w21_run(U,o){var P=_W21,Ts=o.Ts||P.TS,h=Math.min(Ts,0.001),nsub=Math.round(Ts/h),nd=Math.round((o.Ls||0)/h),n=Math.round(o.T/Ts),g=P.g;
     var M=o.M||P.M,m=o.m||P.m,l=o.l||P.l,Fc=o.Fc||0,ffc=o.ffc||0,umax=o.umax===undefined?P.UMAX:o.umax,every=o.every||1,stop=(o.stop||60)*P.D;
     var F=o.F,est=o.est||"kf",kf=o.kf,sg=o.sgn||[1,1,1],push=o.push||null,rg=U.rng(o.seed||1),noise=!!o.noise;
     var x=o.x0.slice(),stuck=false,k1=[0,0,0,0],k2=[0,0,0,0],k3=[0,0,0,0],k4=[0,0,0,0],tt=[0,0,0,0];
@@ -69,9 +69,9 @@
       if(est==="kf"){var xn2=[0,0,0,0];for(i=0;i<4;i++){var sm=Bd[i]*u_k;for(var j=0;j<4;j++)sm+=Ad[i][j]*xh[j];xn2[i]=sm;}xm=xn2;}
       if(k%every===0){R.t.push(t);for(i=0;i<4;i++){R.x[i].push(x[i]);R.xh[i].push(xh[i]);}R.u.push(u_k);R.st.push(stuck?1:0);}
       if(k===n)break;
-      var fd=(push&&t>=push[0]-1e-9&&t<push[0]+push[1]-1e-9)?push[2]:0;
-      step(sg[2]*u_k,fd);
-      if(nd){hist.push(x.slice());hist.shift();}else hist[0]=x.slice();
+      for(var js=0;js<nsub;js++){var tj=t+js*h,fd=(push&&tj>=push[0]-1e-9&&tj<push[0]+push[1]-1e-9)?push[2]:0;
+        step(sg[2]*u_k,fd);
+        if(nd){hist.push(x.slice());hist.shift();}else hist[0]=x.slice();}
       if(Math.abs(x[2])>stop||!isFinite(x[2])){R.fell=t+Ts;R.t.push(t+Ts);for(i=0;i<4;i++){R.x[i].push(x[i]);R.xh[i].push(xh[i]);}R.u.push(u_k);R.st.push(stuck?1:0);break;}}
     R.fault=fault;return R;}
 
@@ -189,3 +189,333 @@
     if(o2.push&&r.t[k]>=o2.push[0]-1e-9&&r.t[k]<o2.push[0]+o2.push[1]-1e-9){var ph=Math.max(-Math.PI/2,Math.min(Math.PI/2,r.x[2][k])),bx=px+Lr*Math.sin(ph),by=gy-30-Lr*Math.cos(ph);o.push(S.ARR(bx-40,by,bx-10,by,"purple",2.2));o.push(S.T(bx-42,by-6,"押す","end",9.5,"purple",true));}
     if(r.st&&r.st[k])o.push(S.T(px,gy-38,"止まっている","middle",9,"gold",true,false,null,true));
     return o.join("");}
+
+  /* ---- 3 節: 角度だけの PD・PID、カスケード、19 章の F（連続の制御器、すべての状態を誤差なく測る、力の上限・摩擦なし） ----
+     図の _f21_cont と同じ計算: 刻み 2 ms の 4 次のルンゲ・クッタ法、押す力は刻みの境目で切り替える。状態は [p, ṗ, φ, φ̇, w]（w は測った角度の積分）。
+     g = {kind: 0 角度の PD・1 角度の PID・2 カスケード・3 19 章の F, KP, KD, KI, KPO, KDO, F} */
+  function _w21_cont(g,o){var P=_W21,M=P.M,m=P.m,l=P.l,gg=P.g,h=0.002,n=Math.round(o.T/h),ev=5,off=o.off||0,push=o.push||null,fd=0;
+    function uf(z){if(g.kind===0)return g.KP*(z[2]+off)+g.KD*z[3];if(g.kind===1)return g.KP*(z[2]+off)+g.KD*z[3]+g.KI*z[4];
+      if(g.kind===2)return g.KP*(z[2]+off+g.KPO*z[0]+g.KDO*z[1])+g.KD*z[3];return -(g.F[0]*z[0]+g.F[1]*z[1]+g.F[2]*(z[2]+off)+g.F[3]*z[3]);}
+    function f(z){var u=uf(z),s=Math.sin(z[2]),c=Math.cos(z[2]),pdd=(u+fd-m*gg*s*c-fd*c*c+m*l*z[3]*z[3]*s)/(M+m*s*s);return [z[1],pdd,z[3],(gg*s-pdd*c+fd/m*c)/l,z[2]+off];}
+    var z=o.x0.concat([0]),R={t:[0],x:[[z[0]],[z[1]],[z[2]],[z[3]]],xh:[[z[0]],[z[1]],[z[2]],[z[3]]],u:[uf(z)],fell:null},i;
+    for(var k=0;k<n;k++){var tk=k*h;fd=(push&&tk>=push[0]-1e-9&&tk<push[0]+push[1]-1e-9)?push[2]:0;
+      var k1=f(z),z2=[],z3=[],z4=[];for(i=0;i<5;i++)z2.push(z[i]+h/2*k1[i]);var k2=f(z2);for(i=0;i<5;i++)z3.push(z[i]+h/2*k2[i]);var k3=f(z3);for(i=0;i<5;i++)z4.push(z[i]+h*k3[i]);var k4=f(z4);
+      for(i=0;i<5;i++)z[i]+=h/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]);
+      if((k+1)%ev===0){R.t.push((k+1)*h);for(i=0;i<4;i++){R.x[i].push(z[i]);R.xh[i].push(z[i]);}R.u.push(uf(z));}
+      if(Math.abs(z[2])>Math.PI/2||!isFinite(z[2])){R.fell=(k+1)*h;if((k+1)%ev!==0){R.t.push((k+1)*h);for(i=0;i<4;i++){R.x[i].push(z[i]);R.xh[i].push(z[i]);}R.u.push(uf(z));}break;}}
+    return R;}
+  /* 閉ループの極（線形化した式）。u = a p + b ṗ + c φ + d φ̇（+ K_I w） */
+  function _w21_contpoles(U,g){var b=_w21_base(U),A=b.A,B=b.B,row;
+    if(g.kind===3)row=[-g.F[0],-g.F[1],-g.F[2],-g.F[3]];else if(g.kind===2)row=[g.KP*g.KPO,g.KP*g.KDO,g.KP,g.KD];else row=[0,0,g.KP,g.KD];
+    var n=g.kind===1?5:4,Ac=[],i,j;for(i=0;i<n;i++){Ac.push([]);for(j=0;j<n;j++)Ac[i].push(i<4&&j<4?A[i][j]+B[i][0]*row[j]:0);}
+    if(g.kind===1){for(i=0;i<4;i++)Ac[i][4]=B[i][0]*g.KI;Ac[4][2]=1;}
+    return {poles:_w21_eig(Ac),row:row};}
+
+  REG.w21_pid=function(el,U){
+    var S=U.S,D=_W21.D;
+    U.head(el,"PID OR STATE FEEDBACK","振子の角度だけを戻す PID と、台車も戻すカスケード・状態フィードバック");
+    var r1=U.ctrls(el);
+    var sk=U.select(r1,"制御器",["角度の PD","角度の PID","カスケード（位置 → 目標の角度 → 力）","19 章の F（最適レギュレータ）"],0,function(){fix();run();});
+    var sts=U.select(r1,"試験",["10° から放す","真上で放す（0 点のずれだけ）","おもりを右へ 1 N で 0.1 s 押す"],0,function(){run();});
+    var soff=U.slider(r1,"角度のセンサの 0 点のずれ",{values:[-1,-0.5,0,0.5,1],value:0,fmt:function(v){return _w21_f(v,1)+"°";},onInput:function(){run();}});
+    var r2=U.ctrls(el);
+    var skp=U.slider(r2,U.htx("K_P")+"（角度）",{min:5,max:60,step:0.01,value:30.19,fmt:function(v){return _w21_f(v,2)+" N/rad";},onInput:function(){run();}});
+    var skd=U.slider(r2,U.htx("K_D")+"（角速度）",{min:0.5,max:10,step:0.001,value:3.741,fmt:function(v){return _w21_f(v,3)+" N/(rad/s)";},onInput:function(){run();}});
+    var ski=U.slider(r2,U.htx("K_I")+"（角度の積分）",{min:0,max:100,step:0.01,value:30.19,fmt:function(v){return _w21_f(v,2)+" N/(rad·s)";},onInput:function(){run();}});
+    var skpo=U.slider(r2,U.htx("K_{Po}")+"（外側の位置）",{min:0,max:0.6,step:0.001,value:0.15,fmt:function(v){return _w21_f(v,3)+" rad/m";},onInput:function(){run();}});
+    var skdo=U.slider(r2,U.htx("K_{Do}")+"（外側の速度）",{min:0,max:0.6,step:0.001,value:0.16,fmt:function(v){return _w21_f(v,3)+" rad/(m/s)";},onInput:function(){run();}});
+    var r3=U.ctrls(el);
+    var st=U.slider(r3,"時刻 t",{min:0,max:6,step:0.01,value:0.5,fmt:function(v){return _w21_f(v,2)+" s";},onInput:function(){tk.stop();draw();}});
+    var br=U.btnrow(el);
+    var tk=U.ticker(function(){var t=st.get()+0.03;if(t>=6){t=6;tk.stop();}st.set(t);draw();},30);
+    U.button(br,"▶ 再生",function(){if(st.get()>=5.99)st.set(0);tk.start();});
+    U.button(br,"■ 止める",function(){tk.stop();});
+    function pre(kind,kp,kd,ki,kpo,kdo,ts,off){tk.stop();sk.set(kind);skp.set(kp);skd.set(kd);ski.set(ki);skpo.set(kpo);skdo.set(kdo);sts.set(ts);soff.set(off);st.set(0.5);fix();run();}
+    U.button(br,"本文の例（角度の PD・10°）",function(){pre(0,30.19,3.741,30.19,0.15,0.16,0,0);});
+    U.button(br,"角度の PID",function(){pre(1,30.19,3.741,30.19,0.15,0.16,0,0);});
+    U.button(br,"PID・0 点が 0.5° ずれる",function(){pre(1,30.19,3.741,30.19,0.15,0.16,1,0.5);});
+    U.button(br,"カスケード（内側から決めた）",function(){pre(2,30.19,3.741,30.19,0.15,0.16,0,0);});
+    U.button(br,"19 章の F をカスケードに直した値",function(){pre(2,30.19,4.925,30.19,0.331,0.228,0,0);});
+    var box=U.svgbox(el),ro=U.readout(el),R=null,G=null,PL=null;
+    function fix(){var k=sk.get();[skp,skd].forEach(function(s){s.el.style.display=k===3?"none":"";});ski.el.style.display=k===1?"":"none";
+      skpo.el.style.display=k===2?"":"none";skdo.el.style.display=k===2?"":"none";}
+    function run(){var ts=sts.get(),b=_w21_base(U);
+      G={kind:sk.get(),KP:skp.get(),KD:skd.get(),KI:ski.get(),KPO:skpo.get(),KDO:skdo.get(),F:b.F};
+      R=_w21_cont(G,{T:6,x0:ts===0?[0,0,10*D,0]:[0,0,0,0],off:soff.get()*D,push:ts===2?[0.5,0.1,1.0]:null});PL=_w21_contpoles(U,G);draw();}
+    function col(a,s){var o=[];for(var i=0;i<a.length;i++)o.push(a[i]*s);return o;}
+    function draw(){if(!R)return;var nar=_w21_nar(box),Wd=nar?400:700,o=[],n=R.t.length,k=Math.min(n-1,Math.round(st.get()/0.01)),tc=R.t[k];
+      var ax=nar?6:6,aw=nar?388:340,gy=nar?168:168;
+      o.push(S.T(ax,14,"動く絵（振子の長さは拡大して描いた）","start",9.5,"muted"));
+      o.push(_w21_scene(S,U,ax,aw,gy,R,k,{Lr:nar?92:96,push:sts.get()===2?[0.5,0.1]:null}));
+      o.push(S.T(ax+aw,gy+40,"t = "+_w21_f(tc,2)+" s","end",10,"ink",true));
+      if(R.fell!=null&&tc>=R.fell-1e-9)o.push(S.T(ax+aw-4,30,"倒れた","end",10,"alias",true,false,null,true));
+      /* s 平面 */
+      var sx=nar?60:404,sy=nar?gy+64:28,sw=nar?320:280,sh=nar?130:136,Ps=U.plot(sx,sy,sw,sh,[-30,8],[-15,15]);
+      o.push(S.RECT(Ps.x,Ps.y,Ps.w,Ps.h,0,"var(--screen)","line",0.6));o.push(U.ctl.splane(Ps,{zeta:[0.6]}));
+      o.push(Ps.axes({xt:[-30,-20,-10,0],yt:[-10,0,10],grid:false,sz:8.5,xfmt:function(v){return _w21_g(v,2);},yfmt:function(v){return _w21_g(v,2);}}));
+      o.push(U.ctl.pz(Ps,PL.poles,[],"signal",5));
+      o.push(S.T(Ps.x,Ps.y-6,"閉ループの極（線形化した式。点線: 減衰比 0.6）","start",9.5,"ink",true));
+      o.push(S.T(Ps.x+Ps.w-3,Ps.Y(0)-5,"実部","end",9,"muted",false,false,null,true));o.push(S.T(Ps.X(0)+4,Ps.y+11,"虚部","start",9,"muted",false,false,null,true));
+      /* 波形 */
+      var t=R.t,ph=col(R.x[2],1/D),pp=R.x[0],pv=R.x[1],gx,gw,gh=nar?66:72,gy0=nar?sy+sh+52:gy+70,dx,dy;
+      if(nar){gx=[52,52,52];gw=330;dy=gh+30;}else{gx=[46,280,514];gw=180;dy=0;}
+      var rph=_w21_range([ph],0.08,4),rp=_w21_range([pp,[0.5,-0.5].filter(function(v){return _w21_maxabs(pp)>0.3&&Math.sign(v)===Math.sign(pp[pp.length-1]);})],0.08,0.3),rv=_w21_range([pv],0.1,0.3);
+      var w1=_w21_wave(S,U,gx[0],gy0,gw,gh,0,6,rph[0],rph[1],"角度 φ [°]（塗り: 面積）",[[t,ph,"signal"]],tc,true);
+      var area=[];for(var i=0;i<t.length;i++)area.push([t[i],Math.max(rph[0],Math.min(rph[1],ph[i]))]);
+      var poly=[[w1.P.X(0),w1.P.Y(Math.max(rph[0],Math.min(rph[1],0)))]].concat(area.map(function(q){return [w1.P.X(q[0]),w1.P.Y(q[1])];})).concat([[w1.P.X(t[t.length-1]),w1.P.Y(Math.max(rph[0],Math.min(rph[1],0)))]]);
+      o.push(S.PL(poly,"none",0,"var(--signal-soft)",null,0.8));o.push(w1.svg);
+      var w2=_w21_wave(S,U,gx[1],gy0+dy,gw,gh,0,6,rp[0],rp[1],"台車の位置 p [m]",[[t,pp,"signal"]],tc,true);o.push(w2.svg);
+      [0.5,-0.5].forEach(function(v){if(v>rp[0]&&v<rp[1])o.push(S.L(w2.P.x,w2.P.Y(v),w2.P.x+w2.P.w,w2.P.Y(v),"alias",1,"4 3"));});
+      o.push(_w21_wave(S,U,gx[2],gy0+2*dy,gw,gh,0,6,rv[0],rv[1],U.htx?"台車の速さ \\dot{p} [m/s]":"台車の速さ [m/s]",[[t,pv,"signal"]],tc,true).svg);
+      box.set(S.svg(Wd,nar?gy0+2*dy+gh+42:gy0+gh+42,o));
+      /* 読み出し */
+      var ar=0;for(var j=1;j<t.length;j++)ar+=(t[j]-t[j-1])*(R.x[2][j]+R.x[2][j-1])/2;
+      var h="閉ループの極: <b>"+_w21_poles(PL.poles,3)+"</b>";
+      if(PL.poles.some(function(z){return z.re>1e-6;}))h+=' <span class="warn">右半平面に極がある（不安定）</span>';
+      h+="<br>状態フィードバックとして書くと F = [<b>"+PL.row.map(function(v){return _w21_g(-v,4);}).join(", ")+"</b>]"+(G.kind===1?"（ほかに角度の積分に "+_w21_g(G.KI,4)+"）":"");
+      var nT=t.length-1;
+      h+="<br>角度の面積 ∫φ dt（0〜"+_w21_f(t[nT],1)+" s）: <b>"+_w21_f(ar,4)+" rad·s</b>、g × 面積 = "+_w21_f(_W21.g*ar,3)+" m/s、最後の台車の速さ "+_w21_f(pv[nT],3)+" m/s";
+      var mm=_w21_minmax(ph),last=-1;for(var q=0;q<ph.length;q++)if(Math.abs(ph[q])>0.5)last=q;
+      var tset=last<0?0:(last+1<t.length?t[last+1]:Infinity),rail=null;for(var q2=1;q2<t.length;q2++){if(Math.abs(pp[q2-1])<0.5&&Math.abs(pp[q2])>=0.5){rail=t[q2];break;}}
+      h+="<br>角度 "+_w21_f(mm[0],2)+"〜"+_w21_f(mm[1],2)+"°、±0.5° に収まる時刻 <b>"+(isFinite(tset)?_w21_f(tset,2)+" s":"収まらない")+"</b>、台車が動く最大の距離 <b>"+_w21_g(_w21_maxabs(pp)*100,3)+" cm</b>、"+_w21_f(t[nT],0)+" s の台車の位置 "+_w21_f(pp[nT],3)+" m、最大の力 "+_w21_g(_w21_maxabs(R.u),3)+" N";
+      if(rail!=null)h+=' <span class="warn">'+_w21_f(rail,2)+" s にレールの端（0.5 m）に届く</span>";
+      if(R.fell!=null)h+=' <span class="warn">'+_w21_f(R.fell,2)+" s に倒れた</span>";
+      ro.innerHTML=h+'<div class="wnote">線形でない式（17 章 2 節）を、すべての状態を誤差なく測る連続の制御器で、4 次のルンゲ・クッタ法（刻み 2 ms）で解いた。力の上限と摩擦は無い。レールの端は描いてあるが、台車はそこで止めずに計算を続ける。</div>';}
+    fix();run();
+  };
+
+  /* ---- 5 節: 全部の問題を入れた模型で立てる ---- */
+  /* 制御器: 0 直した制御器（19 章の F、W 4 倍）・1 4 節の制御器（W 1 倍）・2 角度の PD・3 カスケード（内側から決めた）。2・3 も推定は W 4 倍 */
+  function _w21_ctrlF(U,k){var b=_w21_base(U),P=_W21;if(k<=1)return b.F;if(k===2)return [0,0,-P.KP,-P.KD];return [-P.KP*P.KPO,-P.KP*P.KDO,-P.KP,-P.KD];}
+  var _W21_TESTS=[{t:"10° から放す",x0:10,T:6},{t:"20° から放す",x0:20,T:6},{t:"25° から放す",x0:25,T:6},{t:"おもりを右へ 1 N で 0.1 s 押す",x0:0,T:6.5,push:[0.5,0.1,1.0]},{t:"2° から放して立てておく（22 s）",x0:2,T:22,stand:true}];
+  REG.w21_sim=function(el,U){
+    var S=U.S,D=_W21.D;
+    U.head(el,"STAND IT UP","力の上限・摩擦・観測ノイズ・遅れ・モデルの誤差を入れて、倒立振子を立てる");
+    var r1=U.ctrls(el);
+    var sct=U.select(r1,"制御器",["直した制御器（19 章の F・W 4 倍）","4 節の制御器（19 章の F・20 章の W）","角度の PD（3 節）","カスケード（3 節・内側から決めた）"],0,function(){prep();});
+    var scp=U.select(r1,"摩擦の補償",["足さない","0.3 N を足す","0.45 N を足す（多すぎ）"],1,function(){run();});
+    var sts=U.slider(r1,"サンプリング周期",{values:[1,2,5,10],value:1,fmt:function(v){return v+" ms";},onInput:function(){prep();}});
+    var r2=U.ctrls(el);
+    var sum=U.select(r2,"力の上限",["5 N","3 N","なし"],0,function(){run();});
+    var sfc=U.select(r2,"台車の摩擦（クーロン摩擦）",["なし","0.3 N","0.6 N"],1,function(){run();});
+    var sls=U.slider(r2,"測る値の遅れ",{values:[0,10,20,30,40],value:0,fmt:function(v){return v+" ms";},onInput:function(){run();}});
+    var cno=U.checkbox(r2,"観測ノイズ（1 mm・0.1°）",true,function(){run();});
+    var r3=U.ctrls(el);
+    var slr=U.slider(r3,"振子の長さ（モデルの何倍）",{values:[0.5,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,1.6,1.8],value:1,fmt:function(v){return _w21_f(v,1)+" 倍";},onInput:function(){run();}});
+    var smr=U.slider(r3,"台車の質量（モデルの何倍）",{values:[0.5,0.6,0.8,1,1.2,1.5,2,2.5],value:1,fmt:function(v){return _w21_f(v,1)+" 倍";},onInput:function(){run();}});
+    var stt=U.select(r3,"試験",_W21_TESTS.map(function(q){return q.t;}),0,function(){run();});
+    var r4=U.ctrls(el);
+    var st=U.slider(r4,"時刻 t",{min:0,max:6,step:0.01,value:0.5,fmt:function(v){return _w21_f(v,2)+" s";},onInput:function(){tk.stop();draw();}});
+    var br=U.btnrow(el),seedOff=0;
+    var tk=U.ticker(function(){var T=R?R.T:6,t=st.get()+(T>10?0.1:0.03);if(t>=T){t=T;tk.stop();}st.set(t);draw();},30);
+    U.button(br,"▶ 再生",function(){if(R&&st.get()>=R.T-0.001)st.set(0);tk.start();});
+    U.button(br,"■ 止める",function(){tk.stop();});
+    function pre(c,cp,ts,um,fc,ls,no,lr,mr,test){tk.stop();sct.set(c);scp.set(cp);sts.set(ts);sum.set(um);sfc.set(fc);sls.set(ls);cno.set(no);slr.set(lr);smr.set(mr);stt.set(test);st.set(0.5);seedOff=0;prep();}
+    U.button(br,"本文の例（直した制御器・10° から放す）",function(){pre(0,1,1,0,1,0,true,1,1,0);});
+    U.button(br,"4 節の制御器で立てておく",function(){pre(1,0,1,0,1,0,true,1,1,4);});
+    U.button(br,"直した制御器で立てておく",function(){pre(0,1,1,0,1,0,true,1,1,4);});
+    U.button(br,"25° から放す（安全のための停止）",function(){pre(0,1,1,0,1,0,true,1,1,2);});
+    U.button(br,"角度の PD で立てる",function(){pre(2,0,1,0,1,0,true,1,1,0);});
+    U.button(br,"もう一度（別の乱数で）",function(){seedOff++;run();});
+    var box=U.svgbox(el),ro=U.readout(el),R=null,DS=null;
+    /* 制御器とサンプリング周期が変わったときだけ: 推定のゲインと、入力の点で切ったループの余裕（モデルどおりの対象） */
+    function prep(){var c=sct.get(),Ts=sts.get()/1000,kf=_w21_kfmul(U,Ts,c===1?1:4),F=_w21_ctrlF(U,c);DS={c:c,Ts:Ts,kf:kf,F:F,mg:_w21_margins(_w21_loop(F,kf),Ts)};run();}
+    function run(){if(!DS)return;var q=_W21_TESTS[stt.get()],um=[5,3,null][sum.get()];
+      var r=_w21_run(U,{T:q.T,Ts:DS.Ts,x0:[0,0,q.x0*D,0],F:DS.F,kf:DS.kf,l:_W21.l*slr.get(),M:_W21.M*smr.get(),Fc:[0,0.3,0.6][sfc.get()],ffc:[0,0.3,0.45][scp.get()],
+        umax:um,noise:cno.get(),seed:(q.stand?5:7)+seedOff,Ls:sls.get()/1000,push:q.push||null,every:1,stop:89,safe:true});
+      R={r:r,T:q.T,q:q,um:um};st.input.max=q.T;if(st.get()>q.T)st.set(q.T);draw();}
+    function col(a,s,ev){var o=[];for(var i=0;i<a.length;i+=ev)o.push(a[i]*s);return o;}
+    function draw(){if(!R)return;var nar=_w21_nar(box),Wd=nar?400:700,o=[],r=R.r,n=r.t.length,k=Math.min(n-1,Math.round(st.get()/DS.Ts)),tc=r.t[k];
+      var ax=6,aw=nar?388:340,gy=168;
+      o.push(S.T(ax,14,"動く絵（振子の長さは拡大して描いた）","start",9.5,"muted"));
+      o.push(_w21_scene(S,U,ax,aw,gy,r,k,{Lr:92,est:true,push:R.q.push}));
+      if(r.fault!=null&&tc>=r.fault-1e-9)o.push(S.T(ax+4,30,"安全のための停止（力 0）","start",10,"alias",true,false,null,true));
+      if(r.fell!=null&&tc>=r.fell-1e-9)o.push(S.T(ax+aw-4,30,"倒れた","end",10,"alias",true,false,null,true));
+      o.push(S.T(ax+aw,gy+40,"t = "+_w21_f(tc,2)+" s","end",10,"ink",true));o.push(S.T(ax,gy+40,"破線: 推定した状態","start",9.5,"green"));
+      var ev=Math.max(1,Math.round((R.T>10?0.02:0.005)/DS.Ts)),t=col(r.t,1,ev),ph=col(r.x[2],1/D,ev),pp=col(r.x[0],100,ev),u=col(r.u,1,ev),T=Math.min(R.T,r.t[n-1]+1e-9);
+      var gx=nar?52:404,gw=nar?330:280,gh=nar?72:70,gy0=nar?gy+64:22,dy=gh+30;
+      var rph=_w21_range([ph],0.08,2),rp=_w21_range([pp],0.08,2),ru=_w21_range([u],0.08,1);
+      o.push(_w21_wave(S,U,gx,gy0,gw,gh,0,T,rph[0],rph[1],"角度 φ [°]",[[t,ph,"signal"]],tc,false).svg);
+      var w2=_w21_wave(S,U,gx,gy0+dy,gw,gh,0,T,rp[0],rp[1],"台車の位置 p [cm]",[[t,pp,"signal"]],tc,false);o.push(w2.svg);
+      if(R.um!=null){ru=[Math.min(ru[0],-R.um*1.1),Math.max(ru[1],R.um*1.1)];}
+      var wu=_w21_wave(S,U,gx,gy0+2*dy,gw,gh,0,T,ru[0],ru[1],"力 u [N]",[[t,u,"gold",null,1.3]],tc,true);o.push(wu.svg);
+      if(R.um!=null)[R.um,-R.um].forEach(function(v){o.push(S.L(wu.P.x,wu.P.Y(v),wu.P.x+wu.P.w,wu.P.Y(v),"alias",1,"3 3"));});
+      box.set(S.svg(Wd,nar?gy0+3*dy+16:Math.max(gy+50,gy0+3*dy+16),o));
+      /* 読み出し */
+      var h="",g=DS.mg,P=_W21,Ts=DS.Ts,i0;
+      h+="入力の点で切ったループ（モデルどおりの対象、"+(Ts*1000)+" ms、(B) の出し方）: 位相余裕 <b>"+(g.pm!=null?_w21_f(g.pm,1)+"°":"−")+"</b>、許されるむだ時間 <b>"+(g.delay!=null&&g.pm>0?_w21_g(g.delay*1000,3)+" ms":"−")+"</b>、安定な力の倍率 "+_w21_g(g.lo,3)+"〜"+(isFinite(g.hi)?_w21_g(g.hi,3):"∞")+" 倍";
+      if(g.pm!=null&&g.pm<40)h+=' <span class="warn">仕様 8（40°）に届かない</span>';
+      var tt=r.t,rx=r.x;
+      if(R.q.stand){i0=Math.round(2/Ts);var mp=_w21_minmax(rx[0],i0),mq=_w21_minmax(rx[2],i0),sc=0;for(var a=i0;a<r.st.length;a++)sc+=r.st[a];
+        h+="<br>2 s 以後: 台車 <b>"+_w21_f(mp[0]*1000,1)+"〜"+_w21_f(mp[1]*1000,1)+" mm</b>、振子 <b>"+_w21_f(mq[0]/D,2)+"〜"+_w21_f(mq[1]/D,2)+"°</b>、台車が止まっている時間 "+_w21_f(100*sc/Math.max(1,r.st.length-i0),0)+" %";
+        var okp=Math.max(Math.abs(mp[0]),Math.abs(mp[1]))<=0.02&&Math.max(Math.abs(mq[0]),Math.abs(mq[1]))<=1*D;
+        h+=okp?' <span class="ok">仕様 7 を満たす</span>':' <span class="warn">仕様 7（±2 cm・±1°）を満たさない</span>';
+        var hs=_w21_hpstd(r.u,i0);h+="<br>力の速い揺れ（0.1 s の移動平均との差）の標準偏差 <b>"+_w21_g(hs,3)+" N</b>"+(hs<=0.2?' <span class="ok">仕様 6 を満たす</span>':' <span class="warn">仕様 6（0.2 N）を超える</span>');}
+      else{var tm=R.q.push?3.5:2.5,j0=Math.round(tm/Ts),pmx=_w21_maxabs(rx[0]),sat=0;for(var b=0;b<r.u.length;b++)if(R.um!=null&&Math.abs(r.u[b])>=R.um-1e-9)sat++;
+        var mph=_w21_minmax(rx[2]);
+        h+="<br>角度 "+_w21_f(mph[0]/D,2)+"〜"+_w21_f(mph[1]/D,2)+"°";
+        if(r.fell==null&&r.fault==null&&j0<rx[2].length){var mlt=_w21_maxabs(rx[2],j0)/D;h+="、"+_w21_f(tm,1)+" s 以後の角度の最大 <b>"+_w21_f(mlt,2)+"°</b>"+(mlt<=2?' <span class="ok">±2° の内側</span>':' <span class="warn">±2° を超える</span>');}
+        h+="<br>台車が動く最大の距離 <b>"+_w21_g(pmx*100,3)+" cm</b>"+(pmx<=0.35?"":' <span class="warn">±0.35 m を超える</span>')+"、力が上限に張り付いた時間 <b>"+_w21_f(sat*Ts,3)+" s</b>";}
+      if(r.fault!=null)h+='<br><span class="warn">'+_w21_f(r.fault,3)+" s に安全のための停止が働いた（推定した角度が 30° か、台車の位置が 0.45 m を超えた）</span>";
+      if(r.fell!=null)h+=' <span class="warn">'+_w21_f(r.fell,2)+" s に倒れた</span>";
+      ro.innerHTML=h+'<div class="wnote">線形でない式（17 章 2 節）とクーロン摩擦（5 節の、止まっている状態を別に扱う方法）を 4 次のルンゲ・クッタ法で解き、サンプリング周期ごとに測って推定し、次の周期の頭で力を出した（4 節のコードと同じ順番、推定した角度 30°・位置 0.45 m で止める）。推定のゲインは、20 章の 1 ms の乱れを 1 s あたりで同じにして、周期ごとに設計し直した。乱数の種 '+((R.q.stand?5:7)+seedOff)+'（本文の表と同じ種は '+(R.q.stand?5:7)+'）。</div>';}
+    prep();
+  };
+
+  /* ---- 5 節: モデルの誤差の地図（振子の長さと台車の質量の倍率） ---- */
+  var _W21_LR=[0.4,2.6],_W21_MR=[0.3,3.1],_W21_NG=29;
+  REG.w21_robust=function(el,U){
+    var S=U.S,D=_W21.D;
+    U.head(el,"MODEL ERROR MAP","振子の長さと台車の質量がモデルからずれたとき、立ち続けられるか");
+    var r1=U.ctrls(el);
+    var sw=U.select(r1,"推定の W（乱れの見積もり）",["20 章の W（1 倍）","4 倍（直した制御器）","10 倍"],1,function(){mapc();});
+    var stt=U.select(r1,"試験",["おもりを右へ 1 N で 0.1 s 押す","10° から放す"],0,function(){sim();});
+    var r2=U.ctrls(el);
+    function lv(){var a=[];for(var i=0;i<=44;i++)a.push(+(0.4+0.05*i).toFixed(2));return a;}
+    function mv(){var a=[];for(var i=0;i<=56;i++)a.push(+(0.3+0.05*i).toFixed(2));return a;}
+    var slr=U.slider(r2,"振子の長さ（モデルの何倍）",{values:lv(),value:1.2,fmt:function(v){return _w21_f(v,2)+" 倍";},onInput:function(){sim();}});
+    var smr=U.slider(r2,"台車の質量（モデルの何倍）",{values:mv(),value:1.2,fmt:function(v){return _w21_f(v,2)+" 倍";},onInput:function(){sim();}});
+    var r3=U.ctrls(el);
+    var st=U.slider(r3,"時刻 t",{min:0,max:5,step:0.01,value:0.6,fmt:function(v){return _w21_f(v,2)+" s";},onInput:function(){tk.stop();draw();}});
+    var br=U.btnrow(el);
+    var tk=U.ticker(function(){var t=st.get()+0.03;if(t>=5){t=5;tk.stop();}st.set(t);draw();},30);
+    U.button(br,"▶ 再生",function(){if(st.get()>=4.99)st.set(0);tk.start();});
+    U.button(br,"■ 止める",function(){tk.stop();});
+    function pre(w,lr,mr,ts){tk.stop();sw.set(w);slr.set(lr);smr.set(mr);stt.set(ts);st.set(0.6);mapc();}
+    U.button(br,"本文の例（4 倍・長さと質量 1.2 倍で押す）",function(){pre(1,1.2,1.2,0);});
+    U.button(br,"モデルどおり",function(){pre(1,1,1,0);});
+    U.button(br,"台車の質量 2.2 倍（揺れが長く残る）",function(){pre(1,1,2.2,0);});
+    U.button(br,"20 章の W・台車の質量 2.4 倍",function(){pre(0,1,2.4,0);});
+    U.button(br,"振子の長さ 0.35 倍",function(){pre(1,0.35,1,0);});
+    var box=U.svgbox(el),ro=U.readout(el),MAP=null,R=null,CL=null,PM=null;
+    function kfw(){return _w21_kfmul(U,0.001,[1,4,10][sw.get()]);}
+    /* 地図: 格子の各点で閉ループの固有値を求めて、立つ（緑）・揺れが長く残る（金）・不安定（赤）に分ける */
+    function mapc(){var kf=kfw(),F=_w21_base(U).F,g=[];for(var a=0;a<_W21_NG;a++){var row=[];for(var b=0;b<_W21_NG;b++){
+        var lr=_W21_LR[0]+(_W21_LR[1]-_W21_LR[0])*a/(_W21_NG-1),mr=_W21_MR[0]+(_W21_MR[1]-_W21_MR[0])*b/(_W21_NG-1);row.push(_w21_cleig(U,lr,mr,F,kf).cls);}g.push(row);}
+      MAP={g:g,w:sw.get()};sim();}
+    function sim(){if(!MAP)return;var kf=kfw(),F=_w21_base(U).F,lr=slr.get(),mr=smr.get(),ts=stt.get();
+      CL=_w21_cleig(U,lr,mr,F,kf);
+      R=_w21_run(U,{T:5,x0:ts===1?[0,0,10*D,0]:[0,0,0,0],F:F,kf:kf,l:_W21.l*lr,M:_W21.M*mr,push:ts===0?[0.5,0.1,1.0]:null,stop:60});draw();}
+    function draw(){if(!R)return;var nar=_w21_nar(box),Wd=nar?400:700,o=[],n=R.t.length,k=Math.min(n-1,Math.round(st.get()/0.001)),tc=R.t[k];
+      /* 地図 */
+      var mx=nar?60:56,my=26,mw=nar?320:250,mh=nar?230:220,Pm=U.plot(mx,my,mw,mh,_W21_MR,_W21_LR),cols=["alias","gold","green"];PM=Pm;
+      o.push(S.T(mx-46,14,"地図（押すと、その組で試す）","start",9.5,"ink",true));
+      var dl=(_W21_LR[1]-_W21_LR[0])/(_W21_NG-1),dm=(_W21_MR[1]-_W21_MR[0])/(_W21_NG-1);
+      for(var a=0;a<_W21_NG;a++)for(var b=0;b<_W21_NG;b++){var lr=_W21_LR[0]+dl*a,mr=_W21_MR[0]+dm*b,x0=Pm.X(Math.max(_W21_MR[0],mr-dm/2)),x1=Pm.X(Math.min(_W21_MR[1],mr+dm/2)),y0=Pm.Y(Math.min(_W21_LR[1],lr+dl/2)),y1=Pm.Y(Math.max(_W21_LR[0],lr-dl/2));
+        o.push('<rect x="'+x0.toFixed(1)+'" y="'+y0.toFixed(1)+'" width="'+(x1-x0+0.6).toFixed(1)+'" height="'+(y1-y0+0.6).toFixed(1)+'" fill="var(--'+cols[MAP.g[a][b]]+'-soft)" stroke="none"/>');}
+      o.push(Pm.axes({xl:"台車の質量の倍率",yl:"振子の長さの倍率",xt:[0.5,1,1.5,2,2.5,3],yt:[0.5,1,1.5,2,2.5],grid:false,sz:8.5,xfmt:function(v){return String(v);},yfmt:function(v){return String(v);}}));
+      o.push(S.RECT(Pm.X(0.8),Pm.Y(1.2),Pm.X(1.2)-Pm.X(0.8),Pm.Y(0.8)-Pm.Y(1.2),0,"none","ink",1.3));o.push(S.D(Pm.X(1),Pm.Y(1),"ink",2.6));
+      var cx=Pm.X(Math.max(_W21_MR[0],Math.min(_W21_MR[1],smr.get()))),cy=Pm.Y(Math.max(_W21_LR[0],Math.min(_W21_LR[1],slr.get())));
+      o.push(S.CIRC(cx,cy,7,"signal",2.4,"none"));o.push(S.L(cx-11,cy,cx-5,cy,"signal",2));o.push(S.L(cx+5,cy,cx+11,cy,"signal",2));
+      var ly=my+mh+44;o.push(S.RECT(mx-40,ly-9,10,10,2,"var(--green-soft)","green",1));o.push(S.T(mx-26,ly,"立つ","start",9,"muted"));
+      o.push(S.RECT(mx+8,ly-9,10,10,2,"var(--gold-soft)","gold",1));o.push(S.T(mx+22,ly,"揺れが長く残る（減衰比 < 0.1）","start",9,"muted"));
+      o.push(S.RECT(mx+186,ly-9,10,10,2,"var(--alias-soft)","alias",1));o.push(S.T(mx+200,ly,"不安定","start",9,"muted"));
+      o.push(S.T(mx-40,ly+16,"枠: 仕様 9 の ±20 %、点: モデルどおり、○: 選んだ組","start",9,"muted"));
+      /* 動く絵と波形 */
+      var ax=nar?6:340,aw=nar?388:354,gy=nar?ly+190:170,ay=nar?ly+40:0;
+      o.push(S.T(ax,ay+14,"動く絵（振子の長さは拡大して描いた）","start",9.5,"muted"));
+      o.push(_w21_scene(S,U,ax,aw,ay+gy-(nar?ly+40:0),R,k,{Lr:Math.max(40,Math.min(130,90*slr.get())),est:true,push:stt.get()===0?[0.5,0.1]:null}));
+      o.push(S.T(ax+aw,ay+gy-(nar?ly+40:0)+40,"t = "+_w21_f(tc,2)+" s","end",10,"ink",true));
+      if(R.fell!=null&&tc>=R.fell-1e-9)o.push(S.T(ax+aw-4,ay+30,"倒れた","end",10,"alias",true,false,null,true));
+      var ev=5,t=[],ph=[],pp=[];for(var i=0;i<n;i+=ev){t.push(R.t[i]);ph.push(R.x[2][i]/D);pp.push(R.x[0][i]*100);}
+      var gx=nar?52:392,gw=nar?330:290,gh=58,gy0=nar?ay+gy-(ly+40)+64:gy+66,rph=_w21_range([ph],0.08,4),rp=_w21_range([pp],0.08,4);
+      o.push(_w21_wave(S,U,gx,gy0,gw,gh,0,5,rph[0],rph[1],"角度 φ [°]",[[t,ph,"signal"]],tc,false).svg);
+      o.push(_w21_wave(S,U,gx,gy0+gh+28,gw,gh,0,5,rp[0],rp[1],"台車の位置 p [cm]",[[t,pp,"signal"]],tc,true).svg);
+      var Ht=Math.max(ly+30,gy0+2*gh+28+40);box.set(S.svg(Wd,Ht,o));
+      /* 読み出し */
+      var nm=["不安定","揺れが長く残る","立つ"],cc=["warn","warn","ok"],h="長さ "+_w21_f(slr.get(),2)+" 倍・質量 "+_w21_f(smr.get(),2)+" 倍: <span class=\""+cc[CL.cls]+"\">"+nm[CL.cls]+"</span>（閉ループの 9 つの極のうち、z 平面の原点から最も遠い極の距離 "+_w21_f(CL.rho,5)+"、最も小さい減衰比 "+(CL.rho<1?_w21_f(CL.zmin,3):"−")+"）";
+      var mm=_w21_minmax(R.x[2]),j0=Math.round((stt.get()===0?3.5:2.5)/0.001);
+      h+="<br>角度 "+_w21_f(mm[0]/D,2)+"〜"+_w21_f(mm[1]/D,2)+"°、台車が動く最大の距離 <b>"+_w21_g(_w21_maxabs(R.x[0])*100,3)+" cm</b>";
+      if(R.fell==null&&j0<R.x[2].length){var ml=_w21_maxabs(R.x[2],j0)/D;h+="、"+(stt.get()===0?"押してから 3 s 後":"2.5 s")+"以後の角度の最大 <b>"+_w21_f(ml,2)+"°</b>"+(ml<=2?' <span class="ok">±2° の内側</span>':' <span class="warn">±2° を超える</span>');}
+      if(R.fell!=null)h+=' <span class="warn">'+_w21_f(R.fell,2)+" s に倒れた（60°）</span>";
+      ro.innerHTML=h+'<div class="wnote">地図は、線形化した式に 1 ms ごとの計算とカルマンフィルタ（モデルどおりの値で推定する）を入れた閉ループの固有値で塗った（29 × 29 の格子）。動く絵と波形は、線形でない式（力の上限 5 N、摩擦と観測ノイズは無し）。</div>';}
+    U.ctl.drag(box,function(ev,px,py){if(!PM||px==null)return false;if(px<PM.x||px>PM.x+PM.w||py<PM.y||py>PM.y+PM.h)return false;
+      var mr=PM.ux(px),lr=PM.uy(py);smr.set(Math.round(mr/0.05)*0.05);slr.set(Math.round(lr/0.05)*0.05);if(ev!=="move"||!tk.running())sim();});
+    mapc();
+  };
+
+  /* ---- 6 節: 仕様の表を模型の試験で判定する（本文 5 節の表と同じ手順・同じ乱数の種） ---- */
+  var _W21_SPEC=["2.5 s 以後 ±2°","20° から立て直す","台車 ±0.35 m","押して 3 s 後から ±2°","上限に張り付く時間 0.1 s 以内","力の速い揺れ 0.2 N 以下","台車 ±2 cm・振子 ±1°","位相余裕 40° 以上、20 ms 遅れて 1","±20 % で 1・4"];
+  function _w21_suite(U,o){var D=_W21.D,F=_w21_base(U).F,kf=_w21_kfmul(U,0.001,o.mul),kw={F:F,kf:kf,Fc:o.Fc,ffc:o.ffc,noise:o.noise},res=[],i;
+    function run(extra){var q={};for(var a in kw)q[a]=kw[a];for(var b in extra)q[b]=extra[b];return _w21_run(U,q);}
+    function after(r,t0){var j=Math.round(t0/0.001);return r.fell==null&&j<r.x[2].length?_w21_maxabs(r.x[2],j)/D:Infinity;}
+    var r1=run({T:6,x0:[0,0,10*D,0],seed:7}),r2=run({T:6,x0:[0,0,20*D,0],seed:7,stop:89}),r4=run({T:6.5,x0:[0,0,0,0],push:[0.5,0.1,1.0],seed:7}),r7=run({T:22,x0:[0,0,2*D,0],seed:5});
+    var a1=after(r1,2.5),a4=after(r4,3.5),p3=Math.max(_w21_maxabs(r1.x[0]),_w21_maxabs(r4.x[0])),sat=0;for(i=0;i<r1.u.length;i++)if(Math.abs(r1.u[i])>=5-1e-9)sat++;sat*=0.001;
+    var p2=_w21_maxabs(r2.x[0]),ok2=r2.fell==null&&p2<0.45&&Math.abs(r2.x[2][r2.x[2].length-1])<2*D;
+    var i0=2000,hs=_w21_hpstd(r7.u,i0),p7=_w21_maxabs(r7.x[0],i0),f7=_w21_maxabs(r7.x[2],i0)/D;
+    var mg=_w21_margins(_w21_loop(F,kf),0.001),r8=run({T:6,x0:[0,0,10*D,0],seed:7,Ls:0.02}),a8=after(r8,2.5);
+    var w1=0,w4=0,c9=[];[[0.8,0.8],[0.8,1.2],[1.2,0.8],[1.2,1.2]].forEach(function(c){var ra=run({T:6,x0:[0,0,10*D,0],seed:7,l:_W21.l*c[0],M:_W21.M*c[1]}),rb=run({T:6.5,x0:[0,0,0,0],push:[0.5,0.1,1.0],seed:7,l:_W21.l*c[0],M:_W21.M*c[1]});
+      w1=Math.max(w1,after(ra,2.5));w4=Math.max(w4,after(rb,3.5));c9.push({c:c,ra:ra,rb:rb});});
+    res.push({ok:a1<=2,v:_w21_f(a1,2)+"°"});
+    res.push({ok:ok2,v:ok2?"台車 "+_w21_f(p2,3)+" m":(r2.fell!=null?"倒れる":"台車 "+_w21_f(p2,3)+" m")});
+    res.push({ok:p3<=0.35,v:_w21_f(p3,3)+" m"});
+    res.push({ok:a4<=2,v:_w21_f(a4,2)+"°"});
+    res.push({ok:sat<=0.1,v:_w21_f(sat,3)+" s"});
+    res.push({ok:hs<=0.2,v:_w21_f(hs,3)+" N"});
+    res.push({ok:p7<=0.02&&f7<=1,v:_w21_f(p7*100,2)+" cm・"+_w21_f(f7,2)+"°"});
+    res.push({ok:mg.pm!=null&&mg.pm>=40&&a8<=2,v:(mg.pm!=null?_w21_f(mg.pm,1)+"°":"−")+"（1 は "+(isFinite(a8)?_w21_f(a8,2)+"°":"倒れる")+"）"});
+    res.push({ok:w1<=2&&w4<=2,v:(isFinite(w1)?_w21_f(w1,2)+"°":"倒れる")+"・"+(isFinite(w4)?_w21_f(w4,2)+"°":"倒れる")});
+    return {res:res,r1:r1,r2:r2,r4:r4,r7:r7,r8:r8,c9:c9,mg:mg,loop:_w21_loop(F,kf)};}
+  REG.w21_check=function(el,U){
+    var S=U.S,D=_W21.D;
+    U.head(el,"SPEC CHECK","仕様の表の 9 行を、全部の問題を入れた模型の試験で判定する");
+    var r1=U.ctrls(el);
+    var sw=U.select(r1,"推定の W（乱れの見積もり）",["20 章の W（1 倍）","4 倍","10 倍"],1,function(){go();});
+    var scp=U.select(r1,"摩擦の補償",["足さない","0.3 N を足す","0.45 N を足す"],1,function(){go();});
+    var r2=U.ctrls(el);
+    var sfc=U.select(r2,"模型の摩擦",["なし","0.3 N","0.6 N"],1,function(){go();});
+    var cno=U.checkbox(r2,"観測ノイズ（1 mm・0.1°）",true,function(){go();});
+    var srow=U.select(r2,"波形を見る行",_W21_SPEC.map(function(t,i){return (i+1)+": "+t;}),6,function(){draw();});
+    var br=U.btnrow(el);
+    function pre(w,cp,fc,no,row){sw.set(w);scp.set(cp);sfc.set(fc);cno.set(no);srow.set(row);go();}
+    U.button(br,"本文の例（直した制御器）",function(){pre(1,1,1,true,6);});
+    U.button(br,"4 節の制御器",function(){pre(0,0,1,true,6);});
+    U.button(br,"補償 0.3 N で摩擦が無い",function(){pre(1,1,0,true,0);});
+    var tb=U.readout(el),box=U.svgbox(el),ro=U.readout(el),R=null;
+    function go(){R=_w21_suite(U,{mul:[1,4,10][sw.get()],ffc:[0,0.3,0.45][scp.get()],Fc:[0,0.3,0.6][sfc.get()],noise:cno.get()});table();draw();}
+    function table(){var rows=R.res.map(function(q,i){return [String(i+1),_W21_SPEC[i],q.v,q.ok?'<span class="ok">○</span>':'<span class="warn">×</span>'];});
+      var nok=R.res.filter(function(q){return q.ok;}).length;
+      tb.innerHTML=U.tbl(["","仕様","模型の試験の値","判定"],rows,["right","left","left","center"])+"<div>"+nok+" / 9 行を満たす"+(nok===9?' <span class="ok">すべて満たす</span>':"")+"</div>";
+      var trs=tb.querySelectorAll("tbody tr");for(var i=0;i<trs.length;i++){(function(k){trs[k].style.cursor="pointer";if(k===srow.get())trs[k].style.background="var(--signal-soft)";
+        trs[k].addEventListener("click",function(){srow.set(k);table();draw();});})(i);}}
+    function band(P,t0,t1,lo,hi){var o=[];if(hi<P.yr[1])o.push(S.RECT(P.X(t0),P.Y(P.yr[1]),P.X(t1)-P.X(t0),P.Y(hi)-P.Y(P.yr[1]),0,"var(--alias-soft)","none",0));
+      if(lo>P.yr[0])o.push(S.RECT(P.X(t0),P.Y(lo),P.X(t1)-P.X(t0),P.Y(P.yr[0])-P.Y(lo),0,"var(--alias-soft)","none",0));return o.join("");}
+    function ser(r,i,s,ev,t0){var t=[],y=[];ev=ev||5;for(var k=0;k<r.t.length;k+=ev){if(t0!=null&&r.t[k]<t0)continue;t.push(r.t[k]);y.push(i==="u"?r.u[k]*s:r.x[i][k]*s);}return [t,y];}
+    function draw(){if(!R)return;table();var nar=_w21_nar(box),Wd=nar?400:700,o=[],row=srow.get(),gx=nar?52:56,gw=nar?330:280,gh=74,gx2=nar?52:400,dy=gh+34,yy=22,h="";
+      var yb=0;function wave(x,y,T0,T,lo,hi,title,list,xl){yb=Math.max(yb,y+gh+(xl?40:24));return _w21_wave(S,U,x,y,gw,gh,T0,T,lo,hi,title,list,null,xl);}
+      if(row===0||row===2||row===4){var a=ser(R.r1,2,1/D),p=ser(R.r1,0,1),u=ser(R.r1,"u",1),ra=_w21_range([a[1]],0.1,6);
+        var w1=wave(gx,yy,0,6,ra[0],ra[1],"10° から放す: 角度 φ [°]",[[a[0],a[1],"signal"]],false);o.push(band(w1.P,2.5,6,-2,2));o.push(w1.svg);
+        var rp=_w21_range([p[1],[0.4,-0.1]],0.05,0.2),w2=wave(gx2,yy+(nar?dy:0),0,6,rp[0],rp[1],"台車の位置 p [m]",[[p[0],p[1],"signal"]],nar);o.push(band(w2.P,0,6,-0.35,0.35));o.push(w2.svg);
+        var w3=wave(gx,yy+dy*(nar?2:1),0,6,-6,6,"力 u [N]",[[u[0],u[1],"gold",null,1.3]],true);o.push(w3.svg);[5,-5].forEach(function(v){o.push(S.L(w3.P.x,w3.P.Y(v),w3.P.x+w3.P.w,w3.P.Y(v),"alias",1,"3 3"));});
+        h="薄い赤: 仕様 1・3 で入ってはいけない範囲。赤の破線: 力の上限 5 N（仕様 5 は、ここに張り付く時間）。";}
+      else if(row===1){var a2=ser(R.r2,2,1/D),p2=ser(R.r2,0,1),ra2=_w21_range([a2[1]],0.1,10),rp2=_w21_range([p2[1],[0.5]],0.05,0.3);
+        o.push(wave(gx,yy,0,6,ra2[0],ra2[1],"20° から放す: 角度 φ [°]",[[a2[0],a2[1],"signal"]],true).svg);
+        var w22=wave(gx2,yy+(nar?dy:0),0,6,rp2[0],rp2[1],"台車の位置 p [m]",[[p2[0],p2[1],"signal"]],true);o.push(band(w22.P,0,6,-0.45,0.45));o.push(w22.svg);
+        h="薄い赤: 安全のための停止が働く台車の位置（0.45 m）より外。";}
+      else if(row===3){var a4=ser(R.r4,2,1/D),p4=ser(R.r4,0,1),ra4=_w21_range([a4[1]],0.1,6),rp4=_w21_range([p4[1],[0.4,-0.1]],0.05,0.2);
+        var w41=wave(gx,yy,0,6.5,ra4[0],ra4[1],"押す（0.5 s から）: 角度 φ [°]",[[a4[0],a4[1],"signal"]],true);o.push(band(w41.P,3.5,6.5,-2,2));o.push(w41.svg);
+        var w42=wave(gx2,yy+(nar?dy:0),0,6.5,rp4[0],rp4[1],"台車の位置 p [m]",[[p4[0],p4[1],"signal"]],true);o.push(band(w42.P,0,6.5,-0.35,0.35));o.push(w42.svg);
+        h="薄い赤: 仕様 4・3 で入ってはいけない範囲。";}
+      else if(row===5||row===6){var p7=ser(R.r7,0,100,10,2),a7=ser(R.r7,2,1/D,10,2),u7=ser(R.r7,"u",1,2,2);
+        var w71=wave(gx,yy,2,22,-4,4,"立てておく: 台車の位置 p [cm]",[[p7[0],p7[1],"signal",null,1.4]],false);o.push(band(w71.P,2,22,-2,2));o.push(w71.svg);
+        var w72=wave(gx2,yy+(nar?dy:0),2,22,-1.6,1.6,"角度 φ [°]",[[a7[0],a7[1],"signal",null,1.4]],false);o.push(band(w72.P,2,22,-1,1));o.push(w72.svg);
+        var ma=[],uu=R.r7.u,c=[0];for(var k=0;k<uu.length;k++)c.push(c[k]+uu[k]);for(var k2=0;k2<u7[0].length;k2++){var j=Math.round(u7[0][k2]/0.001),lo=Math.max(0,j-50),hi=Math.min(uu.length-1,j+50);ma.push((c[hi+1]-c[lo])/(hi-lo+1));}
+        var ru7=_w21_range([u7[1]],0.05,1);o.push(wave(gx,yy+dy*(nar?2:1),2,22,ru7[0],ru7[1],"力 u [N]（濃い線: 0.1 s の移動平均）",[[u7[0],u7[1],"gold",null,0.8],[u7[0],ma,"ink",null,1.4]],true).svg);
+        h="薄い赤: 仕様 7 で入ってはいけない範囲。仕様 6 は、力と、その 0.1 s の移動平均との差の標準偏差（摩擦によるゆっくりした揺れを除く）。";}
+      else if(row===7){var cp=U.plot(gx,yy+10,nar?300:250,nar?200:180,[-3.2,1],[-1.6,1.6]),ws=[],v,pts=[];o.push(S.RECT(cp.x,cp.y,cp.w,cp.h,0,"var(--screen)","line",0.6));
+        o.push(cp.axes({xt:[-3,-2,-1,0,1],yt:[-1,0,1],grid:true,sz:8.5,xfmt:function(q){return _w21_g(q,2);},yfmt:function(q){return _w21_g(q,2);}}));
+        var cc=[];for(var q=0;q<=120;q++){var th=2*Math.PI*q/120;cc.push([-1+Math.cos(th),Math.sin(th)]);}o.push(cp.clip(cc,"green",1.2,"3 3"));
+        for(var q2=0;q2<700;q2++){var w=Math.pow(10,-0.3+(Math.log10(Math.PI/0.001*0.99)+0.3)*q2/699);v=R.loop(w);pts.push([v.re,v.im]);}
+        o.push(cp.clip(pts,"signal",1.8));o.push(S.X(cp.X(-1),cp.Y(0),5,"alias",2));yb=Math.max(yb,cp.y+cp.h+40);
+        o.push(S.T(cp.x,cp.y-8,"入力の点で切ったループのナイキスト線図","start",9.5,"ink",true));o.push(S.T(cp.x+cp.w/2,cp.y+cp.h+28,"実部","middle",9,"muted"));
+        var a8=ser(R.r8,2,1/D),ra8=_w21_range([a8[1]],0.1,6),w81=wave(gx2,yy+(nar?cp.h+60:10),0,6,ra8[0],ra8[1],"測る値が 20 ms 遅れて 10° から放す: φ [°]",[[a8[0],a8[1],"signal"]],true);o.push(band(w81.P,2.5,6,-2,2));o.push(w81.svg);
+        h="緑の点線: −1 を中心とする半径 1 の円（19 章 6 節）。位相余裕 "+(R.mg.pm!=null?_w21_f(R.mg.pm,1)+"°":"−")+"、ゲイン交差角周波数 "+(R.mg.wgc?_w21_g(R.mg.wgc,3)+" rad/s":"−")+"、許されるむだ時間 "+(R.mg.delay?_w21_g(R.mg.delay*1000,3)+" ms":"−")+"。";}
+      else{var cl=["teal","purple","gold","alias"],sa=[],sb=[];R.c9.forEach(function(z,i){var a9=ser(z.ra,2,1/D),b9=ser(z.rb,2,1/D);sa.push([a9[0],a9[1],cl[i],null,1.4]);sb.push([b9[0],b9[1],cl[i],null,1.4]);});
+        var w91=wave(gx,yy,0,6,-8,11,"±20 % の 4 つの角: 10° から放す φ [°]",sa,true);o.push(band(w91.P,2.5,6,-2,2));o.push(w91.svg);
+        var w92=wave(gx2,yy+(nar?dy:0),0,6.5,-17,6,"押す φ [°]",sb,true);o.push(band(w92.P,3.5,6.5,-2,2));o.push(w92.svg);
+        var ly=yb+4;R.c9.forEach(function(z,i){var lx=gx-40+(i%2)*170+(nar?0:(i>1?340:0)),lyy=ly+(nar?Math.floor(i/2)*16:0)-(nar?0:(i%2?0:0));o.push(S.L(lx,lyy-4,lx+20,lyy-4,cl[i],2.2));o.push(S.T(lx+24,lyy,"長さ "+z.c[0]+" 倍・質量 "+z.c[1]+" 倍","start",9,"muted"));});yb=ly+(nar?28:12);
+        h="4 つの角（振子の長さの倍率・台車の質量の倍率）。薄い赤: 仕様 1・4 で入ってはいけない範囲。";}
+      box.set(S.svg(Wd,yb+4,o));
+      ro.innerHTML=h+'<div class="wnote">本文 5 節の表と同じ試験（線形でない式とクーロン摩擦、力の上限 5 N、1 ms ごと・(B) の出し方、推定した角度 30°・位置 0.45 m で止めない）。観測ノイズの乱数の種は、6・7 が 5、ほかは 7。行を押すと、その行の試験の波形を表示する。</div>';}
+    go();
+  };
