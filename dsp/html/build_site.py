@@ -154,11 +154,13 @@ def convert_blocks(lines):
         # blockquote
         if st.startswith(">"):
             inner = []
-            while i < n and (lines[i].strip().startswith(">") or (lines[i].strip()=="" and i+1<n and lines[i+1].strip().startswith(">"))):
+            # 空行の後の「> **題.**」は別の囲み（GitHub の表示と同じ）
+            while i < n and (lines[i].strip().startswith(">") or (lines[i].strip()=="" and i+1<n and lines[i+1].strip().startswith(">") and not re.match(r"\s*>\s*\*\*", lines[i+1]))):
                 l = lines[i]
                 l = re.sub(r"^\s*>\s?", "", l)
                 inner.append(l); i += 1
-            out.append("<blockquote>%s</blockquote>" % convert_blocks(inner))
+            cls = ' class="learn"' if inner and inner[0].startswith("**この章で学ぶこと") else ""
+            out.append("<blockquote%s>%s</blockquote>" % (cls, convert_blocks(inner)))
             continue
         # table
         if st.startswith("|") and i+1 < n and re.match(r"^\s*\|[\s:\-|]+\|\s*$", lines[i+1]):

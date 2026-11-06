@@ -133,3 +133,7 @@ blockquote .dia{margin:1rem 0}
 blockquote .dia svg{background:var(--panel)}
 .wfig svg{max-width:100%;height:auto;display:block;margin:0 auto;
   background:var(--screen);border:1px solid var(--line);border-radius:10px;padding:.4rem}
+/* この章で学ぶこと（章の先頭の一覧）: 問いの囲みと見分けるため、地の色を変えて左に線を引く */
+blockquote.learn{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--signal)}
+blockquote.learn td:first-child{white-space:nowrap}
+@media (max-width:640px){blockquote.learn .tablewrap{overflow:visible}blockquote.learn table,blockquote.learn tbody,blockquote.learn tr,blockquote.learn td{display:block;width:auto}blockquote.learn thead{display:none}blockquote.learn tr{padding:.45rem 0;border-bottom:1px solid var(--line)}blockquote.learn tr:last-child{border-bottom:0}blockquote.learn td{border:0;padding:.12rem .7rem}blockquote.learn td:nth-child(2)::before{content:"用語: ";color:var(--muted)}blockquote.learn td:nth-child(3)::before{content:"説明できること: ";color:var(--muted)}}
