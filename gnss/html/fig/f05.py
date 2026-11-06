@@ -1209,7 +1209,7 @@ def _f05_noncoh_fig():
         for x, v in pts:
             o.append(D(q.X(x), q.Y(v), c, 2.6))
         o.append(T(q.X(pts[-1][0]) + 4, q.Y(pts[-1][1]) - 8, "%d ms" % Tc, "start", 9.5, c, True, halo=True))
-    yy = 262
+    yy = 278
     o.append(T(14, yy, "1 つの衛星の ±5 kHz の格子を、同時に 4000 個のビンを計算する回路で探す時間（例の値）:", "start", 9.5, INK, True))
     for k, (Tc, n, cn, cells, c) in enumerate(marks):
         o.append(T(14 + k * 228, yy + 18, "%d ms × %d 回: %.1f dB-Hz" % (Tc, n, cn), "start", 9.5, c, True))
