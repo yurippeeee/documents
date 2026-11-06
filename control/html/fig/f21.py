@@ -358,3 +358,468 @@ def _f21_system_fig():
 
 
 F["e21_system"] = _f21_system_fig()
+
+
+# =====================================================================
+# 1 節: 仕様を、波形の許される範囲として描く（19 章の設計: すべての状態を測る）
+# =====================================================================
+def _f21_band(P, x0, x1, y0, y1):
+    """Plot P の (x0..x1, y0..y1) を、許されない範囲として薄い赤で塗る（枠で切る）。"""
+    xa, xb = max(P.xr[0], x0), min(P.xr[1], x1)
+    ya, yb = max(P.yr[0], min(y0, y1)), min(P.yr[1], max(y0, y1))
+    if xb <= xa or yb <= ya:
+        return ""
+    return RECT(P.X(xa), P.Y(yb), P.X(xb) - P.X(xa), P.Y(ya) - P.Y(yb), 0, ASOFT, "none", 0)
+
+
+def _f21_spec_fig():
+    o = []
+    T_ = 4.0
+    r1 = _f21_run(T=T_, est="true", x0=(0, 0, 10 * _F21_D, 0))
+    r2 = _f21_run(T=T_, est="true", push=(0.5, 0.1, 1.0))
+    cols = [("(a) 10° から静かに放す", r1, 2.5), ("(b) おもりを右へ 1 N で 0.1 s 押す", r2, 3.5)]
+    rows = [("角度 φ [°]", lambda r: r["x"][:, 2] / _F21_D, (-15, 12), [-10, -5, 0, 5, 10], SIG),
+            ("台車の位置 p [cm]", lambda r: r["x"][:, 0] * 100, (-45, 45), [-35, 0, 35], SIG),
+            ("力 u [N]", lambda r: r["u"], (-6.5, 6.5), [-5, 0, 5], GLD)]
+    pw, ph, x0s = 270, 74, (66, 418)
+    for ci, (title, r, tok) in enumerate(cols):
+        x0 = x0s[ci]
+        o.append(T(x0 - 50, 18, title, "start", 11.5, INK, True))
+        for ri, (yl, fy, yr, yt, c) in enumerate(rows):
+            y0 = 32 + ri * (ph + 26)
+            P = Plot(x0, y0, pw, ph, (0, T_), yr)
+            if ri == 0:
+                o.append(_f21_band(P, tok, T_, 2, 99)); o.append(_f21_band(P, tok, T_, -99, -2))
+            elif ri == 1:
+                o.append(_f21_band(P, 0, T_, 35, 99)); o.append(_f21_band(P, 0, T_, -99, -35))
+            else:
+                o.append(_f21_band(P, 0, T_, 5, 99)); o.append(_f21_band(P, 0, T_, -99, -5))
+            o.append(P.axes(xl="時間 t [s]" if ri == 2 else None, yt=yt, xt=[0, 1, 2, 3, 4],
+                            xfmt=(lambda v: "%g" % v) if ri == 2 else (lambda v: ""), yfmt=lambda v: ("%g" % v).replace("-", "−")))
+            o.append(T(x0 + pw - 4, y0 + 11, yl, "end", 9.5, INK, True, halo=True))
+            o.append(P.clip(list(zip(r["t"], fy(r))), c=c, lw=2))
+        # 許される範囲の説明
+    o.append(T(x0s[0] + 4, 32 + ph - 6, "2.5 s 後は ±2° の内側", "start", 9, ALI, halo=True))
+    o.append(T(x0s[1] + 4, 32 + ph - 6, "押して 3 s 後は ±2° の内側", "start", 9, ALI, halo=True))
+    o.append(T(x0s[0] + 4, 32 + ph + 26 + 12, "±35 cm の外へ出ない", "start", 9, ALI, halo=True))
+    o.append(T(x0s[0] + 4, 32 + 2 * (ph + 26) + 12, "±5 N を超えて出せない", "start", 9, ALI, halo=True))
+    return SVG(704, 32 + 3 * (ph + 26) + 22, o, cap="仕様を、波形が入ってはいけない範囲（薄い赤）として描いたもの。青と金の線は、19 章 4 節の最適レギュレータで、すべての状態を誤差なく測れるとしたときの応答（摩擦なし、力の上限 5 N）。(a) 10° から放す試験、(b) おもりを押す試験。どちらも許される範囲に入っている。")
+
+
+F["e21_spec"] = _f21_spec_fig()
+
+
+# =====================================================================
+# 2 節: モータで台車を動かす（電圧 → 電流 → トルク → 力）
+# =====================================================================
+_F21_RA, _F21_KT, _F21_J, _F21_RP = 2.0, 0.02, 1e-5, 0.02     # 2 章 3 節のモータ、プーリーの半径 20 mm（例の値）
+
+
+def _f21_motor_fig():
+    o = []
+    o.append(T(12, 18, "(a) プーリーとベルトで、回転を台車の動きに直す", "start", 11.5, INK, True))
+    # モータとプーリー（左）、ベルト、台車（右）
+    cxm, cym, R = 92, 112, 34
+    o.append(CIRC(cxm, cym, R + 14, c=GLD, lw=1.4, fill=GOSOFT))
+    o.append(CIRC(cxm, cym, R, c=MUT, lw=1.6, fill=SCR))
+    o.append(D(cxm, cym, INK, 3))
+    o.append(W(cxm, cym, cxm + R * 0.8, cym - R * 0.6, c=INK, lw=1.2))
+    o.append(TX(cxm + 8, cym - 16, "r_p", "start", 10, INK, halo=True))
+    o.append(CARR(cxm - R - 22, cym + 12, cxm - 6, cym - R - 20, 0.32, c=GLD, lw=1.6))
+    o.append(TX(cxm - 64, cym - 36, "トルク K_t i", "middle", 10, GLD, True, halo=True))
+    o.append(TX(cxm, cym + R + 32, "角速度 ω_m = \\dot{p}/r_p", "middle", 10, INK, halo=True))
+    # ベルト（上下）と台車
+    xt = 300
+    o.append(W(cxm, cym - R, xt, cym - R, c=MUT, lw=1.6)); o.append(W(cxm, cym + R, xt + 40, cym + R, c=MUT, lw=1.6))
+    o.append(RECT(xt - 4, cym - R - 26, 72, 34, 5, SSOFT, SIG, 1.5))
+    o.append(T(xt + 32, cym - R - 5, "台車", "middle", 10.5, SIG, True))
+    o.append(ARR(xt + 70, cym - R - 9, xt + 112, cym - R - 9, c=GLD, lw=2.2))
+    o.append(TX(xt + 116, cym - R - 5, "力 u", "start", 10, GLD, True))
+    o.append(ARR(xt + 36, cym - R + 20, xt + 76, cym - R + 20, c=SIG, lw=1.4))
+    o.append(TX(xt + 80, cym - R + 24, "速さ \\dot{p}", "start", 10, SIG))
+    # 式
+    yq = 214
+    o.append(TX(20, yq, "回る側: J\\dot{ω}_m = K_t i − r_p u　→　u = (K_t/r_p) i − (J/r_p^2) \\ddot{p}", "start", 10.5, INK))
+    o.append(TX(20, yq + 20, "電気の側（2 章 3 節）: L_a di/dt + R_a i + (K_t/r_p) \\dot{p} = v", "start", 10.5, INK))
+    o.append(TX(20, yq + 40, "K_t/r_p = 0.02/0.02 = 1.0 N/A（= V/(m/s)）、J/r_p^2 = 10^{−5}/0.02^2 = 0.025 kg", "start", 10.5, SIG, True))
+    # (b) 2 つの動かし方
+    xb = 448
+    o.append(T(xb - 6, 18, "(b) 電圧で動かす（インダクタンスは無視）", "start", 11.5, INK, True))
+    yc = 70
+    s, pos, xe = CHAIN(xb, yc, [("a", 18, "v", GLD), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 14, None, GLD),
+                               ("b", ("1", "R_a"), "ra", LIN), ("a", 20, "i", GLD), ("b", "1.0", "kt", LIN), ("a", 20, "u", GLD),
+                               ("b", "台車", "cart", SIG), ("a", 22, "\\dot{p}", SIG), ("t", "pv", SIG)])
+    o.append(s)
+    o.append(FBPATH(pos["pv"], pos["s1"], yc, 50, c=SIG, box="1.0"))
+    o.append(TX(pos["pv"] - 4, yc + 66, "逆起電力 (K_t/r_p) \\dot{p}", "end", 9.5, SIG))
+    o.append(TX(xb, yc + 96, "u = 0.5 v − 0.5 \\dot{p}（ダンパ 0.5 N·s/m と同じ）", "start", 10, INK))
+    o.append(T(xb - 6, yc + 128, "(c) 電流で動かす（14 章 4 節の内側のループ）", "start", 11.5, INK, True))
+    yc2 = yc + 164
+    s2, pos2, xe2 = CHAIN(xb, yc2, [("a", 30, "i_{ref}", GLD), ("b", "電流のループ", "cl", SIG), ("a", 26, "i", GLD), ("b", "1.0", "kt2", LIN), ("a", 34, "u", GLD)])
+    o.append(s2)
+    o.append(TX(xb, yc2 + 36, "u = 1.0 × i（速さによらない）。上限 5 A → 5 N", "start", 10, INK))
+    return SVG(704, 278, o, cap="(a) モータの軸のプーリー（半径 20 mm、例の値）がベルトで台車を引く。回る側の運動の法則から、台車を押す力は電流に比例する分と、回転子とプーリーを回す分に分かれる。(b) 電圧で動かすと、逆起電力が速さに比例した力を引くので、台車にダンパを付けたのと同じになる。(c) モータドライバの電流のループが電流を指令に合わせれば、力は電流の指令に比例し、速さによらない。")
+
+
+F["e21_motor"] = _f21_motor_fig()
+
+
+# =====================================================================
+# 2 節: パラメータを測る（吊り下げた振子の揺れ・力の段差）
+# =====================================================================
+def _f21_swing(T=6.0, th0=5.0, zeta=0.01, l=_F21_l, seed=21):
+    """台車を押さえ、吊り下げた振子を th0 [°] から放した記録（1 ms ごと、角度のノイズ 0.1°）。
+    軸の摩擦を減衰比 zeta の粘性摩擦として足す（例の値）。返り値 (t, 測った角度 [°], 読んだ周期, 読んだ l)。"""
+    h = 0.001; n = int(round(T / h)); wn = math.sqrt(_F21_g / l)
+    x = (th0 * _F21_D, 0.0); rg = _F21Rng(seed); ts, ys = [], []
+    f = lambda z: (z[1], -_F21_g / l * math.sin(z[0]) - 2 * zeta * wn * z[1])
+    for k in range(n + 1):
+        ts.append(k * h); ys.append(x[0] / _F21_D + 0.1 * rg.normal())
+        k1 = f(x); k2 = f((x[0] + h / 2 * k1[0], x[1] + h / 2 * k1[1])); k3 = f((x[0] + h / 2 * k2[0], x[1] + h / 2 * k2[1]))
+        k4 = f((x[0] + h * k3[0], x[1] + h * k3[1]))
+        x = (x[0] + h / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]), x[1] + h / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]))
+    ts = _f21_np.array(ts); ys = _f21_np.array(ys)
+    # 21 点の移動平均でならしてから、0 を横切る時刻（上向き・下向きの両方）を直線で補って読む
+    ker = _f21_np.ones(21) / 21; sm = _f21_np.convolve(ys, ker, mode="same")
+    zc = []
+    for i in range(20, len(sm) - 21):
+        if (sm[i] < 0 <= sm[i + 1]) or (sm[i] >= 0 > sm[i + 1]):
+            zc.append(ts[i] + (ts[i + 1] - ts[i]) * (-sm[i]) / (sm[i + 1] - sm[i]))
+    per = (zc[10] - zc[0]) / 5
+    wd = 2 * math.pi / per
+    return ts, ys, zc, per, _F21_g / wd ** 2
+
+
+def _f21_steps(forces=(0.5, 0.75, 1.0), T=0.6, M=_F21_M, Fc=_F21_FC, seed=22):
+    """振子を外した台車に、電流の指令で一定の力を加えた記録（1 ms ごと、位置のノイズ 1 mm）。
+    返り値 [(力, t, 測った位置, 当てはめた加速度), ...]。当てはめは p = c0 + c1 t + a t²/2 の最小二乗。"""
+    out = []; rg = _F21Rng(seed)
+    for u in forces:
+        a_true = (u - Fc) / M
+        ts = _f21_np.arange(0, T + 1e-9, 0.001)
+        ps = 0.5 * a_true * ts ** 2 + _f21_np.array([_F21_SP * rg.normal() for _ in ts])
+        Aq = _f21_np.vstack([_f21_np.ones_like(ts), ts, 0.5 * ts ** 2]).T
+        coef = _f21_np.linalg.lstsq(Aq, ps, rcond=None)[0]
+        out.append((u, ts, ps, coef[2]))
+    return out
+
+
+def _f21_ident_fig():
+    o = []
+    ts, ys, zc, per, lest = _f21_swing()
+    o.append(T(12, 18, "(a) 台車を押さえ、吊り下げた振子を 5° から放す", "start", 11.5, INK, True))
+    P = Plot(60, 32, 610, 96, (0, 6), (-6, 6))
+    o.append(P.axes(xl="時間 t [s]", yl="角度 [°]", xt=[0, 1, 2, 3, 4, 5, 6], yt=[-5, 0, 5], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(P.line(list(zip(ts[::4], ys[::4])), c=TEA, lw=1.0))
+    for i in range(11):
+        o.append(D(P.X(zc[i]), P.Y(0), GLD, 2.6))
+    for i in (0, 10):
+        o.append(W(P.X(zc[i]), P.y, P.X(zc[i]), P.y + P.h, c=GLD, lw=1.4, dash="4 3"))
+    yy = P.Y(5.3)
+    o.append(DARR(P.X(zc[0]), yy, P.X(zc[10]), yy, c=GLD, lw=1.3))
+    o.append(T((P.X(zc[0]) + P.X(zc[10])) / 2, yy - 4, "5 周期 = %.3f s → 周期 %.4f s" % (zc[10] - zc[0], per), "middle", 9.5, GLD, True, halo=True))
+    o.append(TX(P.x + P.w - 6, P.y + P.h - 8, "l = g/(2π/周期)^2 = %.3f m" % lest, "end", 10, SIG, True, halo=True))
+    # (b) 力の段差
+    st = _f21_steps()
+    o.append(T(12, 186, "(b) 振子を外し、一定の力で押す", "start", 11.5, INK, True))
+    Pb = Plot(60, 200, 270, 120, (0, 0.6), (0, 0.32))
+    o.append(Pb.axes(xl="時間 t [s]", yl="台車の位置 p [m]", xt=[0, 0.2, 0.4, 0.6], yt=[0, 0.1, 0.2, 0.3]))
+    cols = [TEA, PUR, GLD]
+    for (u, tt, pp, a), c in zip(st, cols):
+        o.append(Pb.line(list(zip(tt[::6], pp[::6])), c=c, lw=1.0))
+        o.append(Pb.line([(t_, 0.5 * a * t_ * t_) for t_ in _f21_np.linspace(0, 0.6, 61)], c=c, lw=1.6, dash="5 3"))
+        o.append(T(Pb.X(0.6) + 4, Pb.Y(0.5 * a * 0.36) + 4, "%g N" % u, "start", 9.5, c, True))
+    o.append(T(Pb.x + 6, Pb.y + 12, "点: 測った位置　破線: 当てはめた放物線", "start", 9, MUT, halo=True))
+    # (c) 加速度と力
+    us = _f21_np.array([s_[0] for s_ in st]); As = _f21_np.array([s_[3] for s_ in st])
+    k1, k0 = _f21_np.polyfit(us, As, 1)
+    Mest, Fcest = 1 / k1, -k0 / k1
+    o.append(T(386, 186, "(c) 加速度と力の直線", "start", 11.5, INK, True))
+    Pc = Plot(424, 200, 250, 120, (0, 1.1), (-0.7, 1.6))
+    o.append(Pc.axes(xl="力 u [N]", yl="加速度 [m/s²]", xt=[0, 0.3, 0.5, 0.75, 1.0], yt=[-0.5, 0, 0.5, 1, 1.5],
+                     xfmt=lambda v: "%g" % v, yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(W(Pc.x, Pc.Y(0), Pc.x + Pc.w, Pc.Y(0), c=MUT, lw=1))
+    o.append(Pc.line([(0, k0), (1.1, k0 + 1.1 * k1)], c=SIG, lw=1.6))
+    for u, a_, c in zip(us, As, cols):
+        o.append(D(Pc.X(u), Pc.Y(a_), c, 4))
+    o.append(D(Pc.X(Fcest), Pc.Y(0), ALI, 4))
+    o.append(T(Pc.X(Fcest) - 4, Pc.Y(0) + 14, "%.2f N = 摩擦" % Fcest, "end", 9.5, ALI, True, halo=True))
+    o.append(T(Pc.x + 6, Pc.y + 12, "傾き %.2f /kg → M = %.3f kg" % (k1, Mest), "start", 9.5, SIG, True, halo=True))
+    return SVG(704, 364, o, cap="パラメータを測る試験の記録（ノイズのある測定を数値計算で作ったもの。本当の値は l = 0.3 m、M = 0.5 kg、摩擦 0.3 N）。(a) 吊り下げた振子の揺れ。ノイズをならしてから 0 を横切る時刻を読み、5 周期の長さから周期と l を求める。(b) 3 つの大きさの力で押したときの台車の位置と、当てはめた放物線。(c) 放物線の加速度を力に対して並べた直線の傾きが 1/M、加速度が 0 になる力が摩擦の大きさ。")
+
+
+F["e21_ident"] = _f21_ident_fig()
+
+
+# =====================================================================
+# 3 節: 角度だけの PID・カスケード・状態フィードバック（連続の制御器、すべての状態を測る、摩擦なし）
+# =====================================================================
+_F21_KP, _F21_KD, _F21_KI = 30.19, 3.741, 30.19          # 角度の PD（極 −12.47 の 2 つ）と、I を足すときの K_I（T_I = 1 s）
+_F21_KPO, _F21_KDO = 0.15, 0.16                         # カスケードの外側（位置の PD）[rad/m]・[rad/(m/s)]
+
+
+def _f21_ctrl(kind, off=0.0):
+    """連続の制御器 u(z)。z = [p, ṗ, φ, φ̇, w]（w = 測った角度の積分）。off は角度のセンサの 0 点のずれ [rad]。"""
+    KP, KD, KI, KPO, KDO = _F21_KP, _F21_KD, _F21_KI, _F21_KPO, _F21_KDO
+    F = _F21_FLQ
+    if kind == "pd":
+        return lambda z: KP * (z[2] + off) + KD * z[3]
+    if kind == "pid":
+        return lambda z: KP * (z[2] + off) + KD * z[3] + KI * z[4]
+    if kind == "casc":
+        return lambda z: KP * (z[2] + off + KPO * z[0] + KDO * z[1]) + KD * z[3]
+    return lambda z: -(F[0] * z[0] + F[1] * z[1] + F[2] * (z[2] + off) + F[3] * z[3])
+
+
+def _f21_cont(kind, x0=(0, 0, 0, 0), T=6.0, h=0.002, off=0.0, push=None, every=5):
+    """連続の制御器で閉ループを 4 次のルンゲ・クッタ法で解く（18 章の _f18_run と同じ考え方。押す力は刻みの境目で切り替える）。"""
+    u = _f21_ctrl(kind, off)
+    z = list(x0) + [0.0]; n = int(round(T / h)); cur = [0.0]
+    M, m, l = _F21_M, _F21_m, _F21_l
+
+    def f(zz):
+        a = _f21_acc(zz[:4], u(zz), cur[0], M, m, l)
+        return list(a) + [zz[2] + off]
+    ts, xs, us = [0.0], [tuple(z)], [u(z)]
+    for k in range(n):
+        tk = k * h
+        cur[0] = push[2] if (push and push[0] - 1e-9 <= tk < push[0] + push[1] - 1e-9) else 0.0
+        k1 = f(z); k2 = f([z[i] + h / 2 * k1[i] for i in range(5)]); k3 = f([z[i] + h / 2 * k2[i] for i in range(5)])
+        k4 = f([z[i] + h * k3[i] for i in range(5)])
+        z = [z[i] + h / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]) for i in range(5)]
+        if (k + 1) % every == 0:
+            ts.append((k + 1) * h); xs.append(tuple(z)); us.append(u(z))
+    return _f21_np.array(ts), _f21_np.array(xs), _f21_np.array(us)
+
+
+_F21_CS = {"pd": (ALI, "5 3", "角度の PD"), "pid": (GLD, "2 3", "角度の PID"), "casc": (PUR, None, "カスケード"), "lqr": (SIG, None, "19 章の F")}
+
+
+def _f21_pid_fig():
+    o = []
+    th0 = 10 * _F21_D
+    R = {k: _f21_cont(k, (0, 0, th0, 0), T=6.0) for k in ("pd", "pid", "casc", "lqr")}
+    # (a) 角度とその面積
+    o.append(T(12, 18, "(a) 10° から放したときの角度と、その面積", "start", 11.5, INK, True))
+    Pa = Plot(60, 30, 270, 112, (0, 2), (-6, 10.5))
+    o.append(Pa.axes(xl="時間 t [s]", yl="角度 φ [°]", xt=[0, 0.5, 1, 1.5, 2], yt=[-5, 0, 5, 10], yfmt=lambda v: ("%g" % v).replace("-", "−"), xfmt=lambda v: "%g" % v))
+    for k in ("pd", "lqr"):
+        t, x, _ = R[k]; c = _F21_CS[k][0]
+        sel = t <= 2.0
+        pts = [(Pa.X(a), Pa.Y(b / _F21_D)) for a, b in zip(t[sel], x[sel, 2])]
+        o.append(PL([(Pa.X(0), Pa.Y(0))] + pts + [(Pa.X(t[sel][-1]), Pa.Y(0))], c="none", lw=0, fill=soft(c), op=0.75))
+        o.append(Pa.line(list(zip(t[sel], x[sel, 2] / _F21_D)), c=c, lw=2, dash=_F21_CS[k][1]))
+    tp, xp, _ = R["pd"]; area_pd = _f21_np.trapezoid(xp[:, 2], tp)
+    tl, xl_, _ = R["lqr"]; area_lq = _f21_np.trapezoid(xl_[:, 2], tl)
+    o.append(T(Pa.X(0.42), Pa.Y(6.2), "角度の PD: 面積 %.4f rad·s" % area_pd, "start", 9.5, ALI, True, halo=True))
+    o.append(T(Pa.X(0.62), Pa.Y(-3.6), "19 章の F: 面積 %.4f rad·s" % abs(area_lq), "start", 9.5, SIG, True, halo=True))
+    # (b) 台車の速さ
+    o.append(T(386, 18, "(b) 台車の速さ", "start", 11.5, INK, True))
+    Pb = Plot(424, 30, 260, 112, (0, 6), (-0.3, 0.6))
+    o.append(Pb.axes(xl="時間 t [s]", yl="速さ [m/s]", xt=[0, 2, 4, 6], yt=[-0.2, 0, 0.2, 0.4], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(W(Pb.x, Pb.Y(0), Pb.x + Pb.w, Pb.Y(0), c=MUT, lw=1))
+    for k in ("pd", "pid", "casc", "lqr"):
+        t, x, _ = R[k]; c, dash, _lab = _F21_CS[k]
+        o.append(Pb.clip(list(zip(t, x[:, 1])), c=c, lw=2, dash=dash))
+    vpd = R["pd"][1][-1, 1]
+    o.append(T(Pb.X(6) - 4, Pb.Y(vpd) - 6, "%.3f m/s のまま（g × 面積 = %.3f）" % (vpd, _F21_g * area_pd), "end", 9.5, ALI, True, halo=True))
+    # (c) 台車の位置
+    o.append(T(12, 200, "(c) 台車の位置", "start", 11.5, INK, True))
+    Pc = Plot(60, 212, 270, 120, (0, 6), (-0.2, 0.7))
+    o.append(Pc.axes(xl="時間 t [s]", yl="位置 p [m]", xt=[0, 2, 4, 6], yt=[0, 0.25, 0.5], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(W(Pc.x, Pc.Y(0.5), Pc.x + Pc.w, Pc.Y(0.5), c=ALI, lw=1.2, dash="4 3"))
+    o.append(T(Pc.x + Pc.w - 4, Pc.Y(0.5) - 5, "レールの端 0.5 m", "end", 9, ALI, halo=True))
+    for k in ("pd", "pid", "casc", "lqr"):
+        t, x, _ = R[k]; c, dash, _lab = _F21_CS[k]
+        o.append(Pc.clip(list(zip(t, x[:, 0])), c=c, lw=2, dash=dash))
+    ppid = R["pid"][1][-1, 0]
+    o.append(T(Pc.X(6) - 4, Pc.Y(ppid) + 14, "PID: %.2f m で止まる" % ppid, "end", 9.5, GLD, True, halo=True))
+    # (d) 角度のセンサの 0 点が 0.5° ずれたとき
+    o.append(T(386, 200, "(d) 角度のセンサの 0 点が 0.5° ずれたとき", "start", 11.5, INK, True))
+    Pd = Plot(424, 212, 260, 120, (0, 6), (-0.6, 0.1))
+    o.append(Pd.axes(xl="時間 t [s]", yl="位置 p [m]", xt=[0, 2, 4, 6], yt=[-0.5, -0.25, 0], yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(W(Pd.x, Pd.Y(-0.5), Pd.x + Pd.w, Pd.Y(-0.5), c=ALI, lw=1.2, dash="4 3"))
+    for k in ("pd", "pid", "casc", "lqr"):
+        t, x, _ = _f21_cont(k, (0, 0, 0, 0), T=6.0, off=0.5 * _F21_D)
+        c, dash, _lab = _F21_CS[k]
+        o.append(Pd.clip(list(zip(t, x[:, 0])), c=c, lw=2, dash=dash))
+        if k == "lqr":
+            o.append(T(Pd.X(6) - 4, Pd.Y(x[-1, 0]) + 14, "19 章の F: %.1f cm" % (x[-1, 0] * 100), "end", 9.5, SIG, True, halo=True))
+    o.append(LEGL(60, 374, [(_F21_CS[k][0], _F21_CS[k][1], _F21_CS[k][2]) for k in ("pd", "pid", "casc", "lqr")]))
+    return SVG(704, 384, o, cap="角度だけを戻す PD・PID と、台車の位置も戻すカスケード・状態フィードバックの比較（線形でない式、すべての状態を測れるとき、力の上限なし）。(a) 振子が立った後の台車の速さは、角度の面積の g 倍になる。角度の PD は面積が正のまま残り、19 章の F は反対側へ傾いて面積を 0 にする。(b)(c) PD の台車は流れ続け、PID は止まるが戻らない。(d) 角度のセンサの 0 点がずれると、角度だけの制御では台車が加速し続ける。")
+
+
+F["e21_pid"] = _f21_pid_fig()
+
+
+def _f21_cascade_fig():
+    o = []
+    o.append(T(12, 18, "(a) カスケードの PID: 外側のループが、内側のループの角度の目標値を決める", "start", 11.5, INK, True))
+    yc = 70
+    s, pos, xe = CHAIN(22, yc, [("a", 34, "r = 0", MUT), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 24, None, INK),
+                               ("b", "K_{Po} + K_{Do} s", "c1", LIN), ("a", 50, "φ_{ref}", INK), ("s", {"l": "+", "b": "−"}, "s2"),
+                               ("a", 24, None, INK), ("b", "−(K_P + K_D s)", "c2", SIG), ("a", 46, "u", GLD),
+                               ("b", "台車と振子", "pl", LIN), ("a", 40, "φ", SIG), ("t", "tp", SIG)])
+    o.append(s)
+    o.append(FBPATH(pos["tp"], pos["s2"], yc, 34, c=SIG))
+    o.append(T((pos["tp"] + pos["s2"]) / 2, yc + 30, "内側のループ（角度）", "middle", 9.5, SIG, True, halo=True))
+    xp = (pos["pl"][0] + pos["pl"][1]) / 2
+    o.append(W(xp, yc + 17, xp, yc + 66, pos["s1"], yc + 66, c=PUR, lw=1.5))
+    o.append(ARR(pos["s1"], yc + 66, pos["s1"], yc + 15, c=PUR, lw=1.5, head=6))
+    o.append(TX(xp + 6, yc + 50, "p", "start", 10, PUR, True))
+    o.append(T((xp + pos["s1"]) / 2, yc + 62, "外側のループ（台車の位置）", "middle", 9.5, PUR, True, halo=True))
+    # (b) 状態フィードバックとの対応
+    yb = 172
+    o.append(T(12, yb, "(b) 展開すると、状態フィードバックになる", "start", 11.5, INK, True))
+    o.append(TX(20, yb + 24, "φ_{ref} = −K_{Po} p − K_{Do} \\dot{p}、　u = K_P(φ − φ_{ref}) + K_D \\dot{φ}", "start", 10.5, INK))
+    o.append(TX(20, yb + 46, "u = K_P K_{Po} p + K_P K_{Do} \\dot{p} + K_P φ + K_D \\dot{φ} = −F x", "start", 10.5, INK, True))
+    rows = [("", "K_P", "K_D", "K_{Po}", "K_{Do}", "F", None),
+            ("内側から 1 段ずつ", "30.19", "3.741", "0.15", "0.16", "[−4.53, −4.83, −30.19, −3.74]", PUR),
+            ("19 章の F を直す", "30.19", "4.925", "0.331", "0.228", "[−10.00, −6.90, −30.19, −4.93]", SIG)]
+    xs = [20, 132, 180, 226, 274, 322]
+    for i, r in enumerate(rows):
+        yy = yb + 76 + i * 20
+        for j in range(6):
+            o.append(TX(xs[j], yy, r[j], "start", 10, (r[6] or MUT) if i else MUT, bool(i == 0 or j == 0)))
+    o.append(W(18, yb + 81, 470, yb + 81, c=LIN, lw=1))
+    # (c) 閉ループの極
+    o.append(T(498, yb, "(c) 閉ループの極", "start", 11.5, INK, True))
+    P = Plot(512, yb + 14, 180, 120, (-8, 8), (-10, 10))
+    o.append(RECT(P.x, P.y, P.w, P.h, 0, SCR, LIN, 0.8)); o.append(SPLANE(P))
+    o.append(P.axes(xt=[-8, -4, 0, 4, 8], yt=[-8, 0, 8], grid=False, sz=9, xfmt=lambda v: ("%g" % v).replace("-", "−"), yfmt=lambda v: ("%g" % v).replace("-", "−")))
+    o.append(PZ(P, [0j, 6.766 + 0j, -6.766 + 0j], [], c=MUT, r=4.5))
+    Fc_ = [-_F21_KP * _F21_KPO, -_F21_KP * _F21_KDO, -_F21_KP, -_F21_KD]
+    for F_, c in ((Fc_, PUR), (_F21_FLQ, SIG)):
+        ev = _f21_np.linalg.eigvals(_F21_A - _F21_B @ _f21_np.array(F_)[None, :])
+        o.append(PZ(P, ev, [], c=c, r=5))
+    o.append(T(P.x + P.w - 4, P.y + P.h - 6, "灰: 開ループ", "end", 9, MUT, halo=True))
+    o.append(T(P.x + P.w - 3, P.Y(0) - 5, "実部", "end", 9, MUT, halo=True))
+    o.append(T(P.X(0) + 4, P.y + 11, "虚部", "start", 9, MUT, halo=True))
+    return SVG(704, 340, o, cap="(a) 台車の位置の偏差から振子の角度の目標値を作り（外側）、角度をそれに合わせる力を出す（内側）。力から角度への伝達関数は負なので、内側の制御器には負の符号が付く。(b) 2 つの PD を展開すると、4 つの状態に比例した力、つまり状態フィードバックになる（18 章 3 節）。(c) 内側から 1 段ずつ決めたカスケード（紫）は、外側の極が −1.26 ± j1.03 と遅い。19 章の F（青）は、同じ形で、4 つのゲインを評価関数から一度に決めたもの。")
+
+
+F["e21_cascade"] = _f21_cascade_fig()
+
+
+# =====================================================================
+# 4・5 節: 実装した形（1 周期の計算遅れ (B)、推定あり）の、入力の点で切ったループ
+# =====================================================================
+from scipy import signal as _f21_sg
+
+
+def _f21_loop_tf(F, Ts, H=None, Ad=None, Bd=None, timing="B"):
+    """入力の点で切った一巡伝達関数 L(z) を、状態方程式のまま表す（1 ms では極が z = 1 のすぐ近くに集まり、
+    分子と分母の多項式に直すと桁落ちするため）。H が None なら、すべての状態を測る（(A): u_k = −F x_k、(B): u_{k+1} = −F x_k）。
+    H があれば、カルマンフィルタ（予測と更新）で推定し、(B) で出す: x̂ = x̂⁻ + H(y − C x̂⁻)、u_{k+1} = −F x̂、x̂⁻ ← A_d x̂ + B_d u_k。"""
+    F = _f21_np.asarray(F, float)
+    if Ad is None:
+        Ad, Bd = _f21_c2d(_F21_A, _F21_B, Ts)
+    if H is None:
+        return {"kind": "full", "F": F, "Ad": Ad, "Bd": Bd, "B": timing == "B"}
+    I = _f21_np.eye(4); C = _F21_C
+    Ac = _f21_np.zeros((5, 5)); Bc = _f21_np.zeros((5, 2))
+    Ac[:4, :4] = Ad @ (I - H @ C); Ac[:4, 4] = Bd[:, 0]; Bc[:4, :] = Ad @ H
+    Ac[4, :4] = -F @ (I - H @ C); Bc[4, :] = -F @ H
+    return {"kind": "est", "Ac": Ac, "Bc": Bc, "Ad": Ad, "Bd": Bd}
+
+
+def _f21_loop_eval(L, Ts, ws):
+    z = _f21_np.exp(1j * _f21_np.asarray(ws, float) * Ts)
+    N = len(z)
+    def res(A, B):     # (zI − A)^{-1} B をすべての z でまとめて解く
+        n = A.shape[0]
+        M_ = z[:, None, None] * _f21_np.eye(n)[None, :, :] - A[None, :, :]
+        return _f21_np.linalg.solve(M_, _f21_np.broadcast_to(B, (N,) + B.shape).astype(complex))
+    G = res(L["Ad"], L["Bd"])                       # (N, 4, 1)
+    if L["kind"] == "full":
+        v = _f21_np.einsum("i,nij->n", L["F"], G)
+        return v / z if L["B"] else v
+    P = _f21_np.einsum("ij,njk->nik", _F21_C, G)[:, :, 0]      # (N, 2)
+    K = res(L["Ac"], L["Bc"])[:, 4, :]                          # (N, 2)  出力は u（5 番目の状態）
+    return -(K * P).sum(axis=1)
+
+
+def _f21_margins(L, Ts, wlo=0.1):
+    """位相余裕 [°]・ゲイン交差角周波数・許されるむだ時間 [s]・安定な力の倍率の範囲 (下限, 上限)・−1 からの最短距離。"""
+    whi = math.pi / Ts * 0.999
+    ws = _f21_np.logspace(math.log10(wlo), math.log10(whi), 6000)
+    v = _f21_loop_eval(L, Ts, ws); mag = _f21_np.abs(v)
+    f = lambda w: abs(_f21_loop_eval(L, Ts, [w])[0]) - 1
+    pm, wgc = None, None
+    for i in range(1, len(ws)):
+        if (mag[i - 1] - 1) * (mag[i] - 1) < 0:
+            from scipy.optimize import brentq as _bq
+            wgc = _bq(f, ws[i - 1], ws[i], xtol=1e-10)
+            ph = math.degrees(_f21_np.angle(_f21_loop_eval(L, Ts, [wgc])[0]))
+            pm = (ph + 180) % 360
+            if pm > 180:
+                pm -= 360
+            break
+    lo, hi = 0.0, float("inf")
+    for i in range(1, len(ws)):
+        if v[i - 1].imag * v[i].imag < 0:
+            a = v[i - 1].real + (v[i].real - v[i - 1].real) * (-v[i - 1].imag) / (v[i].imag - v[i - 1].imag)
+            if a < -1:
+                lo = max(lo, -1 / a)
+            elif -1 < a < 0:
+                hi = min(hi, -1 / a)
+    return pm, wgc, (math.radians(pm) / wgc if pm else None), (lo, hi), float(_f21_np.abs(1 + v).min())
+
+
+def _f21_kf_phys(Ts, mul=1.0):
+    """20 章の 1 ms のプロセスノイズ（0.3 m/s²・3 rad/s²）を 1 s あたりの強さで同じにして、T_s での標準偏差に直す。mul はその分散の倍率。"""
+    k = math.sqrt(mul * 0.001 / Ts)
+    return _f21_kf(Ts, 0.3 * k, 3.0 * k)
+
+
+def _f21_force_std(F, Ts, H, Ad, Bd):
+    """観測ノイズだけによる力の揺れの標準偏差（線形の式、(B) で出す）。"""
+    I = _f21_np.eye(4); C = _F21_C
+    Ac = _f21_np.zeros((5, 5)); Bc = _f21_np.zeros((5, 2))
+    Ac[:4, :4] = Ad @ (I - H @ C); Ac[:4, 4] = Bd[:, 0]; Bc[:4, :] = Ad @ H
+    Ac[4, :4] = -F @ (I - H @ C); Bc[4, :] = -F @ H
+    Phi = _f21_np.zeros((9, 9)); Phi[:4, :4] = Ad; Phi[:4, 8] = Bd[:, 0]
+    Phi[4:, :4] = Bc @ C; Phi[4:, 4:] = Ac
+    G = _f21_np.zeros((9, 2)); G[4:, :] = Bc
+    S = _f21_la.solve_discrete_lyapunov(Phi, G @ _f21_np.diag([_F21_SP ** 2, _F21_SPH ** 2]) @ G.T)
+    return math.sqrt(S[8, 8])
+
+
+def _f21_ts_fig():
+    o = []
+    tss = [0.001, 0.002, 0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03]
+    fa, fb, kb, ns = [], [], [], []
+    for Ts in tss:
+        fa.append(_f21_margins(_f21_loop_tf(_F21_FLQ, Ts, timing="A"), Ts)[0])
+        fb.append(_f21_margins(_f21_loop_tf(_F21_FLQ, Ts, timing="B"), Ts)[0])
+        H, Ad, Bd = _f21_kf_phys(Ts)
+        kb.append(_f21_margins(_f21_loop_tf(_F21_FLQ, Ts, H, Ad, Bd), Ts)[0])
+        ns.append(_f21_force_std(_F21_FLQ, Ts, H, Ad, Bd))
+    o.append(T(12, 18, "(a) 入力の点の位相余裕とサンプリング周期", "start", 11.5, INK, True))
+    P = Plot(66, 34, 400, 190, (0, 30), (0, 65))
+    o.append(P.axes(xl="サンプリング周期 T_s [ms]", yl="位相余裕 [°]", xt=[0, 5, 10, 15, 20, 25, 30], yt=[0, 20, 40, 60]))
+    o.append(W(P.x, P.Y(40), P.x + P.w, P.Y(40), c=GRN, lw=1.2, dash="5 3"))
+    o.append(T(P.x + P.w - 4, P.Y(40) - 5, "仕様 8: 40°", "end", 9.5, GRN, True, halo=True))
+    xs = [t * 1000 for t in tss]
+    o.append(P.line([(0, 60.12), (30, 60.12 - math.degrees(17.72 * 1.5 * 0.03))], c=FNT, lw=1.2, dash="2 3"))
+    for ys, c, dash in ((fa, MUT, "5 3"), (fb, SIG, None), (kb, ALI, None)):
+        o.append(P.line(list(zip(xs, ys)), c=c, lw=2, dash=dash))
+        for a, b in zip(xs, ys):
+            o.append(D(P.X(a), P.Y(b), c, 2.8))
+    o.append(LEGL(P.x - 40, P.y + P.h + 52, [(MUT, "5 3", "すべてを測り、すぐ出す (A)"), (SIG, None, "すべてを測り、次の周期の頭で出す (B)"), (ALI, None, "推定して (B)")], sz=9.5, gap=12))
+    o.append(T(P.X(1) + 4, P.Y(kb[0]) - 7, "%.1f°" % kb[0], "start", 9.5, ALI, True, halo=True))
+    o.append(T(P.X(1) + 4, P.Y(fb[0]) - 7, "%.1f°" % fb[0], "start", 9.5, SIG, True, halo=True))
+    o.append(T(P.x + 4, P.y + P.h - 6, "細い点線: 15 章 2 節の式 60.1° − ω_gc·1.5 T_s", "start", 9, MUT, halo=True))
+    # (b) 力のノイズ
+    o.append(T(498, 18, "(b) 観測ノイズによる力の揺れ", "start", 11.5, INK, True))
+    Pb = Plot(540, 34, 150, 190, (0, 30), (0, 0.2))
+    o.append(Pb.axes(xl="T_s [ms]", yl="標準偏差 [N]", xt=[0, 10, 20, 30], yt=[0, 0.05, 0.1, 0.15, 0.2]))
+    o.append(Pb.clip(list(zip(xs, ns)), c=ALI, lw=2))
+    for a, b in zip(xs, ns):
+        if b <= 0.2:
+            o.append(D(Pb.X(a), Pb.Y(b), ALI, 2.8))
+    o.append(T(Pb.X(1) + 4, Pb.Y(ns[0]) - 7, "%.3f N" % ns[0], "start", 9.5, ALI, True, halo=True))
+    return SVG(704, 296, o, cap="サンプリング周期を変えたときの、入力の点で切ったループの位相余裕（19 章 6 節）と、観測ノイズによる力の揺れ（線形化した式とサンプリングした状態方程式で計算）。カルマンフィルタは、20 章の 1 ms の乱れの大きさを 1 s あたりで同じにして、周期ごとに設計し直した。周期を延ばすと、測る回数が減って推定が遅れ、余裕が減り、揺れも大きくなる。")
+
+
+F["e21_ts"] = _f21_ts_fig()
