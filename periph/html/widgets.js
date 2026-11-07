@@ -1,0 +1,4684 @@
+/* 動かして理解する電源と周辺の制御 — 章内インタラクティブ部品
+   共通部品（この前半）と、各章の部品（wjs/wNN.js を build_site.py が CHAPTER WIDGETS 区間へ流し込む）でできている。
+   各章の部品は REG.wNN_名前 = function(el){ ... } の形で登録し、本文の <!-- widget:wNN_名前 --> の位置に表示される。 */
+(function(){
+  "use strict";
+  var root=document.documentElement;
+  function C(n){return getComputedStyle(root).getPropertyValue(n).trim();}
+  /* ---- 色: SVG の属性にはそのまま "var(--x)" を書く（テーマの切り替えに自動で追従する） ---- */
+  var COL={ink:"var(--ink)",muted:"var(--muted)",faint:"var(--faint)",line:"var(--line)",panel:"var(--panel)",screen:"var(--screen)",grid:"var(--grid)",
+    signal:"var(--signal)",alias:"var(--alias)",green:"var(--green)",gold:"var(--gold)",purple:"var(--purple)",teal:"var(--teal)"};
+  var SOFTC={"var(--signal)":"var(--signal-soft)","var(--alias)":"var(--alias-soft)","var(--green)":"var(--green-soft)","var(--gold)":"var(--gold-soft)",
+    "var(--purple)":"var(--purple-soft)","var(--teal)":"var(--teal-soft)"};
+  function col(c){return COL[c]||c;}
+  function soft(c){c=col(c);return SOFTC[c]||"var(--muted-soft)";}
+
+  /* ---- DOM ---- */
+  function mk(t,c,h){var d=document.createElement(t);if(c)d.className=c;if(h!=null)d.innerHTML=h;return d;}
+  function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  function head(el,k,t){el.appendChild(mk("div","wc",'<span class="k">'+esc(k)+'</span><span class="t">'+t+'</span>'));}
+  function ctrls(el){var d=mk("div","ctrls");el.appendChild(d);return d;}
+  function btnrow(el){var d=mk("div","btns");el.appendChild(d);return d;}
+  function readout(el){var r=mk("div","readout");el.appendChild(r);return r;}
+  function note(el,h){var r=mk("div","wnote",h);el.appendChild(r);return r;}
+  /* スライダー: o = {min, max, step, value, fmt(v)→文字列, onInput(v)}
+     log:true で対数目盛（値は有効数字 3 桁に丸める。int:true なら整数に、o.snap(v) なら独自に丸める）。右端・左端はちょうど max・min を返す。
+     values:[…] で決まった値の列から選ぶ（例 [64,128,256,512,1024]。このとき min・max・step・log は使わない）。
+     set(v) で決めた値は、利用者が動かすまでそのまま get() が返す。返り値 {get(), set(v), input}。 */
+  function slider(row,label,o){
+    var c=mk("div","ctrl"); var lg=!!o.log, vals=o.values||null, exact=null;
+    var mn=vals?0:(lg?Math.log10(o.min):o.min), mx=vals?vals.length-1:(lg?Math.log10(o.max):o.max),
+        st=vals?1:(lg?(o.step||0.001):(o.step||1));
+    c.innerHTML='<label><span>'+label+'</span><b class="val"></b></label><input type="range">';
+    var inp=c.querySelector("input"), val=c.querySelector(".val");
+    inp.min=mn; inp.max=mx; inp.step=st;
+    function raw2v(r){
+      if(vals)return vals[Math.max(0,Math.min(vals.length-1,Math.round(+r)))];
+      if(exact!==null)return exact;
+      if(lg&&+r>mx-st)return o.max;
+      if(lg&&+r<=mn)return o.min;
+      var v=lg?Math.pow(10,+r):+r;
+      if(lg)v=o.snap?o.snap(v):(o.int?Math.round(v):+v.toPrecision(3));
+      return v;}
+    function show(){val.textContent=o.fmt?o.fmt(api.get()):String(api.get());}
+    var api={input:inp,el:c,
+      get:function(){return raw2v(inp.value);},
+      set:function(v){
+        if(vals){var k=0;vals.forEach(function(x,i){if(Math.abs(x-v)<Math.abs(vals[k]-v))k=i;});inp.value=k;exact=null;}
+        else{inp.value=lg?Math.log10(v):v;exact=v;}
+        show();}};
+    inp.addEventListener("input",function(){exact=null;show();if(o.onInput)o.onInput(api.get());});
+    api.set(o.value); row.appendChild(c); return api;
+  }
+  /* 選択: opts は文字列の配列、または [{v:値, t:表示}] 。get() は値（文字列の配列なら番号）を返す。 */
+  function select(row,label,opts,value,onChange){
+    var c=mk("div","ctrl"); c.innerHTML='<label><span>'+label+'</span></label><select></select>';
+    var s=c.querySelector("select");
+    opts.forEach(function(o,i){var op=mk("option");if(typeof o==="string"){op.value=i;op.textContent=o;}else{op.value=o.v;op.textContent=o.t;}s.appendChild(op);});
+    if(value!=null)s.value=value;
+    var isStr=typeof opts[0]==="string";
+    var api={el:c,input:s,get:function(){return isStr?+s.value:s.value;},set:function(v){s.value=v;}};
+    if(onChange)s.addEventListener("change",function(){onChange(api.get());});
+    row.appendChild(c); return api;
+  }
+  function checkbox(row,label,on,onChange){
+    var c=mk("label","chk",'<input type="checkbox"'+(on?" checked":"")+'><span>'+label+'</span>');
+    var i=c.querySelector("input"); if(onChange)i.addEventListener("change",function(){onChange(i.checked);});
+    row.appendChild(c); return {el:c,input:i,get:function(){return i.checked;},set:function(v){i.checked=!!v;}};
+  }
+  function textin(row,label,val,onChange,o){
+    o=o||{}; var c=mk("div","ctrl"); c.innerHTML='<label><span>'+label+'</span></label><input type="text">';
+    var i=c.querySelector("input"); i.value=val; if(o.width)c.style.flex="1 1 "+o.width;
+    i.setAttribute("spellcheck","false");
+    if(onChange)i.addEventListener("input",function(){onChange(i.value);});
+    row.appendChild(c); return {el:c,input:i,get:function(){return i.value;},set:function(v){i.value=v;}};
+  }
+  function button(row,t,onClick){var b=mk("button","btn",t);b.type="button";if(onClick)b.addEventListener("click",onClick);row.appendChild(b);return b;}
+  /* 押した 1 つだけが選ばれるボタンの組。opts は表示文字列の配列。返り値 {get(), set(i)} */
+  function seg(row,opts,value,onChange){
+    var d=mk("div","btns");d.style.marginTop="0";var bs=[],cur=value||0;
+    opts.forEach(function(t,i){var b=button(d,t,function(){api.set(i);if(onChange)onChange(i);});bs.push(b);});
+    var api={el:d,get:function(){return cur;},set:function(i){cur=i;bs.forEach(function(b,j){b.setAttribute("aria-pressed",j===i?"true":"false");});}};
+    api.set(cur); row.appendChild(d); return api;
+  }
+  /* SVG の表示枠。set(svg文字列) で中身を差し替える。opts.scroll=true なら横に広い図をスクロールで見せる */
+  function svgbox(el,opts){opts=opts||{};var d=mk("div","wsvg"+(opts.scroll?" scroll":""));if(opts.minH)d.style.minHeight=opts.minH+"px";el.appendChild(d);
+    return {el:d,set:function(s){d.innerHTML=s;}};}
+  /* 表: align[i] は "left"・"right"・"center"、または "wrap"（左寄せで、長い文を折り返す列） */
+  function tbl(headers,rows,align){
+    function at(i){var a=(align&&align[i])||"left";return a==="wrap"?' class="wrap" style="text-align:left"':' style="text-align:'+a+'"';}
+    var h='<div class="wtable"><table><thead><tr>'+headers.map(function(t,i){return '<th'+at(i)+'>'+t+'</th>';}).join("")+'</tr></thead><tbody>';
+    rows.forEach(function(r){h+='<tr>'+r.map(function(v,i){return '<td'+at(i)+'>'+v+'</td>';}).join("")+'</tr>';});
+    return h+'</tbody></table></div>';
+  }
+
+  /* ---- 数値の書式 ---- */
+  function sig(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);
+    var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
+  var fmt={
+    num:function(v,d){return sig(v,d);},
+    fix:function(v,d){return (+v).toFixed(d).replace("-","−");},
+    int:function(v){return Math.round(v).toLocaleString("en-US");},
+    time:function(s,d){var a=Math.abs(s);if(a===0)return "0 s";if(a<1e-6)return sig(s*1e9,d)+" ns";if(a<1e-3)return sig(s*1e6,d)+" µs";if(a<1)return sig(s*1e3,d)+" ms";
+      if(a<120)return sig(s,d)+" s";if(a<7200)return sig(s/60,d)+" 分";if(a<172800)return sig(s/3600,d)+" 時間";if(a<3*365*86400/12)return sig(s/86400,d)+" 日";return sig(s/(365*86400),d)+" 年";},
+    rate:function(b,d){var a=Math.abs(b);if(a>=1e6)return sig(b/1e6,d)+" Mbps";if(a>=1e3)return sig(b/1e3,d)+" kbps";return sig(b,d)+" bps";},
+    bytes:function(n,d){var a=Math.abs(n);if(a>=1048576)return sig(n/1048576,d)+" MB";if(a>=1024)return sig(n/1024,d)+" KB";return Math.round(n)+" B";},
+    cur:function(A,d){var a=Math.abs(A);if(a>=1)return sig(A,d)+" A";if(a>=1e-3)return sig(A*1e3,d)+" mA";if(a>=1e-6)return sig(A*1e6,d)+" µA";return sig(A*1e9,d)+" nA";},
+    pct:function(x,d){return sig(x*100,d||3)+" %";},
+    hex:function(v,n){var s=(v>>>0).toString(16).toUpperCase();while(s.length<(n||2))s="0"+s;return s;}
+  };
+
+  /* ---- SVG の部品（figures.py と同じ見た目） ---- */
+  function tw(s,sz,mono){var w=0;s=String(s);for(var i=0;i<s.length;i++){var o=s.charCodeAt(i);w+=o<128?sz*(mono?0.6:0.56):(o>=0xFF61&&o<=0xFF9F?sz*0.55:((o===0xB2||o===0xB3||o===0xB9||(o>=0x2070&&o<=0x209F))?sz*0.4:sz));}return w;}
+  var S={
+    svg:function(w,h,body,cls){return '<svg viewBox="0 0 '+w+' '+h+'" width="'+w+'" role="img"'+(cls?' class="'+cls+'"':'')+'>'+(Array.isArray(body)?body.join(""):body)+'</svg>';},
+    T:function(x,y,s,a,sz,c,b,mono,rot,halo){return '<text x="'+r2(x)+'" y="'+r2(y)+'" text-anchor="'+(a||"middle")+'" font-size="'+(sz||11)+'" fill="'+col(c||"muted")+
+      '" font-family="var('+(mono?"--mono":"--sans")+')" font-weight="'+(b?700:400)+'"'+(rot!=null?' transform="rotate('+rot+' '+r2(x)+' '+r2(y)+')"':'')+
+      (halo?' stroke="var(--screen)" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke"':'')+'>'+esc(s)+'</text>';},   /* halo: 地の色の縁取りで下の線を隠す */
+    W:function(pts,c,lw,dash){return '<polyline points="'+pts.map(function(p,i){return (i%2?"":" ")+r2(p);}).join(",").replace(/, /g," ").trim()+'" fill="none" stroke="'+col(c||"muted")+'" stroke-width="'+(lw||1.5)+'" stroke-linecap="round" stroke-linejoin="round"'+(dash?' stroke-dasharray="'+dash+'"':'')+'/>';},
+    L:function(x1,y1,x2,y2,c,lw,dash){return '<line x1="'+r2(x1)+'" y1="'+r2(y1)+'" x2="'+r2(x2)+'" y2="'+r2(y2)+'" stroke="'+col(c||"muted")+'" stroke-width="'+(lw||1.5)+'" stroke-linecap="round"'+(dash?' stroke-dasharray="'+dash+'"':'')+'/>';},
+    PL:function(pts,c,lw,fill,dash,op){var tag=fill&&fill!=="none"?"polygon":"polyline";return '<'+tag+' points="'+pts.map(function(p){return r2(p[0])+","+r2(p[1]);}).join(" ")+'" fill="'+(fill?col(fill):"none")+'" stroke="'+col(c||"muted")+'" stroke-width="'+(lw||1.6)+'" stroke-linejoin="round"'+(dash?' stroke-dasharray="'+dash+'"':'')+(op!=null?' fill-opacity="'+op+'"':'')+'/>';},
+    PATH:function(d,c,lw,fill,dash){return '<path d="'+d+'" fill="'+(fill?col(fill):"none")+'" stroke="'+col(c||"muted")+'" stroke-width="'+(lw||1.6)+'" stroke-linecap="round" stroke-linejoin="round"'+(dash?' stroke-dasharray="'+dash+'"':'')+'/>';},
+    RECT:function(x,y,w,h,r,fill,c,lw,dash,extra){return '<rect x="'+r2(x)+'" y="'+r2(y)+'" width="'+r2(Math.max(0,w))+'" height="'+r2(Math.max(0,h))+'" rx="'+(r==null?6:r)+'" fill="'+col(fill||"panel")+'" stroke="'+col(c||"line")+'" stroke-width="'+(lw==null?1.3:lw)+'"'+(dash?' stroke-dasharray="'+dash+'"':'')+(extra||"")+'/>';},
+    CIRC:function(x,y,r,c,lw,fill,dash){return '<circle cx="'+r2(x)+'" cy="'+r2(y)+'" r="'+r+'" fill="'+(fill?col(fill):"none")+'" stroke="'+col(c||"line")+'" stroke-width="'+(lw||1.4)+'"'+(dash?' stroke-dasharray="'+dash+'"':'')+'/>';},
+    D:function(x,y,c,r){return '<circle cx="'+r2(x)+'" cy="'+r2(y)+'" r="'+(r||3.4)+'" fill="'+col(c||"muted")+'"/>';},
+    head:function(x1,y1,x2,y2,c,hd){hd=hd||7;var a=Math.atan2(y2-y1,x2-x1);return '<polygon points="'+r2(x2)+','+r2(y2)+' '+r2(x2-hd*Math.cos(a-0.42))+','+r2(y2-hd*Math.sin(a-0.42))+' '+r2(x2-hd*Math.cos(a+0.42))+','+r2(y2-hd*Math.sin(a+0.42))+'" fill="'+col(c||"muted")+'"/>';},
+    ARR:function(x1,y1,x2,y2,c,lw,hd,dash){hd=hd||7;var a=Math.atan2(y2-y1,x2-x1);return S.L(x1,y1,x2-hd*0.6*Math.cos(a),y2-hd*0.6*Math.sin(a),c,lw||1.6,dash)+S.head(x1,y1,x2,y2,c,hd);},
+    DARR:function(x1,y1,x2,y2,c,lw,hd){hd=hd||6;var a=Math.atan2(y2-y1,x2-x1);return S.L(x1+hd*0.6*Math.cos(a),y1+hd*0.6*Math.sin(a),x2-hd*0.6*Math.cos(a),y2-hd*0.6*Math.sin(a),c,lw||1.3)+S.head(x1,y1,x2,y2,c,hd)+S.head(x2,y2,x1,y1,c,hd);},
+    BOX:function(x,y,w,h,title,sub,c,fill,sz){sz=sz||12;var o=[S.RECT(x,y,w,h,8,fill||"panel",c||"line",1.4)];
+      if(sub){o.push(S.T(x+w/2,y+h/2-3,title,"middle",sz,"ink",true));o.push(S.T(x+w/2,y+h/2+sz,sub,"middle",sz-2,"muted"));}
+      else o.push(S.T(x+w/2,y+h/2+sz*0.38,title,"middle",sz,"ink",true));return o.join("");},
+    CHIP:function(x,y,t,c,sz){sz=sz||10;var w=tw(t,sz)+10;return S.RECT(x-w/2,y-sz-2,w,sz+7,4,soft(c),col(c),1)+S.T(x,y+1,t,"middle",sz,c,true);},
+    X:function(x,y,r,c,lw){r=r||5;return S.L(x-r,y-r,x+r,y+r,c||"alias",lw||2)+S.L(x-r,y+r,x+r,y-r,c||"alias",lw||2);}
+  };
+  function r2(v){return Math.round(v*100)/100;}
+
+  /* ---- グラフの座標系（figures.py の Plot と同じ） ----
+     var p=plot(x,y,w,h,[x0,x1],[y0,y1],{xlog:false,ylog:false}); p.X(v), p.Y(v), p.axes({xl,yl,xt,yt,xfmt,yfmt}) */
+  function nice(lo,hi,n){n=n||5;var span=hi-lo;if(span<=0)return [lo];var raw=span/n,p=Math.pow(10,Math.floor(Math.log10(raw)));
+    var st=[1,2,2.5,5,10].map(function(s){return s*p;}).reduce(function(a,b){return Math.abs(b-raw)<Math.abs(a-raw)?b:a;});
+    var out=[];for(var v=Math.ceil(lo/st-1e-9)*st;v<=hi+1e-9*Math.abs(st);v+=st)out.push(+v.toPrecision(12));return out;}
+  function plot(x,y,w,h,xr,yr,o){o=o||{};
+    function t(v,r,lg){return lg?(Math.log10(v)-Math.log10(r[0]))/(Math.log10(r[1])-Math.log10(r[0])):(v-r[0])/(r[1]-r[0]);}
+    function lt(r){var out=[];for(var k=Math.floor(Math.log10(r[0])+1e-9);k<=Math.ceil(Math.log10(r[1])-1e-9);k++){var v=Math.pow(10,k);if(v>=r[0]*(1-1e-9)&&v<=r[1]*(1+1e-9))out.push(v);}return out;}
+    var P={x:x,y:y,w:w,h:h,xr:xr,yr:yr,
+      X:function(v){return x+t(v,xr,o.xlog)*w;},
+      Y:function(v){return y+h-t(v,yr,o.ylog)*h;},
+      axes:function(a){a=a||{};var s=[],sz=a.sz||9.5,xt=a.xt||(o.xlog?lt(xr):nice(xr[0],xr[1],a.nx||6)),yt=a.yt||(o.ylog?lt(yr):nice(yr[0],yr[1],a.ny||5));
+        xt.forEach(function(v){var xx=P.X(v);if(a.grid!==false)s.push(S.L(xx,y,xx,y+h,"grid",1));s.push(S.L(xx,y+h,xx,y+h+4,"muted",1));s.push(S.T(xx,y+h+15,(a.xfmt||sig)(v),"middle",sz,"muted"));});
+        yt.forEach(function(v){var yy=P.Y(v);if(a.grid!==false)s.push(S.L(x,yy,x+w,yy,"grid",1));s.push(S.L(x-4,yy,x,yy,"muted",1));s.push(S.T(x-7,yy+sz*0.35,(a.yfmt||sig)(v),"end",sz,"muted"));});
+        s.push(S.W([x,y,x,y+h,x+w,y+h],"muted",1.2));
+        if(a.xl)s.push(S.T(x+w/2,y+h+31,a.xl,"middle",sz+0.5,"muted"));
+        if(a.yl)s.push(S.T(x-(a.ylOff||40),y+h/2,a.yl,"middle",sz+0.5,"muted",false,false,-90));
+        return s.join("");},
+      line:function(pts,c,lw,dash){return S.PL(pts.map(function(p){return [P.X(p[0]),P.Y(p[1])];}),c||"signal",lw||2,null,dash);},
+      steps:function(pts,c,lw){var q=[];pts.forEach(function(p,i){q.push([P.X(p[0]),P.Y(p[1])]);if(i+1<pts.length)q.push([P.X(pts[i+1][0]),P.Y(p[1])]);});return S.PL(q,c||"signal",lw||2);}
+    };
+    return P;
+  }
+
+  /* ---- シーケンス図（figures.py の seq と同じ書き方） ----
+     lanes: [[名前, 色], ...]  msgs: [frm, to, ラベル, {c, dash, lost, at, sub, dy, slant, b, mono}] / ["note", lane, 文字, {c}] / ["gap", 文字, {lane}] / ["span", lane, 行数, 文字, {c, side}] / ["space", 高さ]
+     返り値 {svg: 中身, h: 高さ}。全体は S.svg(w, h, svg) で包む。 */
+  function seq(lanes,msgs,o){o=o||{};var x=o.x||10,y=o.y||10,w=o.w||620,hh=o.headH||30,dy=o.dy||34,lsz=o.labelSz||10.5;
+    var n=lanes.length,lw=w/n,xs=lanes.map(function(_,i){return x+lw*(i+0.5);}),out=[],body=[],rows=[],yy=y+hh+16;
+    lanes.forEach(function(L,i){var bw=Math.min(lw-10,Math.max(64,tw(L[0],11.5)+18));out.push(S.RECT(xs[i]-bw/2,y,bw,hh,7,soft(L[1]),col(L[1]),1.3));out.push(S.T(xs[i],y+hh/2+4.2,L[0],"middle",11.5,L[1],true));});
+    msgs.forEach(function(m){
+      if(m[0]==="note"){var op=m[3]||{},c=op.c||"muted",lines=String(m[2]).split("\n"),bw=Math.max.apply(null,lines.map(function(l){return tw(l,10);}))+14,bh=lines.length*13.5+8;
+        body.push(S.RECT(xs[m[1]]-bw/2,yy-6,bw,bh,5,"var(--screen)","none",0));body.push(S.RECT(xs[m[1]]-bw/2,yy-6,bw,bh,5,soft(c),col(c),1));lines.forEach(function(l,k){body.push(S.T(xs[m[1]],yy+6+k*13.5,l,"middle",10,c));});rows.push(yy);yy+=bh+10;return;}
+      if(m[0]==="gap"){xs.forEach(function(xx){body.push(S.L(xx-6,yy-3,xx+6,yy+3,"faint",1.2));body.push(S.L(xx-6,yy+3,xx+6,yy+9,"faint",1.2));});
+        if(m[1]){var gk=(m[2]||{}).lane,gw=tw(String(m[1]),10);if(gk==null&&n>=2&&x+w-2-gw<xs[n-1]+12)gk=n-2;
+          if(gk==null)body.push(S.T(x+w-2,yy+7,m[1],"end",10,"faint",false,false,null,true));else body.push(S.T((xs[gk]+xs[gk+1])/2,yy+7,m[1],"middle",10,"faint",false,false,null,true));}
+        rows.push(yy);yy+=22;return;}
+      if(m[0]==="space"){yy+=m[1];return;}
+      if(m[0]==="span"){var op2=m[4]||{},c2=op2.c||"teal",side=op2.side||1,y0=rows[Math.max(0,rows.length-m[2])],y1=rows[rows.length-1],xb=xs[m[1]]+side*10;
+        body.push(S.W([xb,y0,xb+side*5,y0,xb+side*5,y1,xb,y1],c2,1.3));String(m[3]).split("\n").forEach(function(l,q,arr){body.push(S.T(xb+side*9,(y0+y1)/2+4+(q-(arr.length-1)/2)*12.5,l,side>0?"start":"end",9.5,c2));});return;}
+      var op3=m[3]||{},c3=op3.c||"ink",h3=op3.dy||dy,sl=op3.slant||0,x1=xs[m[0]],x2=xs[m[1]],y1b=yy+8,y2b=yy+8+sl;
+      if(m[0]===m[1]){var sd=(x1+32+tw(String(m[2]),lsz)>x+w-2)?-1:1;body.push(S.PATH("M"+x1+","+y1b+" h"+(26*sd)+" v12 h"+(-20*sd),c3,1.5));body.push(S.head(x1+26*sd,y1b+12,x1+4*sd,y1b+12,c3,6));body.push(S.T(x1+32*sd,y1b+10,m[2],sd>0?"start":"end",lsz,c3,false,false,null,true));rows.push(y1b);yy+=h3+6;return;}
+      if(op3.lost){var at=op3.at||0.62,fx=x1+(x2-x1)*at,fy=y1b+(y2b-y1b)*at;body.push(S.L(x1,y1b,fx,fy,"alias",1.6,"5 3"));body.push(S.X(fx,fy,5,"alias",2));c3="alias";}
+      else body.push(S.ARR(x1,y1b,x2,y2b,c3,1.6,7,op3.dash?"5 3":null));
+      var lw3=tw(String(m[2]),lsz,op3.mono)+6;body.push(S.RECT((x1+x2)/2-lw3/2,Math.min(y1b,y2b)-5-lsz*0.85,lw3,lsz*1.1,2,"var(--screen)","none",0));body.push(S.T((x1+x2)/2,Math.min(y1b,y2b)-5,m[2],"middle",lsz,c3,op3.b,op3.mono,null,true));
+      if(op3.sub){var sw3=tw(String(op3.sub),lsz-1,op3.mono)+6;body.push(S.RECT((x1+x2)/2-sw3/2,Math.max(y1b,y2b)+13-(lsz-1)*0.85,sw3,(lsz-1)*1.1,2,"var(--screen)","none",0));body.push(S.T((x1+x2)/2,Math.max(y1b,y2b)+13,op3.sub,"middle",lsz-1,"muted",false,op3.mono,null,true));}
+      rows.push(Math.max(y1b,y2b));yy+=h3+sl+(op3.sub?10:0);
+    });
+    var yend=yy+(o.tail||18)-10;
+    lanes.forEach(function(L,i){out.push(S.L(xs[i],y+hh,xs[i],yend,L[1],1.2,"3 4"));});
+    return {svg:out.concat(body).join(""),h:yend-y+6,xs:xs};
+  }
+
+  /* ---- バイト列の表示 ---- */
+  /* bytes: 数値の配列, colorOf(i) → 色名 または null。title(i) → ツールチップ */
+  function hexView(bytes,colorOf,title){return '<div class="hex">'+bytes.map(function(b,i){var c=colorOf?colorOf(i):null;
+    return '<span'+(c?' style="background:'+soft(c)+';border-color:'+col(c)+';color:var(--ink)"':'')+(title?' title="'+esc(title(i))+'"':'')+'>'+fmt.hex(b)+'</span>';}).join("")+'</div>';}
+  /* 横に並ぶ欄の図: fields=[[名前, バイト数, 色, 値の文字列?]], unit=1 バイトの幅。返り値 {svg, w, h} */
+  function fieldsSvg(fields,o){o=o||{};var unit=o.unit||22,h=o.h||34,sz=o.sz||10,x=o.x||4,y=o.y||4,maxw=o.maxw||1e9,xx=x,yy=y,rowH=h+26,body=[],wmax=0;
+    fields.forEach(function(f){var wd=f[1]*unit;if(xx+wd>x+maxw+0.5&&xx>x){xx=x;yy+=rowH;}
+      body.push(S.RECT(xx,yy,wd,h,4,soft(f[2]),col(f[2]),1.3));
+      if(f[3]!=null){body.push(S.T(xx+wd/2,yy+h/2-2,f[0],"middle",sz,f[2],true));body.push(S.T(xx+wd/2,yy+h/2+sz+1,f[3],"middle",sz-0.5,"ink",false,true));}
+      else body.push(S.T(xx+wd/2,yy+h/2+sz*0.38,f[0],"middle",sz,f[2],true));
+      if(o.sizeLabel!==false)body.push(S.T(xx+wd/2,yy+h+13,typeof o.sizeLabel==="function"?o.sizeLabel(f):f[1]+" B","middle",9,"muted"));xx+=wd;wmax=Math.max(wmax,xx);});
+    return {svg:body.join(""),w:wmax+x,h:yy-y+rowH+y};}
+
+  /* ---- 乱数（同じ種なら同じ列。シミュレーションを再現できるようにする） ---- */
+  function rng(seed){var a=(seed>>>0)||1;function nx(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}
+    return {next:nx,int:function(n){return Math.floor(nx()*n);},range:function(a,b){return a+(b-a)*nx();},chance:function(p){return nx()<p;},
+      normal:function(){var u=1-nx(),v=nx();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);},
+      exp:function(mean){return -Math.log(1-nx())*mean;},pick:function(arr){return arr[Math.floor(nx()*arr.length)];}};}
+
+  /* ---- 一定間隔の繰り返し（アニメーション）。画面外や停止中は動かさない ---- */
+  function ticker(fn,ms){var id=null;return {start:function(){if(id==null)id=setInterval(fn,ms||100);},stop:function(){if(id!=null){clearInterval(id);id=null;}},running:function(){return id!=null;}};}
+
+  var REG={};
+  var U={C:C,col:col,soft:soft,mk:mk,esc:esc,head:head,ctrls:ctrls,btnrow:btnrow,readout:readout,note:note,slider:slider,select:select,checkbox:checkbox,textin:textin,
+    button:button,seg:seg,svgbox:svgbox,tbl:tbl,fmt:fmt,sig:sig,tw:tw,S:S,plot:plot,nice:nice,seq:seq,hexView:hexView,fieldsSvg:fieldsSvg,rng:rng,ticker:ticker};
+
+  /* ===== CHAPTER WIDGETS (build_site.py が wjs/*.js から生成) ===== */
+  /* ===== 01 章 電源と周辺制御の全体像 ===== */
+  /* 動作の例（代表値）: 名前, 説明, 電流 [mA], 時間 [ms], 色 */
+  var _w01_OPS=[
+    ["処理","起きて計算する",3,4,"signal"],
+    ["測定","センサの電源を入れて測る",1,20,"teal"],
+    ["送信","無線でデータを送る",10,3,"gold"],
+    ["LED","LED を点ける",5,20,"purple"],
+    ["モータ","小さなモータを回す",150,300,"alias"]];
+  /* 電池の例（代表値）: 名前, 電流を流していないときの電圧 [V], 容量 [mAh], 内部抵抗 [Ω] */
+  var _w01_BAT=[
+    ["CR2032（コイン形リチウム電池）",3.0,220,20],
+    ["単 3 形アルカリ電池 2 本の直列（2000 mAh として）",3.0,2000,0.4],
+    ["リチウムイオン電池 1 本（1000 mAh として）",3.7,1000,0.15]];
+  function _w01_life(h,U){var d=h/24;return d>=365?U.sig(d/365,3)+" 年":(d>=1?U.sig(d,3)+" 日":U.sig(h,3)+" 時間");}
+
+  /* ---- 4 節: 動作の並びと、平均電流・ピーク電流・電池寿命 ---- */
+  REG.w01_profile=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"PROFILE","動作の並びと、平均電流・ピーク電流・電池寿命");
+    var r0=U.ctrls(el),on=[];
+    _w01_OPS.forEach(function(o,i){on.push(U.checkbox(r0,o[0]+"（"+o[2]+" mA × "+o[3]+" ms）",i===0||i===2,draw));});
+    var r1=U.ctrls(el);
+    var mode=U.select(r1,"動かし方",["順に動かす","同時に始める（電流が重なる）"],0,draw);
+    var Tp=U.slider(r1,"周期 T（何秒ごとに起きるか）",{min:1,max:86400,value:60,log:true,fmt:function(v){return F.time(v);},onInput:draw});
+    var Is=U.slider(r1,"眠りの電流",{min:0.5,max:100,value:2,log:true,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var r2=U.ctrls(el);
+    var bat=U.select(r2,"電池",_w01_BAT.map(function(b){return b[0];}),0,function(){Rin.set(_w01_BAT[bat.get()][3]);draw();});
+    var Rin=U.slider(r2,"電池の内部抵抗",{min:0.05,max:200,value:20,log:true,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:draw});
+    var Vmin=U.slider(r2,"マイコンが動ける最低の電圧",{min:1.6,max:3.4,step:0.1,value:2.2,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(ops,m,T,b,R){ops.forEach(function(v,i){on[i].set(v);});mode.set(m);Tp.set(T);Is.set(2);bat.set(b);Rin.set(R);Vmin.set(2.2);draw();}
+    U.button(br,"4 節の例（ドアの開閉センサ）",function(){preset([1,0,1,0,0],0,60,0,20);});
+    U.button(br,"扉が開いた（LED と送信を同時に、60 Ω）",function(){preset([0,0,1,1,0],1,60,0,60);});
+    U.button(br,"同じものを順に",function(){preset([0,0,1,1,0],0,60,0,60);});
+    U.button(br,"コイン電池でモータを回す",function(){preset([1,0,0,0,1],0,3600,0,20);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var ops=[];_w01_OPS.forEach(function(o,i){if(on[i].get())ops.push({n:o[0],I:o[2]*1e-3,t:o[3]*1e-3,c:o[4]});});
+      var seqm=mode.get()===0,T=Tp.get(),is=Is.get()*1e-6,B=_w01_BAT[bat.get()],E=B[1],cap=B[2],R=Rin.get(),vm=Vmin.get();
+      /* 並べ方: 順なら次々に、同時なら全部 0 から（長いものを下に積む） */
+      var t=0;
+      if(seqm)ops.forEach(function(o){o.s=t;t+=o.t;});
+      else{ops.sort(function(a,b){return b.t-a.t;});ops.forEach(function(o){o.s=0;});}
+      var L=seqm?t:(ops.length?ops[0].t:0),warn="";
+      if(L>T){warn='<span class="warn">動作の時間の合計が周期より長い。周期を '+F.time(L)+' にして計算した。</span><br>';T=L;}
+      /* 電流の折れ点 */
+      var ts=[0,L];ops.forEach(function(o){ts.push(o.s,o.s+o.t);});ts=ts.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});
+      function Iat(x){var s=0;ops.forEach(function(o){if(x>=o.s-1e-12&&x<o.s+o.t-1e-12)s+=o.I;});return s;}
+      var Ipk=is;ts.forEach(function(x){Ipk=Math.max(Ipk,Iat(x));});
+      var Qa=0;ops.forEach(function(o){Qa+=o.I*o.t;});
+      var Qs=is*(T-L),Q=Qa+Qs,Iavg=Q/T,lifeH=cap*1e-3/Iavg,Vpk=Math.max(0,E-Ipk*R);
+      /* ---- 図 ---- */
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?380:700,o=[],x0=62,wd=nar?300:330,span=Math.max(L,1e-3)*1.08;
+      var yI=26,hI=110,Imax=Math.max(Ipk*1.18,1e-3);
+      var X=function(s){return x0+s/span*wd;},YI=function(i){return yI+hI-i/Imax*hI;};
+      o.push(S.T(10,14,"起きている間の電流","start",10.5,"ink",true));
+      o.push(S.W([x0,yI,x0,yI+hI,x0+wd,yI+hI],"muted",1.1));
+      U.nice(0,Imax*1e3,4).forEach(function(v){if(v<=Imax*1e3+1e-9){o.push(S.L(x0-4,YI(v*1e-3),x0,YI(v*1e-3),"muted",1));o.push(S.T(x0-7,YI(v*1e-3)+3.5,U.sig(v,3),"end",9,"muted"));}});
+      o.push(S.T(x0-40,yI+hI/2,"電流 [mA]","middle",9.5,"muted",false,false,-90));
+      if(!ops.length)o.push(S.T(x0+wd/2,yI+hI/2,"動作を 1 つ以上選ぶと表示される","middle",10,"muted"));
+      var base=0;
+      ops.forEach(function(op){var b0=seqm?0:base;
+        o.push(S.RECT(X(op.s),YI(b0+op.I),Math.max(1,X(op.s+op.t)-X(op.s)),YI(b0)-YI(b0+op.I),0,U.soft(op.c),op.c,1));
+        var wpx=X(op.s+op.t)-X(op.s),hpx=YI(b0)-YI(b0+op.I);
+        if(wpx>30&&hpx>13)o.push(S.T((X(op.s)+X(op.s+op.t))/2,(YI(b0)+YI(b0+op.I))/2+4,op.n,"middle",9.5,op.c,true));
+        if(!seqm)base+=op.I;});
+      o.push(S.L(x0,YI(Ipk),x0+wd,YI(Ipk),"alias",1,"4 3"));
+      o.push(S.T(x0+wd,YI(Ipk)-4,"ピーク "+F.cur(Ipk),"end",9.5,"alias",true,false,null,true));
+      var ax=yI+hI;U.nice(0,span*1e3,5).forEach(function(v){if(v*1e-3<=span){o.push(S.L(X(v*1e-3),ax,X(v*1e-3),ax+4,"muted",1));o.push(S.T(X(v*1e-3),ax+15,U.sig(v,4),"middle",9,"muted"));}});
+      o.push(S.T(x0+wd,ax+28,"時間 [ms]","end",9,"muted"));
+      /* 電池の電圧 */
+      var yV=yI+hI+50,hV=90,vlo=Math.max(0,Math.min(Vpk,vm)-0.3),vhi=E+0.15,YV=function(v){return yV+hV-(v-vlo)/(vhi-vlo)*hV;};
+      o.push(S.T(10,yV-8,"電池の電圧 = "+E.toFixed(1)+" V − 電流 × 内部抵抗","start",10.5,"ink",true));
+      o.push(S.W([x0,yV,x0,yV+hV,x0+wd,yV+hV],"muted",1.1));
+      U.nice(vlo,vhi,4).forEach(function(v){if(v>=vlo-1e-9&&v<=vhi+1e-9){o.push(S.L(x0-4,YV(v),x0,YV(v),"muted",1));o.push(S.T(x0-7,YV(v)+3.5,U.sig(v,3),"end",9,"muted"));}});
+      o.push(S.T(x0-40,yV+hV/2,"電圧 [V]","middle",9.5,"muted",false,false,-90));
+      var pv=[];for(var k=0;k<ts.length-1;k++){var a=ts[k],b=ts[k+1],v=Math.max(0,E-Iat(a)*R);pv.push([X(a),YV(v)],[X(b),YV(v)]);}
+      pv.push([X(L),YV(E)],[X(span),YV(E)]);
+      if(ops.length)o.push(S.PL(pv,"gold",2));
+      o.push(S.L(x0,YV(vm),x0+wd,YV(vm),"alias",1.2,"5 3"));
+      o.push(S.T(x0+wd,YV(vm)+12,"最低の電圧 "+vm.toFixed(1)+" V","end",9,"alias",false,false,null,true));
+      /* 右: 1 周期の電荷の内訳 */
+      var bx=nar?10:450,by=nar?yV+hV+50:0,bw=nar?340:230,parts=[["眠り",Qs,"muted"]];ops.slice().sort(function(a,b){return a.s-b.s;}).forEach(function(op){parts.push([op.n,op.I*op.t,op.c]);});
+      o.push(S.T(bx,by+14,"1 周期の電荷の内訳","start",10.5,"ink",true));
+      var xx=bx;parts.forEach(function(p){var w=bw*p[1]/Q;o.push(S.RECT(xx,by+24,Math.max(w,0.6),22,2,U.soft(p[2]),p[2],1));xx+=w;});
+      parts.forEach(function(p,i){var yy=by+66+i*17;o.push(S.RECT(bx,yy-9,10,10,2,U.soft(p[2]),p[2],1));
+        o.push(S.T(bx+16,yy,p[0]+" "+U.sig(p[1]*1e6,3)+" µC（"+U.sig(p[1]/Q*100,3)+" %）","start",9.5,p[2]==="muted"?"ink":p[2]));});
+      var ys=by+66+parts.length*17+14;
+      o.push(S.T(bx,ys,"平均電流 "+F.cur(Iavg),"start",11,"ink",true));
+      o.push(S.T(bx,ys+18,"ピーク電流 "+F.cur(Ipk),"start",11,"alias",true));
+      o.push(S.T(bx,ys+36,"電池寿命 "+_w01_life(lifeH,U),"start",11,"ink",true));
+      var low=Vpk<vm;
+      o.push(S.T(bx,ys+54,"ピークの電圧 "+Vpk.toFixed(2)+" V"+(low?"（下回る）":""),"start",11,low?"alias":"green",true));
+      box.set(S.svg(W,nar?ys+64:yV+hV+36,o));
+      var terms=ops.slice().sort(function(a,b){return a.s-b.s;}).map(function(op){return F.cur(op.I)+" × "+F.time(op.t);});
+      ro.innerHTML=warn+"1 周期の電荷 Q = Σ I_k t_k = "+(terms.length?terms.join(" + ")+" + ":"")+F.cur(is)+" × "+F.time(T-L,4)+" = <b>"+U.sig(Q*1e6,4)+" µC</b><br>"+
+        "平均電流 I_avg = Q ÷ T = "+U.sig(Q*1e6,4)+" µC ÷ "+F.time(T)+" = <b>"+F.cur(Iavg)+"</b>（眠りの分 "+U.sig(Qs/Q*100,3)+" %）<br>"+
+        "電池寿命 = "+cap+" mAh ÷ "+F.cur(Iavg)+" ≈ <b>"+U.fmt.int(lifeH)+" 時間（"+_w01_life(lifeH,U)+"）</b><br>"+
+        "ピーク電流 I_pk = <b>"+F.cur(Ipk)+"</b> → 電池の電圧 ≈ "+E.toFixed(1)+" V − "+F.cur(Ipk)+" × "+U.sig(R,3)+" Ω = <b>"+Vpk.toFixed(2)+" V</b> → "+
+        (Vpk<=0.05?'<span class="warn">電池の電圧が 0 V 近くまで下がる計算になる。実際には、この電池からこの電流は流せない。</span>':
+         low?'<span class="warn">最低の電圧 '+vm.toFixed(1)+' V を下回り、マイコンはリセットされる</span>':'<span class="ok">最低の電圧 '+vm.toFixed(1)+' V を下回らない</span>')+
+        '<div class="wnote">電流と時間は代表値の例。起きている間の電流は、各動作の間の機器全体の電流とし、眠りの電流は起きている間に足していない。容量は電池に表示された値で計算した（温度・電流・自己放電で、実際の寿命は短くなる。03 章）。電池の電圧は、電流を流していないときの電圧から、電流 × 内部抵抗だけ下がるとした（02・03 章）。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: 使用条件から、気をつけることと読む章 ---- */
+  /* 項目: [条件の関数, 気をつけること, 何が起きるか, マイコンでする制御, 章（"s4" "s5" はこの章の節）] */
+  var _w01_ITEMS=[
+    [function(s){return s.bat;},"平均電流と電池寿命","電池の電荷は限られ、平均電流で何年もつかが決まる","間欠動作にして、眠る時間を長くする",["s4","07"]],
+    [function(s){return s.bat;},"ピーク電流と電池の電圧","送信やモータの瞬間に電池の電圧が下がり、マイコンがリセットすることがある","大きな動作を重ねない。コンデンサでピークを助ける",["s4","03","04"]],
+    [function(s){return s.bat;},"電池が尽きるとき","電池の電圧が下がりきる前に、マイコンが動けなくなる","負荷をかけた状態で電圧を測り、尽きる前に記録して止まる",["04","05"]],
+    [function(s){return s.pw===1||s.pw===6;},"充電と過放電","決まった電流と電圧で充電する。使いすぎると電池を傷める","充電の状態を読み、温度が範囲の外なら充電を止める",["04"]],
+    [function(s){return s.pw===2||s.pw===3;},"取り出せる電流の上限","USB や AC アダプタには、取り出してよい電流の上限がある","大きな動作を重ねない。周辺の電源をゆっくり入れる",["02","05"]],
+    [function(s){return s.pw===2||s.pw===3;},"抜き差しと電源の途切れ","いつ抜かれるか分からない","電源の電圧を見張り、書き込みの途中で切れても壊れないようにする",["02","05"]],
+    [function(s){return s.pw===4;},"感電と火災","非絶縁の回路は、商用電源と同じ電位になる","（マイコンでは守れない）絶縁を回路と筐体で決める。通電中の回路に PC やデバッガを直接つながない",["02","06"]],
+    [function(s){return s.pw===4;},"停電と復電","電源が途切れ、また戻る","停電を見つけて後始末し、危険な動作を自動で再開しない",["06"]],
+    [function(s){return s.pw===4;},"サージと待機電力","雷などで大きな電圧が入る。使っていない間も電力を使う","異常を記録する。待機中に止めるものを決める",["06"]],
+    [function(s){return s.pw===5;},"電源の電圧の大きな変動","エンジンの始動で下がり、一時的に大きく上がることもある","電源の電圧を見張り、下がったら大きな動作を止める",["02","05"]],
+    [function(s){return s.pw===5;},"駐車中の電流","エンジンを止めている間も、車の電池から電流を取り続ける","駐車中は眠り、電流を小さくする",["07"]],
+    [function(s){return s.pw===6;},"入る電力と使う電力の釣り合い","取れる電力が小さく、天気や時刻で変わる","蓄えた電荷に合わせて、起きる間隔を変える",["02"]],
+    [function(s){return s.L[0];},"センサの電源と測り方","測る間だけ電源を入れる。値は基準電圧やノイズでずれる","電源を入れて安定を待ってから測り、平均する。故障を調べる",["08","09","10"]],
+    [function(s){return s.L[1];},"送信のピーク電流","送信の瞬間に数 mA〜数百 mA（方式による）が流れる","ほかの大きな動作と重ねない",["s4","04"]],
+    [function(s){return s.L[2];},"チャタリングと長い配線","スイッチは押した瞬間に何度も入り切りする。長い配線は静電気やノイズを拾う","時間をおいて読み直して確かめる。入力を保護する",["11"]],
+    [function(s){return s.L[3];},"LED の電流と明るさ","抵抗で電流を決める。電池の電圧が下がると暗くなる","PWM で明るさを決める",["12"]],
+    [function(s){return s.L[4];},"切ったときの電圧の跳ね上がり","コイルの電流を切ると、大きな電圧が出る","保護のダイオードを付ける。保持の電流を下げる",["12"]],
+    [function(s){return s.L[5];},"起動電流と止め方","回り始めに大きな電流が流れ、電源の電圧が下がる","ゆっくり加速する。電流を測って、回らないまま電流が流れ続けるのを見つける",["12","13","15"]],
+    [function(s){return s.L[6];},"位置のずれと、動くときの電流","急に加速すると回りきれずに位置がずれる。動くときに大きな電流が流れる","加速と減速をなめらかにする。止まっている間の電流を下げる",["13"]],
+    [function(s){return s.L[7];},"過熱","入ったままだと過熱し、火災になる","安全な状態（切）を回路で決め、マイコンに頼らない保護を置く",["s5","14","15"]],
+    [function(s){return s.L[7];},"温度の制御","センサの遅れで、温度が目標を行き過ぎる","オンオフ制御や PID 制御で、加える電力を決める",["14"]],
+    [function(s){return s.L[7]&&s.pw===4;},"AC のヒータの入れ切り","入れ切りの瞬間に大きな電流やノイズが出る","交流の電圧が 0 の瞬間に合わせて入れ切りする",["06","14"]],
+    [function(s){return s.E[0]&&s.bat;},"低温の電池","取り出せる電荷が減り、内部抵抗が大きくなって電圧が下がりやすい","寒いときは大きな動作を減らす",["03","04"]],
+    [function(s){return s.E[1];},"部品の温度","周りが暑いと、レギュレータやスイッチの発熱で、さらに温度が上がる","温度を見張り、出力を下げる",["14"]],
+    [function(s){return s.E[2];},"静電気・雷・ノイズ","長い配線は、静電気・誘導・雷の電圧を拾う","入力を保護し、値を確かめてから使う",["06","11"]],
+    [function(s){return s.U[0];},"眠らせ方と漏れ電流","眠っている間の電流が、平均電流の大部分になりやすい","眠る前にピンと周辺を整え、深く眠る",["05","07"]],
+    [function(s){return s.U[1];},"何年も保守しない","電池寿命が足りるか、故障に気づけるかが問われる","平均電流を見積もる。センサの故障を調べる",["s4","10"]],
+    [function(s){return s.U[2]||s.L[7];},"安全な状態","リセット・停電・プログラムの停止のとき、アクチュエータが危険な状態のままになりうる","安全な状態を決めて回路で保証し、ウォッチドッグで見張る",["s5","15"]],
+    [function(){return true;},"マイコンの電源","電源の電圧が下がると、マイコンはリセットされる","電源の電圧を見張り、リセットする電圧を決める",["05"]]];
+  var _w01_SEC={s4:["#平均電流とピーク電流","4 節"],s5:["#安全な状態という考え方","5 節"]};
+  var _w01_TITLES=["全体像","電源の種類","電池を知る","電池の制御","電源まわり","AC 電源","眠らせ方","センサ","アナログ値","測り方","スイッチ","出力","モータ","熱","異常","設計ガイド"];
+
+  REG.w01_check=function(el,U){
+    var S=U.S;
+    U.head(el,"CHECK","使用条件から、気をつけることと読む章");
+    var r1=U.ctrls(el);
+    var pw=U.select(r1,"電源",["一次電池（交換する）","二次電池（充電する）","USB","AC アダプタ","商用電源に直結","車の電源","太陽電池などの環境発電"],0,draw);
+    var r2=U.ctrls(el),L=[];
+    ["センサ","無線","スイッチ・ボタン","LED","リレー・ソレノイド","DC モータ","ステッピング・サーボ","ヒータ"].forEach(function(t){L.push(U.checkbox(r2,t,false,draw));});
+    var r3=U.ctrls(el),E=[],Us=[];
+    ["0 °C より寒くなる","40 °C より暑くなる","屋外・長い配線"].forEach(function(t){E.push(U.checkbox(r3,t,false,draw));});
+    var r4=U.ctrls(el);
+    ["ほとんど眠って間欠で動く","何年も保守しない","止まると危険・人のそばで動く"].forEach(function(t){Us.push(U.checkbox(r4,t,false,draw));});
+    var br=U.btnrow(el);
+    function preset(p,l,e,u){pw.set(p);L.forEach(function(c,i){c.set(l.indexOf(i)>=0);});E.forEach(function(c,i){c.set(e.indexOf(i)>=0);});Us.forEach(function(c,i){c.set(u.indexOf(i)>=0);});draw();}
+    U.button(br,"ドアの開閉センサ",function(){preset(0,[1,2,3],[],[0,1]);});
+    U.button(br,"電気ファンヒータ",function(){preset(4,[0,5,7],[],[2]);});
+    U.button(br,"USB の測定器",function(){preset(2,[0,3],[],[]);});
+    U.button(br,"屋外の気象計",function(){preset(6,[0,1],[0,1,2],[0,1]);});
+    U.button(br,"車の記録計",function(){preset(5,[3],[0,1],[]);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function link(c){if(_w01_SEC[c])return '<a href="'+_w01_SEC[c][0]+'">'+_w01_SEC[c][1]+'</a>';return '<a href="'+c+'.html">'+c+'</a>';}
+    function draw(){
+      var s={pw:pw.get(),L:L.map(function(c){return c.get();}),E:E.map(function(c){return c.get();}),U:Us.map(function(c){return c.get();})};
+      s.bat=s.pw===0||s.pw===1||s.pw===6;
+      var hits=_w01_ITEMS.filter(function(it){return it[0](s);}),cnt={};
+      hits.forEach(function(it){it[4].forEach(function(c){if(!_w01_SEC[c])cnt[c]=(cnt[c]||0)+1;});});
+      cnt["16"]=(cnt["16"]||0)+1;
+      /* 章の札 */
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,nc=nar?4:8,W=nar?360:700,o=[],cw=(W-20)/nc,ch=38,x0=10,PC=function(n){return n<=7?"gold":n<=11?"teal":n<=14?"purple":"green";};
+      o.push(S.T(x0,14,nar?"読む章（右上の数は、挙げた項目の数）":"読む章（色の付いた札。右上の数は、その章を挙げた項目の数）","start",10.5,"ink",true));
+      for(var n=1;n<=16;n++){var k=(n<10?"0":"")+n,x=x0+((n-1)%nc)*cw,y=24+Math.floor((n-1)/nc)*(ch+6),c=PC(n),hit=cnt[k]||n===1;
+        o.push(S.RECT(x+1,y,cw-5,ch,5,hit?U.soft(c):"var(--screen)",hit?c:"line",hit?1.6:1));
+        o.push(S.T(x+8,y+16,k,"start",11,hit?c:"faint",true,true));
+        o.push(S.T(x+8,y+31,_w01_TITLES[n-1],"start",9.5,hit?"ink":"faint"));
+        var tag=n===1?"この章":(n===16?"まとめ":(cnt[k]?"×"+cnt[k]:""));
+        if(tag)o.push(S.T(x+cw-10,y+16,tag,"end",9.5,c,true));}
+      box.set(S.svg(W,24+(16/nc)*(ch+6),o));
+      var rows=hits.map(function(it){return ['<b>'+it[1]+'</b>',it[2],it[3],it[4].map(link).join("・")];});
+      ro.innerHTML="当てはまる項目 <b>"+hits.length+"</b> 個"+U.tbl(["気をつけること","何が起きるか","マイコンでする制御","読む章"],rows,["wrap","wrap","wrap","left"])+
+        '<div class="wnote">項目と章は目安である。どの機器も、16 章で条件ごとの手順を確かめる。商用電源を扱う回路は、感電と火災の危険があるので、安全規格・法令・資格を確かめること（06 章）。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 02 章 電源の種類と性質 ===== */
+
+  /* ---- 3 節: 電源の種類とパルスの電流 → 端子電圧 ---- */
+  /* 電源の例（代表値）: E 起電力 [V]、R 内部抵抗（ケーブルを含む）[Ω]、lim 取り出せる電流 [A]（0 は決まりなし）、
+     kind: bat 電池 / usb 規則で決まる上限 / prot 超えると保護が働く / unreg 安定化していない（超えると熱くなる）、vmin 例の最低の電圧 */
+  var _w02_SRC=[
+    {t:"コイン形リチウム電池 1 個（3.0 V・20 Ω）",E:3.0,R:20,lim:0,kind:"bat",vmin:1.8},
+    {t:"単 3 形アルカリ乾電池 2 本（3.1 V・0.3 Ω）",E:3.1,R:0.3,lim:0,kind:"bat",vmin:1.8},
+    {t:"リチウムイオン電池 1 セル（3.8 V・0.1 Ω）",E:3.8,R:0.1,lim:0,kind:"bat",vmin:3.4},
+    {t:"USB 2.0 のポート・設定の後（5.0 V・ケーブル 0.4 Ω・500 mA）",E:5.0,R:0.4,lim:0.5,kind:"usb",vmin:3.4},
+    {t:"USB 2.0 のポート・設定の前（5.0 V・0.4 Ω・100 mA）",E:5.0,R:0.4,lim:0.1,kind:"usb",vmin:3.4},
+    {t:"USB Type-C の 3.0 A の表示（5.0 V・0.2 Ω）",E:5.0,R:0.2,lim:3.0,kind:"usb",vmin:3.4},
+    {t:"安定化した AC アダプタ 5 V・1 A（0.15 Ω）",E:5.0,R:0.15,lim:1.0,kind:"prot",vmin:3.4},
+    {t:"安定化していない AC アダプタ 9 V・0.5 A（12 V・6 Ω）",E:12.0,R:6.0,lim:0.5,kind:"unreg",vmin:5.0}];
+
+  function _w02_volt(v){var a=Math.abs(v);return a>=1?_w02_s(v,4)+" V":a>=1e-3?_w02_s(v*1e3,3)+" mV":a>=1e-6?_w02_s(v*1e6,3)+" µV":"0 V";}
+  function _w02_pow(w){var a=Math.abs(w);return a>=1?_w02_s(w,3)+" W":a>=1e-3?_w02_s(w*1e3,3)+" mW":a>=1e-6?_w02_s(w*1e6,3)+" µW":a>=1e-9?_w02_s(w*1e9,3)+" nW":"0 W";}
+  function _w02_s(v,d){var a=Math.abs(v);var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
+
+  REG.w02_supply=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"SUPPLY","電源の種類とピーク電流 — 端子電圧はどこまで下がるか");
+    var r1=U.ctrls(el);
+    var src=U.select(r1,"電源（値は代表値の例）",_w02_SRC.map(function(s){return s.t;}),1,function(){var s=_w02_SRC[src.get()];E.set(s.E);R.set(s.R);vmin.set(s.vmin);draw();});
+    var r2=U.ctrls(el);
+    var E=U.slider(r2,"起電力 E",{min:1,max:13,step:0.1,value:3.1,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var R=U.slider(r2,"内部抵抗 R_in",{min:0.01,max:100,log:true,value:0.3,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:draw});
+    var vmin=U.slider(r2,"動く最低の電圧（例）",{min:0.5,max:12,step:0.1,value:1.8,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var r3=U.ctrls(el);
+    var isl=U.slider(r3,"眠りの電流",{min:1,max:1000,log:true,value:5,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var ish=U.slider(r3,"短いパルス（無線の送信など）",{min:1,max:500,log:true,value:15,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var tsh=U.slider(r3,"短いパルスの長さ",{min:0.5,max:50,log:true,value:3,fmt:function(v){return U.sig(v,3)+" ms";},onInput:draw});
+    var r4=U.ctrls(el);
+    var lon=U.checkbox(r4,"長いパルス（モータ・LED など）を入れる",true,draw);
+    var ilg=U.slider(r4,"長いパルスの電流",{min:1,max:3000,log:true,value:200,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var tlg=U.slider(r4,"長いパルスの長さ",{min:10,max:1000,log:true,value:300,fmt:function(v){return U.sig(v,3)+" ms";},onInput:draw});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    /* 区間の電流から端子電圧を求める。保護が働く電源は、上限の 1.2 倍を超えると出力を止める（例） */
+    function volt(I,s,e,r){
+      if(s.kind==="prot"&&I>s.lim*1.2)return {v:0,why:"prot"};
+      var v=e-I*r;
+      if(v<0)return {v:0,why:"cant"};
+      return {v:v,why:""};}
+    function draw(){
+      var s=_w02_SRC[src.get()],e=E.get(),r=R.get(),vm=vmin.get();
+      var Is=isl.get()*1e-6,Ip=ish.get()*1e-3,tp=tsh.get(),useL=lon.get(),IL=ilg.get()*1e-3,tl=tlg.get();
+      ilg.el.style.opacity=useL?1:0.45;tlg.el.style.opacity=useL?1:0.45;
+      /* 区間の並び: 眠り → 短いパルス → 眠り → 長いパルス → 眠り → 短いパルス → 眠り */
+      var t1=100,t2=t1+tp+150,t3=t2+(useL?tl:0)+150,Tend=Math.max(1000,t3+tp+150);
+      var segs=[[0,t1,Is,"sleep"],[t1,t1+tp,Ip,"short"],[t1+tp,t2,Is,"sleep"]];
+      if(useL)segs.push([t2,t2+tl,IL,"long"]);
+      segs.push([t2+(useL?tl:0),t3,Is,"sleep"],[t3,t3+tp,Ip,"short"],[t3+tp,Tend,Is,"sleep"]);
+      var W=700,x0=78,wd=592,o=[],X=function(t){return x0+t/Tend*wd;};
+      var Imax=Math.max(Ip,useL?IL:0,Is)*1.6;
+      var pi=U.plot(x0,26,wd,100,[0,Tend],[1e-6,Math.max(Imax,1e-3)],{ylog:true});
+      var pv=U.plot(x0,166,wd,120,[0,Tend],[0,Math.max(e,vm)*1.08]);
+      o.push(S.T(x0,16,"負荷の電流（対数目盛）","start",10,"purple",true));
+      o.push(pi.axes({yt:[1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1].filter(function(v){return v<=Math.max(Imax,1e-3);}),xt:[],yfmt:function(v){return F.cur(v,1);},ylOff:60}));
+      if(s.lim>0){o.push(pi.line([[0,s.lim],[Tend,s.lim]],"gold",1.3,"6 4"));
+        o.push(S.T(x0+wd-4,pi.Y(s.lim)-5,(s.kind==="usb"?"使ってよい電流 ":"定格 ")+F.cur(s.lim),"end",9.5,"gold",true));}
+      var pts=[[X(0),pi.Y(Is)]];
+      segs.forEach(function(g){var w=Math.max(X(g[1])-X(g[0]),2);pts.push([X(g[0]),pi.Y(g[2])]);pts.push([X(g[0])+w,pi.Y(g[2])]);});
+      o.push(S.PL(pts,"purple",1.8));
+      o.push(S.T(x0,156,"端子電圧","start",10,"gold",true));
+      o.push(pv.axes({xt:U.nice(0,Tend,6),xl:"時間 [ms]",yfmt:function(v){return U.sig(v,3);},yl:"電圧 [V]",ylOff:44}));
+      o.push(pv.line([[0,vm],[Tend,vm]],"alias",1.3,"5 4"));
+      o.push(S.T(x0+wd-4,pv.Y(vm)+14,"動く最低の電圧 "+vm.toFixed(1)+" V","end",9.5,"alias",true));
+      o.push(pv.line([[0,e],[Tend,e]],"faint",1,"2 4"));
+      var res={},vp=[];
+      segs.forEach(function(g){var q=volt(g[2],s,e,r),w=Math.max(X(g[1])-X(g[0]),2),bad=q.v<vm;
+        o.push(S.L(X(g[0]),pv.Y(q.v),X(g[0])+w,pv.Y(q.v),bad?"alias":"gold",2.2));vp.push([X(g[0]),pv.Y(q.v)],[X(g[0])+w,pv.Y(q.v)]);
+        if(!res[g[3]])res[g[3]]={I:g[2],q:q};});
+      o.push(S.PL(vp,"gold",0.8));
+      box.set(S.svg(W,320,o));
+      /* 読み出し */
+      var names={sleep:"眠り",short:"短いパルス",long:"長いパルス"},rows=[],worst=null;
+      ["sleep","short","long"].forEach(function(k){if(!res[k])return;var I=res[k].I,q=res[k].q,v=q.v,dv=e-v;
+        var verdict;
+        if(q.why==="prot")verdict='<span class="warn">保護が働いて出力が止まる（リセット）</span>';
+        else if(q.why==="cant")verdict='<span class="warn">この電流は流せない（電圧が 0 まで下がる）</span>';
+        else if(v<vm)verdict='<span class="warn">最低の電圧を割る</span>';
+        else verdict='<span class="ok">動く</span>';
+        if(s.lim>0&&I>s.lim&&q.why!=="prot")verdict+=s.kind==="usb"?' ・ <span class="warn">使ってよい電流を超える（規格に反する）</span>':' ・ <span class="warn">定格を超える（熱くなる）</span>';
+        if(worst===null||v<worst)worst=v;
+        rows.push([names[k],F.cur(I),q.why?"—":_w02_volt(v),q.why?"—":_w02_volt(dv),q.why?"—":_w02_pow(I*I*r),verdict]);});
+      var imax=(e-vm)/r;
+      ro.innerHTML="端子電圧 V = E − I × R_in = "+e.toFixed(2)+" V − I × "+U.sig(r,3)+" Ω"+
+        U.tbl(["区間","電流 I","端子電圧 V","下がる電圧","内部抵抗の熱","判定"],rows,["left","right","right","right","right","wrap"])+
+        "動く最低の電圧を保てる電流の上限 = (E − 最低の電圧) ÷ R_in = <b>"+(imax>0?F.cur(imax):"0（E が最低の電圧より低い）")+"</b>"+(s.lim>0?"、電源の取り出せる電流 "+F.cur(s.lim):"")+
+        '<div class="wnote">内部抵抗の模型（1 節）だけで計算した。実際の電池では内部抵抗が温度と残量で変わり（03 章）、パルスの間に電圧がさらにゆっくり下がることもある。保護が働く電流と動き方は製品による（ここでは定格の 1.2 倍で止まるとした）。ピーク電流をコンデンサで補う方法は 04 章で扱う。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: 環境発電の収支 ---- */
+  REG.w02_harvest=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"HARVEST","環境発電の収支 — 蓄えは暗い間を越せるか");
+    var r1=U.ctrls(el);
+    var light=U.select(r1,"光",["室内の照明（平日の 8〜18 時、週末は消える）","室内の照明（毎日 8〜18 時）","屋外（晴れ。日中の山 10 mW/cm²）","屋外（曇り。日中の山 2 mW/cm²）"],0,draw);
+    var area=U.slider(r1,"太陽電池の面積",{min:1,max:100,log:true,value:10,fmt:function(v){return U.sig(v,3)+" cm²";},onInput:draw});
+    var r2=U.ctrls(el);
+    var cap=U.slider(r2,"蓄えのコンデンサ",{values:[0.047,0.1,0.22,0.47,0.68,1,2.2,4.7],value:0.47,fmt:function(v){return v<0.1?Math.round(v*1000)+" mF":v+" F";},onInput:draw});
+    var pl=U.slider(r2,"機器の平均の消費電力",{min:1,max:3000,log:true,value:30,fmt:function(v){return U.sig(v,3)+" µW";},onInput:draw});
+    var r3=U.ctrls(el);
+    var voff=U.slider(r3,"止める電圧",{min:1.8,max:3.5,step:0.1,value:2.2,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var von=U.slider(r3,"動かす電圧",{min:1.8,max:4.8,step:0.1,value:3.0,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var wk=U.slider(r3,"期間",{values:[1,2,3],value:1,fmt:function(v){return v+" 週間";},onInput:draw});
+    var r4=U.ctrls(el);
+    var empty=U.checkbox(r4,"空の蓄え（0 V）から始める（チェックなしは満杯の 5.0 V から）",false,draw);
+    var br=U.btnrow(el);
+    function preset(a,c,p,n){light.set(0);area.set(a);cap.set(c);pl.set(p);voff.set(2.2);von.set(3.0);wk.set(n);empty.set(false);draw();}
+    U.button(br,"例の値（10 cm²・0.47 F・30 µW）",function(){preset(10,0.47,30,1);});
+    U.button(br,"1 F にする（3 週間）",function(){preset(10,1,30,3);});
+    U.button(br,"15 cm²・1 F（3 週間）",function(){preset(15,1,30,3);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    var VMAX=5.0,ETA=0.8,POFF=1e-6;
+    /* 時刻 t [s] に太陽電池から取り出せる電力 [W] */
+    function ph(t,L,A){var day=Math.floor(t/86400),h=(t%86400)/3600;
+      if(L<=1){var on=h>=8&&h<18&&(L===1||day%7<5);return on?A*10e-6:0;}
+      var pk=(L===2?10e-3:2e-3)*A;return (h>=6&&h<18)?pk*Math.sin(Math.PI*(h-6)/12):0;}
+    function draw(){
+      var L=light.get(),A=area.get(),C=cap.get(),P=pl.get()*1e-6,Vf=voff.get(),Vo=von.get(),N=wk.get();
+      var warn="";
+      if(Vo<Vf){warn='<span class="warn">動かす電圧が止める電圧より低いので、止める電圧と同じにして計算した。</span><br>';Vo=Vf;}
+      var dt=60,steps=Math.round(N*7*86400/dt),Emax=0.5*C*VMAX*VMAX,Eoff=0.5*C*Vf*Vf;
+      var Ec=empty.get()?0:Emax,run=!empty.get(),stops=0,downT=0,pts=[],red=[],r0=null,inJ=0,outJ=0;
+      for(var k=0;k<steps;k++){var t=k*dt,p=ph(t,L,A);
+        var add=ETA*p*dt;inJ+=add;Ec=Math.min(Ec+add,Emax);
+        if(run){Ec-=P*dt;outJ+=P*dt;if(Ec<Eoff){run=false;stops++;r0=t;}}
+        else{Ec-=POFF*dt;downT+=dt;if(Math.sqrt(2*Math.max(Ec,0)/C)>=Vo){run=true;if(r0!==null){red.push([r0,t]);}r0=null;}}
+        if(!run&&r0===null)r0=t;
+        Ec=Math.max(Ec,0);
+        if(k%10===0)pts.push([t/86400,Math.sqrt(2*Ec/C)]);}
+      if(r0!==null)red.push([r0,steps*dt]);
+      var D=N*7,W=700,o=[],p=U.plot(70,30,600,190,[0,D],[0,5.5]);
+      /* 光のある時間 */
+      for(var d=0;d<D;d++){if(L<=1){if(L===1||d%7<5)o.push(S.RECT(p.X(d+8/24),p.y,p.X(d+18/24)-p.X(d+8/24),p.h,0,U.soft("gold"),"none",0));}
+        else o.push(S.RECT(p.X(d+6/24),p.y,p.X(d+18/24)-p.X(d+6/24),p.h,0,U.soft("gold"),"none",0));}
+      red.forEach(function(q){o.push(S.RECT(p.X(q[0]/86400),p.y,Math.max(p.X(q[1]/86400)-p.X(q[0]/86400),1),p.h,0,U.soft("alias"),"none",0));});
+      var xt=[];for(var i=0;i<=D;i++)xt.push(i);
+      o.push(p.axes({yl:"蓄えの電圧 [V]",xt:xt,yt:[0,1,2,3,4,5],xfmt:function(){return "";},yfmt:function(v){return String(v);}}));
+      for(i=0;i<D;i++)o.push(S.T(p.X(i+0.5),p.y+p.h+15,"月火水木金土日".charAt(i%7),"middle",D>7?9:10,"ink",true));
+      o.push(p.line([[0,Vf],[D,Vf]],"alias",1.2,"5 4"));o.push(p.line([[0,Vo],[D,Vo]],"muted",1.1,"3 3"));
+      o.push(S.T(p.X(D)-4,p.Y(Vf)+13,"止める "+Vf.toFixed(1)+" V","end",9.5,"alias"));
+      o.push(S.T(p.X(D)-4,p.Y(Vo)-5,"動かす "+Vo.toFixed(1)+" V","end",9.5,"muted"));
+      o.push(p.line(pts,"signal",1.8));
+      o.push(S.RECT(70,252,10,10,2,U.soft("gold"),"gold",1.2));o.push(S.T(85,261,"光のある時間","start",10,"muted"));
+      o.push(S.RECT(190,252,10,10,2,U.soft("signal"),"signal",1.2));o.push(S.T(205,261,"蓄えの電圧","start",10,"muted"));
+      o.push(S.RECT(300,252,10,10,2,U.soft("alias"),"alias",1.2));o.push(S.T(315,261,"機器が止まっている時間","start",10,"muted"));
+      box.set(S.svg(W,270,o));
+      /* 収支（1 日・1 週） */
+      var dayIn=0,weekIn=0;for(var tt=0;tt<7*86400;tt+=60){var e=ETA*ph(tt,L,A)*60;weekIn+=e;if(tt<86400)dayIn+=e;}
+      var dayOut=P*86400,weekOut=P*7*86400,use=0.5*C*(VMAX*VMAX-Vf*Vf),hold=use/P/3600;
+      ro.innerHTML=warn+"1 日（"+(L===0?"平日":"毎日")+"）に蓄えへ入る "+U.sig(dayIn,3)+" J（取り込みで 2 割を失った後）、出る "+U.sig(dayOut,3)+" J → "+(dayIn>=dayOut?'<span class="ok">足りる</span>':'<span class="warn">足りない</span>')+"<br>"+
+        "1 週間に入る "+U.sig(weekIn,3)+" J、出る "+U.sig(weekOut,3)+" J → "+(weekIn>=weekOut?'<span class="ok">足りる</span>':'<span class="warn">足りない（毎週 '+U.sig(weekOut-weekIn,3)+' J 減る）</span>')+"<br>"+
+        "蓄え（"+(C<0.1?Math.round(C*1000)+" mF":C+" F")+"）から 5.0 V → "+Vf.toFixed(1)+" V で取り出せる ½ C (5.0² − "+Vf.toFixed(1)+"²) = <b>"+U.sig(use,3)+" J</b> → 光が無くても <b>"+U.sig(hold,3)+" 時間</b>動ける<br>"+
+        (stops?'<span class="warn">'+N+' 週間で '+stops+' 回止まり、合わせて '+U.sig(downT/3600,3)+' 時間止まっていた</span>':(empty.get()&&downT>0?'空から始めて '+U.sig(downT/3600,3)+' 時間で動き始め、その後は止まらなかった':'<span class="ok">'+N+' 週間、止まらずに動き続けた</span>'))+
+        '<div class="wnote">取り込みで失う割合 2 割、蓄えの上限 5.0 V、止まっている間の電力 1 µW は固定にした。室内は 1 cm² あたり 10 µW、屋外は 6〜18 時の正弦波とした（どれも代表値の例）。コンデンサ自身が失う電荷と、温度による変化は入れていない。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 7 節: OR 接続 ---- */
+  var _w02_VT=0.025693;
+  var _w02_DI={si:{n:1.8,vf1:0.85,ir:10e-9},sk:{n:1.05,vf1:0.40,ir:10e-6}};
+  /* 電源 E・内部抵抗 R・素子 k を通って、電圧 V の点（負荷）へ流れる電流 [A]（負は逆向き） */
+  function _w02_br(E,R,V,k){
+    if(k==="direct")return (E-V)/R;
+    if(k==="ideal")return E-V>0?(E-V)/(R+0.05):0;
+    var p=_w02_DI[k],nv=p.n*_w02_VT,Is=Math.exp(-p.vf1/nv);
+    if(E-V<=0)return -p.ir;
+    var lo=0,hi=(E-V)/R;
+    for(var i=0;i<90;i++){var I=(lo+hi)/2,Vd=E-V-I*R,f=Is*(Math.exp(Math.min(Vd/nv,700))-1)-I;if(f>0)lo=I;else hi=I;}
+    return (lo+hi)/2;}
+  /* 負荷の電流 IL を流すときの負荷の電圧と、各電源の電流。aOn=false なら A を外した状態 */
+  function _w02_solve(EA,RA,EB,RB,IL,k,aOn){
+    var lo=0,hi=Math.max(EA,EB);
+    for(var i=0;i<90;i++){var V=(lo+hi)/2,It=(aOn?_w02_br(EA,RA,V,k):0)+_w02_br(EB,RB,V,k);if(It>IL)lo=V;else hi=V;}
+    var Vo=(lo+hi)/2;return {V:Vo,IA:aOn?_w02_br(EA,RA,Vo,k):0,IB:_w02_br(EB,RB,Vo,k)};}
+
+  REG.w02_oring=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"OR","2 つの電源のつなぎ方 — どちらが流し、何が流れ込むか");
+    var KN=["直接つなぐ（悪い例）","シリコンダイオード","ショットキーダイオード","理想ダイオード"],KK=["direct","si","sk","ideal"];
+    var r0=U.ctrls(el);
+    var kind=U.seg(r0,KN,2,draw);
+    var r1=U.ctrls(el);
+    var ea=U.slider(r1,"主な電源 A の電圧",{min:2,max:15,step:0.05,value:5.0,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var ra=U.slider(r1,"A の内部抵抗（ケーブルを含む）",{min:0.01,max:3,log:true,value:0.4,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:draw});
+    var r2=U.ctrls(el);
+    var eb=U.slider(r2,"予備の電池 B の電圧",{min:1,max:15,step:0.05,value:3.1,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var rb=U.slider(r2,"B の内部抵抗",{min:0.01,max:50,log:true,value:0.3,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:draw});
+    var r3=U.ctrls(el);
+    var il=U.slider(r3,"負荷の電流",{min:1,max:3000,log:true,value:300,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var vm=U.slider(r3,"負荷が動く最低の電圧（例）",{min:0.5,max:12,step:0.1,value:2.5,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(a,b,c,d,i,m){ea.set(a);ra.set(b);eb.set(c);rb.set(d);il.set(i);vm.set(m);draw();}
+    U.button(br,"USB 5 V と単 3 形 2 本",function(){preset(5.0,0.4,3.1,0.3,300,2.5);});
+    U.button(br,"USB 5 V と新しい単 3 形 3 本",function(){preset(5.0,0.4,4.8,0.45,300,3.4);});
+    U.button(br,"3.3 V と新しいコイン電池",function(){preset(3.3,0.05,3.2,20,10,2.0);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var k=KK[kind.get()],EA=ea.get(),RA=ra.get(),EB=eb.get(),RB=rb.get(),IL=il.get()*1e-3,Vm=vm.get();
+      var on=_w02_solve(EA,RA,EB,RB,IL,k,true),off=_w02_solve(EA,RA,EB,RB,IL,k,false);
+      var W=700,o=[],x0=86,wd=584,X=function(f){return x0+f*wd;};
+      /* 3 つの区間: A あり → A を外す → A が戻る */
+      var ph=[[0,0.36,on],[0.36,0.68,off],[0.68,1,on]];
+      var vtop=Math.max(EA,EB,Vm)*1.1,pv=U.plot(x0,30,wd,110,[0,1],[0,vtop]);
+      o.push(S.T(x0,20,"負荷の電圧","start",10,"signal",true));
+      o.push(pv.axes({xt:[],yfmt:function(v){return U.sig(v,3);},yl:"電圧 [V]",ylOff:44}));
+      o.push(pv.line([[0,Vm],[1,Vm]],"alias",1.2,"5 4"));o.push(S.T(X(1)-4,pv.Y(Vm)+13,"動く最低の電圧 "+Vm.toFixed(1)+" V","end",9.5,"alias"));
+      ph.forEach(function(q){var v=q[2].V,bad=v<Vm;o.push(S.L(X(q[0]),pv.Y(v),X(q[1]),pv.Y(v),bad?"alias":"signal",2.4));
+        o.push(S.T((X(q[0])+X(q[1]))/2,pv.Y(v)-6,U.sig(v,3)+" V","middle",10,bad?"alias":"signal",true));});
+      for(var j=1;j<3;j++)o.push(S.L(X(ph[j][0]),26,X(ph[j][0]),290,"faint",1,"3 3"));
+      [["A と B がある",0.18],["A を外した（停電・抜いた）",0.52],["A が戻った",0.84]].forEach(function(t){o.push(S.T(X(t[1]),14,t[0],"middle",9.5,"ink",true));});
+      /* 電流 */
+      var imax=Math.max(IL,Math.abs(on.IA),Math.abs(on.IB),Math.abs(off.IB))*1.15,pi=U.plot(x0,170,wd,110,[0,1],[-imax,imax]);
+      o.push(S.T(x0,162,"各電源から負荷の側へ流れる電流（負は電源へ流れ込む向き）","start",10,"gold",true));
+      o.push(pi.axes({xt:[],yt:U.nice(-imax,imax,4),yfmt:function(v){return v===0?"0":F.cur(v,2);},ylOff:62}));
+      ph.forEach(function(q){var r=q[2];
+        o.push(S.L(X(q[0]),pi.Y(r.IA),X(q[1]),pi.Y(r.IA),"gold",2.2));
+        o.push(S.L(X(q[0]),pi.Y(r.IB),X(q[1]),pi.Y(r.IB),r.IB<0?"alias":"green",2.2,"6 3"));});
+      o.push(S.L(x0,312,x0+24,312,"gold",2.2));o.push(S.T(x0+30,316,"A の電流","start",10,"muted"));
+      o.push(S.L(x0+110,312,x0+134,312,"green",2.2,"6 3"));o.push(S.T(x0+140,316,"B の電流（赤は B へ流れ込む）","start",10,"muted"));
+      box.set(S.svg(W,326,o));
+      /* 読み出し */
+      function loss(E,R,I){if(I<=0)return 0;if(k==="direct")return I*I*R;if(k==="ideal")return I*I*0.05;return (E-I*R-on.V)*I;}
+      var share=on.IB>0?on.IB/IL:0,txt="";
+      var bt;
+      if(Math.abs(on.IB)<1e-12)bt="B から 0";
+      else if(on.IB>0)bt="B から "+F.cur(on.IB)+"（負荷の電流の "+U.sig(share*100,3)+" %）";
+      else if(-on.IB>1e-3)bt='<span class="warn">B へ '+F.cur(-on.IB)+" 流れ込む</span>";
+      else bt="B から 0（B へは逆向きに "+F.cur(-on.IB)+"）";
+      txt+="<b>A と B がある</b>: 負荷の電圧 <b>"+U.sig(on.V,4)+" V</b>、A から "+F.cur(on.IA)+"、"+bt+"<br>";
+      if(k!=="direct")txt+="A の側の素子の電圧の低下 "+U.sig((EA-on.IA*RA-on.V)*1000,3)+" mV、熱 "+F.num(loss(EA,RA,on.IA)*1000,3)+" mW<br>";
+      else txt+='直接つないだので、電流を制限するのは内部抵抗だけ: 負荷が無くても (E_A − E_B) ÷ (R_A + R_B) = <span class="warn">'+F.cur((EA-EB)/(RA+RB))+"</span><br>";
+      txt+="<b>A を外したとき</b>: 負荷の電圧 <b>"+U.sig(off.V,4)+" V</b>"+(off.V<Vm?' <span class="warn">（動く最低の電圧を割る）</span>':' <span class="ok">（動く）</span>')+"、B から "+F.cur(off.IB)+"<br>";
+      var msg;
+      if(k==="direct")msg='<span class="warn">充電できない電池に電流を流し込むと、発熱・液漏れ・破裂のおそれがある。直接つないではいけない。</span>';
+      else if(share>0.01)msg='<span class="warn">A があるのに、B が負荷の電流の '+U.sig(share*100,3)+' % を流し続けて減っていく。A の電圧を B の最も高い電圧より十分に高くする。</span>';
+      else if(on.IB<0)msg='B へは逆向きに '+F.cur(-on.IB)+' だけ流れ込む（'+(k==="sk"?"ショットキーの逆向きのわずかな電流。温度が高いと増える":"シリコンの逆向きのわずかな電流")+'）。';
+      else msg='<span class="ok">A があるときは、B はほとんど流さない。</span>';
+      ro.innerHTML=txt+msg+'<div class="wnote">ダイオードは I = I_S × exp(V ÷ (n V_T))（シリコン n = 1.8・1 A で 0.85 V、ショットキー n = 1.05・1 A で 0.40 V、逆向きの電流はそれぞれ 10 nA と 10 µA）、理想ダイオードは順方向だけ 50 mΩ とした（どれも例の値）。切り替わりの間を出力のコンデンサが支えることと、理想ダイオードが切れるまでの短い逆向きの電流は入れていない。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 03 章 電池を知る ===== */
+  /* 電池の模型（1 セルあたり。代表的な形と例の値。fig/f03.py と同じ値）
+     Qn: 公称容量 [mAh]、E: 休んでいるときの電圧の点 [x, V]（x は公称容量に対する放電の割合）、
+     R: 25 °C の内部抵抗 R0 + R1 の点 [x, Ω]、k10: 10 °C 下がるごとの倍率、tau: R1 と C1 の時定数 [s]、
+     sd: 1 年に減る割合（20 °C）、vend: メーカの終止電圧 [V]、N: 例の本数、T: 放電してよい温度、ic: 流し続ける電流の目安の上限 [A] */
+  var _w03_B={
+    alk:{nm:"アルカリ乾電池（単 3 形）",sh:"アルカリ",Qn:2000,c:"gold",
+      E:[[0,1.58],[0.03,1.48],[0.2,1.36],[0.4,1.27],[0.6,1.19],[0.75,1.12],[0.85,1.06],[0.93,1.00],[0.97,0.95],[1.0,0.90]],
+      R:[[0,0.15],[0.3,0.19],[0.5,0.26],[0.7,0.37],[0.85,0.48],[1.0,0.60]],k10:1.5,tau:0.010,sd:0.02,vend:0.9,N:2,T:[-20,50],ic:1.0},
+    cr:{nm:"コイン形リチウム電池（CR2032）",sh:"CR2032",Qn:220,c:"signal",
+      E:[[0,3.20],[0.02,3.05],[0.1,3.00],[0.3,2.96],[0.5,2.92],[0.7,2.87],[0.8,2.82],[0.88,2.74],[0.93,2.60],[0.97,2.40],[1.0,2.00]],
+      R:[[0,15],[0.5,17],[0.7,20],[0.8,25],[0.9,40],[0.95,60],[1.0,120]],k10:1.4,tau:0.005,sd:0.01,vend:2.0,N:1,T:[-20,60],ic:0.003},
+    soc:{nm:"塩化チオニルリチウム電池（単 3 形の大きさ）",sh:"塩化チオニルリチウム",Qn:2400,c:"purple",
+      E:[[0,3.66],[0.02,3.62],[0.3,3.60],[0.6,3.58],[0.85,3.54],[0.92,3.48],[0.96,3.35],[0.985,3.00],[1.0,2.00]],
+      R:[[0,4.0],[0.5,4.5],[0.8,6.0],[0.9,9.0],[0.96,15.0],[1.0,40.0]],k10:1.3,tau:0.010,sd:0.01,vend:2.0,N:1,T:[-55,85],ic:0.1},
+    nimh:{nm:"ニッケル水素電池（単 3 形）",sh:"ニッケル水素",Qn:2000,c:"teal",
+      E:[[0,1.40],[0.03,1.30],[0.15,1.26],[0.5,1.22],[0.75,1.19],[0.88,1.15],[0.95,1.10],[0.98,1.05],[1.0,1.00]],
+      R:[[0,0.04],[0.5,0.045],[0.8,0.055],[0.9,0.07],[1.0,0.12]],k10:1.4,tau:0.010,sd:0.20,vend:1.0,N:3,T:[-20,50],ic:2.0},
+    li:{nm:"リチウムイオン電池（1000 mAh）",sh:"リチウムイオン",Qn:1000,c:"green",
+      E:[[0,4.18],[0.05,4.08],[0.15,3.98],[0.3,3.87],[0.5,3.76],[0.65,3.70],[0.8,3.60],[0.88,3.50],[0.93,3.38],[0.97,3.20],[1.0,3.00]],
+      R:[[0,0.12],[0.5,0.12],[0.8,0.14],[0.9,0.17],[1.0,0.25]],k10:1.4,tau:0.010,sd:0.24,vend:3.0,N:1,T:[-20,60],ic:1.0}};
+  var _w03_KEYS=["alk","cr","soc","nimh","li"],_w03_R0F=0.55;
+  function _w03_ip(p,x){if(x<=p[0][0])return p[0][1];for(var i=1;i<p.length;i++)if(x<=p[i][0])return p[i-1][1]+(p[i][1]-p[i-1][1])*(x-p[i-1][0])/(p[i][0]-p[i-1][0]);return p[p.length-1][1];}
+  function _w03_E(t,x){return _w03_ip(_w03_B[t].E,x);}
+  function _w03_kT(t,T){return Math.pow(_w03_B[t].k10,(25-T)/10);}
+  function _w03_R(t,x,T){return _w03_ip(_w03_B[t].R,x)*_w03_kT(t,T);}
+  function _w03_reff(t,x,T,tp){return _w03_R(t,x,T)*(_w03_R0F+(1-_w03_R0F)*(1-Math.exp(-tp/_w03_B[t].tau)));}
+  /* f(x) は x とともに減る。0 になる x（f(0) <= 0 なら 0、f(1) > 0 なら 1） */
+  function _w03_cross(f){if(f(0)<=0)return 0;if(f(1)>0)return 1;var lo=0,hi=1;for(var i=0;i<50;i++){var m=(lo+hi)/2;if(f(m)>0)lo=m;else hi=m;}return (lo+hi)/2;}
+  function _w03_pct(u){return (Math.round(u*1000)/10).toString()+" %";}
+  function _w03_V(v,d){return v.toFixed(d==null?2:d)+" V";}
+
+  /* ---- 3 節: 放電曲線と実効容量 ---- */
+  REG.w03_discharge=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"DISCHARGE","放電曲線と実効容量 — 終止電圧・電流・温度");
+    var r1=U.ctrls(el);
+    var bt=U.select(r1,"電池",_w03_KEYS.map(function(k){return {v:k,t:_w03_B[k].nm};}),"alk",function(){Nn.set(_w03_B[bt.get()].N);draw();});
+    var Nn=U.slider(r1,"直列の本数 N",{min:1,max:4,step:1,value:2,fmt:function(v){return v+" 本";},onInput:draw});
+    var r2=U.ctrls(el);
+    var Ic=U.slider(r2,"流し続ける電流 I",{min:0.01,max:3000,value:200,log:true,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var Tc=U.slider(r2,"温度",{min:-40,max:60,step:1,value:25,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var r3=U.ctrls(el);
+    var Vn=U.slider(r3,"機器が動く最低の電圧 V_need",{min:0.8,max:4.2,step:0.05,value:2.2,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var ldo=U.checkbox(r3,"LDO を通す",false,draw);
+    var Vd=U.slider(r3,"ドロップアウト電圧 V_do",{min:0.05,max:0.5,step:0.05,value:0.2,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(k,n,i,T,vn,l){bt.set(k);Nn.set(n);Ic.set(i);Tc.set(T);Vn.set(vn);ldo.set(l);Vd.set(0.2);draw();}
+    U.button(br,"2 節: アルカリ 3 本・LDO で 3.3 V",function(){preset("alk",3,0.01,25,3.3,true);});
+    U.button(br,"2 節: CR2032 に直接・2.2 V",function(){preset("cr",1,0.01,25,2.2,false);});
+    U.button(br,"3 節: アルカリ 1 本・1 A",function(){preset("alk",1,1000,25,0.9,false);});
+    U.button(br,"3 節: アルカリ 1 本・200 mA・−20 °C",function(){preset("alk",1,200,-20,0.9,false);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var t=bt.get(),B=_w03_B[t],N=Nn.get(),I=Ic.get()*1e-3,T=Tc.get(),vn=Vn.get(),vdo=ldo.get()?Vd.get():0;
+      Vd.el.style.display=ldo.get()?"":"none";
+      var vNeed=vn+vdo,vCell=N*B.vend,vEnd=Math.max(vNeed,vCell),ve1=vEnd/N;
+      var u0=_w03_cross(function(x){return _w03_E(t,x)-ve1;});
+      var u=_w03_cross(function(x){return _w03_E(t,x)-I*_w03_R(t,x,T)-ve1;});
+      var Qn=B.Qn,vmax=N*_w03_E(t,0),vlo=Math.min(vEnd,N*(_w03_E(t,1)-I*_w03_R(t,1,T)));
+      var y0=Math.max(0,Math.floor((Math.min(vlo,vEnd)-0.15*N)*10)/10),y1=Math.ceil((vmax+0.05*N)*10)/10;
+      var W=700,o=[],p=U.plot(80,22,470,230,[0,Qn],[y0,y1]);
+      o.push(p.axes({xl:"取り出した電荷 [mAh]",yl:"電池全体の端子電圧 [V]",xt:U.nice(0,Qn,5),yt:U.nice(y0,y1,5),xfmt:function(v){return String(Math.round(v));},yfmt:function(v){return String(+v.toFixed(2));}}));
+      var ref=[],cur=[];
+      for(var k=0;k<=200;k++){var x=k/200;ref.push([x*Qn,N*_w03_E(t,x)]);var v=N*(_w03_E(t,x)-I*_w03_R(t,x,T));if(x<=u+1e-9&&v>=y0)cur.push([x*Qn,v]);}
+      if(u>0)cur.push([u*Qn,vEnd]);
+      o.push(p.line(ref,"muted",1.3,"3 3"));
+      if(cur.length>1)o.push(p.line(cur,B.c,2.4));
+      if(u>0)o.push(S.RECT(p.X(0),p.Y(y0)-7,p.X(u*Qn)-p.X(0),7,1,U.soft(B.c),B.c,1));
+      o.push(p.line([[0,vEnd],[Qn,vEnd]],"alias",1.4,"6 4"));
+      o.push(S.T(p.X(Qn)-4,p.Y(vEnd)-6,"終止電圧 "+vEnd.toFixed(2)+" V","end",10,"alias",true,false,null,true));
+      if(u>0)o.push(S.D(p.X(u*Qn),p.Y(vEnd),B.c,5));
+      o.push(S.T(p.X(Qn*0.02),p.Y(y1)+14,"点線: 小さな電流・25 °C","start",9.5,"muted",false,false,null,true));
+      /* 右: 割合の棒 */
+      var bx=580,bw=100;
+      o.push(S.T(bx,34,"実効容量","start",10.5,"ink",true));
+      [[u0,"小さな電流・25 °C","muted"],[u,"この電流・温度",B.c]].forEach(function(r,i){var y=50+i*58;
+        o.push(S.T(bx,y+10,r[1],"start",9.5,"muted"));
+        o.push(S.RECT(bx,y+16,bw,14,2,"none","muted",1,"3 3"));
+        o.push(S.RECT(bx,y+16,bw*r[0],14,2,U.soft(r[2]),r[2],1.2));
+        o.push(S.T(bx,y+46,Math.round(r[0]*Qn)+" mAh（"+_w03_pct(r[0])+"）","start",10,r[2],true));});
+      box.set(S.svg(W,300,o));
+      var warn="";
+      if(T<B.T[0]||T>B.T[1])warn+='<span class="warn">'+String(T).replace("-","−")+' °C は、この種類の放電してよい温度の範囲（代表値 '+String(B.T[0]).replace("-","−")+'〜'+B.T[1]+' °C）の外である。</span><br>';
+      if(I>B.ic)warn+='<span class="warn">'+F.cur(I)+' は、この種類が流し続けられる電流の目安（代表値 '+F.cur(B.ic)+' 程度）を超える。仕様書で確かめる。</span><br>';
+      if(u===0)warn+='<span class="warn">流し始めから端子電圧が終止電圧を下回り、使える電荷は 0 である。</span><br>';
+      var tl=u>0?u*Qn*1e-3/I*3600:0;
+      ro.innerHTML=warn+"C レート = I ÷ 公称容量 = "+F.cur(I)+" ÷ "+Qn+" mAh = <b>"+U.sig(I*1e3/Qn,3)+"C</b><br>"+
+        "終止電圧 V_end = max(V_need + V_do, N V_cell) = max("+vNeed.toFixed(2)+", "+N+" × "+B.vend.toFixed(1)+") = <b>"+vEnd.toFixed(2)+" V</b>（1 本あたり "+ve1.toFixed(3)+" V）<br>"+
+        "実効容量 = <b>"+Math.round(u*Qn)+" mAh</b>（公称容量の "+_w03_pct(u)+"）。小さな電流・25 °C なら "+Math.round(u0*Qn)+" mAh（"+_w03_pct(u0)+"）<br>"+
+        "内部抵抗（1 本、新しいとき → 終わり）: "+U.sig(_w03_R(t,0,T),3)+" Ω → "+U.sig(_w03_R(t,1,T),3)+" Ω（25 °C の "+U.sig(_w03_kT(t,T),3)+" 倍）<br>"+
+        "この電流で使い切るまで: 実効容量 ÷ I = "+(u>0?"<b>"+F.time(tl)+"</b>":"—")+
+        '<div class="wnote">模型は、代表的な形の放電曲線と、内部抵抗（10 °C 下がるごとに '+B.k10+' 倍とした）だけを入れたもの。実際の電池は、大きな電流と低温で、これよりさらに減ることがある。値はすべて例で、設計にはデータシートの放電曲線を使う。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 4 節: パルスの電圧降下と BOR ---- */
+  REG.w03_pulse=function(el,U){
+    var S=U.S,F=U.fmt;
+    var PT=[{v:"cr",t:"CR2032 1 個"},{v:"soc",t:"塩化チオニルリチウム電池 1 本"},{v:"alk",t:"アルカリ乾電池 2 本"},{v:"li",t:"リチウムイオン電池 1 本"}];
+    var NB={cr:1,soc:1,alk:2,li:1};
+    U.head(el,"PULSE","パルスの電圧降下と BOR — 放電の進み具合と温度");
+    var r1=U.ctrls(el);
+    var bt=U.select(r1,"電池",PT,"cr",draw);
+    var Bor=U.slider(r1,"BOR のしきい値",{min:1.6,max:3.6,step:0.05,value:2.2,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var r2=U.ctrls(el);
+    var Ip=U.slider(r2,"パルスの電流 I_pk",{min:1,max:1000,value:15,log:true,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var Tp=U.slider(r2,"パルスの長さ t_p",{min:0.1,max:100,value:3,log:true,fmt:function(v){return F.time(v*1e-3);},onInput:draw});
+    var r3=U.ctrls(el);
+    var Xd=U.slider(r3,"放電の進み具合",{min:0,max:100,step:1,value:50,fmt:function(v){return v+" %";},onInput:draw});
+    var Tc=U.slider(r3,"温度",{min:-40,max:60,step:1,value:25,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(k,i,tp,x,T,b){bt.set(k);Ip.set(i);Tp.set(tp);Xd.set(x);Tc.set(T);Bor.set(b);draw();}
+    U.button(br,"4 節の例（CR2032・15 mA・3 ms）",function(){preset("cr",15,3,50,25,2.2);});
+    U.button(br,"順に動かす（10 mA）",function(){Ip.set(10);draw();});
+    U.button(br,"−20 °C にする",function(){Tc.set(-20);draw();});
+    U.button(br,"放電の 9 割",function(){Xd.set(90);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var t=bt.get(),B=_w03_B[t],N=NB[t],I=Ip.get()*1e-3,tp=Tp.get()*1e-3,x=Xd.get()/100,T=Tc.get(),vb=Bor.get();
+      var Rt=N*_w03_R(t,x,T),R0=_w03_R0F*Rt,R1=Rt-R0,tau=B.tau,E=N*_w03_E(t,x);
+      var Reff=R0+R1*(1-Math.exp(-tp/tau)),dV=I*Reff,vbot=E-dV,over=vbot<0.3*E;
+      if(over)vbot=Math.max(vbot,0);
+      var W=700,o=[];
+      /* 上: 1 回のパルスの波形 */
+      var span=tp+4*tau,t0=-0.2*span,X0=80,WD=450,sc=WD/(span-t0),X=function(s){return X0+(s-t0)*sc;};
+      var yI=24,hI=34,yV=86,hV=120;
+      var vlo=Math.min(vbot,vb)-0.1*Math.max(0.2,E-Math.min(vbot,vb)),vhi=E+0.08*Math.max(0.2,E-Math.min(vbot,vb));
+      var Y=function(v){return yV+hV-(Math.max(v,vlo)-vlo)/(vhi-vlo)*hV;};
+      o.push(S.T(X0-8,yI+hI/2+4,"電流","end",9.5,"muted"));
+      o.push(S.W([X(t0),yI+hI,X(0),yI+hI,X(0),yI,X(tp),yI,X(tp),yI+hI,X(span),yI+hI],"gold",2));
+      o.push(S.T(X(tp)+6,yI+12,F.cur(I),"start",9.5,"gold",true));
+      var pts=[[X(t0),Y(E)],[X(0),Y(E)],[X(0),Y(E-I*R0)]];
+      for(var k=1;k<=60;k++){var s=tp*k/60;pts.push([X(s),Y(E-I*R0-I*R1*(1-Math.exp(-s/tau)))]);}
+      var v1=I*R1*(1-Math.exp(-tp/tau));pts.push([X(tp),Y(E-v1)]);
+      for(k=1;k<=60;k++){var s2=tp+(span-tp)*k/60;pts.push([X(s2),Y(E-v1*Math.exp(-(s2-tp)/tau))]);}
+      o.push(S.L(X0,yV+hV,X0+WD,yV+hV,"muted",1));o.push(S.L(X0,yV,X0,yV+hV,"muted",1));
+      U.nice(vlo,vhi,4).forEach(function(v){if(v>=vlo&&v<=vhi){o.push(S.L(X0-4,Y(v),X0,Y(v),"muted",1));o.push(S.T(X0-7,Y(v)+3.5,String(+v.toFixed(3)),"end",9,"muted"));}});
+      o.push(S.T(X0-50,yV+hV/2,"端子電圧 [V]","middle",9.5,"muted",false,false,-90));
+      o.push(S.L(X0,Y(vb),X0+WD,Y(vb),"alias",1.3,"6 4"));
+      o.push(S.T(X0+WD-2,Y(vb)-5,"BOR "+vb.toFixed(2)+" V","end",9.5,"alias",true,false,null,true));
+      o.push(S.PL(pts,vbot<vb?"alias":B.c,2));
+      o.push(S.D(X(tp),Y(vbot),vbot<vb?"alias":B.c,4));
+      o.push(S.T(X(tp)+6,Y(vbot)+(vbot<vb?-6:14),"底 "+vbot.toFixed(3)+" V","start",9.5,vbot<vb?"alias":B.c,true,false,null,true));
+      U.nice(t0,span,5).forEach(function(s){if(s>=t0&&s<=span){o.push(S.L(X(s),yV+hV,X(s),yV+hV+4,"muted",1));o.push(S.T(X(s),yV+hV+15,U.sig(s*1e3,3),"middle",9,"muted"));}});
+      o.push(S.T(X0+WD/2,yV+hV+30,"時間 [ms]（パルスの始まりを 0 とした）","middle",9.5,"muted"));
+      /* 右上: 数値 */
+      var xr=560;
+      [["E（休んでいるとき）",E.toFixed(3)+" V"],["R₀ / R₁",U.sig(R0,3)+" / "+U.sig(R1,3)+" Ω"],["τ",F.time(tau)],["R_eff",U.sig(Reff,3)+" Ω"],["電圧降下",U.sig(dV*1e3,3)+" mV"]].forEach(function(r,i){
+        o.push(S.T(xr,yV+6+i*24,r[0],"start",9.5,"muted"));o.push(S.T(xr,yV+18+i*24,r[1],"start",10,"ink",true));});
+      /* 下: 放電の進み具合とパルスの底 */
+      var yP=262,p=U.plot(80,yP,450,150,[0,100],[Math.max(0,Math.min(N*B.vend,vb)-0.2),N*_w03_E(t,0)+0.05*N]);
+      var plo=p.yr[0],phi=p.yr[1];
+      o.push(p.axes({xl:"放電の進み具合（公称容量の %）",yl:"端子電圧 [V]",xt:[0,25,50,75,100],yt:U.nice(plo,phi,4),xfmt:function(v){return String(v);},yfmt:function(v){return String(+v.toFixed(2));}}));
+      var pe=[],pb=[];
+      for(k=0;k<=200;k++){var xx=k/200,ee=N*_w03_E(t,xx),bb=ee-I*N*_w03_reff(t,xx,T,tp);pe.push([xx*100,ee]);if(bb>=plo)pb.push([xx*100,bb]);}
+      o.push(p.line(pe,"ink",1.6));
+      if(pb.length>1)o.push(p.line(pb,B.c,2.2));
+      if(vb>=plo&&vb<=phi){o.push(p.line([[0,vb],[100,vb]],"alias",1.3,"6 4"));}
+      var ur=_w03_cross(function(z){return N*_w03_E(t,z)-vb;}),up=_w03_cross(function(z){return N*(_w03_E(t,z)-I*_w03_reff(t,z,T,tp))-vb;});
+      if(up>0&&up<1&&vb>=plo)o.push(S.D(p.X(up*100),p.Y(vb),"alias",4.5));
+      if(vbot>=plo)o.push(S.D(p.X(x*100),p.Y(vbot),vbot<vb?"alias":B.c,4.5));
+      o.push(S.T(p.X(2),p.Y(phi)+12,"黒: 休んでいるときの電圧、色: パルスの底","start",9.5,"muted",false,false,null,true));
+      o.push(S.T(560,yP+20,"パルスのある機器が","start",9.5,"muted"));
+      o.push(S.T(560,yP+34,"使える割合","start",9.5,"muted"));
+      o.push(S.T(560,yP+56,_w03_pct(up),"start",14,up<ur-0.05?"alias":"green",true));
+      o.push(S.T(560,yP+80,"休んでいるときの電圧","start",9.5,"muted"));
+      o.push(S.T(560,yP+94,"だけなら "+_w03_pct(ur),"start",9.5,"muted"));
+      box.set(S.svg(W,yP+192,o));
+      var warn="";
+      if(T<B.T[0]||T>B.T[1])warn+='<span class="warn">'+String(T).replace("-","−")+' °C は、この種類の放電してよい温度の範囲（代表値）の外である。</span><br>';
+      if(over)warn+='<span class="warn">電圧降下が起電力の 7 割を超える。この電池から、この電流は実際には流せない（模型の範囲の外。底は 0 V 以上で描いた）。</span><br>';
+      ro.innerHTML=warn+"R_eff = R₀ + R₁ (1 − e^(−t_p/τ)) = "+U.sig(R0,3)+" + "+U.sig(R1,3)+" × "+U.sig(1-Math.exp(-tp/tau),3)+" = <b>"+U.sig(Reff,3)+" Ω</b>（電池全体。25 °C の "+U.sig(_w03_kT(t,T),3)+" 倍）<br>"+
+        "パルスの底 = E − I_pk R_eff = "+E.toFixed(3)+" V − "+F.cur(I)+" × "+U.sig(Reff,3)+" Ω = <b>"+(E-dV).toFixed(3).replace("-","−")+" V</b> → "+
+        (vbot<vb?'<span class="warn">BOR を割る'+(over?'':'（'+U.sig((vb-vbot)*1e3,3)+' mV 足りない）')+'。マイコンはリセットされる</span>':'<span class="ok">BOR を割らない（余裕 '+U.sig((vbot-vb)*1e3,3)+' mV）</span>')+"<br>"+
+        "パルスの底で決まる使える割合 <b>"+_w03_pct(up)+"</b>（休んでいるときの電圧だけなら "+_w03_pct(ur)+"）"+
+        '<div class="wnote">内部抵抗を、すぐ現れる部分 R₀（55 %）と、時定数 τ で大きくなる部分 R₁（45 %）に分けた模型（4 節）。放電の進み具合と温度による変わり方は代表的な形、値はすべて例。パルスの前は十分に休んでいたとした。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 容量の内訳と電池寿命 ---- */
+  REG.w03_life=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"BUDGET","容量の内訳と電池寿命 — 実効容量・保管・自己放電");
+    var r1=U.ctrls(el);
+    var bt=U.select(r1,"電池",_w03_KEYS.map(function(k){return {v:k,t:_w03_B[k].nm};}),"cr",function(){var B=_w03_B[bt.get()];Qs.set(B.Qn);Sd.set(B.sd*100);draw();});
+    var Qs=U.slider(r1,"公称容量",{min:50,max:5000,value:220,log:true,int:true,fmt:function(v){return v+" mAh";},onInput:draw});
+    var Sd=U.slider(r1,"自己放電（20 °C、1 年）",{min:0.2,max:40,value:1,log:true,fmt:function(v){return U.sig(v,2)+" %";},onInput:draw});
+    var r2=U.ctrls(el);
+    var Uf=U.slider(r2,"使える割合（2〜4 節）",{min:30,max:100,step:1,value:85,fmt:function(v){return v+" %";},onInput:draw});
+    var Ia=U.slider(r2,"機器の平均電流",{min:0.5,max:1000,value:2.7,log:true,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var r3=U.ctrls(el);
+    var Tm=U.slider(r3,"使う場所の平均の温度",{min:-20,max:50,step:1,value:20,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var Tw=U.slider(r3,"温度の変化の幅 ±",{min:0,max:30,step:1,value:0,fmt:function(v){return "± "+v+" °C";},onInput:draw});
+    var r4=U.ctrls(el);
+    var Sm=U.slider(r4,"出荷までの保管",{min:0,max:24,step:1,value:6,fmt:function(v){return v+" か月";},onInput:draw});
+    var St=U.slider(r4,"保管の温度",{min:0,max:50,step:1,value:20,fmt:function(v){return v+" °C";},onInput:draw});
+    var r5=U.ctrls(el);
+    var On=U.checkbox(r5,"保管の間も機器の電流を流す（絶縁のシート・出荷モードなし）",false,draw);
+    var Is=U.slider(r5,"保管の間の機器の電流",{min:0.1,max:100,value:2,log:true,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(k,u,ia,tm,tw,sm,st,on){bt.set(k);var B=_w03_B[k];Qs.set(B.Qn);Sd.set(B.sd*100);Uf.set(u);Ia.set(ia);Tm.set(tm);Tw.set(tw);Sm.set(sm);St.set(st);On.set(on);Is.set(2);draw();}
+    U.button(br,"5 節の例（CR2032・ドアの開閉センサ）",function(){preset("cr",85,2.7,20,0,6,20,false);});
+    U.button(br,"同じ例で、保管の間も電流を流す",function(){preset("cr",85,2.7,20,0,6,20,true);});
+    U.button(br,"塩化チオニルリチウム・屋外（20 ± 20 °C）",function(){preset("soc",95,10,20,20,12,30,false);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function fT(T){return Math.pow(2,(T-20)/10);}
+    function draw(){
+      Is.el.style.display=On.get()?"":"none";
+      var Qn=Qs.get(),r20=Sd.get()/100,u=Uf.get()/100,ia=Ia.get()*1e-3,tm=Tm.get(),tw=Tw.get(),sm=Sm.get(),st=St.get(),on=On.get(),is=Is.get()*1e-3;
+      var H=8760,fUse=(fT(tm+tw)+fT(tm-tw))/2,fAvg=fT(tm);
+      var q1=u*Qn,lossSd=r20*fT(st)*Qn*sm/12,lossDev=on?is*H*sm/12:0,q2=Math.max(0,q1-lossSd-lossDev);
+      var isd=r20*fUse*Qn/H,itot=ia+isd,life=q2/itot/H,life0=q2/ia/H,lifeAvgT=q2/(ia+r20*fAvg*Qn/H)/H;
+      var W=700,o=[],x0=200,sc=420/Qn;
+      o.push(S.T(14,18,"容量の内訳 [mAh]","start",10.5,"ink",true));
+      var rows=[["公称容量",0,Qn,"gold",Math.round(Qn)+""],
+        ["使えない分（2〜4 節）",q1,Qn,"alias","− "+U.sig(Qn-q1,3)],
+        ["保管の自己放電",q1-lossSd,q1,"alias","− "+U.sig(lossSd,3)]];
+      if(on)rows.push(["保管の間の機器の電流",q1-lossSd-lossDev,q1-lossSd,"alias","− "+U.sig(lossDev,3)]);
+      rows.push(["使い始めに残る電荷",0,q2,"signal",U.sig(q2,4)]);
+      rows.forEach(function(r,i){var y=28+i*26,a=Math.max(0,r[1]),b=Math.max(a,r[2]),wd=(b-a)*sc;
+        o.push(S.T(x0-8,y+13,r[0],"end",9.5,"ink"));
+        o.push(S.RECT(x0+a*sc,y+2,Math.max(0.8,wd),16,2,U.soft(r[3]),r[3],1.1));
+        /* 数値: 棒が広ければ中に、右に余白があれば右に、なければ左に置く */
+        var tx,anc;if(wd>70){tx=x0+a*sc+6;anc="start";}else if(x0+b*sc+60<W-10){tx=x0+b*sc+6;anc="start";}else{tx=x0+a*sc-6;anc="end";}
+        o.push(S.T(tx,y+14,r[4],anc,9.5,r[3],true,false,null,true));});
+      /* 残りの電荷の時間変化 */
+      var yP=28+rows.length*26+26,ymax=Math.max(life,life0);
+      var tmax=Math.max(1,Math.min(60,ymax*1.15)),p=U.plot(80,yP,470,150,[0,tmax],[0,Math.max(1,q2)*1.05]);
+      o.push(p.axes({xl:"使い始めからの年数",yl:"残る電荷 [mAh]",xt:U.nice(0,tmax,6),yt:U.nice(0,Math.max(1,q2)*1.05,4),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);}}));
+      o.push(p.line([[0,q2],[Math.min(tmax,life0),Math.max(0,q2-ia*H*Math.min(tmax,life0))]],"muted",1.4,"5 3"));
+      o.push(p.line([[0,q2],[Math.min(tmax,life),Math.max(0,q2-itot*H*Math.min(tmax,life))]],"signal",2.4));
+      if(life<=tmax){o.push(S.D(p.X(life),p.Y(0),"signal",5));o.push(S.T(p.X(life),p.Y(0)-10,U.sig(life,3)+" 年","middle",10,"signal",true,false,null,true));}
+      if(life0<=tmax){o.push(S.D(p.X(life0),p.Y(0),"muted",4));o.push(S.T(p.X(life0)+(life0-life<tmax*0.12?8:0),p.Y(0)-24,U.sig(life0,3)+" 年","middle",9.5,"muted",false,false,null,true));}
+      o.push(S.T(570,yP+20,"実線: 機器 + 自己放電","start",9.5,"signal",true));
+      o.push(S.T(570,yP+36,"破線: 機器の電流だけ","start",9.5,"muted"));
+      box.set(S.svg(W,yP+190,o));
+      var warn=q2<=0?'<span class="warn">使い始める前に、使える電荷がなくなる。</span><br>':"";
+      ro.innerHTML=warn+"使い始めに残る電荷 = 公称 "+Math.round(Qn)+" × "+Math.round(u*100)+" % − 保管の自己放電 "+U.sig(lossSd,3)+(on?" − 保管の間の機器の電流 "+U.sig(lossDev,3):"")+" = <b>"+U.sig(q2,4)+" mAh</b><br>"+
+        "自己放電の倍率 = (2^((T₁ − 20)/10) + 2^((T₂ − 20)/10)) ÷ 2 = <b>"+U.sig(fUse,3)+"</b>（平均の温度 "+String(tm).replace("-","−")+" °C だけで計算すると "+U.sig(fAvg,3)+"）<br>"+
+        "I_sd = r Q_n ÷ 8760 h = "+U.sig(r20*100,2)+" % × "+U.sig(fUse,3)+" × "+Math.round(Qn)+" mAh ÷ 8760 h = <b>"+F.cur(isd*1e-3)+"</b>（機器の平均電流 "+F.cur(ia*1e-3)+" の "+U.sig(isd/ia*100,3)+" %）<br>"+
+        "電池寿命 = "+U.sig(q2,4)+" mAh ÷ ("+F.cur(ia*1e-3)+" + "+F.cur(isd*1e-3)+") ≈ <b>"+(q2>0?U.sig(life,3)+" 年":"—")+"</b>（自己放電を入れないと "+U.sig(life0,3)+" 年、平均の温度だけで計算すると "+U.sig(lifeAvgT,3)+" 年）"+
+        '<div class="wnote">自己放電は、公称容量に対して 1 年に決まった割合が減るとし、温度が 10 °C 上がるごとに 2 倍とする目安で温度を入れた（使う場所の温度は、半分の時間が T₁ = 平均 + 幅、残りが T₂ = 平均 − 幅とした）。値はすべて例。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 04 章 電池で動かす制御 ===== */
+  /* 電池（E, R_in）＋コンデンサ（C, ESR）に、区分的に一定の電流 1 A を時刻 0 から流したときの端子電圧の低下 [V] */
+  function _w04_r(t,Rin,C,Re){if(t<0)return 0;if(!(C>0))return Rin;var Rp=Rin*Re/(Rin+Re),tau=C*(Rin+Re);return Rin-(Rin-Rp)*Math.exp(-t/tau);}
+  /* pulses = [[始まり s, 長さ s, 電流 A], ...] のときの端子電圧（重ね合わせ） */
+  function _w04_v(t,E,Rin,C,Re,ps){var d=0;ps.forEach(function(p){d+=p[2]*(_w04_r(t-p[0],Rin,C,Re)-_w04_r(t-p[0]-p[1],Rin,C,Re));});return E-d;}
+  /* 3 節の例の模型（03 章 4 節の CR2032 の模型と同じ代表的な形と例の値。実際の電池の値ではない）: 公称容量に対して使った割合 s、温度 T [°C] */
+  var _w04_CRE=[[0,3.20],[0.02,3.05],[0.1,3.00],[0.3,2.96],[0.5,2.92],[0.7,2.87],[0.8,2.82],[0.88,2.74],[0.93,2.60],[0.97,2.40],[1.0,2.00]];
+  var _w04_CRR=[[0,15],[0.5,17],[0.7,20],[0.8,25],[0.9,40],[0.95,60],[1.0,120]];
+  function _w04_ip(pts,x){if(x<=pts[0][0])return pts[0][1];for(var i=0;i+1<pts.length;i++){if(x<=pts[i+1][0])return pts[i][1]+(pts[i+1][1]-pts[i][1])*(x-pts[i][0])/(pts[i+1][0]-pts[i][0]);}return pts[pts.length-1][1];}
+  function _w04_ocv(s){return _w04_ip(_w04_CRE,s);}
+  function _w04_rin(s,T){return _w04_ip(_w04_CRR,s)*Math.pow(1.4,(25-T)/10);}
+  function _w04_vop(s,T){var R=_w04_rin(s,T);return _w04_ocv(s)-15e-3*_w04_r(3e-3,R,100e-6,0.5);}
+  var _w04_LIFE_D=0.220*3600/3e-6/86400;            /* 平均 3 µA で 220 mAh を使い切る日数 */
+  /* 03 章の例のリチウムイオン電池の起電力の表（残量 % → V） */
+  var _w04_LI=[[0,3.00],[3,3.20],[7,3.38],[12,3.50],[20,3.60],[35,3.70],[50,3.76],[70,3.87],[85,3.98],[95,4.08],[100,4.18]];
+  function _w04_tab(tab,p){for(var i=0;i+1<tab.length;i++){var a=tab[i],b=tab[i+1];if(p>=a[0]&&p<=b[0])return a[1]+(b[1]-a[1])*(p-a[0])/(b[0]-a[0]);}return p>tab[tab.length-1][0]?tab[tab.length-1][1]:tab[0][1];}
+  function _w04_inv(tab,v){for(var i=0;i+1<tab.length;i++){var a=tab[i],b=tab[i+1];if(v>=a[1]&&v<=b[1])return a[0]+(b[0]-a[0])*(v-a[1])/(b[1]-a[1]);}return v>tab[tab.length-1][1]?tab[tab.length-1][0]:tab[0][0];}
+  /* コイン形の模型の、休んでいるときの電圧の表（残量 % は 220 mAh に対して） */
+  var _w04_COIN=(function(){var t=[];for(var r=0;r<=100;r+=1)t.push([r,_w04_ocv(1-r/100)]);return t;})();
+  function _w04_wide(box){var w=box.el.clientWidth;return !(w>0&&w<520);}
+
+  /* ---- 1・2 節: 大容量コンデンサと動作の並べ方 ---- */
+  REG.w04_bulk=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"BULK CAPACITOR","電池と大容量コンデンサ、2 つの動作の並べ方と端子電圧");
+    var r1=U.ctrls(el);
+    var cE=U.slider(r1,"電池の起電力 E",{min:2.0,max:3.3,step:0.05,value:2.8,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var cR=U.slider(r1,"内部抵抗 R_in",{min:1,max:1000,value:100,log:true,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:draw});
+    var cVm=U.slider(r1,"最低の電圧 V_min",{min:1.6,max:3.0,step:0.05,value:2.2,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var r2=U.ctrls(el);
+    var cC=U.slider(r2,"コンデンサの容量 C",{values:[0,10,22,47,100,220,470,1000,2200,4700,10000,47000,100000],value:100,
+      fmt:function(v){return v===0?"なし":(v>=1000?U.sig(v/1000,3)+" mF":v+" µF");},onInput:draw});
+    var cRe=U.slider(r2,"ESR",{min:0.005,max:100,value:0.5,log:true,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:draw});
+    var r3=U.ctrls(el);
+    var cIa=U.slider(r3,"送信の電流",{min:1,max:100,value:15,log:true,fmt:function(v){return U.sig(v,3)+" mA";},onInput:draw});
+    var cTa=U.slider(r3,"送信の長さ",{min:0.1,max:100,value:3,log:true,fmt:function(v){return U.sig(v,3)+" ms";},onInput:draw});
+    var r4=U.ctrls(el);
+    var cIb=U.slider(r4,"LED の電流",{min:0,max:50,step:0.5,value:5,fmt:function(v){return v===0?"0（LED なし）":v+" mA";},onInput:draw});
+    var cTb=U.slider(r4,"LED の長さ",{min:1,max:500,value:20,log:true,fmt:function(v){return U.sig(v,3)+" ms";},onInput:draw});
+    var r5=U.ctrls(el);
+    var cM=U.select(r5,"並べ方",["送信だけ","LED の途中（点けてから 85 % の時点）で送信","LED と送信を同時に始める","LED を消した直後に送信","LED を消してから間を空けて送信"],4,draw);
+    var cG=U.slider(r5,"間隔 t_gap",{min:0,max:100,step:1,value:25,fmt:function(v){return v+" ms";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(m,g){cE.set(2.8);cR.set(100);cVm.set(2.2);cC.set(100);cRe.set(0.5);cIa.set(15);cTa.set(3);cIb.set(5);cTb.set(20);cM.set(m);cG.set(g);draw();}
+    U.button(br,"2 節の例 (a) LED の途中で送信",function(){preset(1,25);});
+    U.button(br,"(b) 直後に送信",function(){preset(3,25);});
+    U.button(br,"(c) 25 ms 空ける",function(){preset(4,25);});
+    U.button(br,"コンデンサなし",function(){cC.set(0);draw();});
+    U.button(br,"ESR の大きい小形の電気二重層（47 mF・30 Ω）",function(){cC.set(47000);cRe.set(30);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var E=cE.get(),R=cR.get(),Vm=cVm.get(),C=cC.get()*1e-6,Re=cRe.get(),Ia=cIa.get()*1e-3,ta=cTa.get()*1e-3,Ib=cIb.get()*1e-3,tb=cTb.get()*1e-3,m=cM.get(),g=cG.get()*1e-3;
+      cG.el.style.display=m===4?"":"none";
+      var led=Ib>0&&m>0,ps=[],t0=2e-3,txs;
+      if(!led)txs=t0;else if(m===1)txs=t0+0.85*tb;else if(m===2)txs=t0;else if(m===3)txs=t0+tb;else txs=t0+tb+g;
+      if(led)ps.push([t0,tb,Ib]);
+      ps.push([txs,ta,Ia]);
+      var tau=C>0?C*(R+Re):0,tend=0;ps.forEach(function(p){tend=Math.max(tend,p[0]+p[1]);});
+      var span=Math.min(1.0,Math.max(tend+5*tau,tend+0.01,0.02)),cut=tend+5*tau>span;
+      /* 標本: 細かい格子と、各パルスの端の前後 */
+      var ts=[],NS=600;for(var k=0;k<=NS;k++)ts.push(k/NS*span);
+      ps.forEach(function(p){[p[0],p[0]+p[1]].forEach(function(e){ts.push(Math.max(0,e-1e-9));ts.push(e+1e-9);});});
+      ts.sort(function(a,b){return a-b;});
+      var Iload=function(t){var s=0;ps.forEach(function(p){if(t>=p[0]&&t<p[0]+p[1])s+=p[2];});return s;};
+      var V=ts.map(function(t){return _w04_v(t,E,R,C,Re,ps);}),ib=V.map(function(v){return (E-v)/R;}),il=ts.map(Iload),ic=il.map(function(x,i){return x-ib[i];});
+      var vmin=Infinity,tmin=0;V.forEach(function(v,i){if(v<vmin){vmin=v;tmin=ts[i];}});
+      var ibmax=Math.max.apply(null,ib),ilmax=Math.max.apply(null,il),icmin=Math.min(0,Math.min.apply(null,ic));
+      /* ---- 図 ---- */
+      var wide=_w04_wide(box),W=wide?700:380,x0=wide?70:56,wd=W-x0-24,o=[];
+      var X=function(t){return x0+t/span*wd;};
+      var yI=24,hI=wide?100:90,Imax=Math.max(ilmax,ibmax)*1.15*1e3,Imin=icmin*1.15*1e3;
+      var YI=function(i){return yI+hI-(i*1e3-Imin)/(Imax-Imin)*hI;};
+      o.push(S.T(10,14,"電流","start",10.5,"ink",true));
+      o.push(S.W([x0,yI,x0,yI+hI,x0+wd,yI+hI],"muted",1.1));
+      U.nice(Imin,Imax,4).forEach(function(v){if(v>=Imin-1e-9&&v<=Imax+1e-9){var yy=YI(v*1e-3);o.push(S.L(x0,yy,x0+wd,yy,"grid",1));o.push(S.T(x0-6,yy+3.5,U.sig(v,3),"end",9,"muted"));}});
+      o.push(S.T(x0-36,yI+hI/2,"mA","middle",9.5,"muted",false,false,-90));
+      if(Imin<0)o.push(S.L(x0,YI(0),x0+wd,YI(0),"muted",1));
+      function pl(arr,c,lw,dash){return S.PL(ts.map(function(t,i){return [X(t),YI(arr[i])];}),c,lw,null,dash);}
+      o.push(pl(il,"purple",1.4,"5 3"));o.push(pl(ic,"signal",1.6));o.push(pl(ib,"gold",2.2));
+      var lg=[["purple","負荷の電流"],["gold","電池の電流"],["signal","コンデンサの電流"]],lx=x0+wd;
+      lg.slice().reverse().forEach(function(q){var w=U.tw(q[1],9.5)+18;lx-=w;o.push(S.RECT(lx,8,10,10,2,U.soft(q[0]),q[0],1.1));o.push(S.T(lx+14,17,q[1],"start",9.5,q[0],true));});
+      /* 端子電圧 */
+      var yV=yI+hI+40,hV=wide?120:110,vlo=Math.min(Vm,vmin)-0.15,vhi=E+0.1;vlo=Math.max(0,Math.floor(vlo*10)/10);
+      var YV=function(v){return yV+hV-(v-vlo)/(vhi-vlo)*hV;};
+      o.push(S.T(10,yV-8,"端子電圧","start",10.5,"ink",true));
+      o.push(S.W([x0,yV,x0,yV+hV,x0+wd,yV+hV],"muted",1.1));
+      U.nice(vlo,vhi,4).forEach(function(v){if(v>=vlo-1e-9&&v<=vhi+1e-9){o.push(S.L(x0,YV(v),x0+wd,YV(v),"grid",1));o.push(S.T(x0-6,YV(v)+3.5,U.sig(v,3),"end",9,"muted"));}});
+      o.push(S.T(x0-34,yV+hV/2+4,"V","middle",9.5,"muted"));
+      o.push(S.L(x0,YV(Vm),x0+wd,YV(Vm),"alias",1.2,"5 3"));
+      o.push(S.T(x0+wd-2,YV(Vm)+12,"V_min "+Vm.toFixed(2)+" V","end",9,"alias",false,false,null,true));
+      o.push(S.PL(ts.map(function(t,i){return [X(t),YV(Math.max(vlo,V[i]))];}),"gold",2.2));
+      var bad=vmin<Vm;
+      o.push(S.D(X(tmin),YV(Math.max(vlo,vmin)),bad?"alias":"green",4.5));
+      var lab="最低 "+vmin.toFixed(3)+" V",rt=X(tmin)>x0+wd*0.6;
+      o.push(S.T(X(tmin)+(rt?-8:8),YV(Math.max(vlo,vmin))+(YV(Math.max(vlo,vmin))>yV+hV-20?-8:16),lab,rt?"end":"start",9.5,bad?"alias":"green",true,false,null,true));
+      /* 時間軸と動作の帯 */
+      var ya=yV+hV;U.nice(0,span*1e3,wide?8:5).forEach(function(v){if(v*1e-3<=span+1e-12){o.push(S.L(X(v*1e-3),ya,X(v*1e-3),ya+4,"muted",1));o.push(S.T(X(v*1e-3),ya+15,U.sig(v,4),"middle",9,"muted"));}});
+      o.push(S.T(x0+wd,ya+28,"時間 [ms]"+(cut?"（回復はこの範囲の外まで続く）":""),"end",9,"muted"));
+      var yb=ya+38;
+      ps.forEach(function(p,i){var isTx=(i===ps.length-1),c=isTx?"gold":"purple",xa=X(p[0]),xb=Math.max(X(p[0]+p[1]),xa+2);
+        o.push(S.RECT(xa,yb+(isTx?14:0),xb-xa,11,2,U.soft(c),c,1));
+        var nm=(isTx?"送信 ":"LED ")+U.sig(p[2]*1e3,3)+" mA";
+        o.push(S.T(xb+4,yb+(isTx?14:0)+9,nm,"start",9,c,true));});
+      box.set(S.svg(W,yb+34,o));
+      /* ---- 読み出し ---- */
+      var dva=Ia*R,dvb=C>0?Math.min(Ia*ta/C+Ia*Re,Ia*R):Ia*R,allow=E-(Vm+0.1),need=allow>Ia*Re&&allow>0?Ia*ta/(allow-Ia*Re):NaN;
+      var s="最低の電圧 <b>"+vmin.toFixed(3)+" V</b>（"+F.time(tmin)+"）→ "+(bad?'<span class="warn">V_min を下回る。この時点でマイコンはリセットする</span>':(vmin<Vm+0.1?'<b style="color:var(--gold)">V_min は上回るが、余裕 0.1 V を割る</b>':'<span class="ok">V_min + 0.1 V を保つ</span>'))+"<br>";
+      s+="電池の電流の最大 <b>"+F.cur(ibmax)+"</b>（コンデンサが無ければ "+F.cur(ilmax)+"）・ 再充電の時定数 τ = (R_in + ESR) C = <b>"+(C>0?F.time(tau):"—")+"</b>"+(C>0?"（5τ = "+F.time(5*tau)+"）":"")+"<br>";
+      s+="送信の低下の上限 min(I t/C + I·ESR, I·R_in) = <b>"+dvb.toFixed(3)+" V</b>（電池だけなら I·R_in = "+dva.toFixed(3)+" V）<br>";
+      s+="V_min + 0.1 V を守る容量 C ≥ I t / (ΔV_allow − I·ESR)、ΔV_allow = E − (V_min + 0.1 V) = "+allow.toFixed(2)+" V → "+
+        (allow<=0?'<span class="warn">電池の起電力が低すぎる</span>':(!isFinite(need)?'<b style="color:var(--gold)">I·ESR = '+(Ia*Re).toFixed(3)+' V で、この式では決められない（ESR が内部抵抗に近く、電池も電流を出す。波形の最低の電圧で確かめる）</b>':"<b>"+(need>=1e-3?U.sig(need*1e3,3)+" mF":U.sig(need*1e6,3)+" µF")+"</b> 以上"));
+      if(C>0)s+="<br>パルスの始まりにコンデンサが受け持つ割合 R_in/(R_in + ESR) = <b>"+U.sig(R/(R+Re)*100,3)+" %</b>"+(Re>0.1*R?'（<b style="color:var(--gold)">ESR が内部抵抗に比べて大きい</b>）':"");
+      if(led){var d1=C>0?Math.min(Ib*tb/C+Ib*Re,Ib*R):Ib*R,den=allow-dvb;
+        s+="<br>LED の後に送信するときの間隔 t_gap ≥ τ ln(ΔV₁/(ΔV_allow − ΔV₂)) = "+(C<=0?"—（コンデンサなし）":(den<=0?'<span class="warn">送信だけで ΔV_allow を超えるので、間を空けても足りない</span>':"<b>"+(d1<=den?"0（空けなくてよい）":F.time(tau*Math.log(d1/den)))+"</b>（安全側の見積もり。ΔV₁ = "+d1.toFixed(3)+" V）"));}
+      ro.innerHTML=s+'<div class="wnote">電池は起電力と内部抵抗、コンデンサは理想の容量と ESR で表した。マイコンが V_min を割ってリセットした後の動きは計算していない。値はすべて例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 3 節: 低電池の判定 ---- */
+  REG.w04_lowbat=function(el,U){
+    var S=U.S,seed=1;
+    U.head(el,"LOW BATTERY","低電池の判定 — 測るとき・ヒステリシス・連続回数");
+    var r1=U.ctrls(el);
+    var cMs=U.select(r1,"測るとき",["送信の直後（電圧が最も下がるとき）","休んでいるとき（電流 0）"],0,draw);
+    var cTh=U.select(r1,"しきい値",["ヒステリシス（2.45 V で入り、2.60 V を超えて戻る）","1 つ（2.45 V）"],0,draw);
+    var cN=U.slider(r1,"続けて越える回数 N",{values:[1,2,3,4,5],value:3,fmt:function(v){return v+" 回";},onInput:draw});
+    var r2=U.ctrls(el);
+    var cTm=U.slider(r2,"気温の平均",{min:-10,max:25,step:1,value:5,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var cDT=U.slider(r2,"1 日の気温の差",{min:0,max:20,step:1,value:14,fmt:function(v){return v+" °C";},onInput:draw});
+    var r3=U.ctrls(el);
+    var cSg=U.slider(r3,"測る誤差（標準偏差）",{min:0,max:40,step:1,value:10,fmt:function(v){return v+" mV";},onInput:draw});
+    var cPo=U.slider(r3,"0.25 V 低く外れる測定の割合",{values:[0,0.1,0.3,1,3],value:1,fmt:function(v){return v+" %";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(ms,th,n){cMs.set(ms);cTh.set(th);cN.set(n);cTm.set(5);cDT.set(14);cSg.set(10);cPo.set(1);draw();}
+    U.button(br,"3 節の例（送信の直後・ヒステリシス・3 回）",function(){preset(0,0,3);});
+    U.button(br,"しきい値 1 つ・1 回",function(){preset(0,1,1);});
+    U.button(br,"ヒステリシス・1 回",function(){preset(0,0,1);});
+    U.button(br,"休んでいるときに測る",function(){preset(1,0,3);});
+    U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var rest=cMs.get()===1,single=cTh.get()===1,N=cN.get(),Tm=cTm.get(),dT=cDT.get(),sg=cSg.get()*1e-3,po=cPo.get()/100;
+      var R=U.rng(seed),lifeH=_w04_LIFE_D*24,H=Math.floor(lifeH*1.02),exitV=single?2.45:2.60;
+      var st=0,nc=0,nl=0,no=0,changes=0,tLow=-1,tCrit=-1,firstBad=-1,resets=0,sCrit=-1;
+      var D0=2400,days={},seg=[],cur=0,seg0=0;
+      for(var h=0;h<H;h++){
+        var s=h/lifeH,T=Tm+dT/2*Math.sin(2*Math.PI*((h%24)-9)/24),vt=_w04_vop(s,T),v=(rest?_w04_ocv(s):vt)+sg*R.normal(),out=false;
+        if(po>0&&R.chance(po)){v-=0.25;out=true;}
+        nc=v<2.35?nc+1:0; nl=v<2.45?nl+1:0; no=(single?v>=exitV:v>exitV)?no+1:0;
+        var prev=st;
+        if(st===0){if(nc>=N)st=2;else if(nl>=N)st=1;}
+        else if(st===1){if(nc>=N)st=2;else if(no>=N)st=0;}
+        if(st!==prev){changes++;if(st===1&&tLow<0)tLow=h/24;if(st===2){tCrit=h/24;sCrit=s;}}
+        if(vt<2.2&&firstBad<0)firstBad=h/24;
+        if(vt<2.2&&st!==2)resets++;
+        if(st!==cur){seg.push([seg0,h/24,cur]);seg0=h/24;cur=st;}
+        var d=Math.floor(h/24);
+        if(d>=D0){var a=days[d]||(days[d]=[9,0,9,st,0,[]]);if(out)a[5].push(v);else{a[0]=Math.min(a[0],v);a[1]=Math.max(a[1],v);}a[2]=Math.min(a[2],vt);a[3]=Math.max(a[3],st);if(vt<2.2&&st!==2)a[4]++;}
+      }
+      seg.push([seg0,H/24,cur]);
+      /* ---- 図 ---- */
+      var wide=_w04_wide(box),W=wide?700:380,x0=wide?70:56,wd=W-x0-20,o=[],SC=["green","gold","alias"];
+      /* 上: 電池の一生の判定の帯 */
+      var Xl=function(d){return x0+d/(H/24)*wd;};
+      o.push(S.T(10,16,"電池の一生（約 "+U.sig(_w04_LIFE_D/365,2)+" 年）の判定","start",10.5,"ink",true));
+      seg.forEach(function(q){o.push(S.RECT(Xl(q[0]),24,Math.max(0.6,Xl(q[1])-Xl(q[0])),14,0,U.soft(SC[q[2]]),SC[q[2]],0.5));});
+      for(var y=0;y<=8;y++){var xx=Xl(y*365);o.push(S.L(xx,38,xx,42,"muted",1));o.push(S.T(xx,53,y+(y===0?" 年":""),"middle",9,"muted"));}
+      o.push(S.RECT(Xl(D0),22,Xl(H/24)-Xl(D0),18,2,"none","ink",1,"3 2"));
+      /* 下: 最後の 520 日 */
+      var y0=78,hh=wide?170:150,vlo=2.0,vhi=2.9,d1=H/24;
+      var X=function(d){return x0+(d-D0)/(d1-D0)*wd;},Y=function(v){return y0+hh-(Math.max(vlo,Math.min(vhi,v))-vlo)/(vhi-vlo)*hh;};
+      o.push(S.T(10,y0-8,"点線の枠の拡大: 測った電圧と判定","start",10.5,"ink",true));
+      o.push(S.W([x0,y0,x0,y0+hh,x0+wd,y0+hh],"muted",1.1));
+      [2.0,2.2,2.4,2.6,2.8].forEach(function(v){o.push(S.L(x0,Y(v),x0+wd,Y(v),"grid",1));o.push(S.T(x0-6,Y(v)+3.5,v.toFixed(1),"end",9,"muted"));});
+      o.push(S.T(x0-34,y0+hh/2+4,"V","middle",9.5,"muted"));
+      var ks=Object.keys(days).map(Number).sort(function(a,b){return a-b;}),top=[],bot=[],tl=[];
+      ks.forEach(function(d){if(days[d][1]>0){top.push([X(d+0.5),Y(days[d][1])]);bot.unshift([X(d+0.5),Y(days[d][0])]);}tl.push([X(d+0.5),Y(days[d][2])]);});
+      if(top.length)o.push(S.PL(top.concat(bot),"signal",0.8,"var(--signal-soft)"));
+      ks.forEach(function(d){days[d][5].forEach(function(v){o.push(S.D(X(d+0.5),Y(v),"alias",1.6));});});
+      o.push(S.PL(tl,"teal",1.2,null,"4 2"));
+      [[2.60,"green","2.60"],[2.45,"gold","2.45"],[2.35,"alias","2.35"],[2.2,"alias","2.2（最低）"]].forEach(function(q){if(single&&q[0]===2.60)return;
+        o.push(S.L(x0,Y(q[0]),x0+wd,Y(q[0]),q[1],1.1,q[0]===2.2?"6 3":"4 3"));o.push(S.T(x0+wd-2,Y(q[0])-3,q[2]+" V","end",8.5,q[1],true,false,null,true));});
+      var yb=y0+hh+10;
+      var g0=ks.length?ks[0]:0,gs=ks.length?days[ks[0]][3]:0;
+      ks.concat([null]).forEach(function(d){if(d===null||days[d][3]!==gs){var c=SC[gs],de=d===null?ks[ks.length-1]+1:d;o.push(S.RECT(X(g0),yb,Math.max(0.8,X(de)-X(g0)),11,1,U.soft(c),c,0.8));if(d!==null){g0=d;gs=days[d][3];}}});
+      ks.forEach(function(d){if(days[d][4]>0)o.push(S.L(X(d+0.5),yb+13,X(d+0.5),yb+21,"alias",1.4));});
+      [0,100,200,300,400,500,600,700].forEach(function(k){var d=D0+k;if(d>d1)return;o.push(S.L(X(d),y0+hh,X(d),y0+hh+4,"muted",1));o.push(S.T(X(d),yb+33,String(d),"middle",9,"muted"));});
+      o.push(S.T(x0+wd,yb+46,"電池を入れてからの日数","end",9,"muted"));
+      var lx=x0,ly=yb+60;
+      [["green","OK"],["gold","LOW"],["alias","CRIT"],["signal","測った電圧（1 日の最小〜最大）"],["teal","本当の電圧（1 日の最小。点線）"]].forEach(function(q,i){var w=U.tw(q[1],9)+26;if(lx+w>x0+wd){lx=x0;ly+=15;}o.push(S.RECT(lx,ly-9,10,10,2,U.soft(q[0]),q[0],1));o.push(S.T(lx+14,ly,q[1],"start",9,q[0],true));lx+=w;});
+      if(lx+190>x0+wd){lx=x0;ly+=15;}o.push(S.D(lx+5,ly-4,"alias",2));o.push(S.T(lx+12,ly,"外れた値",'start',9,"alias",true));lx+=62;o.push(S.L(lx+4,ly-8,lx+4,ly,"alias",1.4));o.push(S.T(lx+10,ly,"リセットした日",'start',9,"alias",true));
+      box.set(S.svg(W,ly+10,o));
+      /* ---- 読み出し ---- */
+      var fd=function(d){return d<0?"—":Math.round(d)+" 日（"+U.sig(d/365,3)+" 年）";};
+      var sEnd=firstBad>0?firstBad*24/lifeH:1;
+      var txt="状態の変化 <b>"+changes+" 回</b>"+(changes>3?'（<span class="warn">ばたついている</span>）':'（<span class="ok">ばたつかない</span>）')+"<br>";
+      txt+="LOW に入った: "+fd(tLow)+" ・ CRIT に入った: "+fd(tCrit)+" ・ 送信の直後の電圧が初めて 2.2 V を割った: "+fd(firstBad)+"<br>";
+      if(resets>0)txt+='<span class="warn">CRIT に入る前に、送信の直後の電圧が 2.2 V を割った時間が '+resets+' 回ある（その送信でリセットする）</span>';
+      else if(tCrit>=0&&firstBad>=0)txt+='<span class="ok">CRIT に入ってから、本当に 2.2 V を割るまで '+Math.round(firstBad-tCrit)+' 日の余裕がある</span>';
+      else txt+="（この範囲では CRIT に入らなかった）";
+      if(tCrit>=0&&firstBad>=0&&sCrit<sEnd-0.1)txt+='<br><span class="warn">CRIT に入るのが早すぎる: 使える電荷の '+Math.round((1-sCrit/sEnd)*100)+' % を残して止まった</span>';
+      ro.innerHTML=txt+'<div class="wnote">03 章 4 節の例の模型（実際の電池の値ではない）に 1 節の 100 µF を付けた機器で、1 時間ごとに測って判定した。CRIT からは戻らない。外れた値は、測定の一部が 0.25 V 低くなるとした。休んでいるときに測る場合も、送信は毎回するので、そのときの電圧でリセットするかどうかを数えた。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 4 節: 残量の推定 ---- */
+  REG.w04_soc=function(el,U){
+    var S=U.S,seed=1;
+    U.head(el,"STATE OF CHARGE","残量の推定 — 電圧から・電荷を数えて・組み合わせて");
+    var r1=U.ctrls(el);
+    var cB=U.select(r1,"電池",["リチウムイオン電池（放電曲線が傾いている。03 章の例の模型）","コイン形（放電曲線が平ら。03 章の例の模型）"],0,draw);
+    var cMs=U.select(r1,"電圧を測るとき",["休ませて（電流 0）","電流を流しながら（リチウムイオン 1 A・コイン形 送信の直後）"],0,draw);
+    var r2=U.ctrls(el);
+    var cT=U.slider(r2,"温度",{min:-10,max:40,step:1,value:25,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var cSg=U.slider(r2,"電圧の誤差（標準偏差）",{min:0,max:30,step:1,value:15,fmt:function(v){return v+" mV";},onInput:draw});
+    var r3=U.ctrls(el);
+    var cK=U.slider(r3,"数えた電荷の誤差",{min:-20,max:20,step:1,value:-10,fmt:function(v){return (v>0?"+":"")+String(v).replace("-","−")+" %";},onInput:draw});
+    var cQ=U.slider(r3,"実際の容量 ÷ 見積もった容量",{min:60,max:110,step:1,value:90,fmt:function(v){return v+" %";},onInput:draw});
+    var r4=U.ctrls(el);
+    var cFx=U.checkbox(r4,"組み合わせる（電圧で合わせ直す）",true,draw);
+    var br=U.btnrow(el);
+    U.button(br,"誤差なし",function(){cK.set(0);cQ.set(100);cSg.set(0);draw();});
+    U.button(br,"例に戻す",function(){cB.set(0);cMs.set(0);cT.set(25);cSg.set(15);cK.set(-10);cQ.set(90);cFx.set(true);draw();});
+    U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var coin=cB.get()===1,load=cMs.get()===1,T=cT.get(),sg=cSg.get()*1e-3,k=cK.get()/100,qr=cQ.get()/100,fix=cFx.get();
+      var R=U.rng(seed),pts=[],NP=200;
+      /* p: 本当の残量 [%]（実際に使える電荷に対して）。u: 使った電荷 / 見積もった容量 */
+      var rinLi=0.12*Math.pow(1.4,(25-T)/10),sEnd=1;
+      if(coin){var lo=0.3,hi=1.0;for(var it=0;it<50;it++){var mm=(lo+hi)/2;if(_w04_vop(mm,T)>2.35)lo=mm;else hi=mm;}sEnd=lo;}   /* 機器が止まる（3 節の CRIT）まで */
+      var anchor=null,cAdj=0,lowSeen=false;
+      for(var i=0;i<=NP;i++){
+        var p=100-100*i/NP,used=(1-p/100)*qr;            /* 見積もった容量に対する、使った割合 */
+        var v,pv;
+        if(coin){var s=(1-p/100)*sEnd;v=(load?_w04_vop(s,T):_w04_ocv(s))+sg*R.normal();
+          /* 220 mAh に対する残量の表で引き、使える電荷に対する割合に直す */
+          pv=Math.max(0,Math.min(100,(1-(1-_w04_inv(_w04_COIN,v)/100)/sEnd)*100));}
+        else{v=_w04_tab(_w04_LI,p)-(load?1.0*rinLi:0)+sg*R.normal();pv=_w04_inv(_w04_LI,v);}
+        var pc=100*(1-(1+k)*used);
+        /* 組み合わせ: リチウムイオンは残量 50 % で 1 回休んだとして電圧の値に合わせ直し、使い終わりの近く（電圧の表で 10 % 以下）でも合わせ直す。
+           コイン形は、送信の直後の電圧が 2.45 V を下回ったら（3 節の LOW）10 % 以下にし、2.35 V で 0 % にする */
+        var pf;
+        if(!coin){
+          if(anchor===null&&p<=50){anchor=pv-pc;}
+          if(pv<=10&&!lowSeen){lowSeen=true;cAdj=pv-(pc+(anchor||0));}
+          pf=pc+(anchor||0)+(lowSeen?cAdj:0);
+          if(lowSeen)pf=Math.min(pf,pv);
+        }else{
+          var vl=_w04_vop((1-p/100)*sEnd,T);
+          pf=pc;
+          if(vl<2.45)pf=Math.min(pc,Math.max(0,10*(vl-2.35)/0.10));
+        }
+        pts.push([p,pv,Math.max(0,Math.min(100,pc)),Math.max(0,Math.min(100,pf))]);
+      }
+      /* ---- 図 ---- */
+      var wide=_w04_wide(box),W=wide?700:380,x0=wide?70:56,sz=wide?300:260,o=[];
+      var pw=wide?360:W-x0-20,ph=sz-60;
+      var X=function(p){return x0+(100-p)/100*pw;},Y=function(q){return 24+ph-q/100*ph;};
+      o.push(S.T(10,14,"推定した残量（縦）と本当の残量（横。右へ使っていく）","start",10.5,"ink",true));
+      o.push(S.W([x0,24,x0,24+ph,x0+pw,24+ph],"muted",1.1));
+      [0,20,40,60,80,100].forEach(function(q){o.push(S.L(x0,Y(q),x0+pw,Y(q),"grid",1));o.push(S.T(x0-6,Y(q)+3.5,String(q),"end",9,"muted"));
+        o.push(S.L(X(q),24+ph,X(q),28+ph,"muted",1));o.push(S.T(X(q),40+ph,String(q),"middle",9,"muted"));});
+      o.push(S.T(x0+pw,54+ph,"本当の残量 [%]","end",9.5,"muted"));
+      o.push(S.T(x0-38,24+ph/2,"推定 [%]","middle",9.5,"muted",false,false,-90));
+      o.push(S.L(X(100),Y(100),X(0),Y(0),"ink",1.2));
+      pts.forEach(function(q,i){if(i%2===0)o.push(S.D(X(q[0]),Y(Math.max(0,Math.min(100,q[1]))),"teal",1.8));});
+      o.push(S.PL(pts.map(function(q){return [X(q[0]),Y(q[2])];}),"gold",1.8,null,"5 3"));
+      if(fix)o.push(S.PL(pts.map(function(q){return [X(q[0]),Y(q[3])];}),"signal",2.2));
+      var lx=wide?x0+pw+24:x0,ly=wide?40:24+ph+70,L=[["ink","本当の残量（対角線）"],["teal","電圧から（点）"],["gold","電荷を数えて（破線）"]];
+      if(fix)L.push(["signal","組み合わせ（実線）"]);
+      L.forEach(function(q,i){o.push(S.RECT(lx,ly+i*18-9,10,10,2,U.soft(q[0]),q[0],1));o.push(S.T(lx+14,ly+i*18,q[1],"start",9.5,q[0],true));});
+      var errs=[["電圧から",1],["電荷を数えて",2]];if(fix)errs.push(["組み合わせ",3]);
+      var ey=ly+L.length*18+14;
+      if(wide){o.push(S.T(lx,ey,"誤差の最大（本当 − 推定の絶対値）","start",9.5,"ink",true));
+        errs.forEach(function(e,i){var m=0;pts.forEach(function(q){m=Math.max(m,Math.abs(q[e[1]]-q[0]));});o.push(S.T(lx,ey+17+i*16,e[0]+": "+m.toFixed(0)+" %","start",9.5,"muted"));});}
+      box.set(S.svg(W,wide?Math.max(24+ph+62,ey+70):ly+L.length*18+6,o));
+      /* ---- 読み出し ---- */
+      function at(p,idx){var b=pts[0];pts.forEach(function(q){if(Math.abs(q[0]-p)<Math.abs(b[0]-p))b=q;});return b[idx];}
+      var s="本当の残量が 50 % のとき: 電圧から "+at(50,1).toFixed(0)+" %・電荷を数えて "+at(50,2).toFixed(0)+" %"+(fix?"・組み合わせ "+at(50,3).toFixed(0)+" %":"")+"<br>";
+      var e0=at(0,2),f0=at(0,3);
+      s+="本当の残量が 0 % のとき（使い切ったとき）: 電荷を数えて <b>"+e0.toFixed(0)+" %</b>"+(e0>2?'（<span class="warn">残っていると示したまま止まる</span>）':"")+(fix?"・組み合わせ <b>"+f0.toFixed(0)+" %</b>"+(f0>2?'（<span class="warn">まだ残っていると示す</span>）':'（<span class="ok">0 % に近い</span>）'):"");
+      s+="<br>電圧からの推定は、"+(coin?"平らな所では誤差が大きい（傾き約 2 mV/% なので、電圧の誤差 "+Math.round(sg*1000)+" mV は約 "+Math.round(sg*1000/2)+" %）":"傾きのある所では誤差が小さい（残量 50 % の近くで約 4.8 mV/%）")+(load?'。<span class="warn">電流を流しながら測ると、内部抵抗の分だけ少なく読める</span>':"");
+      ro.innerHTML=s+'<div class="wnote">本当の残量は、実際に使える電荷（コイン形では、機器が止まる 3 節の CRIT まで）に対する割合。「数えた電荷の誤差」は、動作 1 回の電荷や電流の測定の誤差をまとめたもの（負なら本当より少なく数える）。組み合わせは、リチウムイオン電池では残量 50 % の時点で 1 回休み、電圧の表に合わせ直したとし、使い終わりの近く（電圧の表で 10 % 以下）でも合わせ直す。コイン形では、送信の直後の電圧が 2.45 V（3 節の LOW）を下回ったら 10 % 以下に下げ、2.35 V で 0 % とした。値はすべて例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 充電器 IC の CC/CV 充電と、パワーパス・温度・マイコンの見張り（簡単な模型） ---- */
+  REG.w04_charge=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"CHARGER","充電器 IC の CC/CV 充電とパワーパス（マイコンは見張るだけ）");
+    var r1=U.ctrls(el);
+    var cQ=U.slider(r1,"電池の容量",{values:[200,500,1000,2000,3000],value:1000,fmt:function(v){return v+" mAh";},onInput:draw});
+    var cI=U.slider(r1,"充電の電流（CC）",{values:[0.2,0.3,0.5,0.7,1.0],value:0.5,fmt:function(v){return v+"C";},onInput:draw});
+    var cTe=U.slider(r1,"終了電流",{values:[0.05,0.1,0.2],value:0.1,fmt:function(v){return v+"C";},onInput:draw});
+    var r2=U.ctrls(el);
+    var cSys=U.slider(r2,"機器の電流",{min:0,max:300,step:10,value:150,fmt:function(v){return v+" mA";},onInput:draw});
+    var cBud=U.slider(r2,"USB の電流の予算",{values:[100,500,900,1500,3000],value:900,fmt:function(v){return v+" mA";},onInput:draw});
+    var cPP=U.checkbox(r2,"パワーパスあり",false,draw);
+    var r3=U.ctrls(el);
+    var cT=U.slider(r3,"電池の温度",{min:-10,max:60,step:1,value:25,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var cP0=U.slider(r3,"充電を始めたときの残量",{values:[-2,0,10,30,50,80],value:10,fmt:function(v){return v<0?"−2 %（2.8 V。予備充電から）":v+" %";},onInput:draw});
+    var cTm=U.checkbox(r3,"マイコンが時間を見張る（予定の 1.5 倍で止める）",true,draw);
+    var br=U.btnrow(el);
+    function preset(pp,sys){cQ.set(1000);cI.set(0.5);cTe.set(0.1);cSys.set(sys);cBud.set(900);cPP.set(pp);cT.set(25);cP0.set(10);cTm.set(true);draw();}
+    U.button(br,"5 節の図 (a) パワーパスなし・機器 150 mA",function(){preset(false,150);});
+    U.button(br,"(b) パワーパスあり",function(){preset(true,150);});
+    U.button(br,"機器の電流 0",function(){preset(false,0);});
+    U.button(br,"寒い（−5 °C）",function(){cT.set(-5);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function ocv(p){return p<0?3.00+(p/2)*0.2:_w04_tab(_w04_LI,Math.min(100,p));}   /* −2 % で 2.8 V（予備充電の範囲を表す例） */
+    function draw(){
+      var Q=cQ.get(),Icc=cI.get()*Q,Ite=cTe.get()*Q,Isys=cSys.get(),bud=cBud.get(),pp=cPP.get(),T=cT.get(),p0=cP0.get(),tm=cTm.get();
+      var R=0.3*1000/Q,Ipre=0.1*Q,Vch=4.2;               /* 充電の間の内部抵抗 [Ω]（1000 mAh で 0.3 Ω とし、容量に反比例させた例） */
+      var tempOk=T>=0&&T<=45,exp=(100-Math.max(0,p0))/100*Q/Icc+0.75,tLim=tm?1.5*exp:12,dt=10/3600;
+      var p=p0,t=0,log=[],endT=null,endWhy="",hold=0,starve=false;
+      while(t<Math.min(tLim,12)+1e-9){
+        var E=ocv(p),ib,meas,mode;
+        if(!tempOk){mode="temp";ib=pp?0:-Isys;meas=0;}
+        else{
+          var Iset=E<3.0?Ipre:Icc;mode=E<3.0?"pre":"cc";
+          if(pp){var cap=Math.max(0,Math.min(Iset,bud-Isys)),cv=(Vch-E)/R*1000;ib=Math.min(cap,cv);if(mode==="cc"&&cv<cap)mode="cv";meas=ib;}
+          else{var lim=Math.min(Iset,bud),cv2=(Vch-E)/R*1000;ib=Math.min(lim-Isys,cv2);if(mode==="cc"&&cv2<lim-Isys)mode="cv";meas=ib+Isys;}
+          if(mode==="cv"&&meas<=Ite){endT=t;endWhy="full";break;}
+        }
+        if(mode==="cv"&&p>=99.5)hold+=dt;
+        if((mode==="pre"||mode==="cc")&&ib<=0)starve=true;
+        log.push([t,ib,meas,E+ib/1000*R,E,p,mode]);
+        p=Math.min(100,p+ib*dt/Q*100);t+=dt;
+      }
+      if(endT===null){endT=t;endWhy=tempOk?(tm&&t>=tLim-1e-6?"timer":"long"):"temp";}
+      /* ---- 図 ---- */
+      var wide=_w04_wide(box),W=wide?700:380,x0=wide?66:52,wd=W-x0-(wide?50:40),o=[],span=Math.max(0.5,endT*1.08);
+      var X=function(h){return x0+h/span*wd;};
+      var MC={pre:"teal",cc:"gold",cv:"signal",temp:"alias"},MN={pre:"予備充電",cc:"定電流（CC）",cv:"定電圧（CV）",temp:"温度で停止"};
+      /* 段の帯 */
+      var yb=10,seg0=0,sm=log.length?log[0][6]:"temp";
+      o.push(S.T(10,yb+11,"段","start",10,"ink",true));
+      log.concat([[endT,0,0,0,0,0,null]]).forEach(function(r){if(r[6]!==sm){var c=MC[sm];o.push(S.RECT(X(seg0),yb,Math.max(1,X(r[0])-X(seg0)),14,2,U.soft(c),c,0.8));var w=X(r[0])-X(seg0);if(w>U.tw(MN[sm],9)+6)o.push(S.T((X(seg0)+X(r[0]))/2,yb+11,MN[sm],"middle",9,c,true));seg0=r[0];sm=r[6];}});
+      var endC=endWhy==="full"?"green":"alias",endL=endWhy==="full"?"満充電で終了":(endWhy==="timer"?"マイコンのタイマで停止（異常）":(endWhy==="temp"?"温度の範囲の外: 充電しない":"終わらない"));
+      /* 電流 */
+      var y1=40,h1=wide?100:90,imax=Math.max(Icc,Isys,Ite)*1.15,imin=Math.min(0,-Isys)*1.15;
+      var Y1=function(i){return y1+h1-(i-imin)/(imax-imin)*h1;};
+      o.push(S.T(10,y1-4,"電流 [mA]","start",10,"ink",true));
+      o.push(S.W([x0,y1,x0,y1+h1,x0+wd,y1+h1],"muted",1.1));
+      U.nice(imin,imax,4).forEach(function(v){if(v>=imin-1e-9&&v<=imax+1e-9){o.push(S.L(x0,Y1(v),x0+wd,Y1(v),"grid",1));o.push(S.T(x0-6,Y1(v)+3.5,U.sig(v,3),"end",9,"muted"));}});
+      o.push(S.L(x0,Y1(Ite),x0+wd,Y1(Ite),"alias",1,"3 3"));o.push(S.T(x0+wd,Y1(Ite)-4,"終了電流 "+U.sig(Ite,3)+" mA","end",9,"alias",false,false,null,true));
+      if(log.length){o.push(S.PL(log.map(function(r){return [X(r[0]),Y1(r[1])];}),"gold",2));
+        if(!pp)o.push(S.PL(log.map(function(r){return [X(r[0]),Y1(r[2])];}),"purple",1.6,null,"5 3"));}
+      /* 電圧と残量 */
+      var y2=y1+h1+34,h2=wide?100:90,Y2=function(v){return y2+h2-(v-2.8)/(4.3-2.8)*h2;},Yp=function(q){return y2+h2-q/100*h2;};
+      o.push(S.T(10,y2-4,"電池の電圧 [V]・残量","start",10,"ink",true));
+      o.push(S.W([x0,y2,x0,y2+h2,x0+wd,y2+h2],"muted",1.1));
+      [2.8,3.2,3.6,4.0,4.2].forEach(function(v){o.push(S.L(x0,Y2(v),x0+wd,Y2(v),"grid",1));o.push(S.T(x0-6,Y2(v)+3.5,v.toFixed(1),"end",9,"muted"));});
+      [0,50,100].forEach(function(q){o.push(S.T(x0+wd+6,Yp(q)+3.5,q+" %","start",9,"teal"));});
+      o.push(S.L(x0,Y2(Vch),x0+wd,Y2(Vch),"alias",1,"3 3"));
+      if(log.length){o.push(S.PL(log.map(function(r){return [X(r[0]),Y2(Math.max(2.8,Math.min(4.3,r[3])))];}),"signal",2));
+        o.push(S.PL(log.map(function(r){return [X(r[0]),Yp(Math.max(0,r[5]))];}),"teal",1.6,null,"5 3"));}
+      var ya=y2+h2;U.nice(0,span,wide?8:5).forEach(function(v){if(v<=span+1e-9){o.push(S.L(X(v),ya,X(v),ya+4,"muted",1));o.push(S.T(X(v),ya+15,U.sig(v,3),"middle",9,"muted"));}});
+      o.push(S.T(x0+wd,ya+28,"時間 [時間]","end",9,"muted"));
+      o.push(S.L(X(endT),yb-2,X(endT),ya,endC,1.2,"4 3"));
+      var ly=ya+44,lx=x0,L=[["gold","電池へ入る電流"],["signal","電池の端子電圧"],["teal","残量（破線・右の目盛）"]];if(!pp)L.splice(1,0,["purple","充電器 IC が見る電流（電池 + 機器）"]);
+      L.forEach(function(q){var w=U.tw(q[1],9)+26;if(lx+w>x0+wd){lx=x0;ly+=15;}o.push(S.RECT(lx,ly-9,10,10,2,U.soft(q[0]),q[0],1));o.push(S.T(lx+14,ly,q[1],"start",9,q[0],true));lx+=w;});
+      o.push(S.T(Math.min(X(endT)+4,x0+wd-2),y1+12,endL,X(endT)>x0+wd*0.6?"end":"start",9.5,endC,true,false,null,true));
+      box.set(S.svg(W,ly+10,o));
+      /* ---- 読み出し ---- */
+      var last=log.length?log[log.length-1]:[0,0,0,ocv(p0),ocv(p0),p0,"temp"];
+      var s="";
+      if(endWhy==="full")s+='<span class="ok">'+U.sig(endT,3)+' 時間で満充電を見分けて終了</span>（残量 '+Math.round(last[5])+' %）';
+      else if(endWhy==="temp")s+='<span class="warn">電池の温度 '+String(T).replace("-","−")+' °C は充電してよい範囲（この例では 0〜45 °C）の外なので、充電器 IC は充電しない</span>'+(pp?"":"。機器の電流は電池から流れ、電池は減っていく");
+      else if(starve)s+='<span class="warn">機器の電流 '+Isys+' mA が、充電器 IC が出せる電流（'+(pp?"USB の予算の残り":(p0<0?"予備充電の "+U.sig(Ipre,3)+" mA":"設定と USB の予算の小さいほう"))+'）を使い切り、電池は充電されない'+(p0<0&&!pp?"（空の電池では機器が起動できない）":"")+'</span>'+(endWhy==="timer"?"。マイコンのタイマが "+U.sig(endT,3)+" 時間で止めた":"");
+      else s+='<span class="warn">充電器 IC は満充電を見分けられない</span>（充電器が見る電流が終了電流の '+U.sig(Ite,3)+' mA まで下がらない）。'+(endWhy==="timer"?"マイコンのタイマが "+U.sig(endT,3)+" 時間で止め、異常として知らせた":"12 時間たっても終わらない")+"。電池が 4.2 V のまま保たれた時間 "+U.sig(hold,2)+" 時間";
+      if(tempOk)s+="<br>定電流の間に電池へ入る電流 "+U.sig(Math.max(0,Math.min(Icc,pp?bud-Isys:Math.min(Icc,bud)-Isys)),3)+" mA（設定 "+U.sig(Icc,3)+" mA"+(pp?"、予算 "+bud+" mA から機器の "+Isys+" mA を引いた残りが上限":"。機器の "+Isys+" mA が差し引かれる")+"）・ マイコンの予定の時間 "+U.sig(exp,3)+" 時間（1.5 倍で "+U.sig(1.5*exp,3)+" 時間）";
+      ro.innerHTML=s+'<div class="wnote">充電そのものは充電器 IC が行う（この図はその動きの簡単な模型）。マイコンは状態を読み、温度と時間を見張って止めるだけで、充電の電流や電圧を直接作らない。値はすべて例の値で、実際の電池の充電の条件は電池の仕様書で確かめる。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 05 章 マイコンの電源まわり ===== */
+  function _w05_life(h,U){var d=h/24;if(d>=365*30)return "30 年を超える";return d>=365?U.sig(d/365,3)+" 年":(d>=1?U.sig(d,3)+" 日":U.sig(h,3)+" 時間");}
+  function _w05_v(v,d){return (+v).toFixed(d==null?2:d)+" V";}
+
+  /* ---- 2 節: 静止電流と入力の平均電流 ---- */
+  REG.w05_reg=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"QUIESCENT","静止電流と入力の平均電流 — LDO かスイッチング電源か");
+    var r1=U.ctrls(el);
+    var vin=U.slider(r1,"電池の電圧 V_in",{values:[1.5,2.4,3.0,3.3,3.6,3.7,4.2,5,9,12],value:3.6,fmt:function(v){return v+" V";},onInput:draw});
+    var vout=U.slider(r1,"出力の電圧 V_out",{values:[1.2,1.8,2.5,3.0,3.3,5.0],value:1.8,fmt:function(v){return v+" V";},onInput:draw});
+    var eta=U.slider(r1,"スイッチング電源の効率 η_0（静止電流の分を除く）",{min:0.6,max:0.98,step:0.01,value:0.9,fmt:function(v){return Math.round(v*100)+" %";},onInput:draw});
+    var r2=U.ctrls(el);
+    var iql=U.slider(r2,"LDO の静止電流 I_q,L",{min:0.05,max:100,log:true,value:1,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var iqs=U.slider(r2,"スイッチング電源の静止電流 I_q,S",{min:0.1,max:100,log:true,value:10,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var r3=U.ctrls(el);
+    var is=U.slider(r3,"眠りの電流 I_s",{min:0.1,max:100,log:true,value:2,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var ia=U.slider(r3,"起きている間の電流 I_a",{min:0.1,max:100,log:true,value:6,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var ta=U.slider(r3,"起きている時間 t_a",{min:0.001,max:10,log:true,value:0.02,fmt:function(v){return F.time(v);},onInput:draw});
+    var r4=U.ctrls(el);
+    var Tp=U.slider(r4,"起きる周期 T",{min:0.1,max:86400,log:true,value:1,fmt:function(v){return F.time(v);},onInput:draw});
+    var cap=U.slider(r4,"電池の容量",{values:[220,1000,2000,2400,3000],value:2400,fmt:function(v){return v+" mAh";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(T,a){vin.set(a&&a.vin||3.6);vout.set(a&&a.vout||1.8);eta.set(0.9);iql.set(1);iqs.set(a&&a.iqs||10);is.set(2);ia.set(6);ta.set(0.02);Tp.set(T);cap.set(2400);draw();}
+    U.button(br,"2 節の例・T = 1 s",function(){preset(1);});
+    U.button(br,"2 節の例・T = 60 s",function(){preset(60);});
+    U.button(br,"静止電流 0.5 µA のスイッチング電源",function(){preset(60,{iqs:0.5});});
+    U.button(br,"3.6 V から 3.3 V（k ≥ 1）",function(){preset(1,{vout:3.3});});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var Vi=vin.get(),Vo=vout.get(),e0=eta.get(),qL=iql.get()*1e-6,qS=iqs.get()*1e-6,Is=is.get()*1e-6,Ia=ia.get()*1e-3,ta_=ta.get(),T=Tp.get(),C=cap.get();
+      var warn="";
+      if(ta_>T){warn+='<span class="warn">起きている時間が周期より長い。周期を t_a にして計算した。</span><br>';T=ta_;}
+      var ldoOk=Vi>=Vo+0.2,k=Vo/(e0*Vi);
+      var Iout=function(t){return Is+(Ia-Is)*Math.min(ta_,t)/t;};
+      var IL=function(t){return Iout(t)+qL;},IS=function(t){return k*Iout(t)+qS;};
+      /* 損得の境目: 差 = (qS − qL) − (1 − k) Iout は Iout について一次 */
+      var d0=qS-qL,d1=1-k,Ist=null,Tst=null,shortBetter;
+      if(Math.abs(d1)>1e-12){Ist=d0/d1;}
+      if(Ist!==null&&Ist>Is&&Ist<Ia){Tst=(Ia-Is)*ta_/(Ist-Is);}
+      shortBetter=(d0-d1*Ia)<0?"sw":"ldo";               /* 周期が短い（平均が I_a に近い）ときに得なほう */
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?400:700,o=[];
+      /* グラフ: 周期と入力の平均電流 */
+      var Ts=[],lo=Infinity,hi=0;for(var j=0;j<=120;j++){var t=Math.pow(10,-1+j*Math.log10(864000)/120);Ts.push(t);
+        [IL(t),IS(t)].forEach(function(v){lo=Math.min(lo,v);hi=Math.max(hi,v);});}
+      var y0=Math.pow(10,Math.floor(Math.log10(lo*0.8))),y1=Math.pow(10,Math.ceil(Math.log10(hi*1.2)));
+      var pw=nar?310:360,p=U.plot(70,20,pw,200,[0.1,86400],[y0,y1],{xlog:true,ylog:true});
+      var yt=[];for(var v=y0;v<=y1*1.0001;v*=10)yt.push(v);
+      o.push(p.axes({xl:"起きる周期 T",yl:"入力の平均電流",xt:[0.1,1,10,100,1000,1e4,86400],yt:yt,xfmt:function(v){return v===86400?"1 日":(v>=1000?(v/1000)+"k s":v+" s");},yfmt:function(v){return F.cur(v,1);},ylOff:58}));
+      if(ldoOk)o.push(p.line(Ts.map(function(t){return [t,IL(t)];}),"signal",2.2));
+      o.push(p.line(Ts.map(function(t){return [t,IS(t)];}),"green",2.2));
+      if(Tst&&Tst>=0.1&&Tst<=86400){o.push(S.L(p.X(Tst),p.Y(y0),p.X(Tst),p.Y(IL(Tst)),"alias",1,"3 3"));o.push(S.D(p.X(Tst),p.Y(IL(Tst)),"alias",4));
+        o.push(S.T(p.X(Tst)+(p.X(Tst)>p.x+p.w-70?-6:6),p.Y(y0)-8,"T* = "+F.time(Tst),p.X(Tst)>p.x+p.w-70?"end":"start",9.5,"alias",true,false,null,true));}
+      var tc=Math.max(0.1,Math.min(86400,T));
+      if(ldoOk)o.push(S.D(p.X(tc),p.Y(IL(tc)),"signal",5));
+      o.push(S.D(p.X(tc),p.Y(IS(tc)),"green",5));
+      o.push(S.T(p.x+6,p.y+12,ldoOk?"LDO（青）":"LDO は作れない","start",9.5,ldoOk?"signal":"alias",true,false,null,true));
+      o.push(S.T(p.x+6,p.y+26,"スイッチング電源（緑）","start",9.5,"green",true,false,null,true));
+      /* 内訳の棒 */
+      var bx=nar?20:470,by=nar?270:30,bw=nar?250:150,mx=Math.max(ldoOk?IL(T):0,IS(T));
+      o.push(S.T(bx,by,"T = "+F.time(T)+" のときの内訳","start",10.5,"ink",true));
+      var rows=[["LDO",ldoOk?Iout(T):0,ldoOk?qL:0,"signal"],["スイッチング",k*Iout(T),qS,"green"]];
+      rows.forEach(function(r,i){var yy=by+16+i*46,a=r[1]/mx*bw,b=r[2]/mx*bw;
+        o.push(S.T(bx,yy+12,r[0],"start",10,r[3],true));
+        if(r[0]==="LDO"&&!ldoOk){o.push(S.T(bx,yy+30,"入力が出力 + 0.2 V より低い","start",9.5,"alias",true));return;}
+        o.push(S.RECT(bx,yy+18,Math.max(a,0.6),16,2,U.soft(r[3]),r[3],1));o.push(S.RECT(bx+a,yy+18,Math.max(b,0.6),16,2,U.soft("gold"),"gold",1));
+        o.push(S.T(bx+a+b+5,yy+31,F.cur(r[1]+r[2]),"start",9.5,r[3],true));});
+      var ly=by+16+2*46+8;
+      o.push(S.RECT(bx,ly-9,10,10,2,U.soft("gold"),"gold",1));o.push(S.T(bx+15,ly,"静止電流","start",9.5,"muted"));
+      o.push(S.RECT(bx+80,ly-9,10,10,2,U.soft("signal"),"signal",1));o.push(S.T(bx+95,ly,"負荷の分","start",9.5,"muted"));
+      box.set(S.svg(W,nar?ly+14:262,o));
+      var lifeL=C*1e-3/IL(T),lifeS=C*1e-3/IS(T),better=!ldoOk?"sw":(IS(T)<IL(T)?"sw":"ldo");
+      var cs;
+      if(!ldoOk)cs="LDO は、入力が出力 + V_do（0.2 V とした）より低いので使えない。";
+      else if(Tst)cs="I* = (I_q,S − I_q,L) ÷ (1 − k) = "+F.cur(Ist)+"、T* = (I_a − I_s) t_a ÷ (I* − I_s) = <b>"+F.time(Tst)+"</b>。T* より短い周期では"+(shortBetter==="sw"?"スイッチング電源":" LDO ")+"、長い周期では"+(shortBetter==="sw"?" LDO ":"スイッチング電源")+"が得。";
+      else if(k>=1&&d0>=0)cs="k ≥ 1 で静止電流も LDO のほうが小さいので、どの周期でも LDO が得。";
+      else if(k<1&&d0<=0)cs="k < 1 で静止電流もスイッチング電源のほうが小さいので、どの周期でもスイッチング電源が得。";
+      else if(Ist!==null&&Ist<=Is)cs="I* = "+F.cur(Ist)+" が眠りの電流 I_s 以下なので、周期をいくら延ばしてもスイッチング電源が得。";
+      else cs="この範囲では、どの周期でも"+(shortBetter==="sw"?"スイッチング電源":"LDO")+"が得。";
+      ro.innerHTML=warn+"負荷の平均電流 I_out,avg = I_s + (I_a − I_s) t_a ÷ T = <b>"+F.cur(Iout(T))+"</b>、k = V_out ÷ (η_0 V_in) = "+U.sig(k,3)+"<br>"+
+        (ldoOk?"LDO の入力: I_out,avg + I_q,L = <b>"+F.cur(IL(T))+"</b>（電池寿命 "+_w05_life(lifeL,U)+"）<br>":"")+
+        "スイッチング電源の入力: k I_out,avg + I_q,S = "+F.cur(k*Iout(T))+" + "+F.cur(qS)+" = <b>"+F.cur(IS(T))+"</b>（電池寿命 "+_w05_life(lifeS,U)+"）<br>"+
+        cs+" いまの周期では <b>"+(better==="sw"?"スイッチング電源":"LDO")+"</b> が得"+(ldoOk?"（"+U.sig(Math.max(IL(T),IS(T))/Math.min(IL(T),IS(T)),3)+" 倍の差）":"")+"。"+
+        '<div class="wnote">電池寿命は、容量 ÷ 入力の平均電流で求めた。自己放電（03 章 5 節）と、電池の電圧が下がることは含めていない。電流と静止電流は例の値で、実際は製品のデータシートで確かめる。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 3 節: 負荷スイッチの突入電流 ---- */
+  /* 回路: 電池（E, Rin）→ マイコンの側（CA、マイコンの電流 Im）→ 負荷スイッチ（オン抵抗 Ron）→ 周辺の側（CL）。
+     trise = 0 は一気に入れる。trise > 0 は、周辺の側の電圧を傾き E/trise の直線に沿わせる（流せる電流はオン抵抗で決まる上限まで）。
+     線形の部分は後退オイラー法で解く（時間刻みが大きくても発散しない）。 */
+  function _w05_isim(E,Rin,CA,CL,Im,tr,tend,N){
+    var Ron=0.1,dt=tend/N,va=Math.max(0,E-Rin*Im),vb=0,S=tr>0?E/tr:0,tc=Math.max(2e-6,3*dt),out=[];
+    for(var k=0;k<=N;k++){
+      var t=k*dt,isw,ib=(E-va)/Rin;
+      out.push([t,va,vb,0,ib]);
+      if(k===N)break;
+      var want=tr>0?((S*t<va?CL*S:0)+(Math.min(S*t,10)-vb)*CL/tc):Infinity;
+      var imax=Math.max(0,(va-vb)/Ron);
+      if(want>=imax){ /* スイッチが入りきっている: 抵抗 Ron として 2 つの節点を同時に解く */
+        var a11=CA/dt+1/Rin+1/Ron,a12=-1/Ron,b1=CA/dt*va+E/Rin-Im,a21=-1/Ron,a22=CL/dt+1/Ron,b2=CL/dt*vb;
+        var det=a11*a22-a12*a21,nva=(b1*a22-a12*b2)/det,nvb=(a11*b2-a21*b1)/det;
+        isw=(nva-nvb)/Ron;va=nva;vb=nvb;
+      }else{
+        isw=Math.max(0,want);
+        va=(CA/dt*va+E/Rin-Im-isw)/(CA/dt+1/Rin);vb+=isw*dt/CL;
+      }
+      if(va<0)va=0;
+      out[out.length-1][3]=isw;
+    }
+    return out;
+  }
+  var _w05_SRC=[["新しい CR2032（3.0 V・15 Ω）",3.0,15],["使い終わりの CR2032・寒い所（2.8 V・100 Ω）",2.8,100],["単 3 形アルカリ 2 本（3.0 V・0.4 Ω）",3.0,0.4],["自分で決める",null,null]];
+  REG.w05_inrush=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"INRUSH","負荷スイッチの突入電流 — マイコンの電圧はどこまで落ちるか");
+    var r1=U.ctrls(el);
+    var src=U.select(r1,"電源",_w05_SRC.map(function(s){return s[0];}),0,function(){var s=_w05_SRC[src.get()];if(s[1]!==null){E.set(s[1]);R.set(s[2]);}draw();});
+    var E=U.slider(r1,"起電力 E",{min:2.0,max:5.5,step:0.05,value:3.0,fmt:function(v){return _w05_v(v);},onInput:function(){src.set(3);draw();}});
+    var R=U.slider(r1,"内部抵抗 R_in",{min:0.1,max:300,log:true,value:15,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:function(){src.set(3);draw();}});
+    var r2=U.ctrls(el);
+    var CA=U.slider(r2,"マイコンの側の容量 C_A",{min:1,max:1000,log:true,value:10,fmt:function(v){return U.sig(v,3)+" µF";},onInput:draw});
+    var CL=U.slider(r2,"周辺の側の容量 C_L",{min:0.1,max:1000,log:true,value:10,fmt:function(v){return U.sig(v,3)+" µF";},onInput:draw});
+    var tr=U.slider(r2,"立ち上がりの時間 t_rise",{values:[0,0.01,0.03,0.1,0.3,0.69,1,3,10,14,30,100],value:0,fmt:function(v){return v?F.time(v*1e-3):"0（一気に入れる）";},onInput:draw});
+    var r3=U.ctrls(el);
+    var Im=U.slider(r3,"マイコンの電流 I_m",{min:0.1,max:30,log:true,value:3,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var Vm=U.slider(r3,"マイコンが動く最低の電圧 V_min",{min:1.6,max:3.2,step:0.05,value:2.2,fmt:function(v){return _w05_v(v);},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(s,ca,cl,t){src.set(s);E.set(_w05_SRC[s][1]);R.set(_w05_SRC[s][2]);CA.set(ca);CL.set(cl);tr.set(t);Im.set(3);Vm.set(2.2);draw();}
+    U.button(br,"3 節 (a) 一気に入れる",function(){preset(0,10,10,0);});
+    U.button(br,"3 節 (b) 1 ms で",function(){preset(0,10,10,1);});
+    U.button(br,"古い電池で 1 ms",function(){preset(1,10,10,1);});
+    U.button(br,"古い電池で 14 ms",function(){preset(1,10,10,14);});
+    U.button(br,"大容量コンデンサ 100 µF を足して一気に",function(){preset(0,110,10,0);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var e=E.get(),r=R.get(),ca=CA.get()*1e-6,cl=CL.get()*1e-6,t_r=tr.get()*1e-3,im=Im.get()*1e-3,vm=Vm.get();
+      var tau=r*(ca+cl),tend=Math.min(0.5,Math.max(2e-4,1.6*t_r+5*tau));
+      var res=_w05_isim(e,r,ca,cl,im,t_r,tend,8000);
+      var vmin=Infinity,tmin=0,below=0,ipk=0,ibpk=0,dt=tend/8000;
+      res.forEach(function(q,i){if(q[1]<vmin){vmin=q[1];tmin=q[0];}if(q[1]<vm)below+=dt;if(i>0)ipk=Math.max(ipk,q[3]);ibpk=Math.max(ibpk,q[4]);});
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?400:700,o=[],pw=nar?320:560,x0=nar?62:80;
+      var tu=tend<2e-3?1e6:1e3,un=tu===1e6?"µs":"ms",tx=U.nice(0,tend*tu,5);
+      var pv=U.plot(x0,16,pw,140,[0,tend*tu],[0,Math.max(e,3.2)*1.05]);
+      o.push(pv.axes({yl:"電圧 [V]",xt:tx,yt:U.nice(0,Math.max(e,3.2),4),xfmt:function(){return "";},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
+      o.push(pv.line([[0,vm],[tend*tu,vm]],"alias",1.1,"5 3"));
+      o.push(S.T(pv.x+pv.w-4,pv.Y(vm)+13,"V_min "+_w05_v(vm),"end",9.5,"alias",false,false,null,true));
+      var step=Math.max(1,Math.floor(res.length/1500));
+      var pts=function(ix,sc,cap){var a=[];for(var i=0;i<res.length;i+=step)a.push([res[i][0]*tu,Math.min(res[i][ix]*sc,cap)]);return a;};
+      o.push(pv.line(pts(2,1,99),"purple",1.8));o.push(pv.line(pts(1,1,99),"signal",2.2));
+      o.push(S.D(pv.X(tmin*tu),pv.Y(vmin),vmin<vm?"alias":"green",4.5));
+      var ymax=Math.max(ibpk,t_r>0?ipk:ibpk)*1e3*1.15||1,cap=ymax;
+      var pi=U.plot(x0,196,pw,90,[0,tend*tu],[0,ymax]);
+      o.push(pi.axes({xl:"時間 ["+un+"]",yl:"電流 [mA]",xt:tx,yt:U.nice(0,ymax,3),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
+      o.push(pi.line(pts(3,1e3,cap),"purple",1.6));o.push(pi.line(pts(4,1e3,cap),"gold",2));
+      if(t_r===0)o.push(S.T(pi.x+8,pi.y+12,"↑ スイッチの電流のピークは A の桁（軸の外）","start",9,"purple",true,false,null,true));
+      var ly=330;
+      [["signal","マイコンの側 V_A"],["purple","周辺の側 V_B・スイッチの電流"],["gold","電池の電流"]].forEach(function(l,i){var xx=nar?10:20+i*200,yy=nar?ly+i*16:ly;
+        o.push(S.RECT(xx,yy-9,10,10,2,U.soft(l[0]),l[0],1));o.push(S.T(xx+15,yy,l[1],"start",9.5,"muted"));});
+      box.set(S.svg(W,nar?ly+40:ly+8,o));
+      var den=e-r*im-vm-0.1,need=den>0?r*cl*e/den:Infinity,reset=vmin<vm;
+      ro.innerHTML=(t_r>0?"突入電流 C_L V ÷ t_rise ≈ "+F.cur(cl*e/t_r)+"、":"一気に入れる（電荷の分け合いで V_A は "+_w05_v((e-r*im)*ca/(ca+cl))+" まで落ちる計算）、")+
+        "マイコンの側の最低 <b>"+_w05_v(vmin)+"</b>（"+F.time(tmin)+" で）、電池の電流の最大 "+F.cur(ibpk)+"<br>"+
+        (reset?'<span class="warn">V_min を '+F.time(below)+' 下回り、マイコンはリセットされる</span>':'<span class="ok">V_min を下回らない</span>')+"<br>"+
+        "余裕 0.1 V を残すのに要る立ち上がりの時間（3 節の式）: t_rise ≥ R_in C_L E ÷ (E − R_in I_m − V_min − 0.1) = "+(den>0?"<b>"+F.time(need)+"</b>":'<span class="warn">分母が 0 以下で、どれだけゆっくり入れても足りない</span>')+
+        "（C_A が電荷を出す分、実際の落ち込みは式より小さい）"+
+        '<div class="wnote">負荷スイッチのオン抵抗は 0.1 Ω、周辺は立ち上がりの間は電流を使わないとした。一気に入れたときのスイッチの電流のピークは、配線の抵抗とスイッチの入る速さで決まり、この模型では正しく求まらない。値はすべて例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: BOR とリセットの繰り返し ---- */
+  /* 状態: rst（リセット中）→ por（t_POR を待つ）→ boot（起動の処理 1 ms）→ run（動く）。backoff なら BOR からの起動の後に slp（眠る）を挟む。
+     どの状態でも、V が V_BOR を下回ったら rst に戻る（rst 以外から移ったら BOR 1 回）。電圧は後退オイラー法で解く。 */
+  function _w05_bsim(o){
+    var N=60000,dt=o.tend/N,v=o.Vb,st="rst",tt=0,streak=0,cb=true,sleep=0,resets=0,q=0,tr=[];
+    for(var k=0;k<N;k++){
+      var I=(st==="rst"||st==="por")?o.Irst:(st==="slp"?o.Islp:o.Irun);
+      if(st!=="rst"&&v<o.Vb){st="rst";resets++;cb=true;tt=0;}
+      else if(st==="rst"&&v>o.Vb+o.Vh){st="por";tt=0;}
+      else if(st==="por"&&tt>=o.tpor){st="boot";tt=0;}
+      else if(st==="boot"&&tt>=1e-3){if(o.bo&&cb){streak=Math.min(streak+1,9);sleep=0.05*Math.pow(2,streak-1);st="slp";}else{streak=0;st="run";}cb=false;tt=0;}
+      else if(st==="slp"&&tt>=sleep){st="run";tt=0;}
+      var nv=(o.C/dt*v+o.E/o.R-I)/(o.C/dt+1/o.R);
+      q+=(o.E-nv)/o.R*dt;v=nv;tt+=dt;
+      if(k%20===0)tr.push([k*dt,v,st]);
+    }
+    return {n:resets,iav:q/o.tend,tr:tr};
+  }
+  REG.w05_bor=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"BOR","BOR のしきい値・ヒステリシスとリセットの繰り返し");
+    var r1=U.ctrls(el);
+    var E=U.slider(r1,"電池の起電力 E",{min:2.0,max:3.2,step:0.01,value:2.45,fmt:function(v){return _w05_v(v);},onInput:draw});
+    var R=U.slider(r1,"内部抵抗 R_in",{min:1,max:300,log:true,value:100,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:draw});
+    var C=U.slider(r1,"電源の線の容量",{min:1,max:1000,log:true,value:100,fmt:function(v){return U.sig(v,3)+" µF";},onInput:draw});
+    var r2=U.ctrls(el);
+    var Irun=U.slider(r2,"動いている間の電流 I_run",{min:0.3,max:20,log:true,value:3,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var Irst=U.slider(r2,"リセット中の電流 I_rst",{min:0.01,max:1,log:true,value:0.1,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var r3=U.ctrls(el);
+    var Vb=U.slider(r3,"BOR のしきい値 V_BOR",{min:1.8,max:2.8,step:0.05,value:2.2,fmt:function(v){return _w05_v(v);},onInput:draw});
+    var Vh=U.slider(r3,"ヒステリシス V_hys",{min:0.02,max:0.5,step:0.01,value:0.1,fmt:function(v){return U.sig(v*1000,3)+" mV";},onInput:draw});
+    var tp=U.slider(r3,"待ち時間 t_POR",{min:0.5,max:20,log:true,value:2,fmt:function(v){return F.time(v*1e-3);},onInput:draw});
+    var r4=U.ctrls(el);
+    var bo=U.checkbox(r4,"BOR から起動したら眠り、BOR が続くたびに眠る時間を 2 倍にする（50 ms から 12.8 s まで）",false,draw);
+    var win=U.select(r4,"表示する時間",["0.1 秒","1 秒","10 秒"],0,draw);
+    var br=U.btnrow(el);
+    function preset(e,r,h,b,w){E.set(e);R.set(r);C.set(100);Irun.set(3);Irst.set(0.1);Vb.set(2.2);Vh.set(h);tp.set(2);bo.set(b);win.set(w);draw();}
+    U.button(br,"5 節 (a) 繰り返す",function(){preset(2.45,100,0.1,false,0);});
+    U.button(br,"5 節 (b) 眠る時間を延ばす",function(){preset(2.45,100,0.1,true,1);});
+    U.button(br,"ヒステリシス 0.35 V",function(){preset(2.45,100,0.35,false,0);});
+    U.button(br,"新しい電池（3.0 V・15 Ω）",function(){preset(3.0,15,0.1,false,0);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var o_={E:E.get(),R:R.get(),C:C.get()*1e-6,Irun:Irun.get()*1e-3,Irst:Irst.get()*1e-3,Vb:Vb.get(),Vh:Vh.get(),tpor:tp.get()*1e-3,bo:bo.get(),Islp:2e-6,tend:[0.1,1,10][win.get()]};
+      var r=_w05_bsim(o_),sc=o_.tend<=0.1?1e3:(o_.tend<=1?1e3:1),un=sc===1e3?"ms":"s";
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?400:700,o=[],pw=nar?320:560,x0=nar?62:80;
+      var lo=Math.min(o_.Vb-0.15,o_.E-o_.R*o_.Irun-0.05),hi=Math.max(o_.Vb+o_.Vh+0.1,o_.E+0.05);
+      var p=U.plot(x0,16,pw,170,[0,o_.tend*sc],[lo,hi]);
+      o.push(p.axes({xl:"時間 ["+un+"]",yl:"電源電圧 [V]",xt:U.nice(0,o_.tend*sc,5),yt:U.nice(lo,hi,5),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
+      var hl=[[o_.Vb,"alias","V_BOR"],[o_.Vb+o_.Vh,"gold","V_BOR + V_hys"],[o_.E-o_.R*o_.Irst,"faint","E − R_in I_rst"],[o_.E-o_.R*o_.Irun,"faint","E − R_in I_run"]];
+      hl.forEach(function(h,i){if(h[0]<lo||h[0]>hi)return;o.push(p.line([[0,h[0]],[o_.tend*sc,h[0]]],h[1],1.1,"5 3"));
+        var left=i>=2,dy=(i===0||i===3)?12:-4;
+        o.push(S.T(left?p.x+4:p.x+p.w-4,p.Y(h[0])+dy,h[2]+" "+_w05_v(h[0]),left?"start":"end",9,h[1]==="faint"?"muted":h[1],false,false,null,true));});
+      o.push(p.line(r.tr.map(function(q){return [q[0]*sc,q[1]];}),"signal",1.6));
+      /* 状態の帯 */
+      var yb=p.y+p.h+38,prev=null,t0=0;
+      var put=function(a,b,g){var c={rst:"alias",run:"signal",slp:"green"}[g];o.push(S.RECT(p.X(a*sc),yb,Math.max(p.X(b*sc)-p.X(a*sc),0.6),12,1,U.soft(c),c,0.8));};
+      r.tr.forEach(function(q){var g=(q[2]==="rst"||q[2]==="por")?"rst":(q[2]==="slp"?"slp":"run");if(g!==prev){if(prev)put(t0,q[0],prev);prev=g;t0=q[0];}});
+      if(prev)put(t0,o_.tend,prev);
+      o.push(S.T(p.x-8,yb+10,"状態","end",9.5,"muted"));
+      var ly=yb+34;
+      [["alias","リセット"],["signal","動く"],["green","眠る"]].forEach(function(l,i){var xx=x0+i*100;o.push(S.RECT(xx,ly-9,10,10,2,U.soft(l[0]),l[0],1));o.push(S.T(xx+15,ly,l[1],"start",9.5,"muted"));});
+      box.set(S.svg(W,ly+8,o));
+      var a=o_.Vb+o_.Vh+o_.R*o_.Irst,b=o_.Vb+o_.R*o_.Irun,inWin=o_.E>a&&o_.E<b,need=o_.R*(o_.Irun-o_.Irst);
+      ro.innerHTML="リセットを繰り返す E の範囲: V_BOR + V_hys + R_in I_rst = "+_w05_v(a)+" ＜ E ＜ V_BOR + R_in I_run = "+_w05_v(b)+
+        (a<b?"（いまの E = "+_w05_v(o_.E)+" は"+(inWin?'<span class="warn">範囲の中</span>':"範囲の外")+"）":"（範囲が無い: V_hys ≥ R_in (I_run − I_rst) = "+U.sig(need*1000,3)+" mV）")+"<br>"+
+        "リセットの回数 <b>"+r.n+" 回</b>（"+F.time(o_.tend)+" の間）、電池の平均の電流 <b>"+F.cur(r.iav)+"</b>"+
+        (o_.E<=o_.Vb+o_.Vh+o_.R*o_.Irst?" ・ リセットが解けない（電池の電圧が V_BOR + V_hys に届かない）":"")+
+        '<div class="wnote">起動の処理は 1 ms（I_run）、眠っている間は 2 µA とした。ここでの「動く」は、動き続ける仕事（例: 受信を続ける）を表す。値はすべて例の値で、しきい値の働き方の細部は製品による。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 06 章 AC 電源で動かす ===== */
+  /* 整流・平滑コンデンサ・一定の電力の負荷の模型（3 節の例: ダイオード 2 個で 1.8 V、配線などの抵抗 5 Ω）。
+     o = {Vrms, f, C [F], P [W], Pcut [W]（null なら減らさない）, V2, tOut [s], dur [s], method "ac"|"dc"|"self", Th [s], Vdet, tEnd, dt, rec:[t0,t1], every}
+     交流の検出の信号は |v| < 20 V で H。戻り値 {pts:[[t, v, high]], det, falseDet, col} */
+  function _w06_sim(o){
+    var Vp=Math.SQRT2*o.Vrms,v=Vp-1.8,P=o.P,hs=null,det=null,col=null,fd=false,pts=[],dt=o.dt||5e-6,n=Math.ceil(o.tEnd/dt),r0=o.rec?o.rec[0]:0,r1=o.rec?o.rec[1]:o.tEnd,ev=o.every||10,w=2*Math.PI*o.f;
+    for(var k=0;k<n;k++){
+      var t=k*dt,on=!(t>=o.tOut&&t<o.tOut+o.dur),vac=on?Vp*Math.sin(w*t):0,high=Math.abs(vac)<20;
+      if(high){if(hs===null)hs=t;}else hs=null;
+      if(det===null&&t>0.03){
+        var hit=o.method==="ac"?(hs!==null&&t-hs>o.Th):(o.method==="dc"?v<o.Vdet:v<=o.V2);
+        if(hit){det=t;if(t<o.tOut)fd=true;if(o.Pcut!=null)P=o.Pcut;}
+      }
+      var ich=Math.abs(vac)-1.8-v;ich=ich>0?ich/5:0;
+      if(v<=o.V2&&col===null&&t>=o.tOut)col=t;
+      v+=(ich-(v>o.V2?P/v:0))/o.C*dt;
+      if(k%ev===0&&t>=r0&&t<=r1)pts.push([t,v,high]);
+      if(col!==null&&t>col+0.012&&!(t<o.tOut+o.dur&&o.keepRunning))break;
+    }
+    return {pts:pts,det:det,falseDet:fd,col:col};
+  }
+  /* 停電の前の谷と山 */
+  function _w06_ripple(Vrms,f,C,P){var r=_w06_sim({Vrms:Vrms,f:f,C:C,P:P,V2:0,tOut:1,dur:0,method:"none",tEnd:0.06+1/(2*f),dt:5e-6,rec:[0.06,1],every:2}),lo=1e9,hi=0;
+    r.pts.forEach(function(p){lo=Math.min(lo,p[1]);hi=Math.max(hi,p[1]);});return [lo,hi];}
+  function _w06_wide(box){var w=box.el.clientWidth;return !(w>0&&w<520);}
+
+  /* ---- 3 節: 停電の検出と後始末の時間 ---- */
+  REG.w06_holdup=function(el,U){
+    var S=U.S;
+    U.head(el,"HOLD-UP","停電から電源が保てなくなるまでと、後始末の時間");
+    var r1=U.ctrls(el);
+    var cC=U.slider(r1,"平滑コンデンサ C",{values:[4.7,10,15,22,33,47,68,100,150,220],value:22,fmt:function(v){return v+" µF";},onInput:draw});
+    var cP=U.slider(r1,"入力の電力 P",{min:1,max:30,value:5,log:true,fmt:function(v){return U.sig(v,3)+" W";},onInput:draw});
+    var cV=U.slider(r1,"コンセントの電圧",{min:85,max:110,step:1,value:90,fmt:function(v){return v+" V";},onInput:draw});
+    var cF=U.select(r1,"周波数",["50 Hz","60 Hz"],0,draw);
+    var r2=U.ctrls(el);
+    var cV2=U.slider(r2,"絶縁電源が保てる最低の電圧 V₂",{min:40,max:110,step:5,value:70,fmt:function(v){return v+" V";},onInput:draw});
+    var cM=U.select(r2,"停電の検出",["AC 側（H が続く時間）","DC 側（平滑コンデンサの電圧）","マイコンの電源電圧だけで見る"],0,draw);
+    var cTh=U.slider(r2,"H が続いたら停電とみなす時間",{min:0.5,max:12,step:0.5,value:3,fmt:function(v){return v+" ms";},onInput:draw});
+    var cVd=U.slider(r2,"DC 側のしきい値 V_det",{min:60,max:150,step:1,value:100,fmt:function(v){return v+" V";},onInput:draw});
+    var r3=U.ctrls(el);
+    var cCut=U.checkbox(r3,"気づいたら電力を減らす",true,draw);
+    var cPc=U.slider(r3,"減らした後の電力",{min:0.2,max:5,step:0.1,value:1,fmt:function(v){return U.sig(v,2)+" W";},onInput:draw});
+    var r4=U.ctrls(el);
+    var cN=U.slider(r4,"書く量",{values:[2,4,8,16,32,64,128,256,512,1024],value:8,fmt:function(v){return v+" 語（"+v*4+" バイト）";},onInput:draw});
+    var cTw=U.slider(r4,"1 語を書く時間",{min:10,max:200,step:5,value:60,fmt:function(v){return v+" µs";},onInput:draw});
+    var cEr=U.checkbox(r4,"書く前にページを消去する（20 ms）",false,draw);
+    var r5=U.ctrls(el);
+    var cPh=U.slider(r5,"停電が始まる位相（電圧が 0 の時から）",{min:0,max:175,step:5,value:60,fmt:function(v){return v+"°";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(m,V,cut){cC.set(22);cP.set(5);cV.set(V);cF.set(0);cV2.set(70);cM.set(m);cTh.set(3);cVd.set(100);cCut.set(cut);cPc.set(1);cN.set(8);cTw.set(60);cEr.set(false);cPh.set(60);draw();}
+    U.button(br,"3 節の例（90 V・AC 側・1 W に減らす）",function(){preset(0,90,true);});
+    U.button(br,"減らさない",function(){preset(0,90,false);});
+    U.button(br,"DC 側で見る",function(){preset(1,90,false);});
+    U.button(br,"マイコンの電源電圧だけで見る",function(){preset(2,90,false);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function run(ph,dt,rec,every){
+      var f=cF.get()?60:50,set=0.04,tOut=set+ph/360/f;
+      return {tOut:tOut,r:_w06_sim({Vrms:cV.get(),f:f,C:cC.get()*1e-6,P:cP.get(),Pcut:cCut.get()?cPc.get():null,V2:cV2.get(),tOut:tOut,dur:30,method:["ac","dc","self"][cM.get()],
+        Th:cTh.get()*1e-3,Vdet:cVd.get(),tEnd:tOut+3.0,dt:dt,rec:rec,every:every})};
+    }
+    function draw(){
+      var m=cM.get();cTh.el.style.display=m===0?"":"none";cVd.el.style.display=m===1?"":"none";cPc.el.style.display=cCut.get()?"":"none";
+      var f=cF.get()?60:50,C=cC.get()*1e-6,P=cP.get(),V2=cV2.get(),Pc=cCut.get()?cPc.get():P;
+      var rp=_w06_ripple(cV.get(),f,C,P),Vv=rp[0],Vpk=rp[1];
+      var clean=0.2e-3+cN.get()*cTw.get()*1e-6+(cEr.get()?20e-3:0);
+      var x=run(cPh.get(),5e-6,null,1e9),R=x.r,tOut=x.tOut;
+      var t0=tOut-0.02,tHorizon=(R.col!==null?R.col:tOut+3)-tOut;
+      var span=Math.min(3,Math.max(0.04,tHorizon*1.15+0.004)),every=Math.max(1,Math.round(span/700/5e-6));
+      R=run(cPh.get(),5e-6,[t0,tOut+span],every).r;
+      var selfDet=m===2,avail=R.det===null?0:(selfDet?1e-3:(R.col-R.det)),margin=avail-clean;
+      /* 位相を変えた中で最も悪い場合（粗い刻みで） */
+      var worst=Infinity,wph=0;
+      for(var ph=0;ph<180;ph+=7.5){var q=run(ph,20e-6,[0,0],1e9).r;if(q.det===null||q.falseDet)continue;var a=(selfDet?1e-3:(q.col-q.det))-clean;if(a<worst){worst=a;wph=ph;}}
+      /* ---- 図 ---- */
+      var wide=_w06_wide(box),W=wide?700:400,x0=wide?70:52,wd=W-x0-(wide?60:40),o=[];
+      var X=function(t){return x0+(t-tOut+0.02)/(span+0.02)*wd;};
+      var vmax=Math.ceil((Vpk+12)/20)*20,vmin=Math.max(0,Math.floor((Math.min(V2,m===1?cVd.get():V2)-20)/20)*20);
+      var y0=18,h=wide?170:150,Y=function(v){return y0+h-(v-vmin)/(vmax-vmin)*h;};
+      o.push(S.W([x0,y0,x0,y0+h,x0+wd,y0+h],"muted",1.1));
+      U.nice(vmin,vmax,5).forEach(function(v){if(v>=vmin&&v<=vmax){o.push(S.L(x0,Y(v),x0+wd,Y(v),"grid",1));o.push(S.T(x0-6,Y(v)+3.5,String(v),"end",9,"muted"));}});
+      o.push(S.T(x0-(wide?40:34),y0+h/2,"平滑コンデンサ [V]","middle",9.5,"muted",false,false,-90));
+      o.push(S.L(x0,Y(V2),x0+wd,Y(V2),"alias",1.1,"4 3"));o.push(S.T(x0+wd+4,Y(V2)+4,"V₂","start",9,"alias",true));
+      if(m===1){o.push(S.L(x0,Y(cVd.get()),x0+wd,Y(cVd.get()),"teal",1.1,"4 3"));o.push(S.T(x0+wd+4,Y(cVd.get())+4,"V_det","start",9,"teal",true));}
+      o.push(S.PL(R.pts.map(function(p){return [X(p[0]),Y(Math.max(vmin,p[1]))];}),"gold",2.2));
+      o.push(S.L(X(tOut),y0,X(tOut),y0+h,"alias",1.2,"3 3"));o.push(S.T(X(tOut)+3,y0+10,"停電","start",9.5,"alias",true,false,null,true));
+      if(R.det!==null){o.push(S.L(X(R.det),y0+16,X(R.det),y0+h,"teal",1.2,"3 3"));o.push(S.T(X(R.det)+3,y0+26,R.falseDet?"誤って気づく":"気づく","start",9.5,"teal",true,false,null,true));}
+      if(R.col!==null){o.push(S.D(X(R.col),Y(V2),"alias",4));}
+      /* 下の帯: 交流の検出の信号と、マイコンの状態 */
+      var yb=y0+h+12,pts=[];
+      R.pts.forEach(function(p){var xx=X(p[0]),yy=yb+(p[2]?0:14);if(pts.length&&pts[pts.length-1][1]!==yy)pts.push([xx,pts[pts.length-1][1]]);pts.push([xx,yy]);});
+      o.push(S.PL(pts,"teal",1.6));o.push(S.T(x0-6,yb+10,"信号","end",9,"teal",true));
+      var ys=yb+24,segs=[];
+      var tdet=R.det===null?null:R.det,tcl=tdet===null?null:tdet+clean,tend=tOut+span;
+      if(tdet===null||tdet>tOut+span)segs.push([tOut-0.02,R.col!==null?R.col:tend,"運転","signal"]);
+      else{segs.push([tOut-0.02,tdet,"運転","signal"]);segs.push([tdet,Math.min(tcl,tend),"後始末","alias"]);
+        if(R.col!==null&&tcl<R.col)segs.push([tcl,R.col,"待つ","muted"]);}
+      if(R.col!==null)segs.push([R.col,tend,"保てない","muted"]);
+      segs.forEach(function(s){var a=X(Math.max(s[0],tOut-0.02)),b=X(Math.min(s[1],tend));if(b<=a)return;o.push(S.RECT(a,ys,Math.max(b-a,1),16,2,U.soft(s[3]),s[3],1));
+        if(b-a>U.tw(s[2],9)+6)o.push(S.T((a+b)/2,ys+12,s[2],"middle",9,s[3],true));});
+      o.push(S.T(x0-6,ys+12,"マイコン","end",9,"ink",true));
+      var ya=ys+30;U.nice(-20,span*1e3,wide?7:4).forEach(function(v){var t=tOut+v*1e-3;if(t>=tOut-0.02-1e-9&&t<=tend+1e-9){o.push(S.L(X(t),ya-4,X(t),ya,"muted",1));o.push(S.T(X(t),ya+11,U.sig(v,4),"middle",9,"muted"));}});
+      o.push(S.T(x0+wd,ya+25,"停電からの時間 [ms]","end",9.5,"muted"));
+      box.set(S.svg(W,ya+30,o));
+      /* ---- 読み出し ---- */
+      var F=U.fmt,warn="",th=C*(Vv*Vv-V2*V2)/(2*P);
+      if(Vv<=V2)warn+='<span class="warn">ふだんの谷 '+Vv.toFixed(0)+' V が V₂ より低く、停電の前から電源が保てない。</span><br>';
+      if(R.falseDet)warn+='<span class="warn">停電の前に気づいてしまう（'+(m===0?'H の時間がふだんの幅より短い':'しきい値がふだんの谷 '+Vv.toFixed(0)+' V より高い')+'）。</span><br>';
+      var res=R.det===null?"—":(margin>=0?'<span class="ok">間に合う（余裕 '+F.time(margin)+'）</span>':'<span class="warn">間に合わない（'+F.time(-margin)+' 足りない）</span>');
+      ro.innerHTML=warn+"停電の前: 谷 <b>"+Vv.toFixed(0)+" V</b>・山 "+Vpk.toFixed(0)+" V ・ 保持時間（谷から、式）t_h = C(V₁² − V₂²)/(2P) = <b>"+(th>0?F.time(th):"—")+"</b>"+
+        (R.col!==null&&!cCut.get()?"（この位相で数値で解くと "+F.time(R.col-tOut)+"）":"")+"<br>"+
+        "停電から気づくまで <b>"+(R.det===null?"—":F.time(R.det-tOut))+"</b> ・ 気づいてから保てなくなるまで <b>"+(R.det===null?"—":F.time(avail))+"</b>"+
+        (selfDet?"（マイコンの電源電圧が下がり始めてからは、二次側のコンデンサの分しか残らない。ここでは 1 ms とした）":"")+
+        (m===1&&!cCut.get()?"（式: C(V_det² − V₂²)/(2P) = "+F.time(C*(cVd.get()*cVd.get()-V2*V2)/(2*P))+"）":"")+"<br>"+
+        "後始末 = 負荷を切る 0.2 ms + "+cN.get()+" 語 × "+cTw.get()+" µs"+(cEr.get()?" + 消去 20 ms":"")+" = <b>"+F.time(clean)+"</b> → "+res+"<br>"+
+        "停電が始まる位相を変えたときの最も悪い場合: "+(isFinite(worst)?(worst>=0?'<span class="ok">余裕 '+F.time(worst)+'</span>':'<span class="warn">'+F.time(-worst)+' 足りない</span>')+"（"+wph+"° のあたり）":"—")+
+        '<div class="wnote">一定の電力 '+U.sig(P,3)+' W'+(cCut.get()?'（気づいた後は '+U.sig(Pc,2)+' W）':'')+'で平滑コンデンサのエネルギーを使い、V₂ を下回ると絶縁電源が止まるとした。交流の検出の信号は、電圧の大きさが 20 V より小さい間 H。値はどれも例の値で、二次側のコンデンサの分は数えない（安全側）。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 4 節: 停電の長さと、電源が戻ったとき ---- */
+  REG.w06_restore=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"RESTORE","停電の長さと、電源が戻ったときに戻すもの");
+    var r1=U.ctrls(el);
+    var cL=U.slider(r1,"停電の長さ",{min:0.5e-3,max:600,value:0.04,log:true,fmt:function(v){return F.time(v);},onInput:draw});
+    var cV=U.select(r1,"コンセントの電圧",["90 V","100 V"],0,draw);
+    var cCut=U.checkbox(r1,"気づいたら 1 W に減らす",true,draw);
+    var r2=U.ctrls(el);
+    var cRtc=U.checkbox(r2,"RTC（予備の電池で時刻を数え続ける）",false,draw);
+    var cPol=U.select(r2,"ヒータを戻す決め方",["リセットされない短い停電だけ戻す","RTC で分かった長さが 10 s 以内なら戻す","いつも利用者の操作を待つ"],0,draw);
+    var br=U.btnrow(el);
+    [["(a) 1 ms",1e-3],["(b) 40 ms",0.04],["(c) 2 s",2],["10 分",600]].forEach(function(b){U.button(br,b[0],function(){cL.set(b[1]);draw();});});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    var cache={};
+    function times(Vr,cut){var k=Vr+"_"+cut;if(cache[k])return cache[k];
+      /* 谷で始まる長い停電で、気づく時刻と保てなくなる時刻を求める（位相 60°） */
+      var tOut=0.04+60/360/50,r=_w06_sim({Vrms:Vr,f:50,C:22e-6,P:5,Pcut:cut?1:null,V2:70,tOut:tOut,dur:30,method:"ac",Th:3e-3,tEnd:tOut+1,dt:5e-6,rec:[0,0],every:1e9});
+      return cache[k]={det:r.det-tOut,col:r.col-tOut};}
+    function draw(){
+      var L=cL.get(),Vr=cV.get()?100:90,cut=cCut.get(),T=times(Vr,cut),pol=cPol.get(),rtc=cRtc.get();
+      var det=L>T.det?T.det:null,reset=L>=T.col,known=!reset||rtc;
+      var cat=det===null?"a":(reset?"c":"b");
+      var tChk=0.1,tBoot=reset?0.02:0,tDec=L+tBoot+tChk;
+      var heater=false,why="";
+      if(cat==="a"){heater=true;why="気づかないので、ヒータは途切れた間だけ止まり、そのまま入る";}
+      else if(pol===2){why="決め方により、利用者の操作を待つ";}
+      else if(cat==="b"){heater=true;why="リセットされない短い停電（"+F.time(L)+"）で、停電の前に運転していた。温度センサが正しく読めることを確かめて戻す";}
+      else if(pol===1&&rtc&&L<=10){heater=true;why="RTC で停電の長さ "+F.time(L)+" が分かり、10 s 以内なので戻す";}
+      else why=(reset&&!rtc?"リセットされ、停電の長さが分からないので、長い停電として扱い":"長い停電なので")+"、利用者の操作を待つ";
+      var fanHeat=cat==="c"&&(!known||L<300);
+      /* ---- 時間の軸: 長い停電は途中を省く ---- */
+      var wide=box.el.clientWidth===0||box.el.clientWidth>=520,W=wide?700:400,x0=wide?96:70,wd=W-x0-14,o=[];
+      var brk=L>0.22,a1=brk?0.13:L+0.32,X;
+      if(!brk)X=function(t){return x0+(t+0.01)/(a1+0.01)*wd;};
+      else{var wl=wd*0.45,wr=wd*0.5,g=wd*0.05,b0=L-0.03,b1=L+0.3;X=function(t){return t<=a1?x0+(t+0.01)/(a1+0.01)*wl:x0+wl+g+(Math.max(t,b0)-b0)/(b1-b0)*wr;};}
+      var tEnd=brk?L+0.3:a1;
+      var rows=[["商用電源"],["マイコン"],["ヒータ"],["ファン"]],y0=14;
+      function seg(r,a,b,lab,c){var y=y0+r*22,xa=X(Math.max(a,-0.01)),xb=X(Math.min(b,tEnd));if(xb<=xa)return;o.push(S.RECT(xa,y,Math.max(xb-xa,1.2),16,2,U.soft(c),c,1));
+        if(xb-xa>U.tw(lab,9)+6)o.push(S.T((xa+xb)/2,y+12,lab,"middle",9,c,true));}
+      rows.forEach(function(r,i){o.push(S.T(x0-8,y0+i*22+12,r[0],"end",9.5,"ink",true));o.push(S.RECT(x0,y0+i*22,wd,16,2,"screen","line",0.8));});
+      seg(0,-0.01,0,"","gold");seg(0,0,L,"停電","alias");seg(0,L,tEnd,"あり","gold");
+      if(cat==="a"){seg(1,-0.01,tEnd,"運転（気づかない）","signal");seg(2,-0.01,0,"","purple");seg(2,L,tEnd,"入","purple");seg(3,-0.01,tEnd,"回る","teal");}
+      else{
+        seg(1,-0.01,det,"運転","signal");seg(1,det,det+0.0007,"","alias");
+        if(reset){seg(1,det+0.0007,T.col,"待つ","muted");seg(1,T.col,L,"電源なし（リセット）","muted");seg(1,L,L+tBoot+tChk,"確かめる","teal");}
+        else{seg(1,det+0.0007,L,"待つ","muted");seg(1,L,L+tChk,"確かめる","teal");}
+        seg(1,tDec,tEnd,heater?"運転":"利用者を待つ",heater?"signal":"green");
+        seg(2,-0.01,0,"","purple");if(heater)seg(2,tDec,tEnd,"戻す","purple");
+        seg(3,-0.01,det,"","teal");if(cat==="b")seg(3,tDec,tEnd,"回る","teal");else if(fanHeat)seg(3,tDec,tEnd,"余熱を逃がす","teal");
+      }
+      var ya=y0+4*22+2;
+      function tick(t,lab){var xx=X(t);o.push(S.L(xx,ya,xx,ya+4,"muted",1));o.push(S.T(xx,ya+15,lab,"middle",9,"muted"));}
+      if(!brk){U.nice(0,a1*1e3,wide?6:4).forEach(function(v){if(v*1e-3<=a1)tick(v*1e-3,U.sig(v,4)+(v===0?" ms":""));});}
+      else{[0,0.05,0.1].forEach(function(t){tick(t,U.sig(t*1e3,3)+(t===0?" ms":""));});tick(L,F.time(L));tick(L+0.2,"+0.2 s");
+        var xg=X(a1)+wd*0.025;o.push(S.L(xg-5,y0-4,xg-5,ya,"faint",1,"2 3"));o.push(S.L(xg+5,y0-4,xg+5,ya,"faint",1,"2 3"));o.push(S.T(xg,ya+15,"…","middle",11,"muted",true));}
+      o.push(S.T(x0+wd,ya+30,"停電の始まりからの時間","end",9.5,"muted"));
+      box.set(S.svg(W,ya+36,o));
+      var catTxt={a:"(a) 気づくより短い（"+F.time(T.det)+" より短い）",b:"(b) 気づいたが、電源が保てているうちに戻った（リセットされない）",c:"(c) 電源が保てなくなる長さ（"+F.time(T.col)+" 以上）で、リセットされた"}[cat];
+      ro.innerHTML="停電 "+F.time(L)+" → <b>"+catTxt+"</b><br>"+
+        (det!==null?"気づく: 停電から "+F.time(det)+" ・ 保てなくなる: "+F.time(T.col)+(cut?"（気づいた後 1 W に減らす）":"（5 W のまま）")+"<br>":"")+
+        "ヒータ: <b>"+(heater?'<span class="ok">入れる</span>':'<span class="warn">入れない</span>')+"</b> — "+why+"<br>"+
+        "ファン: "+(cat==="a"?"そのまま":cat==="b"?"戻す":(fanHeat?"ヒータがまだ熱いかもしれないので、30 秒回して余熱を逃がす":"回さない"))+" ・ 時計: "+(cat==="c"&&!rtc?'<span class="warn">時刻が失われた（表示で知らせる）</span>':"そのまま")+
+        '<div class="wnote">3 節の例の機器（22 µF・5 W・V₂ = 70 V、50 Hz、AC 側の検出は H が 3 ms 続いたら）。停電は位相 60° で始まるとした。復電の後は、交流の検出の信号が 10 回（100 ms）続けて正しい間隔で来たら落ち着いたとみなす。リセットからの起動には 20 ms かかるとした。決め方は例で、製品の安全規格で確かめる。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: ゼロクロス検出・入れる瞬間・位相制御 ---- */
+  REG.w06_zc=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"ZERO CROSS","ゼロクロス検出・入れる瞬間・位相制御");
+    var r0=U.ctrls(el);
+    var view=U.seg(r0,["ゼロクロス検出","入れる瞬間","位相制御"],0,draw);
+    var rA=U.ctrls(el);
+    var cVon=U.slider(rA,"V_on（LED が光り始める電圧）",{min:5,max:60,step:1,value:20,fmt:function(v){return v+" V";},onInput:draw});
+    var cV=U.slider(rA,"コンセントの電圧",{min:85,max:110,step:1,value:100,fmt:function(v){return v+" V";},onInput:draw});
+    var cF=U.select(rA,"周波数",["50 Hz","60 Hz"],0,draw);
+    var rB=U.ctrls(el);
+    var cLoad=U.select(rB,"負荷",["抵抗の負荷（ヒータ 1 kW・10 Ω）","整流して平滑する負荷（47 µF・5 Ω）"],0,draw);
+    var cPh=U.slider(rB,"入れる瞬間（ゼロクロスからの角度）",{min:0,max:180,step:5,value:90,fmt:function(v){return v+"°";},onInput:draw});
+    var rC=U.ctrls(el);
+    var cA=U.slider(rC,"α（遅らせる角度）",{min:0,max:180,step:1,value:90,fmt:function(v){return v+"°";},onInput:draw});
+    var cMode=U.select(rC,"遅らせる時間の決め方",["測った半周期に対する割合","50 Hz で計算した ms のまま"],0,draw);
+    var cJ=U.slider(rC,"タイミングの揺れ",{min:0,max:500,step:10,value:100,fmt:function(v){return "± "+v+" µs";},onInput:draw});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function ratio(a){return 1-a/Math.PI+Math.sin(2*a)/(2*Math.PI);}
+    function axesT(o,x0,y0,wd,h,t0,t1,lab){o.push(S.W([x0,y0,x0,y0+h,x0+wd,y0+h],"muted",1.1));U.nice(t0,t1,6).forEach(function(v){if(v>=t0-1e-9&&v<=t1+1e-9){var xx=x0+(v-t0)/(t1-t0)*wd;o.push(S.L(xx,y0+h,xx,y0+h+4,"muted",1));o.push(S.T(xx,y0+h+15,U.sig(v,3),"middle",9,"muted"));}});o.push(S.T(x0+wd,y0+h+29,lab,"end",9.5,"muted"));}
+    function draw(){
+      var v=view.get();rA.style.display=v===0?"":"none";rB.style.display=v===1?"":"none";rC.style.display=v===2?"":"none";
+      if(v!==0)cF.el.style.display="";
+      if(v===2){rA.style.display="";cVon.el.style.display="none";cV.el.style.display="none";}else{cVon.el.style.display="";cV.el.style.display="";}
+      if(v===1){rA.style.display="";cVon.el.style.display="none";}
+      var f=cF.get()?60:50,Vp=Math.SQRT2*cV.get(),w=2*Math.PI*f,wide=_w06_wide(box),W=wide?700:400,x0=wide?70:52,wd=W-x0-(wide?40:20),o=[];
+      if(v===0){
+        var Von=cVon.get(),te=Math.asin(Math.min(1,Von/Vp))/w,te0=Math.asin(20/141.42)/(2*Math.PI*50),span=3e-3;
+        var y0=16,h=wide?150:130,X=function(t){return x0+(t+span)/(2*span)*wd;},Y=function(u){return y0+h/2-u/(Vp*Math.sin(w*span))*h/2;};
+        o.push(S.RECT(x0,Y(Von),wd,Y(-Von)-Y(Von),0,U.soft("teal"),"none",0));
+        o.push(S.L(x0,Y(0),x0+wd,Y(0),"muted",1));
+        var pts=[];for(var k=0;k<=200;k++){var t=-span+k/200*2*span;pts.push([X(t),Y(Vp*Math.sin(w*t))]);}
+        o.push(S.PL(pts,"gold",2));o.push(S.T(x0+wd-2,Y(Von)-4,"± V_on","end",9,"teal",true));
+        o.push(S.T(x0+4,y0+12,"電圧（"+cV.get()+" V・"+f+" Hz、ゼロクロスの前後）","start",9.5,"gold",true,false,null,true));
+        var yd=y0+h+14;
+        o.push(S.PL([[x0,yd+16],[X(-te),yd+16],[X(-te),yd],[X(te),yd],[X(te),yd+16],[x0+wd,yd+16]],"teal",1.8));
+        o.push(S.T(x0-6,yd+12,"信号","end",9,"teal",true));
+        o.push(S.L(X(0),y0,X(0),yd+40,"green",1.3,"3 3"));
+        var eEdge=te0-te;          /* 始まり + 決めた 0.45 ms をゼロクロスとしたときのずれ */
+        o.push(S.D(X(-te+te0),yd+30,"alias",4));o.push(S.T(X(-te+te0)+(eEdge>0?-6:6),yd+34,"始まり + "+U.sig(te0*1e3,2)+" ms",eEdge>0?"end":"start",9,"alias",true,false,null,true));
+        o.push(S.D(X(0),yd+46,"green",4));o.push(S.T(X(0)+6,yd+50,"中央 = ゼロクロス","start",9,"green",true,false,null,true));
+        axesT(o,x0,yd+58,wd,0,-span*1e3,span*1e3,"ゼロクロスからの時間 [ms]");
+        box.set(S.svg(W,yd+94,o));
+        var Wd=2*te,warn=Wd>3e-3?'<span class="warn">H の幅が 3 節の 3 ms を超え、停電と見分けられない。</span><br>':(Wd>2.1e-3?'<span class="warn">H の幅が 3 節の 3 ms に近く、余裕が少ない。</span><br>':"");
+        ro.innerHTML=warn+"H の幅 W = arcsin(V_on/V_p)/(πf) = arcsin("+Von+"/"+Vp.toFixed(1)+")/(π × "+f+") = <b>"+F.time(Wd)+"</b><br>"+
+          "H の始まりはゼロクロスの <b>"+F.time(te)+"</b> 前 ・ 始まりに決めた 0.45 ms（100 V・50 Hz・V_on 20 V のときの値）を足してゼロクロスとすると、ずれは <b>"+(Math.abs(eEdge)*1e6).toFixed(0)+" µs</b> ・ 中央をとれば <b>0</b>"+
+          '<div class="wnote">V_on は、LED を光らせる電流と抵抗で決まり、フォトカプラの光が弱くなると上がる。フォトカプラの応答の遅れは入れていない。</div>';
+      }else if(v===1){
+        var load=cLoad.get(),phi=cPh.get(),tsw=phi/360/f+1/f,T1=1/f+0.025;
+        var ts=[],is=[],vs=[],dt=2e-6,vc=0,imax=0,didt=0,prev=0;
+        for(var t=0;t<=T1;t+=dt){var vac=Vp*Math.sin(w*t),i=0;
+          if(t>=tsw){if(load===0)i=vac/10;else{var d=Math.abs(vac)-1.8-vc;i=d>0?d/5:0;vc+=i/47e-6*dt;if(vac<0)i=-i;}}
+          if(Math.abs(i)>imax)imax=Math.abs(i);
+          if(t>tsw+dt){var dd=Math.abs(i-prev)/dt;if(dd>didt)didt=dd;}prev=i;
+          if(Math.round(t/dt)%10===0){ts.push(t);is.push(i);vs.push(vac);}}
+        var y0=16,h=wide?170:140,ym=load===0?Math.max(16,Vp/10*1.1):Math.max(5,imax*1.15),X=function(t){return x0+(t/T1)*wd;},Y=function(u){return y0+h/2-u/ym*h/2;};
+        o.push(S.L(x0,Y(0),x0+wd,Y(0),"muted",1));o.push(S.W([x0,y0,x0,y0+h],"muted",1.1));
+        [ym,ym/2,0,-ym/2,-ym].forEach(function(u){o.push(S.T(x0-6,Y(u)+3.5,U.sig(u,2),"end",9,"muted"));});
+        o.push(S.T(x0-(wide?40:34),y0+h/2,"電流 [A]","middle",9.5,"muted",false,false,-90));
+        o.push(S.PL(ts.map(function(t,k){return [X(t),Y(vs[k]/Vp*ym*0.9)];}),"muted",1,null,"3 3"));
+        o.push(S.PL(ts.map(function(t,k){return [X(t),Y(is[k])];}),"purple",2));
+        o.push(S.L(X(tsw),y0,X(tsw),y0+h,phi===0||phi===180?"green":"alias",1.2,"4 3"));
+        o.push(S.T(X(tsw)+4,y0+12,"入れる（"+phi+"°）","start",9.5,phi===0||phi===180?"green":"alias",true,false,null,true));
+        axesT(o,x0,y0,wd,h,0,T1*1e3,"時間 [ms]（破線は電圧の形）");
+        box.set(S.svg(W,y0+h+36,o));
+        ro.innerHTML="入れた瞬間の電圧 "+(Vp*Math.sin(phi*Math.PI/180)).toFixed(0)+" V ・ 電流の山 <b>"+U.sig(imax,3)+" A</b> ・ 電流の変化の最も速いところ <b>"+U.sig(didt/1e3,3)+" A/ms</b>"+
+          (load===0?"（ゼロクロスで入れれば "+U.sig(Vp/10*w/1e3,2)+" A/ms）":"")+'<div class="wnote">'+(load===0?"抵抗の負荷: 電流 = 電圧 ÷ 10 Ω。山で入れると、電流は 0 から一瞬で跳ぶ（数値の刻み 2 µs の中で変わるので、A/ms の値は刻みで決まる大きな値になる）。":"整流して平滑する負荷: 空の 47 µF に、配線などの抵抗 5 Ω を通して流れ込む（ダイオード 2 個で 1.8 V）。")+"変圧器のような負荷は、逆に電圧が 0 の瞬間に入れると大きな電流が流れることがある（ここでは扱わない）。</div>";
+      }else{
+        var fixedMs=cMode.get()===1,al=cA.get()*Math.PI/180,delay=fixedMs?al/(2*Math.PI*50):al/w,aEff=Math.min(Math.PI,delay*w),jit=cJ.get()*1e-6;
+        var aLo=Math.max(0,aEff-jit*w),aHi=Math.min(Math.PI,aEff+jit*w);
+        var T2=2/f,y0=16,h=wide?130:110,X=function(t){return x0+(t/T2)*wd;},Y=function(u){return y0+h/2-u/150*h/2;};
+        o.push(S.L(x0,Y(0),x0+wd,Y(0),"muted",1));
+        var pts=[];for(var k=0;k<=300;k++){var t=k/300*T2;pts.push([X(t),Y(141.4*Math.sin(w*t))]);}
+        o.push(S.PL(pts,"muted",1,null,"3 3"));
+        for(var hc=0;hc<4;hc++){var st=hc/(2*f)+aEff/w,en=(hc+1)/(2*f);if(st>=en)continue;var ar=[[X(st),Y(0)]];for(var j=0;j<=30;j++){var tt=st+(en-st)*j/30;ar.push([X(tt),Y(141.4*Math.sin(w*tt))]);}ar.push([X(en),Y(0)]);
+          o.push(S.PL(ar,"purple",1.6,U.soft("purple")));o.push(S.L(X(st),y0+h+2,X(st),y0+h+10,"teal",2));}
+        axesT(o,x0,y0,wd,h,0,T2*1e3,"時間 [ms]（縦の短い線: トライアックを入れる時刻）");
+        /* 右下に電力の割合の曲線（狭いときは省く） */
+        box.set(S.svg(W,y0+h+36,o));
+        var pr=ratio(aEff),plo=ratio(aHi),phi2=ratio(aLo);
+        ro.innerHTML=(fixedMs&&f===60?'<span class="warn">50 Hz で計算した '+F.time(delay)+' を 60 Hz で使ったので、α が '+(aEff*180/Math.PI).toFixed(0)+'° になった。</span><br>':"")+
+          "遅らせる時間 <b>"+F.time(delay)+"</b>（α = "+(aEff*180/Math.PI).toFixed(0)+"°） ・ 電力の割合 1 − α/π + sin 2α/(2π) = <b>"+(pr*100).toFixed(1)+" %</b><br>"+
+          "タイミングが ± "+cJ.get()+" µs 揺れると、電力は <b>"+(plo*100).toFixed(1)+"〜"+(phi2*100).toFixed(1)+" %</b> の間で揺れる"+
+          '<div class="wnote">抵抗の負荷で、トライアックは入れた後、電流が 0 を通ると切れるとした。位相制御は半周期の途中で電流を急に流し始めるので、ノイズと高調波を出す。</div>';
+      }
+    }
+    draw();
+  };
+
+  /* ---- 7 節: 待機電力の内訳 ---- */
+  REG.w06_standby=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"STANDBY","待機電力の内訳と 1 年の電力量");
+    var r1=U.ctrls(el);
+    var cSup=U.select(r1,"電源",["絶縁電源（損失 60 mW）","絶縁電源・待機の機能あり（30 mW）","コンデンサドロップ（約 100 mW）"],0,draw);
+    var cR=U.slider(r1,"交流の検出の抵抗",{min:47,max:470,value:94,log:true,fmt:function(v){return Math.round(v)+" kΩ";},onInput:draw});
+    var cZc=U.checkbox(r1,"交流の検出を待機中も使う",true,draw);
+    var r2=U.ctrls(el),ck={};
+    [["disp","表示を点けたまま（300 mW）",true],["mcu","マイコンは眠らず動いたまま（47 mW）",true],["com","通信をつないだまま（80 mW。外すと間欠で 15 mW）",true],["relay","リレーを入れたまま（400 mW）",false]].forEach(function(a){ck[a[0]]=U.checkbox(r2,a[1],a[2],draw);});
+    var br=U.btnrow(el);
+    U.button(br,"7 節の対策の前",function(){cSup.set(0);cR.set(94);cZc.set(true);ck.disp.set(true);ck.mcu.set(true);ck.com.set(true);ck.relay.set(false);draw();});
+    U.button(br,"7 節の対策の後",function(){cSup.set(1);cR.set(188);cZc.set(true);ck.disp.set(false);ck.mcu.set(false);ck.com.set(false);ck.relay.set(false);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var sup=cSup.get(),R=cR.get()*1e3,dropper=sup===2;
+      var Pzc=cZc.get()?100*100/R*1e3:0,Von=0.2e-3*R+1.1,Wd=Math.asin(Math.min(1,Von/141.42))/(Math.PI*50);
+      var loads=[["表示",ck.disp.get()?300:0,"purple"],["マイコン",ck.mcu.get()?47:0.1,"signal"],["通信",ck.com.get()?80:15,"green"],["リレー",ck.relay.get()?400:0,"alias"]];
+      var Pload=0;loads.forEach(function(l){Pload+=l[1];});
+      var items=[["電源自身の損失",dropper?100:(sup===0?60:30),"gold"],["交流の検出",Pzc,"teal"]].concat(dropper?[]:loads);
+      var tot=0;items.forEach(function(i){tot+=i[1];});
+      var wide=_w06_wide(box),W=wide?700:400,x0=10,wd=W-20-(wide?150:0),o=[],vmax=Math.max(1200,tot),y0=26;
+      var x=x0;o.push(S.T(x0,16,"待機電力の内訳 [mW]","start",10.5,"ink",true));
+      items.forEach(function(it){var w=wd*it[1]/vmax;if(w<0.3)return;o.push(S.RECT(x,y0,w,26,2,U.soft(it[2]),it[2],1.1));if(w>U.tw(U.sig(it[1],3),9)+6)o.push(S.T(x+w/2,y0+17,U.sig(it[1],3),"middle",9,it[2],true));x+=w;});
+      if(wide){o.push(S.T(x+8,y0+12,U.sig(tot,3)+" mW","start",10.5,"ink",true));o.push(S.T(x+8,y0+26,"1 年に "+U.sig(tot*8.76e-3,3)+" kWh","start",9.5,"muted"));}
+      var ly=y0+46,lx=x0;items.forEach(function(it){var t=it[0]+" "+U.sig(it[1],3);if(lx+U.tw(t,9.5)+24>W){lx=x0;ly+=16;}o.push(S.RECT(lx,ly-9,10,10,2,U.soft(it[2]),it[2],1));o.push(S.T(lx+14,ly,t,"start",9.5,"ink"));lx+=U.tw(t,9.5)+30;});
+      box.set(S.svg(W,ly+10,o));
+      var big=items.slice().sort(function(a,b){return b[1]-a[1];})[0];
+      var warn="";
+      if(dropper&&Pload>60)warn='<span class="warn">コンデンサドロップから取り出せる電力（例 60 mW）を、待機中の負荷 '+U.sig(Pload,3)+' mW が超える。</span><br>';
+      if(cZc.get()&&Wd>2.1e-3)warn+='<span class="warn">交流の検出の H の幅 '+F.time(Wd)+' が、3 節の 3 ms に近い（停電と見分ける余裕が少ない）。</span><br>';
+      ro.innerHTML=warn+"待機電力 <b>"+U.sig(tot,3)+" mW</b> ・ 1 年（8760 時間）に <b>"+U.sig(tot*8.76e-3,3)+" kWh</b> ・ いちばん大きいのは <b>"+big[0]+"</b>（"+U.sig(big[1]/tot*100,3)+" %）<br>"+
+        "交流の検出: 抵抗の電力 ≈ 100² ÷ "+Math.round(R/1e3)+" kΩ = "+U.sig(100*100/R*1e3,3)+" mW ・ V_on ≈ "+U.sig(Von,3)+" V ・ H の幅 "+F.time(Wd)+"（100 V・50 Hz）"+
+        (dropper?"<br>コンデンサドロップは、負荷が使わない電流をツェナーダイオードが熱にするので、待機中の負荷を減らしても入力の電力は変わらない（負荷はその中でまかなう）。":"")+
+        '<div class="wnote">値はどれも例の値（代表値の幅の中の 1 つ）。マイコンと周辺の電力は、二次側の電力を、軽い負荷での電源の効率で割った入力の電力として書いた。LED を光らせ始める電流を 0.2 mA、LED の電圧を 1.1 V とした。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 07 章 眠らせ方と起こし方 ===== */
+  function _w07_nar(box){return box.el.clientWidth>0&&box.el.clientWidth<520;}
+  function _w07_life(h,U){var d=h/24;if(d>=365*30)return "30 年を超える";return d>=365?U.sig(d/365,3)+" 年":(d>=1?U.sig(d,3)+" 日":U.sig(h,3)+" 時間");}
+  function _w07_R(v){return v>=1e6?(+(v/1e6).toPrecision(3))+" MΩ":(v>=1e3?(+(v/1e3).toPrecision(3))+" kΩ":v+" Ω");}
+  /* 対数の横棒の x（lo〜hi を x0〜x1 に） */
+  function _w07_lx(v,lo,hi,x0,x1){v=Math.max(lo,Math.min(hi,v));return x0+(Math.log10(v)-Math.log10(lo))/(Math.log10(hi)-Math.log10(lo))*(x1-x0);}
+
+  /* ---- 3 節: 眠る間のピンの設定と、眠りの電流の内訳 ---- */
+  REG.w07_pins=function(el,U){
+    var S=U.S,F=U.fmt,seed=7;
+    var V=3.0,VIH=2.1,VMG=0.3,IFL=100e-6,WFL=0.38,ROUT=50,VF=0.5,RX=5e3,RSP=4.7e3,RRADIO=100e3,QTASK=42e-6,TTASK=60,CAP=220;
+    U.head(el,"PINS","眠る間のピンの設定と、眠りの電流の内訳");
+    var r1=U.ctrls(el);
+    var nUn=U.slider(r1,"使っていないピンの本数",{min:0,max:20,step:1,value:6,fmt:function(v){return v+" 本";},onInput:draw});
+    var mUn=U.select(r1,"使っていないピンの設定",["浮いた入力のまま","アナログの設定","L を出す","内蔵のプルダウン"],0,draw);
+    var r2=U.ctrls(el);
+    var door=U.select(r2,"扉のスイッチ（閉じると L）",["開いている","閉じている"],1,draw);
+    var how=U.select(r2,"閉じている間の読み方",["プルアップしたまま","プルアップを外し、周期的に読む"],0,draw);
+    var rpu=U.slider(r2,"プルアップ抵抗",{values:[10e3,20e3,40e3,100e3,220e3,560e3,1e6,2.2e6,4.7e6],value:40e3,fmt:_w07_R,onInput:draw});
+    var poll=U.slider(r2,"周期的に読む間隔",{values:[0.02,0.05,0.1,0.2,0.5,1],value:0.1,fmt:function(v){return F.time(v);},onInput:draw});
+    var r3=U.ctrls(el);
+    var sens=U.select(r3,"電源を切ったセンサへの 2 本の線",["H を出したまま","L を出す","アナログの設定"],0,draw);
+    var spu=U.select(r3,"その線のプルアップ抵抗（4.7 kΩ）",["無し","いつも入っている電源へ","センサと同じ、切る電源へ"],0,draw);
+    var radio=U.select(r3,"電源を入れたままの無線を選ぶ線（相手のプルアップ 100 kΩ）",["H（選ばない側）を出す","L を出す"],1,draw);
+    var r4=U.ctrls(el);
+    var base=U.slider(r4,"マイコンの深い眠りの電流",{min:0.3,max:20,log:true,value:2,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var ilk=U.slider(r4,"ピンの漏れ電流の最大値（抵抗の上限に使う）",{values:[0.01,0.05,0.1,0.5,1],value:1,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var br=U.btnrow(el);
+    U.button(br,"直す前（3 節の失敗を全部）",function(){nUn.set(6);mUn.set(0);door.set(1);how.set(0);rpu.set(40e3);sens.set(0);spu.set(1);radio.set(1);base.set(2);draw();});
+    U.button(br,"3 節の直し方",function(){mUn.set(1);how.set(1);poll.set(0.1);sens.set(1);spu.set(2);radio.set(0);draw();});
+    U.button(br,"もう一度（浮いた入力の電圧を別の乱数で）",function(){seed++;draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    /* 電源を切ったセンサの電源の線: 中の回路を抵抗 RX とみなし、保護ダイオード（VF）や抵抗から流れ込む電流と釣り合う電圧を求める */
+    function sensorCalc(mode,pu){
+      function inj(vx){var s=0;for(var k=0;k<2;k++){
+          if(mode===0){s+=Math.max(0,(V-VF-vx)/ROUT);if(pu===2)s+=(V-vx)/RSP;}
+          else if(mode===2){if(pu===1)s+=Math.max(0,(V-VF-vx)/RSP);}
+          else{if(pu===2)s-=vx/RSP;}}
+        return s;}
+      var lo=0,hi=V;for(var it=0;it<60;it++){var m=(lo+hi)/2;if(inj(m)-m/RX>0)lo=m;else hi=m;}
+      var vx=(lo+hi)/2,Iin=Math.max(0,vx/RX+(mode===1&&pu===2?2*vx/RSP:0));
+      var Ipu=(mode===1&&pu===1)?2*V/RSP:0;     /* L を出す線へ、いつもの電源のプルアップから流れる */
+      return {vx:vx,I:(mode===1&&pu===2)?0:Iin+Ipu,Ipu:Ipu,Iback:(mode===1)?0:Iin};
+    }
+    function draw(){
+      var nar=_w07_nar(box),R=U.rng(seed);
+      var nu=nUn.get(),mu=mUn.get(),dc=door.get()===1,hw=how.get(),Rp=rpu.get(),Tp=poll.get(),sm=sens.get(),sp=spu.get(),rl=radio.get()===1;
+      how.el.style.display=dc?"":"none";poll.el.style.display=dc&&hw===1?"":"none";
+      var Ib=base.get()*1e-6,Ilk=ilk.get()*1e-6,Rmax=(V-VIH-VMG)/Ilk;
+      /* 浮いた入力: 電圧は乱数で 0〜3 V のどこか */
+      var Ifl=0,vs=[];for(var i=0;i<nu;i++){var v=R.next()*V;vs.push(v);if(mu===0)Ifl+=IFL*Math.exp(-Math.pow((v-1.5)/WFL,2));}
+      var Idoor=0,dnote;
+      if(!dc){Idoor=0;dnote="開いている: 電流は流れない";}
+      else if(hw===0){Idoor=V/Rp;dnote="閉じている: 3.0 V ÷ "+_w07_R(Rp);}
+      else{Idoor=(0.15e-6+V/Rp*20e-6)/Tp;dnote="閉じている: "+F.time(Tp)+" ごとに起きて読む";}
+      var sc=sensorCalc(sm,sp),Irad=rl?V/RRADIO:0;
+      var parts=[["マイコンの眠り",Ib,"signal"],["使っていないピン",Ifl,"alias"],["扉のスイッチ",Idoor,"gold"],["センサへの線",sc.I,"teal"],["無線を選ぶ線",Irad,"purple"]];
+      var tot=parts.reduce(function(a,p){return a+p[1];},0),Iavg=tot+QTASK/TTASK,life=CAP*1e-3/Iavg;
+      /* ---- 図 ---- */
+      var W=nar?400:700,o=[],rowsX=nar?[10,150,250,390]:[10,190,330,480],rh=34,y0=24;
+      var lo=1e-8,hi=1e-2;
+      o.push(S.T(rowsX[0],14,"ピン（線）","start",10,"ink",true));
+      if(!nar)o.push(S.T(rowsX[1],14,"設定","start",10,"ink",true));
+      o.push(S.T(rowsX[2],14,"眠っている間の電流（対数目盛）","start",10,"ink",true));
+      var desc=[["マイコンの眠り","データシートの値"],["使っていない "+nu+" 本",["浮いた入力","アナログの設定","L","内蔵のプルダウン"][mu]],
+        ["扉のスイッチ",dnote],["センサへの 2 本",["H","L","アナログの設定"][sm]+"・"+["プルアップ無し","いつもの電源へ","切る電源へ"][sp]],["無線を選ぶ線",rl?"L（相手のプルアップと引き合う）":"H"]];
+      [1e-8,1e-6,1e-4,1e-2].forEach(function(v){var x=_w07_lx(v,lo,hi,rowsX[2],rowsX[3]);o.push(S.L(x,y0,x,y0+5*rh,"grid",1));o.push(S.T(x,y0+5*rh+13,F.cur(v,1),"middle",9,"muted"));});
+      parts.forEach(function(p,i){var y=y0+i*rh,x0=rowsX[2],x1=_w07_lx(p[1],lo,hi,rowsX[2],rowsX[3]);
+        o.push(S.T(rowsX[0],y+14,desc[i][0],"start",10,p[2],true));
+        o.push(S.T(nar?rowsX[0]:rowsX[1],nar?y+27:y+14,desc[i][1],"start",9,"muted"));
+        if(p[1]>lo)o.push(S.RECT(x0,y+5,Math.max(1,x1-x0),14,2,U.soft(p[2]),p[2],1));
+        o.push(S.T(Math.min(x1+5,W-4),y+16,p[1]>0?F.cur(p[1]):"0",x1+5>W-60?"end":"start",9.5,p[2],true,false,null,true));});
+      /* 合計の帯 */
+      var yt=y0+5*rh+30,bx=10,bw=W-20;
+      o.push(S.T(bx,yt,"眠りの電流の合計 "+F.cur(tot)+"（内訳は割合）","start",10.5,"ink",true));
+      var xx=bx;parts.forEach(function(p){var w=bw*p[1]/tot;if(w<=0)return;o.push(S.RECT(xx,yt+8,Math.max(w,0.8),18,2,U.soft(p[2]),p[2],1));
+        if(w>70)o.push(S.T(xx+w/2,yt+21,Math.round(p[1]/tot*100)+" %","middle",9.5,p[2],true));xx+=w;});
+      /* 浮いた入力の電圧（使っていないピンが浮いているとき） */
+      var yh=yt+44;
+      if(mu===0&&nu>0){o.push(S.T(bx,yh,"浮いた入力の電圧（乱数の例）と電流","start",9.5,"muted"));
+        var px=bx,pw=nar?380:330,ph=36,yy=yh+6;o.push(S.RECT(px,yy,pw,ph,3,"none","line",1));
+        var X=function(v){return px+v/V*pw;};o.push(S.RECT(X(0.9),yy,X(2.1)-X(0.9),ph,0,U.soft("alias"),"none",0));
+        vs.forEach(function(v){o.push(S.L(X(v),yy+4,X(v),yy+ph-4,"alias",2));});
+        [0,0.9,2.1,3].forEach(function(v){o.push(S.T(X(v),yy+ph+12,v+" V","middle",9,"muted"));});
+        yh+=ph+26;}
+      box.set(S.svg(W,yh,o));
+      var warn="";
+      if(!dc&&Rp>Rmax)warn+='<span class="warn">プルアップ抵抗 '+_w07_R(Rp)+' は上限 '+_w07_R(Rmax)+' を超える。開いていても、漏れ電流でピンの電圧が '+U.fmt.fix(V-Ilk*Rp,2)+' V まで下がり、H と読めないことがある。</span><br>';
+      if(dc&&hw===0&&Rp>Rmax)warn+='<span class="warn">プルアップ抵抗が上限 '+_w07_R(Rmax)+' を超えている。開いたときに H と読めないことがある。</span><br>';
+      if(mu===0&&nu>0)warn+='<span class="warn">浮いた入力が '+nu+' 本ある。電流は電圧しだいで変わり、ピンで起こす設定なら勝手に起きる。</span><br>';
+      ro.innerHTML=warn+"抵抗の上限 (V_DD − V_IH − V_mg) ÷ I_lk = (3.0 − 2.1 − 0.3) V ÷ "+F.cur(Ilk)+" = <b>"+_w07_R(Rmax)+"</b>"+
+        (dc&&hw===1?" ・ 周期的に読むので、閉じたことに気づくのは最大 "+F.time(Tp)+" 遅れる":"")+"<br>"+
+        "センサの電源の線の電圧 "+U.fmt.fix(sc.vx,2)+" V（流れ込み "+F.cur(sc.Iback)+(sc.Ipu>0?"、L の線へプルアップから "+F.cur(sc.Ipu):"")+"）<br>"+
+        "眠りの電流の合計 <b>"+F.cur(tot)+"</b>（マイコンの "+U.sig(tot/Ib,3)+" 倍） ・ 仕事の分 0.70 µA を足した平均電流 "+F.cur(Iavg)+" ・ CR2032 の電池寿命 <b>"+_w07_life(life/1,U)+"</b>"+
+        '<div class="wnote">例の値: 電源 3.0 V、浮いた入力の電流は中ほどの電圧で最大 100 µA、周期的に読む 1 回は 0.15 µC（起床時間 20 µs と読む 30 µs に 3 mA）。電源を切ったセンサの中の回路を 5 kΩ、保護ダイオードの電圧を 0.5 V とした。仕事の分は 01 章 4 節のドアの開閉センサ（60 s ごとに 42 µC）。ピンの漏れ電流そのものは数えていない。電池寿命は 220 mAh ÷ 平均電流（自己放電は含めない）。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: どの深さで眠るか ---- */
+  REG.w07_depth=function(el,U){
+    var S=U.S,F=U.fmt;
+    var COL=["signal","teal","purple"],NM=["軽い眠り","深い眠り","最も深い眠り"];
+    U.head(el,"DEPTH","起きる周期と、得な眠りの段階");
+    var r1=U.ctrls(el);
+    var i1=U.slider(r1,"軽い眠りの電流",{min:50,max:3000,log:true,value:500,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var t1=U.slider(r1,"軽い眠りの起床時間",{min:0.1,max:20,log:true,value:1,fmt:function(v){return F.time(v*1e-6);},onInput:draw});
+    var r2=U.ctrls(el);
+    var i2=U.slider(r2,"深い眠りの電流",{min:0.3,max:50,log:true,value:2,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var t2=U.slider(r2,"深い眠りの起床時間",{min:2,max:1000,log:true,value:20,fmt:function(v){return F.time(v*1e-6);},onInput:draw});
+    var r3=U.ctrls(el);
+    var i3=U.slider(r3,"最も深い眠りの電流",{min:0.05,max:5,log:true,value:0.4,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var t3=U.slider(r3,"最も深い眠りの起床時間",{min:0.1,max:20,log:true,value:2,fmt:function(v){return F.time(v*1e-3);},onInput:draw});
+    var r4=U.ctrls(el);
+    var iw=U.slider(r4,"起床時間の間の電流",{min:0.5,max:20,log:true,value:3,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var qt=U.slider(r4,"仕事の上乗せの電荷 Q_task",{min:0.01,max:1000,log:true,value:42,fmt:function(v){return U.sig(v,3)+" µC";},onInput:draw});
+    var Tp=U.slider(r4,"起きる周期 T",{min:0.001,max:86400,log:true,value:60,fmt:function(v){return F.time(v);},onInput:draw});
+    var r5=U.ctrls(el);
+    var resp=U.slider(r5,"応えるまでに許される時間",{min:1e-6,max:10,log:true,value:1,fmt:function(v){return F.time(v);},onInput:draw});
+    var ram=U.checkbox(r5,"保持用の RAM に入らない状態がある",false,draw);
+    var fast=U.checkbox(r5,"速いクロックで動く周辺回路を使っている",false,draw);
+    var br=U.btnrow(el);
+    function preset(T,q){i1.set(500);t1.set(1);i2.set(2);t2.set(20);i3.set(0.4);t3.set(2);iw.set(3);qt.set(q);Tp.set(T);resp.set(1);ram.set(false);fast.set(false);draw();}
+    U.button(br,"5 節の例: 60 s ごと",function(){preset(60,42);});
+    U.button(br,"1 s ごとに小さな仕事",function(){preset(1,0.1);});
+    U.button(br,"1 ms ごと",function(){preset(0.001,0.05);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var nar=_w07_nar(box);
+      var Is=[i1.get()*1e-6,i2.get()*1e-6,i3.get()*1e-6],tw=[t1.get()*1e-6,t2.get()*1e-6,t3.get()*1e-3],Iw=iw.get()*1e-3,Qt=qt.get()*1e-6,T=Tp.get();
+      var Qw=Is.map(function(I,m){return Math.max(0,(Iw-I)*tw[m]);});
+      /* 使えるか: 軽い眠りは、ほかが使えないときの最後の選択肢として、いつも残す */
+      var ok=[true,!(fast.get()||resp.get()<tw[1]),!(fast.get()||ram.get()||resp.get()<tw[2])],tooSlow=resp.get()<tw[0];
+      var Iavg=function(m,t){return Is[m]+(Qt+Qw[m])/t;};
+      var tbe=function(a,b){var d=Is[a]-Is[b];if(d<=0)return Infinity;return (Qw[b]-Qw[a])/d;};
+      var best=-1;[0,1,2].forEach(function(m){if(ok[m]&&(best<0||Iavg(m,T)<Iavg(best,T)))best=m;});
+      var W=nar?400:700,o=[];
+      var pw=nar?300:420,X0=1e-5,p=U.plot(70,16,pw,200,[X0,86400],[1e-7,1e-1],{xlog:true,ylog:true});
+      o.push(p.axes({xl:"起きる周期 T",yl:"平均電流",xt:[1e-5,1e-3,1e-1,10,1000,86400],yt:[1e-7,1e-5,1e-3,1e-1],xfmt:function(v){return v===86400?"1 日":F.time(v,1);},yfmt:function(v){return F.cur(v,1);},ylOff:56}));
+      [0,1,2].forEach(function(m){var pts=[];for(var k=0;k<=140;k++){var t=Math.pow(10,-5+k*(Math.log10(86400)+5)/140),v=Iavg(m,t);if(v>=1e-7&&v<=1e-1)pts.push([t,v]);}
+        o.push(p.line(pts,COL[m],ok[m]?2.2:1.2,ok[m]?null:"4 4"));});
+      [[0,1],[1,2]].forEach(function(ab){var t=tbe(ab[0],ab[1]);if(t>=X0&&t<=86400){var v=Iavg(ab[1],t);if(v>=1e-7&&v<=1e-1){o.push(S.L(p.X(t),p.Y(1e-7),p.X(t),p.Y(v),"alias",1,"3 3"));o.push(S.D(p.X(t),p.Y(v),"alias",3.5));}}});
+      if(T>=X0&&T<=86400){o.push(S.L(p.X(T),p.y,p.X(T),p.y+p.h,"ink",1,"2 3"));if(best>=0)o.push(S.D(p.X(T),p.Y(Math.max(1e-7,Math.min(1e-1,Iavg(best,T)))),COL[best],5));}
+      /* 凡例 */
+      var lx=nar?70:p.x+pw+20,ly=nar?262:30;
+      [0,1,2].forEach(function(m,i){var yy=nar?ly:ly+i*18,xx=nar?lx+i*110:lx;o.push(S.RECT(xx,yy-9,10,10,2,U.soft(COL[m]),COL[m],1));o.push(S.T(xx+15,yy,NM[m]+(ok[m]?"":"（使えない）"),"start",9.5,ok[m]?COL[m]:"muted",ok[m]));});
+      /* 内訳の棒（いまの周期） */
+      var bx=nar?70:p.x+pw+20,by=nar?300:100,bw=nar?310:W-bx-14;
+      o.push(S.T(bx,by,"T = "+F.time(T)+" の平均電流と内訳の割合","start",10,"ink",true));
+      [0,1,2].forEach(function(m,i){var yy=by+22+i*30,tot=Iavg(m,T),parts=[[Is[m],"green"],[Qt/T,"signal"],[Qw[m]/T,"alias"]],xx=bx,bw2=bw*0.62;
+        o.push(S.T(bx,yy-3,NM[m]+" "+F.cur(tot)+(m===best?"（得）":""),"start",9,COL[m],m===best));
+        parts.forEach(function(q){var w=bw2*q[0]/tot;o.push(S.RECT(xx,yy,Math.max(0.6,w),11,2,U.soft(q[1]),q[1],1));xx+=w;});});
+      var lg=by+22+3*30-6;
+      [["眠り","green"],["仕事","signal"],["起床","alias"]].forEach(function(q,i){o.push(S.RECT(bx+i*62,lg,9,9,2,U.soft(q[1]),q[1],1));o.push(S.T(bx+i*62+13,lg+8,q[0],"start",9,"muted"));});
+      box.set(S.svg(W,nar?lg+18:Math.max(260,lg+18),o));
+      var t12=tbe(0,1),t23=tbe(1,2),fmtT=function(t){return isFinite(t)?(t<=0?"0（どの長さでも深いほうが得）":F.time(t)):"なし（深いほうの電流が小さくない）";};
+      var why=[];if(!ok[1])why.push("深い眠り");if(!ok[2])why.push("最も深い眠り");
+      ro.innerHTML="起床の電荷 Q_w = (起床時間の間の電流 − 眠りの電流) × 起床時間: "+[0,1,2].map(function(m){return NM[m]+" "+U.sig(Qw[m]*1e6,3)+" µC";}).join("、")+"<br>"+
+        "損益分岐の眠りの長さ: 軽い → 深い <b>"+fmtT(t12)+"</b>、深い → 最も深い <b>"+fmtT(t23)+"</b><br>"+
+        (why.length?'<span class="warn">'+why.join("・")+" は、応える速さ・保つもの・動かす周辺回路の条件で使えない。</span><br>":"")+
+        (tooSlow?'<span class="warn">軽い眠りの起床時間も、応えるまでに許される時間より長い。眠らずに待つ必要がある。</span><br>':"")+
+        "T = "+F.time(T)+" で得な段階: <b>"+NM[best]+"</b>（平均電流 "+F.cur(Iavg(best,T))+"、CR2032 で "+_w07_life(220e-3/Iavg(best,T),U)+"） ・ "+
+        [0,1,2].map(function(m){return NM[m]+" "+F.cur(Iavg(m,T));}).join("、")+
+        '<div class="wnote">平均電流 = 眠りの電流 + (仕事の上乗せ + 起床の電荷) ÷ T（5 節）。周期が仕事と起床時間より短い所は、この式の外である。電池寿命は 220 mAh ÷ 平均電流。値はすべて例の値で、製品の値で確かめる。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: 小さな電流を測る ---- */
+  REG.w07_meter=function(el,U){
+    var S=U.S,F=U.fmt,seed=3;
+    var E=3.0,RIN=15,VBOR=2.2;
+    U.head(el,"MEASURE","電流計・シャント抵抗と、平均をとる時間");
+    var r1=U.ctrls(el);
+    var how=U.select(r1,"測り方",["テスタの µA の範囲（中の抵抗 100 Ω）","テスタの mA の範囲（中の抵抗 1.8 Ω）","シャント抵抗と増幅器","範囲を自動で切り替える測定器"],0,draw);
+    var rs=U.slider(r1,"シャント抵抗",{values:[0.1,1,10,100,1000],value:1,fmt:function(v){return v>=1000?"1 kΩ":v+" Ω";},onInput:draw});
+    var ve=U.slider(r1,"増幅器の誤差",{values:[5,10,20,50,100,200,500],value:50,fmt:function(v){return v+" µV";},onInput:draw});
+    var r2=U.ctrls(el);
+    var is=U.slider(r2,"眠りの電流",{min:0.1,max:100,log:true,value:2,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var ip=U.slider(r2,"起きている間の電流",{min:0.5,max:50,log:true,value:10,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var tp=U.slider(r2,"起きている時間",{min:0.5,max:50,log:true,value:4.2,fmt:function(v){return F.time(v*1e-3);},onInput:draw});
+    var r3=U.ctrls(el);
+    var Tp=U.slider(r3,"起きる周期",{min:1,max:600,log:true,value:60,fmt:function(v){return F.time(v);},onInput:draw});
+    var Wn=U.slider(r3,"平均をとる時間 W",{min:1,max:3600,log:true,value:10,fmt:function(v){return F.time(v);},onInput:draw});
+    var br=U.btnrow(el);
+    U.button(br,"6 節の例に戻す",function(){how.set(0);rs.set(1);ve.set(50);is.set(2);ip.set(10);tp.set(4.2);Tp.set(60);Wn.set(10);draw();});
+    U.button(br,"W を周期の 5 倍にする",function(){Wn.set(5*Tp.get());draw();});
+    U.button(br,"もう一度（平均を始める時刻を別の乱数で）",function(){seed++;draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var nar=_w07_nar(box),h=how.get();
+      rs.el.style.display=h===2?"":"none";ve.el.style.display=h===2?"":"none";
+      var Rm=[100,1.8,rs.get(),0.05][h],Is=is.get()*1e-6,Ip=ip.get()*1e-3,tp_=tp.get()*1e-3,T=Tp.get(),W_=Wn.get();
+      if(tp_>T)tp_=T;
+      /* 眠りの電流の読みの誤差: テスタは表示の 1 桁（µA の範囲 0.1 µA、mA の範囲 10 µA）、シャントは誤差電圧 ÷ 抵抗、測定器は 1 % + 10 nA（どれも例の値） */
+      var err=[0.1e-6+0.01*Is,10e-6+0.01*Is,ve.get()*1e-6/rs.get(),0.01*Is+10e-9][h];
+      var Vwake=E-Ip*(RIN+Rm),reset=Vwake<VBOR,Vsl=Is*Rm;
+      var Qe=(Ip-Is)*tp_,Itrue=Is+Qe/T;
+      var R=U.rng(seed),t0=R.next()*T;
+      /* 窓 [t0, t0+W] に入る起きている時間の長さ（周期 T、各周期の 0〜tp_ に起きる） */
+      function inWin(a,b){var s=0,k0=Math.floor(a/T)-1,k1=Math.ceil(b/T)+1;for(var k=k0;k<=k1;k++){var x0=k*T,x1=k*T+tp_;s+=Math.max(0,Math.min(b,x1)-Math.max(a,x0));}return s;}
+      var Imeas=Is+(Ip-Is)*inWin(t0,t0+W_)/W_;
+      var Wd=nar?400:700,o=[];
+      /* 上: 起きている間の機器の電圧 */
+      var vx=nar?40:60,vw=nar?150:200,vy=26,vh=90,Y=function(v){return vy+vh-(v-1.0)/2.0*vh;};
+      o.push(S.T(10,14,"起きている間の機器の電圧 [V]","start",10,"ink",true));
+      o.push(S.W([vx,vy,vx,vy+vh,vx+vw,vy+vh],"muted",1));
+      [1,2,3].forEach(function(v){o.push(S.L(vx-4,Y(v),vx,Y(v),"muted",1));o.push(S.T(vx-7,Y(v)+3.5,String(v),"end",9,"muted"));});
+      var c=reset?"alias":"green";o.push(S.RECT(vx+30,Y(Math.max(1.0,Vwake)),60,vy+vh-Y(Math.max(1.0,Vwake)),2,U.soft(c),c,1.1));
+      o.push(S.T(vx+96,Y(Math.max(1.0,Vwake))+4,U.fmt.fix(Vwake,2)+" V"+(reset?" リセット":""),"start",10,c,true,false,null,true));
+      o.push(S.L(vx,Y(VBOR),vx+vw,Y(VBOR),"alias",1.1,"4 3"));o.push(S.T(vx+vw,Y(VBOR)-4,"BOR 2.2 V","end",9,"alias",true,false,null,true));
+      /* 上右: 眠りの電流の読み */
+      var rx=nar?10:330,ryy=nar?vy+vh+40:26;
+      o.push(S.T(rx,nar?ryy-12:14,"眠りの電流の読み","start",10,"ink",true));
+      var rel=err/Is,cc=rel<=0.1?"green":(rel<1?"gold":"alias");
+      var lo=1e-8,hi=1e-3,lx0=rx+10,lx1=rx+(nar?370:350);
+      [1e-8,1e-7,1e-6,1e-5,1e-4,1e-3].forEach(function(v){var x=_w07_lx(v,lo,hi,lx0,lx1);o.push(S.L(x,ryy+8,x,ryy+40,"grid",1));o.push(S.T(x,ryy+52,F.cur(v,1),"middle",8.5,"muted"));});
+      var xa=_w07_lx(Math.max(lo,Is-err),lo,hi,lx0,lx1),xb=_w07_lx(Is+err,lo,hi,lx0,lx1),xi=_w07_lx(Is,lo,hi,lx0,lx1);
+      o.push(S.RECT(xa,ryy+14,Math.max(2,xb-xa),18,3,U.soft(cc),cc,1));o.push(S.L(xi,ryy+10,xi,ryy+36,"ink",2));
+      o.push(S.T(lx0,ryy+70,"本当の値 "+F.cur(Is)+"、読みの幅 ±"+F.cur(err)+"（"+(rel>=1?"読めない":"誤差 "+U.sig(rel*100,2)+" %")+"）","start",9.5,cc,true));
+      /* 下: 電流と平均をとる時間 */
+      var ty=nar?ryy+100:150,tx=60,twd=Wd-tx-20,span=Math.max(W_*1.25,2.2*T),Xt=function(t){return tx+t/span*twd;};
+      var ly=function(I){return ty+70-(Math.log10(Math.max(I,1e-7))+7)/5*70;};
+      o.push(S.T(10,ty-8,"電流（対数目盛）と、平均をとる時間","start",10,"ink",true));
+      o.push(S.W([tx,ty,tx,ty+70,tx+twd,ty+70],"muted",1));
+      [1e-6,1e-4,1e-2].forEach(function(v){o.push(S.T(tx-5,ly(v)+3,F.cur(v,1),"end",8.5,"muted"));o.push(S.L(tx,ly(v),tx+twd,ly(v),"grid",1));});
+      o.push(S.RECT(Xt(t0),ty,Math.max(1.5,Xt(t0+W_)-Xt(t0)),70,0,U.soft("alias"),"alias",1));
+      o.push(S.L(tx,ly(Is),tx+twd,ly(Is),"green",1.4));
+      for(var k=0;k*T<=span;k++){var x=Xt(k*T);o.push(S.L(x,ly(Is),x,ly(Ip),"signal",2));}
+      var nt=U.nice(0,span,5);nt.forEach(function(v){o.push(S.L(Xt(v),ty+70,Xt(v),ty+74,"muted",1));o.push(S.T(Xt(v),ty+86,U.sig(v,4)+" s","middle",8.5,"muted"));});
+      box.set(S.svg(Wd,ty+96,o));
+      var bound=Qe/W_,mult=Math.abs(W_/T-Math.round(W_/T))<1e-9;
+      ro.innerHTML=(reset?'<span class="warn">起きている間に機器の電圧が '+U.fmt.fix(Vwake,2)+' V まで下がり、BOR（2.2 V）を割ってリセットする。測っている間だけ、機器は正しく動かない。</span><br>':"")+
+        "起きている間: "+F.cur(Ip)+" × (電池の内部抵抗 15 Ω + 測る道具 "+(Rm<1?U.sig(Rm,2)+" Ω":Rm+" Ω")+") = "+U.fmt.fix(Ip*(RIN+Rm),3)+" V 下がる ・ 眠りの電流が測る道具に作る電圧 "+(Vsl<1e-3?U.sig(Vsl*1e6,3)+" µV":U.sig(Vsl*1e3,3)+" mV")+"<br>"+
+        "1 回の上乗せの電荷 Q_e = "+U.sig(Qe*1e6,3)+" µC、本当の平均 <b>"+F.cur(Itrue)+"</b> ・ 長さ "+F.time(W_)+" の平均の読み <b>"+F.cur(Imeas)+"</b>（誤差の上限 Q_e ÷ W = "+F.cur(bound)+(mult?"。W が周期の整数倍なので誤差は 0":"")+"）"+
+        '<div class="wnote">電池は起電力 3.0 V・内部抵抗 15 Ω。テスタの読みの幅は表示の最後の桁（µA の範囲 0.1 µA、mA の範囲 10 µA）と 1 %、範囲を自動で切り替える測定器は 1 % + 10 nA、中の抵抗 0.05 Ω とした（どれも例の値。計器の仕様書で確かめる）。平均を始める時刻は乱数で決めた。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 08 章 センサをつなぐ ===== */
+  function _w08_bin(v){var s=(v>>>0).toString(2);while(s.length<8)s="0"+s;return s;}
+  function _w08_logrange(vals){var lo=Infinity,hi=0;vals.forEach(function(v){if(v>0&&isFinite(v)){lo=Math.min(lo,v);hi=Math.max(hi,v);}});
+    return [Math.pow(10,Math.floor(Math.log10(lo)-1e-9)),Math.pow(10,Math.ceil(Math.log10(hi)+1e-9))];}
+
+  /* ---- 3 節: センサの電源を入れたままにするか、測るときだけ入れるか ---- */
+  REG.w08_gate=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"POWER GATING","センサの電源: 入れたまま待機させるか、測るときだけ入れるか");
+    var r1=U.ctrls(el);
+    var Tp=U.slider(r1,"測る周期 T",{min:1,max:3600,value:60,log:true,fmt:function(v){return F.time(v);},onInput:draw});
+    var Isb=U.slider(r1,"センサの待機の電流 I_sb",{min:0.05,max:1000,value:2,log:true,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var r2=U.ctrls(el);
+    var Im=U.slider(r2,"測る間の電流 I_m",{min:0.05,max:50,value:0.6,log:true,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var tm=U.slider(r2,"測る時間 t_m",{min:0.0001,max:10,value:0.01,log:true,fmt:function(v){return F.time(v);},onInput:draw});
+    var r3=U.ctrls(el);
+    var tsu=U.slider(r3,"起動時間 t_su",{min:0.0001,max:300,value:0.002,log:true,fmt:function(v){return F.time(v);},onInput:draw});
+    var Isu=U.slider(r3,"起動の間の電流 I_su",{min:0.01,max:100,value:0.3,log:true,fmt:function(v){return F.cur(v*1e-3);},onInput:draw});
+    var r4=U.ctrls(el);
+    var CL=U.slider(r4,"入口のコンデンサ C_L",{values:[0.1,0.47,1,2.2,4.7,10,22,47,100],value:1,fmt:function(v){return v+" µF";},onInput:draw});
+    var Qc=U.slider(r4,"設定の書き直し Q_cfg",{values:[0,0.1,0.2,0.4,1,2,5],value:0.4,fmt:function(v){return v+" µC";},onInput:draw});
+    var Ioff=U.slider(r4,"漏れ電流 I_off",{values:[0.01,0.02,0.05,0.1,0.2,0.5,1],value:0.05,fmt:function(v){return v+" µA";},onInput:draw});
+    var r5=U.ctrls(el);
+    var busy=U.checkbox(r5,"起動を待つ間、マイコンは起きて待つ（3 mA）",false,draw);
+    var br=U.btnrow(el);
+    function preset(a){Tp.set(a[0]);Isb.set(a[1]);Im.set(a[2]);tm.set(a[3]);tsu.set(a[4]);Isu.set(a[5]);CL.set(a[6]);Qc.set(a[7]);Ioff.set(0.05);busy.set(false);draw();}
+    U.button(br,"3 節の例（待機 2 µA）",function(){preset([60,2,0.6,0.01,0.002,0.3,1,0.4]);});
+    U.button(br,"3 節の例（待機 0.2 µA）",function(){preset([60,0.2,0.6,0.01,0.002,0.3,1,0.4]);});
+    U.button(br,"レギュレータと LED を載せたモジュール（例）",function(){preset([60,300,1.5,0.01,0.005,1,10,0.4]);});
+    U.button(br,"温めるのに時間のかかるセンサ（例）",function(){preset([600,20,20,1,30,20,10,0.4]);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var T=Tp.get(),isb=Isb.get()*1e-6,im=Im.get()*1e-3,t_m=tm.get(),t_su=tsu.get(),isu=Isu.get()*1e-3,cl=CL.get()*1e-6,qcfg=Qc.get()*1e-6,ioff=Ioff.get()*1e-6;
+      var V=3.0,qin=cl*V,qsu=isu*t_su,qw=busy.get()?3e-3*t_su:0,Qon=qin+qsu+qcfg+qw;
+      var IA=function(TT){return isb+(im-isb)*t_m/TT;},IB=function(TT){return ioff+(Qon+im*t_m)/TT;};
+      var Tbe=isb>ioff?(Qon+isb*t_m)/(isb-ioff):Infinity;
+      var W=700,o=[],xr=[1,1e4];
+      var samp=[];for(var k=0;k<=80;k++){var tt=Math.pow(10,k/20);samp.push(IA(tt),IB(tt));}
+      var yr=_w08_logrange(samp.concat([IA(T),IB(T)]));
+      var p=U.plot(80,22,430,200,xr,yr,{xlog:true,ylog:true});
+      o.push(p.axes({xl:"測る周期 T",yl:"センサの平均電流",xt:[1,10,100,1000,1e4],xfmt:function(v){return v<1e4?v+" s":"10⁴ s";},yfmt:function(v){return F.cur(v,1);},ylOff:58}));
+      var la=[],lb=[];for(var j=0;j<=80;j++){var t2=Math.pow(10,j/20);la.push([t2,IA(t2)]);lb.push([t2,IB(t2)]);}
+      o.push(p.line(la,"purple",2.2));o.push(p.line(lb,"signal",2.4));
+      if(Tbe>=1&&Tbe<=1e4){var yb=IA(Tbe);o.push(S.L(p.X(Tbe),p.Y(yr[0]),p.X(Tbe),p.Y(yb),"faint",1,"3 3"));o.push(S.D(p.X(Tbe),p.Y(yb),"alias",4.5));
+        o.push(S.T(p.X(Tbe)+(p.X(Tbe)>430?-6:6),p.Y(yr[0])-7,"T_be = "+F.time(Tbe),p.X(Tbe)>430?"end":"start",9.5,"alias",true,false,null,true));}
+      o.push(S.L(p.X(T),p.Y(yr[0]),p.X(T),p.Y(yr[1]),"faint",1,"2 3"));
+      o.push(S.D(p.X(T),p.Y(IA(T)),"purple",5));o.push(S.D(p.X(T),p.Y(IB(T)),"signal",5));
+      o.push(S.T(p.x+p.w+10,40,"A: 入れたまま","start",10,"purple",true));o.push(S.T(p.x+p.w+10,56,F.cur(IA(T)),"start",10,"purple"));
+      o.push(S.T(p.x+p.w+10,84,"B: 測るときだけ","start",10,"signal",true));o.push(S.T(p.x+p.w+10,100,F.cur(IB(T)),"start",10,"signal"));
+      o.push(S.T(p.x+p.w+10,128,"点: いまの周期","start",9,"muted"));
+      /* 1 周期の電荷の内訳 */
+      var QA=[[isb*Math.max(T-t_m,0),"purple","待機"],[im*t_m,"gold","測る"]];
+      var QB=[[ioff*T,"teal","漏れ"],[qin,"alias","突入"],[qsu,"green","起動"],[qw,"muted","待つ間のマイコン"],[qcfg,"purple","設定"],[im*t_m,"gold","測る"]];
+      var sum=function(a){return a.reduce(function(s,x){return s+x[0];},0);};
+      var qa=sum(QA),qb=sum(QB),qm=Math.max(qa,qb),bx=150,bw=460,y0=268;
+      o.push(S.T(14,y0-12,"1 周期の電荷の内訳","start",10.5,"ink",true));
+      [[QA,"A: 入れたまま","purple",qa],[QB,"B: 測るときだけ","signal",qb]].forEach(function(r,i){var y=y0+i*30,xx=bx;
+        o.push(S.T(bx-8,y+13,r[1],"end",9.5,r[2],true));
+        r[0].forEach(function(s){if(s[0]<=0)return;var w=bw*s[0]/qm;o.push(S.RECT(xx,y,Math.max(w,0.6),18,2,U.soft(s[1]),s[1],1));
+          if(w>58)o.push(S.T(xx+w/2,y+13,s[2],"middle",9,s[1],true));xx+=w;});
+        o.push(S.T(xx+6,y+13,U.sig(r[3]*1e6,3)+" µC","start",9.5,"ink",true));});
+      box.set(S.svg(W,y0+66,o));
+      var better=IB(T)<IA(T);
+      var warn=(t_su+t_m>T)?'<span class="warn">起動時間と測る時間の和が周期より長い。切る場合は、電源を切る間が無い（式のまま計算した）。</span><br>':"";
+      ro.innerHTML=warn+"起動の電荷 Q_on = C_L V + I_su t_su + Q_cfg"+(qw?" + マイコンの待ち":"")+" = "+U.sig(qin*1e6,3)+" + "+U.sig(qsu*1e6,3)+" + "+U.sig(qcfg*1e6,3)+(qw?" + "+U.sig(qw*1e6,3):"")+" = <b>"+U.sig(Qon*1e6,3)+" µC</b><br>"+
+        "損益分岐の周期 T_be = (Q_on + I_sb t_m) ÷ (I_sb − I_off) = <b>"+(isFinite(Tbe)?F.time(Tbe):"なし（待機の電流が漏れ電流以下）")+"</b><br>"+
+        "いまの周期 "+F.time(T)+" で、A（入れたまま）"+F.cur(IA(T))+"、B（測るときだけ）"+F.cur(IB(T))+" → "+(better?'<span class="ok">切るほうが得</span>（'+U.sig(IA(T)/IB(T),3)+" 倍小さい）":'<span class="warn">入れたままのほうが得</span>')+"<br>"+
+        "切る場合は、測るたびに起動時間 "+F.time(t_su)+" だけ遅れる"+(t_su>1?'（<span class="warn">欲しいときに値が無いことがある</span>）':"")+
+        '<div class="wnote">電源の電圧は 3.0 V とした。B の漏れ電流は周期の全体に流れるとみなした。値はすべて例の値で、実際の値はデータシートで確かめる。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: プルアップ抵抗と立ち上がり時間 ---- */
+  REG.w08_rise=function(el,U){
+    var S=U.S,F=U.fmt,K=Math.log(7/3);
+    var MODES=[{n:"Standard-mode（100 kHz）",f:100e3,tr:1000e-9,cb:400e-12,iol:3e-3},
+               {n:"Fast-mode（400 kHz）",f:400e3,tr:300e-9,cb:400e-12,iol:3e-3},
+               {n:"Fast-mode Plus（1 MHz）",f:1e6,tr:120e-9,cb:550e-12,iol:20e-3}];
+    var VDDS=[3.0,3.3,5.0];
+    U.head(el,"PULL-UP","I2C のプルアップ抵抗と立ち上がり時間");
+    var r1=U.ctrls(el);
+    var R=U.slider(r1,"プルアップ抵抗 R_p",{min:0.1,max:50,value:2.2,log:true,fmt:function(v){return v<1?Math.round(v*1000)+" Ω":U.sig(v,3)+" kΩ";},onInput:draw});
+    var C=U.slider(r1,"バス容量 C_b",{min:10,max:600,value:100,log:true,int:true,fmt:function(v){return v+" pF";},onInput:draw});
+    var r2=U.ctrls(el);
+    var md=U.select(r2,"速さの区分",MODES.map(function(m){return m.n;}),1,draw);
+    var vd=U.select(r2,"電源の電圧 V_DD",VDDS.map(function(v){return v.toFixed(1)+" V";}),0,draw);
+    var br=U.btnrow(el);
+    U.button(br,"5 節の例（2.2 kΩ・100 pF）",function(){R.set(2.2);C.set(100);md.set(1);vd.set(0);draw();});
+    U.button(br,"マイコンの内蔵プルアップ（40 kΩ。例）",function(){R.set(40);draw();});
+    U.button(br,"2.2 kΩ のモジュールを 3 枚つないだ（733 Ω）",function(){R.set(0.733);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var m=MODES[md.get()],Vdd=VDDS[vd.get()],Rp=R.get()*1e3,Cb=C.get()*1e-12,tau=Rp*Cb,tr=K*tau;
+      var Rmin=(Vdd-0.4)/m.iol,Rmax=m.tr/(K*Cb),okR=tr<=m.tr,okI=Rp>=Rmin,okC=Cb<=m.cb;
+      var P=1/m.f,half=P/2,tend=2.5*P,W=700,o=[];
+      /* SCL の波形: L（マスタが引く）→ 離す（RC で上がる）を繰り返す */
+      var p=U.plot(64,22,400,170,[0,tend*1e9],[0,Vdd*1.08]);
+      o.push(p.axes({xl:"時間 [ns]",yl:"SCL の電圧 [V]",yfmt:function(v){return U.sig(v,2);},xfmt:function(v){return String(Math.round(v));},ylOff:42}));
+      [[0.3,"0.3 V_DD"],[0.7,"0.7 V_DD"]].forEach(function(q){o.push(p.line([[0,q[0]*Vdd],[tend*1e9,q[0]*Vdd]],"muted",1.1,"5 4"));
+        o.push(S.T(p.x+p.w-4,p.Y(q[0]*Vdd)-4,q[1],"end",9,"muted",false,false,null,true));});
+      var pts=[],v=0,N=600,dt=tend/N,tf=Math.min(10e-9,half/20);
+      for(var i=0;i<=N;i++){var t=i*dt,ph=t%P;
+        if(ph<half){v=Math.max(0,v-(dt/tf)*Vdd);} else {v=Vdd-(Vdd-v)*Math.exp(-dt/tau);}
+        pts.push([t*1e9,v]);}
+      o.push(p.line(pts,okR?"green":"alias",2.2));
+      /* 最初に離した所で、30 % と 70 % を通る時刻 */
+      var t30=half+tau*Math.log(1/0.7),t70=half+tau*Math.log(1/0.3),reach=t70<P;
+      if(t30<P){o.push(S.D(p.X(t30*1e9),p.Y(0.3*Vdd),"ink",3.2));}
+      if(reach){o.push(S.D(p.X(t70*1e9),p.Y(0.7*Vdd),"ink",3.2));
+        o.push(S.T(p.X(t70*1e9)+6,p.Y(0.7*Vdd)+14,"t_r = "+F.time(tr),"start",9.5,okR?"green":"alias",true,false,null,true));}
+      else o.push(S.T(p.X(half*1e9)+6,p.Y(0.5*Vdd),"H と読める電圧まで上がらない","start",9.5,"alias",true,false,null,true));
+      /* 右: 使える抵抗の範囲 */
+      var q=U.plot(540,22,140,170,[10,1000],[100,1e5],{xlog:true,ylog:true});
+      o.push(q.axes({xt:[10,100,1000],yt:[100,1e3,1e4,1e5],xfmt:function(v){return String(v);},yfmt:function(v){return v>=1000?(v/1000)+"k":String(v);}}));
+      o.push(S.T(q.x+q.w/2,q.y+q.h+31,"C_b [pF]","middle",9.5,"muted"));
+      o.push(S.T(q.x-34,q.y+q.h/2,"R_p [Ω]","middle",9.5,"muted",false,false,-90));
+      var cs=[];for(var k2=0;k2<=40;k2++){var cc=10*Math.pow(10,k2/20);var rr=m.tr/(K*cc*1e-12);if(rr>=100&&rr<=1e5)cs.push([cc,rr]);}
+      o.push(q.line(cs,"signal",1.8));
+      if(Rmin>=100)o.push(q.line([[10,Rmin],[1000,Rmin]],"ink",1.2,"5 3"));
+      o.push(q.line([[m.cb*1e12,100],[m.cb*1e12,1e5]],"muted",1,"3 3"));
+      var px=Math.min(1000,Math.max(10,Cb*1e12)),py=Math.min(1e5,Math.max(100,Rp));
+      o.push(S.D(q.X(px),q.Y(py),okR&&okI&&okC?"green":"alias",5));
+      o.push(S.T(q.x,14,"使える範囲（"+m.n.replace(/（.*$/,"")+"）","start",9,"signal",true));
+      box.set(S.svg(W,236,o));
+      var iL=Vdd/Rp,days=0.220/iL/24;
+      ro.innerHTML="立ち上がり時間 t_r = ln(7/3) R_p C_b = 0.8473 × "+U.sig(Rp/1000,3)+" kΩ × "+Math.round(Cb*1e12)+" pF = <b>"+F.time(tr)+"</b>（上限 "+F.time(m.tr)+"）→ "+(okR?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"<br>"+
+        "使える範囲: (V_DD − 0.4 V) ÷ I_OL = <b>"+U.sig(Rmin,3)+" Ω</b> 以上、t_r の上限 ÷ (0.8473 C_b) = <b>"+(Rmax>=1000?U.sig(Rmax/1000,3)+" kΩ":U.sig(Rmax,3)+" Ω")+"</b> 以下"+(Rmin>Rmax?'（<span class="warn">範囲が無い。容量を減らすか、遅い区分にする</span>）':"")+
+        (okI?"":'。<span class="warn">L に引く装置に '+F.cur((Vdd-0.4)/Rp)+' 流れ、I_OL（'+F.cur(m.iol)+'）を超える</span>')+"<br>"+
+        "線が L の間の電流 V_DD ÷ R_p = <b>"+F.cur(iL)+"</b>（1 本あたり）。L のまま眠ると、CR2032（220 mAh）は約 "+(days>=2?U.sig(days,3)+" 日":U.sig(days*24,3)+" 時間")+"で尽きる"+
+        (okC?"":'<br><span class="warn">バス容量が、この区分の上限 '+Math.round(m.cb*1e12)+' pF を超える</span>')+
+        '<div class="wnote">規格の値は I2C バスの規格書（UM10204）による（使うときは最新の版とデータシートで確かめる）。波形は、マスタが半周期だけ L に引き、残りの半周期は離すとして描いた。実際の I2C の回路は、SCL が H になったのを見てから H の時間を数えることが多く、立ち上がりが遅いとクロックが遅くなる。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: 固まった I2C のバスを戻す ---- */
+  REG.w08_recover=function(el,U){
+    var S=U.S;
+    U.head(el,"BUS RECOVERY","固まった I2C のバスを、クロックと開始・停止条件で戻す");
+    var SC=["読み出しの途中: スレーブが値を送っている","アドレスへの ACK を返している途中（読み出し）","書き込みの途中: スレーブが受けている",
+            "スレーブが止まり、SCL を L に保っている","SDA が GND に短絡している（故障）"];
+    var r1=U.ctrls(el);
+    var sc=U.select(r1,"マイコンがリセットされたとき",SC,0,reset);
+    var r2=U.ctrls(el);
+    var val=U.slider(r2,"スレーブが送る値",{min:0,max:255,step:1,value:0,fmt:function(v){return "0x"+U.fmt.hex(v,2)+"（"+_w08_bin(v)+"）";},onInput:reset});
+    var pos=U.slider(r2,"スレーブがいま出しているビット",{min:0,max:7,step:1,value:3,fmt:function(v){return v+" 番（"+((val.get()>>v)&1)+"）";},onInput:reset});
+    var br=U.btnrow(el);
+    U.button(br,"クロックを 1 回送る",function(){clock1();draw();});
+    U.button(br,"開始条件と停止条件を出す",function(){startstop();draw();});
+    U.button(br,"センサの電源を入れ直す",function(){repower();draw();});
+    U.button(br,"復旧の手順を通す（6 節のコード）",function(){recover();draw();});
+    U.button(br,"最初に戻す",function(){reset();});
+    var box=U.svgbox(el,{scroll:true}); var ro=U.readout(el);
+    var st,bit,tx,acked,nrx,sSda,sScl,shortc,pw,mScl,mSda,pScl,pSda,hist,nclk,msg,res,starts,stops;
+    function lScl(){return pw&&mScl&&sScl;}
+    function lSda(){return pw&&mSda&&sSda&&!shortc;}
+    function update(){
+      var scl=lScl(),sda=lSda();
+      if(scl&&pScl&&sda!==pSda){if(!sda)starts++;else stops++;if(st!=="hung"){st="idle";sSda=true;}}
+      if(pScl&&!scl){
+        if(st==="tx"){if(bit>0){bit--;sSda=!!((tx>>bit)&1);}else{st="txack";sSda=true;}}
+        else if(st==="txack"){if(acked){st="tx";bit=7;tx=0;sSda=false;}else st="idle";}
+        else if(st==="ackr"){st="tx";bit=7;sSda=!!((tx>>7)&1);}
+        else if(st==="ackw"){st="rx";nrx=0;sSda=true;}
+        else if(st==="rx"&&nrx===8){st="ackw";sSda=false;}
+      }
+      if(!pScl&&scl){if(st==="txack")acked=!sda;if(st==="rx")nrx++;}
+      pScl=scl;pSda=lSda();
+    }
+    function who(){if(lSda())return "";if(!pw)return "p";if(shortc)return "x";if(!mSda)return "m";return "s";}
+    function push(note,clk){hist.push({scl:lScl(),sda:lSda(),w:who(),note:note||"",clk:clk||0});}
+    function reset(){
+      var k=sc.get();r2.style.display=k<=1?"":"none";pos.el.style.display=k===0?"":"none";pos.set(pos.get());
+      st="idle";bit=7;tx=val.get();acked=false;nrx=3;sSda=true;sScl=true;shortc=false;pw=true;hist=[];nclk=0;msg="";res="";starts=0;stops=0;
+      var pre=0;
+      if(k===0){pre=Math.min(2,7-pos.get());st="tx";bit=pos.get()+pre;sSda=!!((tx>>bit)&1);}
+      else if(k===1){st="ackr";sSda=false;}
+      else if(k===2){st="rx";}
+      else if(k===3){st="hung";sScl=false;sSda=false;}
+      else shortc=true;
+      mScl=false;mSda=true;pScl=false;pSda=lSda();
+      for(var i=0;i<pre;i++){push(i===0?"読み出しの途中":"");mScl=true;update();push();mScl=false;update();}
+      push("リセット");
+      mScl=true;update();push();
+      starts=0;stops=0;
+      draw();
+    }
+    function sclRelease(){mScl=true;update();push();if(lScl())return true;push("1 ms 待つ");return lScl();}
+    function clock1(){
+      if(!lScl()&&!mScl){mScl=true;update();push();}
+      if(!lScl()){msg="SCL が L に引かれていて、クロックを送れない。";return false;}
+      mScl=false;update();nclk++;push("",nclk);
+      var ok=sclRelease();
+      msg=ok?(lSda()?"SDA が H になった。ここで開始条件と停止条件を出せば、スレーブは待つ状態に戻る。":"SDA はまだ L。スレーブは次のビットを出している。"):"SCL が H に戻らない。";
+      return ok;
+    }
+    function startstop(){
+      if(!lScl()){msg="SCL が L なので、開始条件・停止条件にならない。";return false;}
+      if(!lSda()){msg="SDA が L に引かれているので、開始条件を作れない（マスタが離しても L のまま）。";return false;}
+      mSda=false;update();push("開始");mSda=true;update();push("停止");
+      msg=st==="idle"?"開始条件と停止条件を出した。スレーブは次の開始条件を待つ状態で、バスは使える。":"条件を出したが、スレーブは戻っていない。";
+      return lSda()&&lScl();
+    }
+    function repower(){
+      pw=false;update();push("電源を切る");push();
+      pw=true;st="idle";sSda=true;sScl=true;
+      update();push("入れる");
+      msg=lSda()&&lScl()?"センサの POR で、スレーブは待つ状態から始まった。設定を最初から書き直す。":"電源を入れ直しても SDA が L のまま。配線の短絡か故障を疑う。";
+    }
+    function clockOut(){
+      for(var k=0;k<9&&!lSda();k++){mScl=false;update();nclk++;push("",nclk);if(!sclRelease())return false;}
+      if(!lSda())return false;
+      mSda=false;update();push("開始");mSda=true;update();push("停止");
+      return lSda()&&lScl();
+    }
+    function recover(){
+      var n0=nclk;
+      mSda=true;update();
+      var r=lSda()?"BUS_OK":"BUS_CLOCKED";
+      if(!sclRelease()||!clockOut()){
+        pw=false;update();push("電源を切る");push();pw=true;st="idle";sSda=true;sScl=true;update();push("入れる");
+        r=(sclRelease()&&clockOut())?"BUS_REPOWERED":"BUS_DEAD";
+      }
+      res=r;
+      msg="復旧の手順の結果: <b>"+r+"</b>（送ったクロック "+(nclk-n0)+" 回）。"+
+        (r==="BUS_DEAD"?'<span class="warn">戻らない。そのセンサを故障として記録し、使わずに動き続ける（15 章 5 節）。</span>':(r==="BUS_REPOWERED"?"電源を入れ直して戻った。起動時間を待ち、設定を書き直す。":'<span class="ok">バスは使える。</span>'));
+    }
+    function stName(){
+      if(!pw)return "電源が切れている";
+      if(st==="tx")return "値 0x"+U.fmt.hex(tx,2)+" の "+bit+" 番のビット（"+((tx>>bit)&1)+"）を出して、次のクロックを待っている";
+      if(st==="txack")return "1 バイトを送り終え、ACK の位置で SDA を離している";
+      if(st==="ackr")return "アドレスへの ACK を返している（SDA を L に引いている）";
+      if(st==="ackw")return "受けたバイトへの ACK を返している（SDA を L に引いている）";
+      if(st==="rx")return "書き込みのバイトを受けている途中（SDA は離している）";
+      if(st==="hung")return "止まって、SCL と SDA を L に引いている";
+      return shortc?"次の開始条件を待っているが、SDA が GND に短絡していて、バスは使えない":"次の開始条件を待っている（バスは使える）";
+    }
+    function draw(){
+      var n=hist.length,uw=16,x0=70,W=Math.max(700,x0+n*uw+30),o=[],ys=36,yd=96,hh=22;
+      o.push(S.T(12,ys+15,"SCL","start",11,"ink",true));o.push(S.T(12,yd+15,"SDA","start",11,"ink",true));
+      var C={s:"purple",m:"signal",x:"alias",p:"muted"};
+      hist.forEach(function(h,i){var x=x0+i*uw;if(h.w)o.push(S.RECT(x,yd-5,uw,hh+10,0,U.soft(C[h.w]),"none",0));});
+      function wave(key,y){var pts=[];hist.forEach(function(h,i){var x=x0+i*uw,yy=y+(h[key]?0:hh);if(i>0)pts.push([x,pts[pts.length-1][1]]);pts.push([x,yy]);pts.push([x+uw,yy]);});return S.PL(pts,"ink",1.8);}
+      o.push(wave("scl",ys));o.push(wave("sda",yd));
+      var lastNoteX=-100,row=0;
+      hist.forEach(function(h,i){var x=x0+i*uw;
+        if(h.clk)o.push(S.T(x+uw/2,ys-6,String(h.clk),"middle",9,"gold",true));
+        if(h.note){var c=h.note==="リセット"?"alias":(h.note==="開始"||h.note==="停止"?"signal":"muted");row=(x-lastNoteX<70)?(row+1)%2:0;lastNoteX=x;
+          o.push(S.L(x,yd+hh+6,x,yd+hh+12+row*14,c,1));o.push(S.T(x+2,yd+hh+22+row*14,h.note,"start",9,c,true));}});
+      var yl=yd+hh+56;
+      [["purple","スレーブが SDA を L に引く"],["signal","マスタが SDA を L に引く"],["alias","短絡で L"],["muted","電源が切れて L"]].forEach(function(l,i){var xx=12+i*170;
+        o.push(S.RECT(xx,yl-9,10,10,2,U.soft(l[0]),l[0],1));o.push(S.T(xx+15,yl,l[1],"start",9.5,"muted"));});
+      box.set(S.svg(W,yl+10,o));
+      ro.innerHTML="スレーブ: <b>"+stName()+"</b><br>"+
+        "線: SCL "+(lScl()?"H":'<span class="warn">L</span>')+"、SDA "+(lSda()?"H":'<span class="warn">L</span>')+" → "+(lScl()&&lSda()?'<span class="ok">開始条件を出せる</span>':'<span class="warn">開始条件を出せない（固まっている）</span>')+
+        " ・ 送ったクロック "+nclk+" 回"+(msg?"<br>"+msg:"")+
+        '<div class="wnote">スレーブは、クロックの立ち下がりで次のビットを出し、ACK の位置でマスタが SDA を L に引かなければ（NACK）送るのをやめ、開始条件か停止条件で待つ状態に戻るとした。「1 ms 待つ」は、SCL が H に戻るのを待った所。</div>';
+    }
+    reset();
+  };
+
+  /* ===== 09 章 アナログ値を正しく測る ===== */
+  function _w09_nar(box){var w=box.el.clientWidth;return w>0&&w<520;}
+  function _w09_rntc(tc){return 10000*Math.exp(3435*(1/(tc+273.15)-1/298.15));}
+  function _w09_tntc(r){return 1/(1/298.15+Math.log(r/10000)/3435)-273.15;}
+  function _w09_s(v,d){return (+v).toFixed(d).replace("-","−");}
+  function _w09_pm(v,d){return (v>0?"+":"")+_w09_s(v,d);}
+  function _w09_ohm(v){return v>=1e6?_w09_g(v/1e6)+" MΩ":(v>=1000?_w09_g(v/1000)+" kΩ":_w09_g(v)+" Ω");}
+  function _w09_g(v){return String(+(+v).toPrecision(3));}
+
+  /* ---- 2 節: 基準の選び方 ---- */
+  REG.w09_ref=function(el,U){
+    var S=U.S;
+    U.head(el,"REFERENCE","基準の選び方と、電池の電圧が下がったときの温度センサの読み");
+    var r1=U.ctrls(el);
+    var mode=U.select(r1,"基準の選び方",["電源電圧を基準（3.0 V として換算）","(A) 内部の基準電圧を基準にする","(B) 電源電圧を基準にし、内部の基準電圧も測る"],0,draw);
+    var cal=U.checkbox(r1,"工場で測った値を使う（(A)・(B)）",true,draw);
+    var r2=U.ctrls(el);
+    var vb=U.slider(r2,"電池の電圧（= 電源電圧）",{min:1.8,max:3.4,step:0.05,value:2.2,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var tt=U.slider(r2,"本当の温度",{min:-10,max:60,step:1,value:25,fmt:function(v){return v+" °C";},onInput:draw});
+    var bits=U.select(r2,"分解能",[{v:"10",t:"10 ビット"},{v:"12",t:"12 ビット"}],"12",draw);
+    var r3=U.ctrls(el);
+    var dev=U.slider(r3,"内部の基準電圧の、製品ごとのずれ",{min:-3,max:3,step:0.1,value:1.5,fmt:function(v){return _w09_pm(v,1)+" %";},onInput:draw});
+    var drift=U.slider(r3,"工場で測った後の変化（温度など）",{min:-0.5,max:0.5,step:0.05,value:0.3,fmt:function(v){return _w09_pm(v,2)+" %";},onInput:draw});
+    var br=U.btnrow(el);
+    U.button(br,"新しい CR2032（3.0 V）",function(){vb.set(3.0);draw();});
+    U.button(br,"使い終わりの CR2032（2.2 V）",function(){vb.set(2.2);draw();});
+    U.button(br,"単 3 形 2 本の終わり（2.0 V）",function(){vb.set(2.0);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    /* m: 0 電源電圧, 1 (A), 2 (B)。温度センサの出力は 0.5 V + 10 mV/°C（例の値） */
+    function calc(m,V,T,n,useCal,dv,dr){
+      var full=Math.pow(2,n),vin=0.5+0.01*T,vbgCal=1.2*(1+dv/100),vbg=vbgCal*(1+dr/100);
+      var Ncal=Math.round(vbgCal/3.0*full),vbgUsed=useCal?3.0*Ncal/full:1.2;
+      var q=function(x){return Math.max(0,Math.min(full-1,Math.round(x*full)));};
+      var r={vin:vin,full:full,vbg:vbg,vbgUsed:vbgUsed,Ncal:Ncal,clip:false,low:false,Nbg:null,vdd:null};
+      if(m===0){r.N=q(vin/V);r.v=r.N*3.0/full;r.clip=vin>=V;}
+      else if(m===1){r.N=q(vin/vbg);r.v=r.N*vbgUsed/full;r.clip=vin>=vbg;r.low=V<vbg+0.3;}
+      else{r.Nbg=q(vbg/V);r.N=q(vin/V);r.vdd=vbgUsed*full/Math.max(1,r.Nbg);r.v=r.N*r.vdd/full;r.clip=vin>=V;}
+      r.t=(r.v-0.5)/0.01;return r;}
+    function draw(){
+      var m=mode.get(),V=vb.get(),T=tt.get(),n=+bits.get(),uc=cal.get(),dv=dev.get(),dr=drift.get();
+      var nar=_w09_nar(box),W=nar?400:700,o=[];
+      var cols=["alias","green","signal"],names=["電源電圧（3.0 V として換算）","(A) 内部の基準電圧","(B) 内部の基準電圧も測る"];
+      var curves=[0,1,2].map(function(k){var pts=[];for(var i=0;i<=64;i++){var v=3.4-1.6*i/64;var r=calc(k,v,T,n,uc,dv,dr);pts.push([v,Math.max(-20,Math.min(60,r.t-T))]);}return pts;});
+      var p=U.plot(nar?56:70,24,nar?320:430,200,[3.4,1.8],[-20,60]);
+      o.push(p.axes({xl:"電池の電圧（= 電源電圧）[V]",yl:"求めた温度 − 本当の温度 [°C]",xt:[3.4,3.0,2.6,2.2,1.8],yt:[-20,0,20,40,60],xfmt:function(v){return v.toFixed(1);},yfmt:function(v){return String(v).replace("-","−");},ylOff:nar?42:46}));
+      o.push(S.RECT(p.X(3.0),p.y,p.X(2.2)-p.X(3.0),p.h,0,"var(--gold-soft)","none",0," fill-opacity=\"0.5\""));
+      o.push(S.T(p.X(2.98),p.y+12,"CR2032 の範囲","start",9.5,"gold",true,false,null,true));
+      [0,1,2].forEach(function(k){if(k!==m)o.push(p.line(curves[k],cols[k],1.2,"4 3"));});
+      o.push(p.line(curves[m],cols[m],2.6));
+      var cur=calc(m,V,T,n,uc,dv,dr),ey=Math.max(-20,Math.min(60,cur.t-T));
+      o.push(S.D(p.X(V),p.Y(ey),cols[m],5));
+      o.push(S.T(p.X(V)+(p.X(V)>p.x+p.w-90?-8:8),p.Y(ey)-8,_w09_pm(cur.t-T,2)+" °C",p.X(V)>p.x+p.w-90?"end":"start",10,cols[m],true,false,null,true));
+      /* 凡例 */
+      var lx=nar?56:520,ly=nar?282:40;
+      [0,1,2].forEach(function(k,i){var yy=ly+i*(nar?16:22);o.push(S.L(lx,yy-4,lx+22,yy-4,cols[k],k===m?2.6:1.2,k===m?null:"4 3"));o.push(S.T(lx+28,yy,names[k],"start",9.5,cols[k],k===m));});
+      box.set(S.svg(W,nar?334:270,o));
+      var lsb=(m===1?cur.vbg:V)/cur.full*1000,h="";
+      if(cur.clip)h+='<span class="warn">入力の電圧が基準電圧を超え、値が最大に張り付いている。</span><br>';
+      if(cur.low)h+='<span class="warn">電源電圧が内部の基準電圧に近すぎる（ここでは 0.3 V 以上の差が要るとした。データシートで確かめる）。</span><br>';
+      h+="温度センサの出力 = 0.5 V + 10 mV/°C × "+T+" °C = <b>"+_w09_s(cur.vin,3)+" V</b>、1 LSB = "+_w09_g(lsb)+" mV<br>";
+      if(m===0)h+="ADC の値 N = round("+_w09_s(cur.vin,3)+" ÷ "+_w09_s(V,2)+" × "+cur.full+") = <b>"+cur.N+"</b> → N × 3.0 V ÷ "+cur.full+" = "+_w09_s(cur.v,4)+" V<br>";
+      else if(m===1)h+="本当の内部の基準電圧 = "+_w09_s(cur.vbg*1000,1)+" mV。N = round("+_w09_s(cur.vin,3)+" ÷ "+_w09_s(cur.vbg,4)+" × "+cur.full+") = <b>"+cur.N+"</b> → N × "+_w09_s(cur.vbgUsed*1000,1)+" mV ÷ "+cur.full+" = "+_w09_s(cur.v,4)+" V<br>";
+      else h+="N_bg = round("+_w09_s(cur.vbg,4)+" ÷ "+_w09_s(V,2)+" × "+cur.full+") = <b>"+cur.Nbg+"</b> → V_DD = "+_w09_s(cur.vbgUsed*1000,1)+" mV × "+cur.full+" ÷ N_bg = <b>"+_w09_s(cur.vdd*1000,1)+" mV</b>（本当は "+_w09_s(V*1000,0)+" mV）<br>"+
+        "温度センサ: N = <b>"+cur.N+"</b> → N × V_DD ÷ "+cur.full+" = "+_w09_s(cur.v,4)+" V<br>";
+      if(m>0)h+=(uc?"工場で測った値 N_cal = "+cur.Ncal+"（3.0 V で測った例）から、換算に使う基準電圧 = "+_w09_s(cur.vbgUsed*1000,1)+" mV":"換算に使う基準電圧 = 公称の 1200 mV")+"<br>";
+      h+="求めた温度 = <b>"+_w09_s(cur.t,2)+" °C</b>（誤差 <b>"+_w09_pm(cur.t-T,2)+" °C</b>）";
+      h+='<div class="wnote">ADC の値は丸めた整数で計算した（本文の値は丸めを無視したもの）。誤差のグラフの破線は、選んでいないほかの方法。内部の基準電圧の値（1.2 V 前後）、ずれの大きさ、温度センサの出力は例の値で、実際の値はデータシートで確かめる。</div>';
+      ro.innerHTML=h;
+    }
+    draw();
+  };
+
+  /* ---- 4 節: サーミスタの分圧 ---- */
+  REG.w09_ntc=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"THERMISTOR","サーミスタの分圧 — 比率測定と、測るときだけ流す");
+    var r1=U.ctrls(el);
+    var tc=U.slider(r1,"温度",{min:-20,max:80,step:1,value:25,fmt:function(v){return v+" °C";},onInput:draw});
+    var rf=U.slider(r1,"固定抵抗 R_f",{values:[2200,3300,4700,10000,22000,33000,47000,100000],value:10000,fmt:_w09_ohm,onInput:draw});
+    var vb=U.slider(r1,"電池の電圧（= 基準電圧）",{min:2.0,max:3.2,step:0.05,value:3.0,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var r2=U.ctrls(el);
+    var src=U.select(r2,"分圧の上の端",["電源電圧（基準電圧と同じ点）","GPIO の出力（出力の抵抗 40 Ω）","別の 3.0 V の電源"],0,draw);
+    var how=U.select(r2,"流し方",["つなぎっぱなし","測るときだけ（1 回 1 ms）"],1,draw);
+    var iv=U.slider(r2,"測る間隔",{values:[1,10,60,600,3600],value:60,fmt:function(v){return F.time(v);},onInput:draw});
+    var tol=U.slider(r2,"固定抵抗の誤差",{min:-1,max:1,step:0.1,value:0,fmt:function(v){return _w09_pm(v,1)+" %";},onInput:draw});
+    var br=U.btnrow(el);
+    U.button(br,"4 節の例に戻す",function(){tc.set(25);rf.set(10000);vb.set(3.0);src.set(0);how.set(1);iv.set(60);tol.set(0);draw();});
+    U.button(br,"つなぎっぱなしにする",function(){how.set(0);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var T=tc.get(),Rf=rf.get(),V=vb.get(),s=src.get(),sw=how.get()===1,Ti=iv.get(),Rfa=Rf*(1+tol.get()/100);
+      iv.el.style.opacity=sw?"1":"0.5";
+      var R=_w09_rntc(T),Vs=s===0?V:(s===1?V*(Rfa+R)/(Rfa+R+40):3.0),I=Vs/(Rfa+R),Vn=Vs*R/(Rfa+R);
+      var N=Math.max(0,Math.min(4095,Math.round(Vn/V*4096))),clip=Vn>=V;
+      var Rc=N>0&&N<4096?Rf*N/(4096-N):NaN,Tc=Rc>0?_w09_tntc(Rc):NaN;
+      var sens=4096*3435/Math.pow(T+273.15,2)*Rf*R/Math.pow(Rf+R,2);
+      var Iavg=sw?I*1e-3/Ti:I,base=2.70e-6,life=220e-3/(base+Iavg)/24/365,P=Vn*Vn/R;
+      var nar=_w09_nar(box),W=nar?400:700,o=[];
+      /* 左: ADC の値と温度 */
+      var p=U.plot(nar?60:66,24,nar?320:330,190,[-20,80],[0,4096]);
+      o.push(p.axes({xl:"温度 [°C]",yl:"ADC の値",xt:[-20,0,20,40,60,80],yt:[0,1024,2048,3072,4096],xfmt:function(v){return String(v).replace("-","−");},ylOff:48}));
+      var pts=[];for(var t=-20;t<=80;t+=2){var r=_w09_rntc(t);pts.push([t,4096*r/(Rf+r)]);}
+      o.push(p.line(pts,"signal",2.2));
+      o.push(S.D(p.X(T),p.Y(N),"teal",5));
+      o.push(S.T(p.X(T)+(T>45?-8:8),p.Y(N)-8,"N = "+N,T>45?"end":"start",10,"teal",true,false,null,true));
+      /* 右: 平均電流 */
+      var bx=nar?60:450,by=nar?262:40,bw=nar?300:220;
+      o.push(S.T(bx,by,"平均電流（対数目盛）","start",10.5,"ink",true));
+      var lx=function(a){return bx+(Math.log10(Math.max(a,1e-9))+9)/6*bw;};
+      [1e-9,1e-8,1e-7,1e-6,1e-5,1e-4,1e-3].forEach(function(a){o.push(S.L(lx(a),by+10,lx(a),by+76,"grid",1));});
+      [[1e-9,"1 nA"],[1e-6,"1 µA"],[1e-3,"1 mA"]].forEach(function(a){o.push(S.T(lx(a[0]),by+90,a[1],"middle",9,"muted"));});
+      [["機器（01 章）",base,"green"],["分圧",Iavg,Iavg>base?"alias":"gold"]].forEach(function(b,i){var yy=by+16+i*28;
+        o.push(S.RECT(bx,yy,Math.max(1,lx(b[1])-bx),18,2,U.soft(b[2]),b[2],1));
+        o.push(S.T(bx+4,yy+13,b[0]+" "+F.cur(b[1]),"start",9.5,"ink",true,false,null,true));});
+      box.set(S.svg(W,nar?370:250,o));
+      var h="";
+      if(clip)h+='<span class="warn">つなぎ目の電圧が基準電圧を超え、値が最大に張り付いている。</span><br>';
+      h+="サーミスタ "+_w09_ohm(R)+"、上の端 "+_w09_s(Vs,3)+" V、つなぎ目 "+_w09_s(Vn,3)+" V → ADC の値 <b>"+N+"</b>（感度 "+_w09_g(sens)+" LSB/°C、1 LSB は "+_w09_g(1/sens)+" °C）<br>";
+      h+="プログラムが求める抵抗 = R_f × N ÷ (4096 − N) = "+(isFinite(Rc)?_w09_ohm(Rc):"—")+" → 温度 <b>"+(isFinite(Tc)?_w09_s(Tc,2)+" °C":"—")+"</b>（誤差 <b>"+(isFinite(Tc)?_w09_pm(Tc-T,2)+" °C":"—")+"</b>）<br>";
+      h+="分圧の電流 "+F.cur(I)+(sw?" を 1 ms、"+F.time(Ti)+" ごと → 平均 <b>"+F.cur(Iavg)+"</b>":"（つなぎっぱなし）")+"。機器と合わせて "+F.cur(base+Iavg)+"、CR2032 の電池寿命 <b>"+(life>=1?_w09_g(life)+" 年":_w09_g(life*365)+" 日")+"</b><br>";
+      h+="サーミスタで熱になる電力（流している間）= "+_w09_g(P*1e6)+" µW（自己発熱。10 章 3 節）";
+      h+='<div class="wnote">サーミスタは 25 °C で 10 kΩ、B 定数 3435 K（例の値）。基準電圧は電池の電圧（電源電圧）。機器の平均電流 2.70 µA は 01 章 4 節の例。測るときだけ流す場合の、コンデンサを充電する分の電荷は小さいので入れていない。</div>';
+      ro.innerHTML=h;
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 標本化の時間 ---- */
+  /* C_sh の電圧の時間変化。Cx = 0 なら 1 つの RC。Cx > 0 なら、ピンの電圧 p と C_sh の電圧 s の 2 つの式を固有値で解く */
+  function _w09_sh(o){
+    var Rs=o.Rs,Rw=o.Rsw,Cs=o.Csh,Cx=o.Cx,Vin=o.Vin;
+    if(!(Cx>0)){var tau=(Rs+Rw)*Cs;return function(t,p0,s0){return {p:Vin,s:Vin+(s0-Vin)*Math.exp(-t/tau)};};}
+    var a=-(1/Rs+1/Rw)/Cx,b=1/(Rw*Cx),c=1/(Rw*Cs),d=-1/(Rw*Cs);
+    var tr=a+d,det=a*d-b*c,disc=Math.sqrt(Math.max(0,tr*tr/4-det)),l1=tr/2+disc,l2=tr/2-disc;
+    return function(t,p0,s0){
+      var y1=p0-Vin,y2=s0-Vin;
+      /* 固有ベクトル (b, l - a)。y = c1 v1 e^{l1 t} + c2 v2 e^{l2 t} */
+      var v1=[b,l1-a],v2=[b,l2-a],D=v1[0]*v2[1]-v1[1]*v2[0];
+      var c1=(y1*v2[1]-y2*v2[0])/D,c2=(v1[0]*y2-v1[1]*y1)/D,e1=Math.exp(l1*t),e2=Math.exp(l2*t);
+      return {p:Vin+c1*v1[0]*e1+c2*v2[0]*e2,s:Vin+c1*v1[1]*e1+c2*v2[1]*e2};};
+  }
+  REG.w09_sample=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"SAMPLE & HOLD","信号源抵抗と標本化時間 — 前のチャネルに引きずられる");
+    var r1=U.ctrls(el);
+    var rs=U.slider(r1,"信号源抵抗 R_s",{min:100,max:2e6,log:true,value:79600,fmt:_w09_ohm,onInput:draw});
+    var ts=U.slider(r1,"標本化時間 t_s",{min:0.1,max:100,log:true,value:1.5,fmt:function(v){return _w09_g(v)+" µs";},onInput:draw});
+    var bits=U.select(r1,"分解能",[{v:"10",t:"10 ビット"},{v:"12",t:"12 ビット"},{v:"14",t:"14 ビット"}],"12",draw);
+    var r2=U.ctrls(el);
+    var csh=U.slider(r2,"サンプル・ホールドの容量 C_sh",{min:2,max:20,step:1,value:8,fmt:function(v){return v+" pF";},onInput:draw});
+    var rsw=U.slider(r2,"スイッチの抵抗 R_sw",{min:0.2,max:5,step:0.1,value:1,fmt:function(v){return _w09_s(v,1)+" kΩ";},onInput:draw});
+    var cx=U.select(r2,"ピンのコンデンサ C_ext",[{v:"0",t:"なし"},{v:"1e-9",t:"1 nF"},{v:"1e-8",t:"10 nF"},{v:"1e-7",t:"100 nF"},{v:"1e-6",t:"1 µF"}],"0",draw);
+    var r3=U.ctrls(el);
+    var v0=U.slider(r3,"前のチャネルの電圧 V_0",{min:0,max:3.3,step:0.01,value:1.2,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var vi=U.slider(r3,"入力の電圧 V_in",{min:0,max:3.3,step:0.01,value:2.86,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var dm=U.checkbox(r3,"1 回目を捨てて 2 回目を使う",false,draw);
+    var br=U.btnrow(el);
+    U.button(br,"5 節の例（車の分圧・1.5 µs）",function(){rs.set(79600);ts.set(1.5);bits.set("12");csh.set(8);rsw.set(1);cx.set("0");v0.set(1.2);vi.set(2.86);dm.set(false);draw();});
+    U.button(br,"同じ例に 100 nF を付ける",function(){cx.set("1e-7");draw();});
+    U.button(br,"サーミスタの分圧（5 kΩ）",function(){rs.set(5000);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var Rs=rs.get(),t_s=ts.get()*1e-6,n=+bits.get(),Cs=csh.get()*1e-12,Rw=rsw.get()*1e3,Cx=+cx.get(),V0=v0.get(),Vin=vi.get(),two=dm.get();
+      var Vref=3.3,half=Vref/Math.pow(2,n+1),lsb=Vref/Math.pow(2,n);
+      var f=_w09_sh({Rs:Rs,Rsw:Rw,Csh:Cs,Cx:Cx,Vin:Vin});
+      var st1=f(t_s,Vin,V0),st=two?f(t_s,st1.p,st1.s):st1,err=st.s-Vin;
+      var tau=(Rs+Rw)*Cs,tWorst=tau*Math.log(Math.pow(2,n+1)),tThis=Math.abs(Vin-V0)>half?tau*Math.log(Math.abs(Vin-V0)/half):0;
+      var cNeed=(Math.pow(2,n+1)-1)*Cs;
+      var nar=_w09_nar(box),W=nar?400:700,o=[];
+      var tmax=Math.max(t_s*(two?2.2:1.25),1e-7);
+      /* 左: C_sh の電圧 */
+      var lo=Math.min(V0,Vin),hi=Math.max(V0,Vin),pad=Math.max(0.1,(hi-lo)*0.12);
+      var p=U.plot(nar?60:66,24,nar?320:300,180,[0,tmax*1e6],[Math.max(0,lo-pad),Math.min(3.4,hi+pad)]);
+      o.push(p.axes({xl:"時間 [µs]",yl:"コンデンサの電圧 [V]",xfmt:function(v){return _w09_g(v);},yfmt:function(v){return _w09_s(v,2);},ylOff:50}));
+      o.push(p.line([[0,Vin],[tmax*1e6,Vin]],"teal",1.2,"4 3"));
+      var pts=[];for(var i=0;i<=200;i++){var t=tmax*i/200,v;
+        if(!two||t<=t_s)v=f(Math.min(t,t_s),Vin,V0).s;else v=f(Math.min(t-t_s,t_s),st1.p,st1.s).s;
+        if(!two&&t>t_s)v=st1.s;if(two&&t>2*t_s)v=st.s;pts.push([t*1e6,v]);}
+      o.push(p.line(pts,"signal",2.2));
+      o.push(S.L(p.X(t_s*1e6),p.y,p.X(t_s*1e6),p.y+p.h,"gold",1.3,"4 3"));
+      if(two)o.push(S.L(p.X(2*t_s*1e6),p.y,p.X(2*t_s*1e6),p.y+p.h,"gold",1.3,"4 3"));
+      o.push(S.T(p.X(t_s*1e6)+4,p.y+12,"t_s","start",9.5,"gold",true,false,null,true));
+      o.push(S.T(p.x+p.w-4,p.Y(Vin)-6,"V_in","end",9.5,"teal",true,false,null,true));
+      /* 右: 残りの差（対数） */
+      var q=U.plot(nar?60:450,nar?262:24,nar?320:230,nar?150:180,[0,tmax*1e6],[1e-5,10],{ylog:true});
+      o.push(q.axes({xl:"時間 [µs]",yl:"残りの差",yt:[1e-5,1e-3,1e-1,10],xfmt:function(v){return _w09_g(v);},yfmt:function(v){return v>=1?v+" V":(v>=1e-3?v*1e3+" mV":v*1e6+" µV");},ylOff:50}));
+      o.push(q.line([[0,half],[tmax*1e6,half]],"alias",1.2,"5 3"));
+      o.push(S.T(q.x+q.w-4,q.Y(half)+13,"1/2 LSB","end",9.5,"alias",true,false,null,true));
+      o.push(q.line(pts.map(function(a){return [a[0],Math.max(1e-5,Math.min(10,Math.abs(a[1]-Vin)))];}),"signal",2));
+      box.set(S.svg(W,nar?450:250,o));
+      var ok=Math.abs(err)<=half,h="";
+      h+="時定数 (R_s + R_sw) C_sh = "+F.time(tau)+(Cx>0?"（ピンのコンデンサがあるので、実際は下の 2 つの式を解いた値）":"")+"<br>";
+      h+=(two?"2 回目の":"")+"標本化の終わりの電圧 "+_w09_s(st.s,4)+" V、誤差 <b>"+_w09_pm(err*1000,2)+" mV（"+_w09_pm(err/lsb,1)+" LSB）</b> → "+(ok?'<span class="ok">1/2 LSB 以内</span>':'<span class="warn">1/2 LSB を超える</span>')+"<br>";
+      h+="要る標本化時間（ピンのコンデンサなし）: 差が基準電圧いっぱいのとき <b>"+F.time(tWorst)+"</b>、いまの差 "+_w09_s(Math.abs(Vin-V0),2)+" V なら "+F.time(tThis)+"<br>";
+      h+="ピンのコンデンサで誤差を 1/2 LSB 以内にするには C_ext ≥ (2^(n+1) − 1) C_sh = <b>"+_w09_g(cNeed*1e9)+" nF</b>"+(Cx>0?"。付けたコンデンサが元に戻るまでの時定数 R_s C_ext = "+F.time(Rs*Cx):"");
+      h+='<div class="wnote">基準電圧は 3.3 V とした。ピンのコンデンサは、標本化の前に入力の電圧まで充電されているとした。C_sh・R_sw の値は例の値で、実際の値はデータシートで確かめる。</div>';
+      ro.innerHTML=h;
+    }
+    draw();
+  };
+
+  /* ---- 6 節: 平均化とノイズ ---- */
+  REG.w09_avg=function(el,U){
+    var S=U.S,F=U.fmt,seed=1;
+    U.head(el,"AVERAGING","平均化 — ランダムなノイズ・周期的なノイズ・オーバーサンプリング");
+    var r1=U.ctrls(el);
+    var sg=U.slider(r1,"ランダムなノイズ σ",{min:0,max:5,step:0.1,value:3,fmt:function(v){return _w09_s(v,1)+" LSB";},onInput:draw});
+    var nn=U.slider(r1,"平均の回数 N",{values:[1,2,4,8,16,20,32,64,100,128,256],value:16,fmt:function(v){return v+" 回";},onInput:draw});
+    var fr=U.slider(r1,"本当の入力",{min:1000,max:1001,step:0.05,value:1000.3,fmt:function(v){return _w09_s(v,2)+" LSB";},onInput:draw});
+    var r2=U.ctrls(el);
+    var pf=U.select(r2,"周期的なノイズ",["なし","50 Hz","60 Hz","1 MHz（スイッチング電源）"],0,draw);
+    var pa=U.slider(r2,"その振幅",{min:0,max:10,step:0.5,value:4,fmt:function(v){return _w09_s(v,1)+" LSB";},onInput:draw});
+    var dl=U.slider(r2,"測る間隔 Δ",{values:[1e-6,2e-6,5e-6,1e-5,1.025e-5,1e-4,1e-3,5e-3],value:1e-3,fmt:function(v){return F.time(v,4);},onInput:draw});
+    var br=U.btnrow(el);
+    U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
+    U.button(br,"50 Hz を 1 ms ごとに 16 回（16 ms）",function(){sg.set(0.5);pf.set(1);pa.set(4);dl.set(1e-3);nn.set(16);draw();});
+    U.button(br,"50 Hz を 5 ms ごとに 20 回（100 ms）",function(){sg.set(0.5);pf.set(1);pa.set(4);dl.set(5e-3);nn.set(20);draw();});
+    U.button(br,"1 MHz を 10 µs ごと",function(){sg.set(0.5);pf.set(3);pa.set(4);dl.set(1e-5);nn.set(64);draw();});
+    U.button(br,"ノイズ 0 で 256 回",function(){sg.set(0);pf.set(0);nn.set(256);fr.set(1000.3);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var sig=sg.get(),N=nn.get(),xt=fr.get(),fk=pf.get(),A=fk?pa.get():0,f=[0,50,60,1e6][fk],D=dl.get();
+      pa.el.style.opacity=fk?"1":"0.5";
+      var R=U.rng(seed*7919+13),M=200,avgs=[],firsts=[],run0=[],k4=Math.round(Math.log(N)/Math.log(4)),isPow4=Math.pow(4,k4)===N&&N>1;
+      for(var m=0;m<M;m++){var ph=R.range(0,2*Math.PI),sum=0;
+        for(var k=0;k<N;k++){var x=Math.round(xt+A*Math.sin(ph+2*Math.PI*f*D*k)+sig*R.normal());sum+=x;if(m===0)run0.push(x);if(k===0)firsts.push(x);}
+        avgs.push(isPow4?Math.floor((sum+Math.pow(2,k4-1))/Math.pow(2,k4))/Math.pow(2,k4):sum/N);}
+      var mean=function(a){return a.reduce(function(s,v){return s+v;},0)/a.length;},sd=function(a){var mu=mean(a);return Math.sqrt(a.reduce(function(s,v){return s+(v-mu)*(v-mu);},0)/a.length);};
+      var fd=f*D,alias=fk&&Math.abs(fd-Math.round(fd))<1e-9,rres=!fk?0:(alias?1:Math.abs(Math.sin(Math.PI*f*N*D)/(N*Math.sin(Math.PI*f*D))));
+      var theo=Math.sqrt(sig*sig/N+A*A*rres*rres/2);
+      var nar=_w09_nar(box),W=nar?400:700,o=[];
+      /* 上: 1 回目の試行の値 */
+      var lo=Math.floor(xt-Math.max(3*sig+A,1.5)),hi=Math.ceil(xt+Math.max(3*sig+A,1.5));
+      var p=U.plot(nar?60:66,24,nar?320:610,120,[0,N],[lo,hi]);
+      var stp=[1,2,5,10,20,50,100].filter(function(v){return v>=N/6;})[0]||100,xts=[];for(var xv=0;xv<=N;xv+=stp)xts.push(xv);
+      o.push(p.axes({xl:"測った順番（1 回目の試行）",yl:"ADC の値",ny:4,xt:xts,xfmt:function(v){return String(v);},yfmt:function(v){return String(v);},ylOff:50}));
+      o.push(p.line([[0,xt],[N,xt]],"green",1.3,"6 4"));
+      run0.forEach(function(v,i){o.push(S.D(p.X(i+0.5),p.Y(v),"teal",N>100?1.6:2.6));});
+      o.push(p.line([[0,avgs[0]],[N,avgs[0]]],"signal",2.6));
+      /* 下: 平均の分布 */
+      var y2=nar?196:200,q=U.plot(nar?60:66,y2,nar?320:610,90,[lo,hi],[0,1]);
+      o.push(q.axes({xl:"値 [LSB]（"+M+" 回の試行）",yt:[],xfmt:function(v){return String(v);}}));
+      var bw=Math.max(0.05,(hi-lo)/80),hist=function(arr){var b={},mx=0;arr.forEach(function(v){var k=Math.floor((v-lo)/bw);b[k]=(b[k]||0)+1;});for(var k in b)mx=Math.max(mx,b[k]);return {b:b,mx:mx};};
+      var h1=hist(firsts),h2=hist(avgs),mx=Math.max(h1.mx,h2.mx);
+      [[h1,"teal"],[h2,"signal"]].forEach(function(z){for(var k in z[0].b){var x0=lo+k*bw,hh=z[0].b[k]/mx;o.push(S.RECT(q.X(x0),q.Y(hh),Math.max(0.6,q.X(x0+bw)-q.X(x0)),q.Y(0)-q.Y(hh),0,U.soft(z[1]),z[1],0.7));}});
+      o.push(S.L(q.X(xt),q.y,q.X(xt),q.y+q.h,"green",1.4,"5 3"));
+      o.push(S.T(q.x+4,q.y+12,"1 回の値","start",9.5,"teal",true,false,null,true));
+      o.push(S.T(q.x+4,q.y+26,N+" 回の平均","start",9.5,"signal",true,false,null,true));
+      box.set(S.svg(W,y2+130,o));
+      var h="";
+      h+="平均の値の平均 − 本当の入力 = <b>"+_w09_pm(mean(avgs)-xt,3)+" LSB</b>（偏り）、平均のばらつき σ = <b>"+_w09_s(sd(avgs),3)+" LSB</b>（"+M+" 回の試行）<br>";
+      h+="式の値: √(σ² ÷ N + 周期的なノイズの残り² ÷ 2) = "+_w09_s(theo,3)+" LSB（ランダムな分 σ ÷ √N = "+_w09_s(sig/Math.sqrt(N),3)+" LSB）<br>";
+      if(fk)h+="周期的なノイズ: f Δ = "+_w09_g(fd)+"、平均をとる時間 N Δ = "+F.time(N*D,4)+" → 残る割合（最大）<b>"+_w09_s(rres*100,1)+" %</b>"+(alias?'（<span class="warn">f Δ が整数: 毎回同じ位相で減らない</span>）':(Math.abs(f*N*D-Math.round(f*N*D))<1e-9?'（<span class="ok">周期の整数倍で 0</span>）':""))+"<br>";
+      if(isPow4)h+="オーバーサンプリング: "+N+" = 4^"+k4+" 回の和を "+k4+" ビット右にずらすと "+(12+k4)+" ビットの値（1 LSB の 1/"+Math.pow(2,k4)+" の目盛）<br>";
+      if(sig<0.3&&!fk)h+='<span class="warn">ランダムなノイズが小さく、毎回ほぼ同じ値が出るので、平均しても 1 LSB より細かくならない。</span>';
+      h+='<div class="wnote">ADC の値は、本当の入力に周期的なノイズとランダムなノイズを足して、最も近い整数に丸めたもの。周期的なノイズの位相は、試行ごとに乱数で決めた。</div>';
+      ro.innerHTML=h;
+    }
+    draw();
+  };
+
+  /* ===== 10 章 測り方を設計する ===== */
+
+  /* ---- 2 節: センサの FIFO にためて、まとめて読む ---- */
+  REG.w10_fifo=function(el,U){
+    var S=U.S,F=U.fmt;
+    var IF=[{n:"I2C 100 kHz",f:100e3,cpb:9,rp:4700},{n:"I2C 400 kHz",f:400e3,cpb:9,rp:2200},{n:"I2C 1 MHz",f:1e6,cpb:9,rp:1000},{n:"SPI 8 MHz",f:8e6,cpb:8,rp:0}];
+    U.head(el,"FIFO","センサの FIFO にためて、M 個ずつまとめて読む");
+    var r1=U.ctrls(el);
+    var Tp=U.slider(r1,"測る周期 T",{values:[0.005,0.01,0.02,0.04,0.1,0.25,1],value:0.04,fmt:function(v){return F.time(v)+"（"+U.sig(1/v,3)+" Hz）";},onInput:draw});
+    var nb=U.slider(r1,"値 1 つのバイト数",{values:[2,4,6,12],value:6,fmt:function(v){return v+" バイト";},onInput:draw});
+    var itf=U.select(r1,"読み方",IF.map(function(x){return x.n;}),1,draw);
+    var r2=U.ctrls(el);
+    var Ms=U.slider(r2,"1 回に読む数 M",{min:1,max:256,value:8,log:true,int:true,fmt:function(v){return v+" 個";},onInput:draw});
+    var dep=U.slider(r2,"FIFO の深さ M_max",{values:[16,32,64,128,256],value:32,fmt:function(v){return v+" 個";},onInput:draw});
+    var r3=U.ctrls(el);
+    var Qe=U.slider(r3,"起きるたびの決まった電荷 Q_e",{values:[0.3,0.5,1,1.5,3,6],value:1.5,fmt:function(v){return v+" µC";},onInput:draw});
+    var td=U.slider(r3,"応えられない時間の最大 t_d",{values:[0,0.05,0.1,0.2,0.5,1,2],value:0.2,fmt:function(v){return F.time(v);},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(i,m){Tp.set(0.04);nb.set(6);itf.set(i);Ms.set(m);dep.set(32);Qe.set(1.5);td.set(0.2);draw();}
+    function upper(){return Math.floor(dep.get()-td.get()/Tp.get()+1e-9);}
+    U.button(br,"2 節の例（I2C 400 kHz・M = 27）",function(){preset(1,27);});
+    U.button(br,"2 節の例（SPI 8 MHz・M = 27）",function(){preset(3,27);});
+    U.button(br,"1 つずつ読む（M = 1）",function(){Ms.set(1);draw();});
+    U.button(br,"M を上限にする",function(){Ms.set(Math.max(1,upper()));draw();});
+    var box=U.svgbox(el,{scroll:true}); var ro=U.readout(el);
+    function qr(){var I=IF[itf.get()],t=nb.get()*I.cpb/I.f,q=3e-3*t;if(I.rp)q+=3.0/I.rp*t;return q*1e6;}   /* µC。プルアップは 2 本が半分ずつ L とみなす */
+    function draw(){
+      var T=Tp.get(),M=Ms.get(),D=dep.get(),qe=Qe.get(),q=qr(),TD=td.get(),dl=TD/T;
+      var Ia=function(m){return qe/(m*T)+q/T;};
+      var Mstar=qe/q,up=upper(),over=M+dl>D+1e-9;
+      var W=700,o=[];
+      /* 上: たまった数の時間変化（T を単位にした時刻。2 回目の読み出しだけ t_d 遅れる） */
+      var lvl=0,lost=0,pts=[[0,0]],reads=[],lostAt=[],k=0,cyc=0,pend=-1,t=0,maxL=0;
+      while(cyc<3&&k<5000){
+        var ts=k+0.5;
+        if(pend>=0&&pend<=ts){pts.push([pend,lvl]);lvl=0;pts.push([pend,0]);reads.push(pend);pend=-1;cyc++;if(cyc>=3)break;}
+        pts.push([ts,lvl]);
+        if(lvl<D){lvl++;}else{lost++;lostAt.push(ts);}
+        pts.push([ts,lvl]);maxL=Math.max(maxL,lvl);
+        if(lvl>=M&&pend<0)pend=ts+(cyc===1?Math.max(dl,0.1):0.1);
+        k++;
+      }
+      var tend=(reads.length?reads[reads.length-1]:k)+Math.max(1,M*0.15);
+      pts.push([tend,lvl]);
+      var x0=110,wd=440,yt=26,ht=110,ymax=Math.max(D,M)*1.08;
+      var X=function(v){return x0+v/tend*wd;},Y=function(v){return yt+ht-v/ymax*ht;};
+      o.push(S.T(14,14,"FIFO にたまった数（2 回目だけ、マイコンが t_d 遅れて読む）","start",10.5,"ink",true));
+      o.push(S.W([x0,yt,x0,yt+ht,x0+wd,yt+ht],"muted",1.1));
+      o.push(S.L(x0,Y(M),x0+wd,Y(M),"gold",1.2,"5 3"));o.push(S.L(x0,Y(D),x0+wd,Y(D),"alias",1.2,"5 3"));
+      o.push(S.T(x0+wd+6,Y(M)+4,"M = "+M,"start",9.5,"gold",true));o.push(S.T(x0+wd+6,Y(D)+(Math.abs(Y(D)-Y(M))<14?-8:4),"M_max = "+D,"start",9.5,"alias",true));
+      o.push(S.PL(pts.map(function(p){return [X(p[0]),Y(p[1])];}),over?"alias":"signal",1.7));
+      if(dl>0&&reads.length>1){var a0=reads[0]+0.0;var r1t=reads[1],r0t=r1t-Math.max(dl,0.1);o.push(S.RECT(X(r0t),yt+2,X(r1t)-X(r0t),ht-2,2,"var(--muted-soft)","none",0));
+        o.push(S.T((X(r0t)+X(r1t))/2,yt+ht-6,"t_d","middle",9,"muted",true,false,null,true));}
+      lostAt.forEach(function(ts){o.push(S.X(X(ts),Y(D),3.5,"alias",1.6));});
+      reads.forEach(function(r){o.push(S.L(X(r),yt+ht+6,X(r),yt+ht+16,"signal",2));});
+      o.push(S.T(x0-8,yt+ht+15,"読む","end",9,"signal",true));
+      o.push(S.T(x0-8,Y(0)+3,"0","end",9,"muted"));
+      o.push(S.T(x0+wd,yt+ht+30,"時間（"+F.time(T)+" ごとに 1 つ測る。全体で "+F.time(tend*T)+"）","end",9.5,"muted"));
+      /* 下: M と平均電流 */
+      var lo=Math.pow(10,Math.floor(Math.log10(q/T*0.5))),hi=Math.pow(10,Math.ceil(Math.log10(Ia(1)*1.2)));
+      var p=U.plot(110,200,440,170,[1,256],[lo,hi],{xlog:true,ylog:true});
+      var yts=[];for(var e=Math.log10(lo);e<=Math.log10(hi)+1e-9;e++)yts.push(Math.pow(10,e));
+      o.push(p.axes({xl:"1 回に読む数 M",yl:"読むための平均電流 [µA]",xt:[1,2,4,8,16,32,64,128,256],yt:yts,xfmt:function(v){return String(v);},yfmt:function(v){return v>=1?String(v):String(+v.toPrecision(1));},ylOff:46}));
+      if(up<256){var xu=Math.max(1,up+1);o.push(S.RECT(p.X(Math.min(256,xu)),p.y,p.X(256)-p.X(Math.min(256,xu)),p.h,0,"var(--alias-soft)","none",0,null,' fill-opacity="0.6"'));
+        o.push(S.T((p.X(Math.min(256,xu))+p.X(256))/2,p.y+14,"あふれる","middle",9.5,"alias",true,false,null,true));}
+      var cur=[];for(var i=0;i<=120;i++){var m=Math.pow(256,i/120);cur.push([m,Ia(m)]);}
+      o.push(p.line(cur,"signal",2.2));o.push(p.line([[1,q/T],[256,q/T]],"signal",1.1,"5 4"));
+      o.push(S.T(p.X(1.3),p.Y(q/T)-6,"下限 Q_r/T = "+F.cur(q/T*1e-6),"start",9.5,"signal",false,false,null,true));
+      if(Mstar>=1&&Mstar<=256){o.push(S.D(p.X(Mstar),p.Y(Ia(Mstar)),"gold",4));o.push(S.T(p.X(Mstar)+6,p.Y(Ia(Mstar))-8,"M* = "+U.sig(Mstar,3),"start",9.5,"gold",true,false,null,true));}
+      o.push(S.D(p.X(M),p.Y(Ia(M)),over?"alias":"signal",5.5));
+      o.push(S.T(p.x+p.w+10,p.y+20,"いまの M","start",9.5,over?"alias":"signal",true));o.push(S.T(p.x+p.w+10,p.y+36,F.cur(Ia(M)*1e-6),"start",9.5,over?"alias":"signal",true));
+      box.set(S.svg(W,410,o));
+      var wak=86400/(M*T),wak1=86400/T;
+      ro.innerHTML="値 1 つを読む電荷 Q_r = "+nb.get()+" バイト × "+IF[itf.get()].cpb+" クロック ÷ "+U.sig(IF[itf.get()].f/1e3,3)+" kHz × 3 mA"+(IF[itf.get()].rp?" + プルアップの分":"")+" = <b>"+U.sig(q,3)+" µC</b><br>"+
+        "読むための平均電流 = Q_e/(M T) + Q_r/T = "+U.sig(qe/(M*T),3)+" + "+U.sig(q/T,3)+" = <b>"+U.sig(Ia(M),3)+" µA</b>（1 つずつ読むと "+U.sig(Ia(1),3)+" µA）<br>"+
+        "起きる回数: 1 日に <b>"+F.int(wak)+" 回</b>（1 つずつなら "+F.int(wak1)+" 回） ・ M* = Q_e/Q_r = <b>"+U.sig(Mstar,3)+"</b>"+(M>Mstar*3?"（M はこれよりずっと大きく、さらに増やしても電流はほとんど減らない）":"")+"<br>"+
+        "あふれない上限: M ≤ M_max − t_d/T = "+D+" − "+U.sig(dl,3)+" → <b>"+(up>=1?up:"0（t_d の間に深さを超える）")+"</b> ・ いまの M は "+(over?'<span class="warn">あふれる（'+lost+" 個を失った）</span>":'<span class="ok">あふれない</span>（最大 '+maxL+" 個）")+"<br>"+
+        "遅れ: 最も古い値は、測ってから最大 M T + t_d = <b>"+F.time(M*T+TD)+"</b> 後に読まれる"+
+        '<div class="wnote">マイコンが動く間の電流は 3 mA、電源は 3.0 V、I2C のプルアップは 100 kHz で 4.7 kΩ、400 kHz で 2.2 kΩ、1 MHz で 1 kΩ とした（例の値）。読み出しの始めと終わりの分は Q_e に含めた。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 3 つのフィルタを比べる ---- */
+  function _w10_ma(x,N){var o=[],s=0,b=[];for(var i=0;i<x.length;i++){b.push(x[i]);s+=x[i];if(b.length>N)s-=b.shift();o.push(s/b.length);}return o;}
+  function _w10_med(x,N){var o=[],b=[];for(var i=0;i<x.length;i++){b.push(x[i]);if(b.length>N)b.shift();if(b.length<N){o.push(x[i]);continue;}var c=b.slice().sort(function(p,q){return p-q;});o.push(c[(N-1)>>1]);}return o;}
+  function _w10_ema(x,a){var o=[],y=x.length?x[0]:0;for(var i=0;i<x.length;i++){y+=a*(x[i]-y);o.push(y);}return o;}
+  function _w10_sd(a,i0){var n=0,s=0,s2=0;for(var i=i0;i<a.length;i++){n++;s+=a[i];s2+=a[i]*a[i];}var m=s/n;return Math.sqrt(Math.max(0,s2/n-m*m));}
+
+  REG.w10_filter=function(el,U){
+    var S=U.S,seed=1,NS=150,N0=75;
+    U.head(el,"FILTER","移動平均・中央値・一次 IIR を比べる");
+    var r1=U.ctrls(el);
+    var sd=U.slider(r1,"ノイズの大きさ σ",{min:0,max:2,step:0.1,value:0.5,fmt:function(v){return v.toFixed(1);},onInput:draw});
+    var pr=U.slider(r1,"とび値の割合",{values:[0,1,2,5,10,20],value:5,fmt:function(v){return v+" %";},onInput:draw});
+    var amp=U.slider(r1,"とび値の大きさ",{min:0,max:10,step:0.5,value:5,fmt:function(v){return v.toFixed(1);},onInput:draw});
+    var stp=U.slider(r1,"段差の大きさ",{min:0,max:10,step:0.5,value:4,fmt:function(v){return v.toFixed(1);},onInput:draw});
+    var r2=U.ctrls(el);
+    var Nm=U.slider(r2,"移動平均の数 N",{values:[2,3,4,6,8,12,15,16,24,32],value:8,fmt:function(v){return v+" 個";},onInput:draw});
+    var Nd=U.slider(r2,"中央値の数",{values:[3,5,7,9],value:3,fmt:function(v){return v+" 個";},onInput:draw});
+    var kk=U.slider(r2,"一次 IIR の k",{min:1,max:6,step:1,value:3,fmt:function(v){return v+"（α = 1/"+Math.pow(2,v)+"）";},onInput:draw});
+    var r3=U.ctrls(el);
+    var cMa=U.checkbox(r3,"移動平均",true,draw),cMd=U.checkbox(r3,"中央値",true,draw),cEm=U.checkbox(r3,"一次 IIR",true,draw),cCo=U.checkbox(r3,"中央値 3 個 → 一次 IIR",false,draw);
+    var br=U.btnrow(el);
+    U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
+    U.button(br,"5 節の例（N = 8・3 個・α = 1/8）",function(){sd.set(0.5);pr.set(5);amp.set(5);stp.set(4);Nm.set(8);Nd.set(3);kk.set(3);cMa.set(true);cMd.set(true);cEm.set(true);cCo.set(false);draw();});
+    U.button(br,"同じノイズの移動平均と IIR（N = 15・α = 1/8）",function(){Nm.set(15);kk.set(3);cMa.set(true);cMd.set(false);cEm.set(true);cCo.set(false);draw();});
+    U.button(br,"とび値を除いてからならす",function(){cMa.set(false);cMd.set(false);cEm.set(true);cCo.set(true);pr.set(10);draw();});
+    var box=U.svgbox(el,{scroll:true}); var ro=U.readout(el);
+    function series(noise,out,step){
+      var Rn=U.rng(seed*7919+1),Ro=U.rng(seed*104729+7),x=[],s=sd.get(),p=pr.get()/100,A=amp.get(),St=stp.get();
+      for(var i=0;i<NS;i++){var e=Rn.normal(),u=Ro.next(),v=(step&&i>=N0?St:0);if(noise)v+=s*e;if(out&&i>=5&&u<p)v+=A;x.push(v);}
+      return x;}
+    function draw(){
+      var a=1/Math.pow(2,kk.get()),N=Nm.get(),Md=Nd.get();
+      var FL=[{n:"移動平均（N = "+N+"）",c:"purple",on:cMa.get(),f:function(x){return _w10_ma(x,N);},th:function(){return 1/Math.sqrt(N);}},
+              {n:"中央値（"+Md+" 個）",c:"gold",on:cMd.get(),f:function(x){return _w10_med(x,Md);},th:null},
+              {n:"一次 IIR（α = 1/"+Math.pow(2,kk.get())+"）",c:"signal",on:cEm.get(),f:function(x){return _w10_ema(x,a);},th:function(){return Math.sqrt(a/(2-a));}},
+              {n:"中央値 3 個 → 一次 IIR",c:"green",on:cCo.get(),f:function(x){return _w10_ema(_w10_med(x,3),a);},th:null}];
+      var x=series(true,true,true),xn=series(true,false,false),xo=series(false,true,false),xs=series(false,false,true),St=stp.get();
+      var W=700,o=[],ys=[];x.forEach(function(v){ys.push(v);});
+      var lo=Math.min.apply(null,ys),hi=Math.max.apply(null,ys);lo=Math.min(lo,-0.5)-0.3;hi=Math.max(hi,St+0.5)+0.3;
+      var p=U.plot(70,40,560,250,[0,NS-1],[lo,hi]);
+      o.push(p.axes({xl:"測った回 n（T ごとに 1 つ）",yl:"値",xt:[0,25,50,75,100,125,149],yfmt:function(v){return U.sig(v,2);},ylOff:44}));
+      o.push(p.line([[0,0],[N0,0],[N0,St],[NS-1,St]],"faint",1.3,"5 4"));
+      x.forEach(function(v,i){o.push(S.D(p.X(i),p.Y(v),"teal",1.8));});
+      var rows=[],lx=70;
+      FL.forEach(function(f){if(!f.on)return;var y=f.f(x);o.push(p.line(y.map(function(v,i){return [i,v];}),f.c,2));
+        o.push(S.RECT(lx,16,12,4,1,f.c,f.c,1));o.push(S.T(lx+16,21,f.n,"start",9.5,f.c,true));lx+=U.tw(f.n,9.5)+34;
+        var yn=f.f(xn),yo=f.f(xo),yst=f.f(xs);
+        var sdr=sd.get()>0?_w10_sd(yn,30)/_w10_sd(xn,30):null;
+        var om=0;for(var i=10;i<NS;i++)om=Math.max(om,Math.abs(yo[i]));
+        var k90="—";if(St>0){for(var j=N0;j<NS;j++){if(yst[j]>=0.9*St-1e-9){k90=(j-N0+1)+" 回目";break;}}}
+        rows.push(['<b style="color:var(--'+f.c+')">'+f.n+'</b>',sdr===null?"—":U.sig(sdr,2)+" σ"+(f.th?"（式 "+U.sig(f.th(),2)+" σ）":""),pr.get()>0&&amp.get()>0?U.sig(om,2):"—",k90]);});
+      o.push(S.T(p.x+p.w+6,p.Y(St)+4,"段差","start",9,"muted"));
+      o.push(S.T(70,322,"点: 入力（測った値）。破線: 本当の値。","start",9.5,"muted"));
+      box.set(S.svg(W,330,o));
+      ro.innerHTML=(rows.length?U.tbl(["フィルタ","残ったノイズ","とび値の影響","段差の 9 割まで"],rows,["left","right","right","right"]):"表示する出力を選ぶ。")+
+        '<div class="wnote">表の値は、同じ乱数でノイズだけ・とび値だけ・段差だけの列を別々に作ってフィルタに通し、求めた（重なると見分けにくいため）。残ったノイズは出力の標準偏差を入力の σ で割った値、とび値の影響は出力の最大のずれ、段差は 9 割に届くのが段差から何回目か。とび値は正の向きに決めた割合で入れ、始めの 5 回には入れない。2 回以上続くとび値は、中央値（3 個）でも残る。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: 故障を起こして、検査が気づくまでを見る ---- */
+  REG.w10_fault=function(el,U){
+    var S=U.S,seed=1,NS=300,NF=150;
+    var KINDS=["なし（正しいまま）","断線（4095 になる）","短絡（0 になる）","張り付き（値が動かなくなる）","接触不良（1 回おきに急変する）","接触不良（ときどき 4095 になる）","ゆっくりずれる（1 回に 2 ずつ）"];
+    U.head(el,"FAULT","故障を起こして、妥当性の検査が気づくまでを見る");
+    var r1=U.ctrls(el);
+    var kind=U.select(r1,"故障の種類（150 回目から）",KINDS,1,draw);
+    var nz=U.slider(r1,"ノイズの大きさ（標準偏差）",{values:[0.2,0.5,1,2,4,8],value:1,fmt:function(v){return v+" LSB";},onInput:draw});
+    var r2=U.ctrls(el);
+    var jm=U.slider(r2,"急変のしきい値 JUMP_MAX",{values:[10,20,40,80,160],value:40,fmt:String,onInput:draw});
+    var sn=U.slider(r2,"張り付きの回数 STUCK_N",{values:[5,10,20,30,60],value:30,fmt:function(v){return v+" 回";},onInput:draw});
+    var kc=U.slider(r2,"続けて外れる回数 K",{values:[1,2,3,5,8],value:3,fmt:function(v){return v+" 回";},onInput:draw});
+    var r3=U.ctrls(el);
+    var cross=U.checkbox(r3,"ほかのセンサと比べる（差が 40（約 1 °C）を超えたら外れ）",false,draw);
+    var br=U.btnrow(el);
+    U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
+    U.button(br,"6 節の例の値に戻す",function(){nz.set(1);jm.set(40);sn.set(30);kc.set(3);cross.set(false);draw();});
+    var box=U.svgbox(el,{scroll:true}); var ro=U.readout(el);
+    var WHY=["","通信の失敗","範囲の外","急変が続く","張り付き","ほかのセンサとの差"];
+    function gen(){
+      var K=kind.get(),Ra=U.rng(seed*31+5),Rb=U.rng(seed*57+9),Rc=U.rng(seed*91+3),raw=[],oth=[],fr=0;
+      for(var i=0;i<NS;i++){
+        var base=2048.3+3*Math.sin(2*Math.PI*i/600),v=Math.round(base+nz.get()*Ra.normal()),w=Math.round(base+nz.get()*Rb.normal()),u=Rc.next();
+        if(i===NF)fr=v;
+        if(i>=NF){if(K===1)v=4095;else if(K===2)v=0;else if(K===3)v=fr;else if(K===4)v+=(i%2===0?300:0);else if(K===5){if(u<0.3)v=4095;}else if(K===6)v+=2*(i-NF);}
+        raw.push(Math.max(0,Math.min(4095,v)));oth.push(Math.max(0,Math.min(4095,w)));}
+      return {raw:raw,oth:oth};}
+    /* 本文の sens_check と同じ規則（ほかのセンサとの比較を足せる） */
+    function check(raw,oth,i0,i1){
+      var c={prev:0,hp:false,same:0,bad:0,fault:0,at:-1},use=[],rej=0,jumps=0,J=jm.get(),SN=sn.get(),K=kc.get(),X=cross.get();
+      for(var i=i0;i<i1;i++){var r=raw[i],why=0;
+        if(r<215||r>3937)why=2;
+        else{if(c.hp&&Math.abs(r-c.prev)>J)why=3;c.same=(c.hp&&r===c.prev)?Math.min(255,c.same+1):0;if(c.same>=SN)why=4;c.prev=r;c.hp=true;
+          if(why===0&&X&&Math.abs(r-oth[i])>40)why=5;}
+        if(why===3)jumps++;
+        c.bad=why===0?0:Math.min(255,c.bad+1);
+        if(c.fault===0&&(c.bad>=K||why===4)){c.fault=why;c.at=i;}
+        var ok=c.fault===0&&(why===0||why===3);if(!ok&&c.fault===0)rej++;use.push(ok);}
+      return {fault:c.fault,at:c.at,use:use,rej:rej,jumps:jumps};}
+    function draw(){
+      var g=gen(),raw=g.raw,oth=g.oth,K=kind.get();
+      var A=check(raw,oth,0,NF),B=check(raw,oth,NF-40,NS);   /* A: 正しい間の誤った確定、B: 故障に気づくまで（40 回前から始める） */
+      /* フィルタ（中央値 3 個 → 一次 IIR 1/8）は、使ってよい値だけで進める（故障に気づくまでの B の判定を使う） */
+      var filt=[],m=[],y=null,useAll=[];for(var i=0;i<NS;i++)useAll.push(i<NF-40?true:B.use[i-(NF-40)]);
+      for(var j=0;j<NS;j++){if(useAll[j]){m.push(raw[j]);if(m.length>3)m.shift();var md=m.length<3?raw[j]:m.slice().sort(function(p,q){return p-q;})[1];y=y===null?md:y+(md-y)/8;}filt.push(y);}
+      var W=700,o=[];
+      /* 上: ADC の値の全体 */
+      var p=U.plot(80,30,520,120,[0,NS-1],[0,4095]);
+      o.push(S.T(14,18,"ADC の値の全体","start",10.5,"ink",true));
+      o.push(S.RECT(p.x,p.Y(215),p.w,p.Y(0)-p.Y(215),0,"var(--alias-soft)","none",0));o.push(S.RECT(p.x,p.Y(4095),p.w,p.Y(3937)-p.Y(4095),0,"var(--alias-soft)","none",0));
+      o.push(p.axes({yt:[0,2048,4095],xt:[0,50,100,150,200,250,299],grid:false,yfmt:String}));
+      o.push(S.T(p.x+p.w+8,p.Y(4095)+9,"断線を疑う","start",9,"alias",true));o.push(S.T(p.x+p.w+8,p.Y(0),"短絡を疑う","start",9,"alias",true));
+      o.push(p.line(raw.map(function(v,i){return [i,v];}),"teal",1.2));
+      /* 下: 2048 の近くを拡大 */
+      var q=U.plot(80,190,520,170,[0,NS-1],[1848,2248]);
+      o.push(S.T(14,180,"2048 の近くを拡大（25 °C 付近。外の値は端に描く）","start",10.5,"ink",true));
+      o.push(q.axes({xl:"測った回 n（T = 1 s として秒）",yl:"ADC の値",xt:[0,50,100,150,200,250,299],yt:[1848,1948,2048,2148,2248],yfmt:String,ylOff:52}));
+      var cl=function(v){return Math.max(1848,Math.min(2248,v));};
+      if(cross.get())o.push(q.line(oth.map(function(v,i){return [i,cl(v)];}),"purple",1.1));
+      raw.forEach(function(v,i){o.push(S.D(q.X(i),q.Y(cl(v)),useAll[i]?"teal":"alias",useAll[i]?1.6:2.2));});
+      var fp=[];filt.forEach(function(v,i){if(v!==null)fp.push([i,cl(v)]);});o.push(q.line(fp,"signal",2));
+      [p,q].forEach(function(pp){if(K>0){o.push(S.L(pp.X(NF),pp.y,pp.X(NF),pp.y+pp.h,"alias",1.2,"4 3"));}});
+      if(K>0)o.push(S.T(p.X(NF)+4,p.y+12,"故障","start",9.5,"alias",true,false,null,true));
+      function mark(R,lab){if(R.at<0)return;[p,q].forEach(function(pp){o.push(S.L(pp.X(R.at),pp.y,pp.X(R.at),pp.y+pp.h,"signal",1.6));});
+        o.push(S.T(p.X(R.at)+4,p.y+26,lab,"start",9.5,"signal",true,false,null,true));}
+      mark(A,"確定（誤り）");if(K>0)mark(B,"確定");
+      o.push(S.T(p.x+p.w+8,q.y+20,"点: 測った値","start",9,"teal"));o.push(S.T(p.x+p.w+8,q.y+34,"赤い点: 使わない","start",9,"alias"));
+      o.push(S.T(p.x+p.w+8,q.y+48,"線: フィルタの後","start",9,"signal"));if(cross.get())o.push(S.T(p.x+p.w+8,q.y+62,"紫: ほかのセンサ","start",9,"purple"));
+      box.set(S.svg(W,400,o));
+      var h="";
+      if(A.at>=0)h+='<span class="warn">正しい間に、誤って故障と確定した</span>（'+A.at+" 回目、理由: "+WHY[A.fault]+"）。しきい値か回数を見直す。<br>";
+      else h+='正しい間（0〜149 回目）: <span class="ok">誤った確定なし</span>（使わなかった値 '+A.rej+" 個、急変と数えた回数 "+A.jumps+" 回）<br>";
+      if(K===0)h+="故障なし。ノイズを小さくすると張り付き、急変のしきい値を小さくすると急変で、誤って確定することがある。";
+      else if(B.at>=NF)h+="故障に気づいた: <b>"+B.at+" 回目</b>（故障から <b>"+(B.at-NF+1)+" 回目</b>、T = 1 s なら "+(B.at-NF+1)+" s）・理由: <b>"+WHY[B.fault]+"</b>";
+      else if(B.at>=0)h+='<span class="warn">故障の前に確定した</span>（'+B.at+" 回目、理由: "+WHY[B.fault]+"）";
+      else h+='<span class="warn">故障に気づかなかった</span>'+(K===6?"（範囲の中のゆっくりしたずれは、範囲・急変・張り付きの規則では見つからない。ほかのセンサと比べる）":K===5?"（外れが続かないので確定しない。外れた値は使わないので、出力はほぼ正しい。外れた回数を記録して接触不良を知らせる）":"");
+      if(K>0)h+="<br>故障の後に使わなかった値: "+B.use.slice(40).filter(function(u){return !u;}).length+" 個 / "+(NS-NF)+" 個";
+      ro.innerHTML=h+'<div class="wnote">本文の sens_check と同じ規則（範囲 215〜3937、急変・張り付き・続けて外れる回数）で調べた。誤った確定は 0〜149 回目、故障に気づくまでは 110 回目から始めた検査で求めた。フィルタは中央値 3 個 → 一次 IIR（α = 1/8）で、使ってよい値だけを通した。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 11 章 スイッチと外部入力 ===== */
+  /* H・L の波形: pts = [[時刻, 1 か 0], ...]（その時刻から、その値） */
+  function _w11_dwave(S,pts,X,yH,yL,c,lw){var q=[];pts.forEach(function(p){var y=p[1]?yH:yL;if(q.length)q.push([X(p[0]),q[q.length-1][1]]);q.push([X(p[0]),y]);});return S.PL(q,c||"teal",lw||1.8);}
+  function _w11_ms(v){return (v>=100?Math.round(v):+v.toPrecision(3))+" ms";}
+  function _w11_life(uA){var h=220/(uA*1e-3);var d=h/24;return d>=365?_w11_sig(d/365,3)+" 年":(d>=1?_w11_sig(d,3)+" 日":_w11_sig(h,3)+" 時間");}
+  function _w11_sig(v,d){d=d||3;if(v===0)return "0";var a=Math.abs(v);var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
+
+  /* ---- 2 節: チャタリングと、その取り除き方 ---- */
+  REG.w11_bounce=function(el,U){
+    var S=U.S,seed=1,VDD=3.3;
+    U.head(el,"DEBOUNCE","チャタリングと、その取り除き方");
+    var r1=U.ctrls(el);
+    var meth=U.select(r1,"取り除き方",["そのまま（H→L の変化を押した回数として数える）","RC とシュミットトリガ（回路）","続けて N 回（プログラム）","一定時間待つ（プログラム）"],2,draw);
+    var tb=U.slider(r1,"はね返りの長さ t_B",{values:[0.5,1,2,3,5,8,12,20],value:3,fmt:function(v){return v+" ms";},onInput:draw});
+    var nb=U.slider(r1,"押したときのはね返りの回数",{min:1,max:15,step:1,value:6,fmt:function(v){return v+" 回";},onInput:draw});
+    var r2=U.ctrls(el);
+    var R1=U.slider(r2,"R1",{values:[1,4.7,10,22,47,100],value:10,fmt:function(v){return v+" kΩ";},onInput:draw});
+    var R2=U.slider(r2,"R2",{values:[1,4.7,10,15,22,47],value:15,fmt:function(v){return v+" kΩ";},onInput:draw});
+    var Cc=U.slider(r2,"C",{values:[0.1,0.22,0.47,1,2.2],value:1,fmt:function(v){return v+" µF";},onInput:draw});
+    var sch=U.checkbox(r2,"シュミットトリガ（しきい値 2 つ）",true,draw);
+    var r3=U.ctrls(el);
+    var Tp=U.slider(r3,"読む周期 T_p",{values:[1,2,5,10,20],value:5,fmt:function(v){return v+" ms";},onInput:draw});
+    var Nn=U.slider(r3,"続けて読む回数 N",{min:1,max:8,step:1,value:3,fmt:function(v){return v+" 回";},onInput:draw});
+    var Td=U.slider(r3,"無視する時間 T_d",{values:[5,10,20,50],value:20,fmt:function(v){return v+" ms";},onInput:draw});
+    var r4=U.ctrls(el);
+    var noise=U.checkbox(r4,"離している間に、幅 2 ms のノイズのパルスを入れる",false,draw);
+    var br=U.btnrow(el);
+    U.button(br,"2 節の例（RC）",function(){meth.set(1);R1.set(10);R2.set(15);Cc.set(1);sch.set(true);tb.set(5);draw();});
+    U.button(br,"2 節の例（続けて 3 回）",function(){meth.set(2);Tp.set(5);Nn.set(3);tb.set(5);draw();});
+    U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var m=meth.get(),tB=tb.get(),nB=nb.get(),r1v=R1.get(),r2v=R2.get(),cv=Cc.get(),tp=Tp.get(),N=Nn.get(),td=Td.get(),nz=noise.get();
+      r2.style.opacity=m===1?"1":"0.45";r3.style.opacity=(m===2||m===3)?"1":"0.45";
+      var R=U.rng(seed*7919+13),tP=30,tR=120;
+      /* スイッチの区間: [時刻, 閉じているか] */
+      var seg=[[0,false]];
+      if(nz){seg.push([10,true]);seg.push([12,false]);}
+      var ts=[];for(var i=0;i<2*nB;i++)ts.push(tP+R.range(0.02,tB));ts.sort(function(a,b){return a-b;});
+      seg.push([tP,true]);var cl=true;ts.forEach(function(t){cl=!cl;seg.push([t,cl]);});
+      var pEnd=ts.length?ts[ts.length-1]:tP;
+      var nR=Math.max(1,Math.round(nB/2)),tr=[];for(i=0;i<2*nR;i++)tr.push(tR+R.range(0.02,tB*0.6));tr.sort(function(a,b){return a-b;});
+      seg.push([tR,false]);cl=false;tr.forEach(function(t){cl=!cl;seg.push([t,cl]);});
+      var rEnd=tr.length?tr[tr.length-1]:tR;
+      var tauC=(r1v+r2v)*cv,tauD=r2v*cv;                         /* kΩ × µF = ms */
+      var TEND=Math.min(800,Math.max(200,m===1?tR+tauC*1.6+15:tR+N*tp+tp+20));
+      var dt=0.01,k=0,closed=false,ev=[],vpts=[],raw=[[0,1]];
+      var v=VDD,out=1,nzv=0,nzR=U.rng(seed*31+7),state=0,cnt=0,ign=-1,sphase=R.range(0,tp),nexts=sphase,samples=[];
+      var stepN=Math.round(TEND/dt);
+      for(var s=0;s<=stepN;s++){
+        var t=s*dt;
+        while(k+1<seg.length&&seg[k+1][0]<=t){k++;var nc=seg[k][1];if(nc!==closed){closed=nc;raw.push([seg[k][0],closed?0:1]);}}
+        var lev=closed?0:1;
+        if(m===0){
+          if(lev!==out){ev.push([t,lev?"R":"P"]);out=lev;}
+        }else if(m===1){
+          var tgt=closed?0:VDD,tau=closed?tauD:tauC;v=tgt+(v-tgt)*Math.exp(-dt/tau);
+          if(s%5===0)nzv=sch.get()?0:nzR.range(-0.06,0.06);
+          var vr=v+nzv;
+          if(s%20===0)vpts.push([t,vr]);
+          var nv=out;
+          if(sch.get()){if(out===1&&vr<0.4*VDD)nv=0;else if(out===0&&vr>0.6*VDD)nv=1;}
+          else nv=vr>0.5*VDD?1:0;
+          if(nv!==out){ev.push([t,nv?"R":"P"]);out=nv;}
+        }else if(m===2){
+          if(t>=nexts-1e-9){var now=lev?0:1;samples.push([nexts,lev]);
+            if(now===state)cnt=0;else if(++cnt>=N){cnt=0;state=now;ev.push([nexts,now?"P":"R"]);}
+            nexts+=tp;}
+        }else{
+          var nowp=lev?0:1;
+          if(t>=ign&&nowp!==state){state=nowp;ev.push([t,nowp?"P":"R"]);ign=t+td;}
+        }
+      }
+      /* 判定 */
+      var nP=0,nR2=0,falseEv=0,firstP=null,firstR=null;
+      ev.forEach(function(e){if(e[1]==="P"){nP++;if(e[0]>=tP&&e[0]<tR&&firstP===null)firstP=e[0];else falseEv++;}else{nR2++;if(e[0]>=tR&&firstR===null)firstR=e[0];else falseEv++;}});
+      /* ---- 図 ---- */
+      var W=700,o=[],x0=96,x1=684,X=function(t){return x0+t/TEND*(x1-x0);};
+      var yA=28,hA=56;
+      if(m===1){
+        var Y=function(vv){return yA+hA-(vv/VDD)*hA;};
+        o.push(S.T(x0-8,yA-6,"C の電圧","end",9.5,"teal",true));
+        o.push(S.T(x0-8,yA+hA+3,"0 V","end",9,"muted"));o.push(S.T(x0-8,yA+4,"3.3 V","end",9,"muted"));
+        var th=sch.get()?[[0.6,"purple"],[0.4,"purple"]]:[[0.5,"alias"]];
+        th.forEach(function(q){o.push(S.L(x0,Y(q[0]*VDD),x1,Y(q[0]*VDD),q[1],1,"5 3"));});
+        o.push(S.PL(vpts.map(function(p){return [X(p[0]),Y(Math.max(-0.2,Math.min(VDD+0.2,p[1])))];}),"teal",1.4));
+      }else{
+        o.push(S.T(x0-8,yA+30,"ピンの値","end",9.5,"teal",true));
+        o.push(S.T(x0-8,yA+16,"H","end",9,"muted"));o.push(S.T(x0-8,yA+48,"L","end",9,"muted"));
+        o.push(_w11_dwave(S,raw.concat([[TEND,raw[raw.length-1][1]]]),X,yA+12,yA+44,"teal",1.6));
+      }
+      if(nz)o.push(S.T(X(11),yA-6,"ノイズ","middle",9,"alias",true));
+      o.push(S.T(X(tP),yA-6,"押す","middle",9,"ink",true));o.push(S.T(X(tR),yA-6,"離す","middle",9,"ink",true));
+      var yS=104;
+      if(m===2){o.push(S.T(x0-8,yS+4,"読む","end",9.5,"signal",true));o.push(S.L(x0,yS,x1,yS,"grid",1));
+        if(samples.length<400)samples.forEach(function(p){o.push(S.D(X(p[0]),yS,p[1]?"muted":"teal",p[1]?1.8:2.6));});}
+      else if(m===3){o.push(S.T(x0-8,yS+4,"無視する間","end",9.5,"muted",true));ev.forEach(function(e){o.push(S.RECT(X(e[0]),yS-5,Math.max(1,X(e[0]+td)-X(e[0])),10,2,U.soft("gold"),"gold",0.8));});}
+      else{o.push(S.T(x0-8,yS+4,"読む値","end",9.5,"signal",true));
+        var rd=[[0,1]];ev.forEach(function(e){rd.push([e[0],e[1]==="R"?1:0]);});rd.push([TEND,rd[rd.length-1][1]]);o.push(_w11_dwave(S,rd,X,yS-7,yS+7,"signal",1.5));}
+      /* 押されている帯 */
+      var yB=130,curP=null;o.push(S.T(x0-8,yB+12,"判定","end",9.5,"ink",true));
+      ev.forEach(function(e){if(e[1]==="P")curP=e[0];else if(curP!==null){var bad=!(curP>=tP&&curP<tR&&e[0]>=tR);
+        o.push(S.RECT(X(curP),yB,Math.max(1.5,X(e[0])-X(curP)),16,2,U.soft(bad?"alias":"green"),bad?"alias":"green",1));curP=null;}});
+      if(curP!==null){var bad2=!(curP>=tP&&curP<tR);o.push(S.RECT(X(curP),yB,Math.max(1.5,X(TEND)-X(curP)),16,2,U.soft(bad2?"alias":"green"),bad2?"alias":"green",1));}
+      /* 出来事の印 */
+      var yE=164;
+      ev.forEach(function(e){var ok=(e[1]==="P"&&e[0]===firstP)||(e[1]==="R"&&e[0]===firstR),c=ok?(e[1]==="P"?"signal":"purple"):"alias",xx=X(e[0]);
+        o.push(S.PL(e[1]==="P"?[[xx-4,yE-7],[xx+4,yE-7],[xx,yE]]:[[xx-4,yE],[xx+4,yE],[xx,yE-7]],c,1,c));});
+      o.push(S.T(x0-8,yE,"出来事","end",9.5,"ink",true));
+      var ya=182;o.push(S.L(x0,ya,x1,ya,"muted",1));
+      var step=TEND>400?100:(TEND>200?50:25);
+      for(var tt=0;tt<=TEND+1e-9;tt+=step){o.push(S.L(X(tt),ya,X(tt),ya+4,"muted",1));o.push(S.T(X(tt),ya+15,tt+(tt+step>TEND?" ms":""),"middle",9,"muted"));}
+      o.push(S.PL([[x0,206],[x0+8,206],[x0+4,213]],"signal",1,"signal"));o.push(S.T(x0+14,213,"押した","start",9.5,"muted"));
+      o.push(S.PL([[x0+70,213],[x0+78,213],[x0+74,206]],"purple",1,"purple"));o.push(S.T(x0+84,213,"離した","start",9.5,"muted"));
+      o.push(S.PL([[x0+140,206],[x0+148,206],[x0+144,213]],"alias",1,"alias"));o.push(S.T(x0+154,213,"誤り（余分・早すぎ）","start",9.5,"muted"));
+      box.set(S.svg(W,222,o));
+      /* ---- 読み出し ---- */
+      var okAll=nP===1&&nR2===1&&falseEv===0;
+      var h='押したと決めた回数 <b>'+nP+' 回</b>、離したと決めた回数 <b>'+nR2+' 回</b>（本当はどちらも 1 回）→ '+(okAll?'<span class="ok">正しい</span>':'<span class="warn">誤り</span>')+"<br>";
+      h+="押したと決まるまで: "+(firstP!==null?"接点が触れてから <b>"+_w11_ms(firstP-tP)+"</b>（"+(firstP>=pEnd?"はね返りが終わってから "+_w11_ms(firstP-pEnd):"はね返りの途中")+"）":'<span class="warn">決まらない</span>')+"。";
+      h+="離したと決まるまで: "+(firstR!==null?"<b>"+_w11_ms(firstR-tR)+"</b>":'<span class="warn">図の範囲では決まらない</span>')+"<br>";
+      if(m===0)h+="変化をそのまま数えると、はね返りの H→L をすべて押した回数に数える。";
+      if(m===1){var need=tB/Math.log(1/0.7);h+="R2·C = "+_w11_sig(tauD,3)+" ms、条件 R2·C ≥ t_B / ln(1/0.7) = "+_w11_sig(need,3)+" ms → "+(tauD>=need?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"。離すときの時定数 (R1 + R2)·C = "+_w11_sig(tauC,3)+" ms。押している間の電流 3.3 V ÷ R1 = "+_w11_sig(3.3/r1v*1000,3)+" µA"+(sch.get()?"":'。<span class="warn">しきい値 1 つでは、ゆっくり変わる電圧がしきい値の近くにある間、ノイズで何度も入れ替わる</span>');}
+      if(m===2)h+="(N − 1)·T_p = "+_w11_sig((N-1)*tp,3)+" ms と t_B = "+tB+" ms → "+((N-1)*tp>tB?'<span class="ok">(N − 1)·T_p のほうが長い</span>':'<span class="warn">はね返りのほうが長い（状態が途中で変わることがある）</span>')+"。遅れは、はね返りが終わってから N·T_p = "+_w11_sig(N*tp,3)+" ms まで";
+      if(m===3)h+="最初の変化ですぐに決めるので遅れは無いが、ノイズのパルスでも決めてしまう。T_d がはね返りより短いと、はね返りの途中の値でも決める";
+      ro.innerHTML=h+'<div class="wnote">はね返りは、決めた長さの中の乱数の時刻で開閉するとした。離すときのはね返りは、押すときの半分の回数・6 割の長さとした。RC では、しきい値をシュミットトリガで 0.6・0.4 V_DD、1 つのときは 0.5 V_DD とし、1 つのときだけ ±60 mV のノイズを加えた。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 3 節: 割り込みで待つか、周期的に見るか ---- */
+  REG.w11_wait=function(el,U){
+    var S=U.S;
+    U.head(el,"WAIT","スイッチの変化の待ち方と、平均電流・電池寿命");
+    var r1=U.ctrls(el);
+    var Tp=U.slider(r1,"読む周期 T_p",{values:[1,2,5,10,20,50],value:5,fmt:function(v){return v+" ms";},onInput:draw});
+    var Nn=U.slider(r1,"続けて読む回数 N",{min:2,max:8,step:1,value:3,fmt:function(v){return v+" 回";},onInput:draw});
+    var tb=U.slider(r1,"はね返りの長さ t_B",{values:[0.5,1,2,5,10],value:2,fmt:function(v){return v+" ms";},onInput:draw});
+    var r2=U.ctrls(el);
+    var per=U.slider(r2,"1 日に押す回数",{min:1,max:10000,value:20,log:true,int:true,fmt:function(v){return Math.round(v)+" 回";},onInput:draw});
+    var eg=U.slider(r2,"1 回の変化のはね返りの変化の数",{min:1,max:40,step:1,value:5,fmt:function(v){return v+" 回";},onInput:draw});
+    var fn=U.slider(r2,"ノイズのパルス",{values:[0,0.01,0.1,1,10,100,1000,20000],value:0,fmt:function(v){return v?("1 秒に "+v+" 回"):"なし";},onInput:draw});
+    var r3=U.ctrls(el);
+    var Is=U.slider(r3,"眠りの電流 I_s",{values:[0.5,1,2,5,10],value:2,fmt:function(v){return v+" µA";},onInput:draw});
+    var Qp=U.slider(r3,"1 回起きる電荷 Q_p",{values:[0.02,0.05,0.09,0.2,0.5,1],value:0.09,fmt:function(v){return v+" µC";},onInput:draw});
+    var br=U.btnrow(el);
+    U.button(br,"3 節の例",function(){Tp.set(5);Nn.set(3);tb.set(2);per.set(20);eg.set(5);fn.set(0);Is.set(2);Qp.set(0.09);draw();});
+    U.button(br,"ノイズが 1 秒に 20,000 回",function(){fn.set(20000);draw();});
+    U.button(br,"よく押す（1 日 5,000 回）",function(){per.set(5000);fn.set(0);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var tp=Tp.get(),N=Nn.get(),tB=tb.get(),pd=per.get(),e=eg.get(),f=fn.get(),is=Is.get(),qp=Qp.get();
+      var r=pd/86400;
+      var extra=Math.floor(tB/tp),ntr=2*N-1+extra;                 /* 変化 1 つで周期的に読む回数（(c)） */
+      var Ia=is+qp/(tp/1000);
+      var Ib=is+r*2*e*qp+f*qp;
+      var cyc=f/(1+f*N*tp/1000),Icn=cyc*(1+N)*qp;
+      var Ic=is+r*2*(1+ntr)*qp+Icn;
+      /* ---- 図: 1 回押したときの起き方 ---- */
+      var W=700,o=[],t0=4,TE=Math.max(40,t0+tB+(2*N+2)*tp+6),x0=150,x1=684,X=function(t){return x0+t/TE*(x1-x0);};
+      var bt=[];for(var i=0;i<e;i++)bt.push(t0+(e>1?tB*i/(e-1):0));
+      var seq=[[0,1]];bt.forEach(function(t,i){seq.push([t,i%2===0?0:1]);});
+      if(seq[seq.length-1][1]!==0)seq.push([t0+tB+0.01,0]);
+      seq.push([TE,0]);
+      function lev(t){var v=1;seq.forEach(function(p){if(p[0]<=t)v=p[1];});return v;}
+      o.push(S.T(x0-10,30,"ピンの値","end",10,"teal",true));
+      o.push(_w11_dwave(S,seq,X,22,38,"teal",1.6));
+      var rows=[["(a) 周期的に読む","signal"],["(b) 割り込みだけ","alias"],["(c) 割り込み＋周期","green"]];
+      var wa=[],st=0,cnt=0,pa=null;for(var t=tp/2;t<TE;t+=tp){wa.push(t);var nw=lev(t)?0:1;if(nw!==st){if(++cnt>=N&&pa===null){pa=t;st=nw;cnt=0;}}else cnt=0;}
+      var wb=bt.slice(0);
+      var wc=[t0],pc=null;st=0;cnt=0;var q=0;for(t=t0+tp;t<TE;t+=tp){wc.push(t);var nw2=lev(t)?0:1;if(nw2!==st){if(++cnt>=N){st=nw2;cnt=0;pc=t;}}else cnt=0;q=(cnt===0)?q+1:0;if(q>=N)break;}
+      [[wa,pa],[wb,null],[wc,pc]].forEach(function(w,i){var yb=82+i*44,c=rows[i][1];
+        o.push(S.T(x0-10,yb-4,rows[i][0],"end",9.5,c,true));
+        o.push(S.T(x0-10,yb+9,(i===1?w[0].length+" 回（"+Math.ceil(e/2)+" 回押したと数える）":w[0].length+" 回起きる"),"end",9,"muted"));
+        o.push(S.L(x0,yb,x1,yb,"faint",1));
+        w[0].forEach(function(tt,j){var isr=(i===1)||(i===2&&j===0);o.push(S.RECT(X(tt)-2,yb-18,4,18,1,U.soft(isr?"gold":c),isr?"gold":c,1));});
+        if(w[1]!==null){o.push(S.ARR(X(w[1]),yb+14,X(w[1]),yb+3,c,1.2,5));}
+      });
+      var ya=212;o.push(S.L(x0,ya,x1,ya,"muted",1));
+      var stp=TE>150?50:(TE>60?20:10);
+      for(t=0;t<=TE+1e-9;t+=stp){o.push(S.L(X(t),ya,X(t),ya+4,"muted",1));o.push(S.T(X(t),ya+15,t+(t+stp>TE?" ms":""),"middle",9,"muted"));}
+      /* ---- 図: 平均電流（対数） ---- */
+      var vals=[["(a) 周期的に読む",Ia,"signal"],["(b) 割り込みだけ",Ib,"alias"],["(c) 割り込み＋周期",Ic,"green"]];
+      var lo=Math.pow(10,Math.floor(Math.log10(Math.min(is,Ia,Ib,Ic)))),hi=Math.pow(10,Math.ceil(Math.log10(Math.max(Ia,Ib,Ic)*1.01)));
+      if(hi/lo<100)hi=lo*100;
+      var bx0=150,bx1=560,BX=function(v){return bx0+(Math.log10(v)-Math.log10(lo))/(Math.log10(hi)-Math.log10(lo))*(bx1-bx0);};
+      var yb0=246;o.push(S.T(14,yb0-6,"平均電流","start",10,"ink",true));
+      vals.forEach(function(vv,i){var y=yb0+i*22;o.push(S.T(bx0-8,y+12,vv[0],"end",9.5,vv[2],true));
+        o.push(S.RECT(bx0,y+2,Math.max(1,BX(vv[1])-bx0),14,2,U.soft(vv[2]),vv[2],1));
+        o.push(S.T(BX(vv[1])+6,y+13,U.fmt.cur(vv[1]*1e-6)+"（"+_w11_life(vv[1])+"）","start",9.5,vv[2],true));});
+      var yax=yb0+3*22+4;o.push(S.L(bx0,yax,bx1,yax,"muted",1));
+      for(var dd=lo;dd<=hi*1.0001;dd*=10){o.push(S.L(BX(dd),yax,BX(dd),yax+4,"muted",1));o.push(S.T(BX(dd),yax+15,U.fmt.cur(dd*1e-6,2),"middle",9,"muted"));}
+      box.set(S.svg(W,yax+24,o));
+      ro.innerHTML="(a) I_s + Q_p / T_p = "+_w11_sig(is,3)+" + "+qp+" µC ÷ "+tp+" ms = <b>"+U.fmt.cur(Ia*1e-6)+"</b><br>"+
+        "(b) 押すたびに "+2*e+" 回起き、"+e+" 回押したと数える"+(e>1?'（<span class="warn">数え違い</span>）':"")+(f?"。ノイズで 1 秒に "+f+" 回起きる":"")+" → <b>"+U.fmt.cur(Ib*1e-6)+"</b><br>"+
+        "(c) 押して離すと 2 + "+2*ntr+" 回起きる"+(f?"。ノイズの間は T_p ごとに読み続ける（"+U.fmt.cur(Icn*1e-6)+"）":"")+" → <b>"+U.fmt.cur(Ic*1e-6)+"</b><br>"+
+        "遅れ: (a)・(c) は、はね返りが終わってから N·T_p = "+N*tp+" ms まで。(b) は遅れないが、数え方が正しくない<br>"+
+        "(c) が (a) より小さいのは、押す回数が 1 秒に "+_w11_sig(1/((2+2*ntr)*tp/1000),3)+" 回より少ないとき（いまは 1 日に "+Math.round(pd)+" 回）"+
+        '<div class="wnote">電池は CR2032（220 mAh）とした。(c) の読む回数は、変化 1 つにつき 2N − 1 回と、はね返りの間の回数とした（3 節のコード）。ノイズのパルスは µs の幅で、周期的な読み取りにはほとんど当たらないとした。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 4 節: ロータリーエンコーダ ---- */
+  var _w11_Q=[[0,-1,1,2],[1,0,2,-1],[-1,2,0,1],[2,1,-1,0]];   /* [前][今]: 2 は読み落とし */
+  function _w11_enc(R,clicks,P,n,k,tb,tp,keep){
+    var dl=1000/(4*P*n),jit=(1-k)/2*dl,a=1,b=1,dir=clicks>0?1:-1,steps=Math.abs(clicks)*4,t0=2,E=[],i;
+    for(var s=0;s<steps;s++){var ph=s%4,ch=dir>0?(ph%2===0?0:1):(ph%2===0?1:0),te=t0+s*dl+R.range(-jit,jit),nv;
+      if(ch===0){a=1-a;nv=a;}else{b=1-b;nv=b;}
+      E.push([te,ch,nv]);
+      if(tb>0){var mm=R.int(4)*2,cur=nv;for(i=0;i<mm;i++){cur=1-cur;E.push([te+R.range(0,tb),ch,cur]);}if(mm)E.push([te+tb+1e-6,ch,nv]);}}
+    E.sort(function(x,y){return x[0]-y[0];});
+    var tend=t0+steps*dl+Math.max(5,2*tp),A=1,B=1,kk=0,prev=3,acc=0,pos=0,err=0,smp=[];
+    for(var ts=R.range(0,tp);ts<tend;ts+=tp){
+      while(kk<E.length&&E[kk][0]<=ts){if(E[kk][1]===0)A=E[kk][2];else B=E[kk][2];kk++;}
+      var ab=(A<<1)|B,d=_w11_Q[prev][ab];prev=ab;
+      if(d===2)err++;else{acc+=d;if(ab===3){if(acc>=2)pos++;else if(acc<=-2)pos--;acc=0;}}
+      if(keep)smp.push([ts,ab,d]);}
+    return {E:E,tend:tend,pos:pos,err:err,smp:smp,dl:dl,t0:t0};
+  }
+  REG.w11_encoder=function(el,U){
+    var S=U.S,seed=1;
+    U.head(el,"ENCODER","ロータリーエンコーダを読む速さと、読み落とし");
+    var r1=U.ctrls(el);
+    var sp=U.slider(r1,"回す速さ n",{min:0.1,max:10,value:2,log:true,fmt:function(v){return v+" 回転/s";},onInput:draw});
+    var Pc=U.slider(r1,"1 回転のクリックの数 P",{values:[12,15,18,20,24,30],value:20,fmt:function(v){return v+" クリック";},onInput:draw});
+    var Tp=U.slider(r1,"読む周期 T_p",{min:0.1,max:20,value:1,log:true,fmt:function(v){return v+" ms";},onInput:draw});
+    var r2=U.ctrls(el);
+    var tb=U.slider(r2,"はね返り t_B",{values:[0,0.2,0.5,1,2,3],value:1,fmt:function(v){return v+" ms";},onInput:draw});
+    var kk=U.slider(r2,"最も短い間隔の割合 k",{values:[0.3,0.5,0.7,1],value:0.5,fmt:function(v){return String(v);},onInput:draw});
+    var cl=U.slider(r2,"回す量",{values:[1,2,3,5,10],value:3,fmt:function(v){return v+" クリック";},onInput:draw});
+    var dir=U.select(r2,"向き",["右","左"],0,draw);
+    var br=U.btnrow(el);
+    U.button(br,"4 節の例（1 ms で読む）",function(){sp.set(2);Pc.set(20);Tp.set(1);tb.set(1);kk.set(0.5);cl.set(3);draw();});
+    U.button(br,"遅すぎる（5 ms で読む）",function(){sp.set(2);Pc.set(20);Tp.set(5);tb.set(1);kk.set(0.5);cl.set(10);draw();});
+    U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var n=sp.get(),P=Pc.get(),tp=Tp.get(),t_b=tb.get(),k=kk.get(),C=cl.get()*(dir.get()===0?1:-1);
+      var res=_w11_enc(U.rng(seed*104729+1),C,P,n,k,t_b,tp,true);
+      var bound=k*res.dl-t_b;
+      /* 40 回の試し */
+      var bad=0,errn=0;for(var tr=0;tr<40;tr++){var q=_w11_enc(U.rng(seed*7+tr*131+3),C,P,n,k,t_b,tp,false);if(q.pos!==C)bad++;if(q.err)errn++;}
+      /* ---- 図 ---- */
+      var W=700,o=[],nshow=Math.min(Math.abs(C)*4,8),TE=res.t0+nshow*res.dl+res.dl*0.8,x0=70,x1=684,X=function(t){return x0+t/TE*(x1-x0);};
+      [[0,30,"A"],[1,74,"B"]].forEach(function(r){var pts=[[0,1]];res.E.forEach(function(e){if(e[1]===r[0]&&e[0]<=TE)pts.push([e[0],e[2]]);});pts.push([TE,pts[pts.length-1][1]]);
+        o.push(S.T(x0-10,r[1]+14,r[2],"end",11,"teal",true));o.push(_w11_dwave(S,pts,X,r[1],r[1]+20,"teal",1.6));});
+      var inwin=res.smp.filter(function(s){return s[0]<=TE;});
+      var showSym=inwin.length<=60;
+      inwin.forEach(function(s){var c=s[2]===2?"alias":"signal";o.push(S.L(X(s[0]),26,X(s[0]),98,c,s[2]===2?1.2:0.7,"2 2"));o.push(S.D(X(s[0]),112,c,s[2]===2?3.6:2.4));
+        if(showSym&&s[2]!==0)o.push(S.T(X(s[0]),130,s[2]===2?"×":(s[2]>0?"+1":"−1"),"middle",9,s[2]===2?"alias":(s[2]>0?"signal":"purple"),true));});
+      o.push(S.T(x0-10,116,"読む","end",9.5,"signal",true));
+      if(!showSym)o.push(S.T(x0,130,"読む点が多いので、記号は省いた（× だけ赤で示す）","start",9,"muted"));
+      var ya=148;o.push(S.L(x0,ya,x1,ya,"muted",1));
+      var step=U.nice(0,TE,6);step.forEach(function(t){o.push(S.L(X(t),ya,X(t),ya+4,"muted",1));o.push(S.T(X(t),ya+15,U.sig(t,3),"middle",9,"muted"));});
+      o.push(S.T(x1,ya+30,"時間 [ms]（最初の "+(nshow/4)+" クリック分）","end",9,"muted"));
+      box.set(S.svg(W,ya+38,o));
+      ro.innerHTML="変化の間隔: 理想で 1 / (4Pn) = "+_w11_sig(res.dl,3)+" ms、最も短くて "+_w11_sig(k*res.dl,3)+" ms。読み落とさない条件 T_p < k / (4Pn) − t_B = <b>"+(bound>0?_w11_sig(bound,3)+" ms":"なし（はね返りが間隔より長い）")+"</b> → いまの T_p = "+_w11_sig(tp,3)+" ms は "+(tp<bound?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"<br>"+
+        "この 1 回: 本当は "+C+"、数えたのは <b>"+res.pos+"</b>、× は <b>"+res.err+" 回</b>"+(res.pos===C?' <span class="ok">正しい</span>':' <span class="warn">数え違い</span>')+"<br>"+
+        "乱数を変えて 40 回試すと、数え違い <b>"+bad+" 回</b>、× を含む <b>"+errn+" 回</b><br>"+
+        "1 秒に読む回数 "+_w11_sig(1000/tp,3)+" 回: 電池の機器で読み続けると、1 回 0.09 µC なら "+U.fmt.cur((2+0.09*1000/tp)*1e-6)+"（回している間だけ読む）"+
+        '<div class="wnote">1 クリックで 4 回変わり、クリックの位置で (A, B) = 11 になる製品とした。各変化の時刻は、最も短い間隔が理想の k 倍になる範囲で乱数でずらし、はね返りは変化の後 t_B の間に 0〜3 往復するとした。読み取りの時刻のずれも乱数にした。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 長い線の誘導ノイズ ---- */
+  REG.w11_noise=function(el,U){
+    var S=U.S,VDD=3.3;
+    U.head(el,"COUPLING","長い線に入る誘導ノイズと、プルアップ・RC・デバウンス");
+    var r1=U.ctrls(el);
+    var Rp=U.slider(r1,"プルアップ R_p",{values:[1,2.2,4.7,10,22,47,100],value:47,fmt:function(v){return v+" kΩ";},onInput:draw});
+    var Cm=U.slider(r1,"線の間の容量 C_m",{values:[10,22,47,100,220,470],value:100,fmt:function(v){return v+" pF";},onInput:draw});
+    var Cg=U.slider(r1,"線の容量 C_g",{values:[100,200,500,1000,2000],value:500,fmt:function(v){return v+" pF";},onInput:draw});
+    var r2=U.ctrls(el);
+    var dV=U.slider(r2,"相手の線の電圧の変化 ΔV",{values:[5,12,24,48,100,141],value:24,fmt:function(v){return v+" V";},onInput:draw});
+    var tr=U.slider(r2,"変化にかかる時間 t_r",{min:0.05,max:20,value:0.5,log:true,fmt:function(v){return v+" µs";},onInput:draw});
+    var r3=U.ctrls(el);
+    var flt=U.checkbox(r3,"ピンの前に R_s 1 kΩ と C_f",false,draw);
+    var Cf=U.slider(r3,"C_f",{values:[1,10,100,1000],value:100,fmt:function(v){return v+" nF";},onInput:draw});
+    var Tp=U.slider(r3,"読む周期 T_p",{values:[1,2,5,10],value:5,fmt:function(v){return v+" ms";},onInput:draw});
+    var Nn=U.slider(r3,"続けて読む回数 N",{min:2,max:6,step:1,value:3,fmt:function(v){return v+" 回";},onInput:draw});
+    var br=U.btnrow(el);
+    U.button(br,"5 節の例（47 kΩ）",function(){Rp.set(47);Cm.set(100);Cg.set(500);dV.set(24);tr.set(0.5);flt.set(false);draw();});
+    U.button(br,"プルアップを 4.7 kΩ に",function(){Rp.set(4.7);flt.set(false);draw();});
+    U.button(br,"保護の回路（4.7 kΩ・1 kΩ・100 nF）",function(){Rp.set(4.7);flt.set(true);Cf.set(100);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var rp=Rp.get()*1e3,cm=Cm.get()*1e-12,cg=Cg.get()*1e-12,dv=dV.get(),t_r=tr.get()*1e-6,f=flt.get(),cf=Cf.get()*1e-9,Rs=1e3,tp=Tp.get(),N=Nn.get();
+      var Cl=cm+cg,Sv=dv/t_r,tauL=(f?(rp*Rs/(rp+Rs)):rp)*Cl,tauP=f?(rp+Rs)*cf:0;
+      var TE=Math.min(0.05,Math.max(8*tauL,3*t_r,f?6*Math.min(tauP,Rs*cf*20):0));
+      /* 後退オイラーで 2 つの点（線とピン）を解く */
+      var vl=VDD,vp=VDD,t=0,dt=Math.min(t_r,tauL)/25,pts=[],minL=VDD,minP=VDD,belowL=[null,null],belowP=[null,null];
+      var vih=0.7*VDD,vil=0.3*VDD;
+      pts.push([0,vl,vp]);
+      var guard=0;
+      while(t<TE&&guard<200000){guard++;
+        var h=dt,tn=t+h,sl=(tn<=t_r)?-Sv:((t<t_r)?-Sv*(t_r-t)/h:0);
+        if(!f){var a=Cl/h+1/rp;vl=(Cl*vl/h+cm*sl+VDD/rp)/a;vp=vl;}
+        else{var a11=Cl/h+1/rp+1/Rs,a12=-1/Rs,b1=Cl*vl/h+cm*sl+VDD/rp,a21=-1/Rs,a22=cf/h+1/Rs,b2=cf*vp/h,det=a11*a22-a12*a21;
+          var nl=(b1*a22-a12*b2)/det,np=(a11*b2-a21*b1)/det;vl=nl;vp=np;}
+        vl=Math.max(vl,-0.6);vp=Math.max(vp,-0.6);
+        t=tn;pts.push([t,vl,vp]);
+        if(vl<minL)minL=vl;if(vp<minP)minP=vp;
+        if(vl<vih){if(belowL[0]===null)belowL[0]=t;belowL[1]=t;}
+        if(vp<vih){if(belowP[0]===null)belowP[0]=t;belowP[1]=t;}
+        if(t>2*t_r)dt=Math.min(dt*1.03,TE/1500);}
+      var durL=belowL[0]===null?0:belowL[1]-belowL[0],durP=belowP[0]===null?0:belowP[1]-belowP[0];
+      /* ---- 図: 時間は対数目盛 ---- */
+      var W=700,o=[],t0=Math.min(t_r/10,1e-8),p=U.plot(80,20,520,190,[t0,TE],[-1,3.6],{xlog:true});
+      var xt=[];for(var e=Math.ceil(Math.log10(t0));e<=Math.floor(Math.log10(TE));e++)xt.push(Math.pow(10,e));
+      o.push(p.axes({xl:"相手の線が下がり始めてからの時間（対数目盛）",yl:"電圧 [V]",xt:xt,yt:[0,1,2,3],xfmt:function(v){return U.fmt.time(v,1);},yfmt:function(v){return String(v);}}));
+      o.push(S.L(p.X(t0),p.Y(vih),p.X(TE),p.Y(vih),"green",1,"5 3"));o.push(S.T(p.x+p.w+6,p.Y(vih)+4,"V_IH","start",9.5,"green",true));
+      o.push(S.L(p.X(t0),p.Y(vil),p.X(TE),p.Y(vil),"gold",1,"5 3"));o.push(S.T(p.x+p.w+6,p.Y(vil)+4,"V_IL","start",9.5,"gold",true));
+      var sel=pts.filter(function(q){return q[0]>=t0;});
+      o.push(p.line(sel.map(function(q){return [q[0],q[1]];}),"alias",2));
+      if(f)o.push(p.line(sel.map(function(q){return [q[0],q[2]];}),"signal",2.2));
+      o.push(S.L(p.x+p.w+6,150,p.x+p.w+22,150,"alias",2));o.push(S.T(p.x+p.w+26,154,"線","start",9.5,"alias",true));
+      if(f){o.push(S.L(p.x+p.w+6,168,p.x+p.w+22,168,"signal",2.2));o.push(S.T(p.x+p.w+26,172,"ピン","start",9.5,"signal",true));}
+      box.set(S.svg(W,260,o));
+      var upk=VDD-minL,form=rp*cm*Sv*(1-Math.exp(-t_r/(rp*Cl))),div=dv*cm/Cl;
+      var pinDur=f?durP:durL,pinMin=f?minP:minL;
+      var h2="線の下がり幅 <b>"+_w11_sig(Math.min(upk,VDD+0.6),3)+" V</b>"+(f?"":"（式 R·C_m·S·(1 − e^(−t_r/τ)) = "+_w11_sig(form,3)+" V、容量の分圧の上限 "+_w11_sig(div,3)+" V）")+"、戻る時定数 τ = "+U.fmt.time(tauL)+(upk>VDD+0.59?"（−0.6 V で保護ダイオードが止める）":"")+"<br>";
+      h2+="ピンの電圧の最低 <b>"+_w11_sig(pinMin,3)+" V</b>、H と読めない時間（V_IH を下回る間） <b>"+(pinDur>0?U.fmt.time(pinDur):"0")+"</b><br>";
+      h2+="割り込み（変化で起こす）: "+(pinMin<vih?'<span class="warn">入りうる</span>（ノイズのたびに起きる）':'<span class="ok">入らない</span>')+"<br>";
+      var hit=Math.min(1,pinDur/(tp*1e-3));
+      h2+="周期的に読む（T_p = "+tp+" ms、N = "+N+"）: 1 回の変化で読み取りに当たる確率 "+_w11_sig(hit*100,2)+" %、"+(pinDur>=(N-1)*tp*1e-3?'<span class="warn">N 回続けて当たりうる（押したと読むおそれ）</span>':'<span class="ok">N 回続けては当たらないので、押したとは読まない</span>');
+      ro.innerHTML=h2+'<div class="wnote">スイッチが開いている線を、プルアップ R_p・線の容量 C_g・相手の線との容量 C_m の回路とし、相手の線の電圧が t_r の間に一定の速さで ΔV 下がるとした（静電誘導だけ。電磁誘導は含めない）。電源の電圧は 3.3 V、V_IH = 0.7 V_DD、V_IL = 0.3 V_DD。保護ダイオードは −0.6 V で電圧を止める理想のものとした。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 12 章 出力をスイッチする ===== */
+  /* 狭い画面（表示枠が 520 px 未満）では、図を幅 400 に組み替える */
+  function _w12_nar(box){var w=box.el.clientWidth;return w>0&&w<520;}
+  function _w12_sig(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
+  function _w12_v(v){return (Math.abs(v)<10?v.toFixed(2).replace("-","−"):_w12_sig(v,3))+" V";}
+
+  /* ---- 2 節: LED の電流と PWM ---- */
+  var _w12_LEDS=[{t:"赤（V_F 2.0 V）",vf:2.0},{t:"黄（V_F 2.1 V）",vf:2.1},{t:"白・青（V_F 2.9 V）",vf:2.9}];
+  REG.w12_led=function(el,U){
+    var S=U.S,F=U.fmt,RO=40;
+    U.head(el,"LED","LED の電流と PWM — 電池の電圧・抵抗・周波数・デューティ");
+    var r1=U.ctrls(el);
+    var col=U.select(r1,"LED の色",_w12_LEDS.map(function(x){return x.t;}),0,draw);
+    var vdd=U.slider(r1,"電源（電池）の電圧 V_DD",{min:1.8,max:3.6,step:0.05,value:3.0,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var rr=U.slider(r1,"電流制限抵抗 R",{values:[0,22,47,100,150,220,300,470,680,1000,2200],value:300,fmt:function(v){return v+" Ω";},onInput:draw});
+    var r2=U.ctrls(el);
+    var fq=U.slider(r2,"PWM の周波数",{values:[30,60,128,256,512,1024,4000,16000],value:1024,fmt:function(v){return v>=1000?(v/1000)+" kHz":v+" Hz";},onInput:draw});
+    var du=U.slider(r2,"デューティ D",{min:0,max:100,step:1,value:34,fmt:function(v){return v+" %";},onInput:draw});
+    var r3=U.ctrls(el);
+    var cmp=U.checkbox(r3,"測った電池の電圧で D を補正する",false,draw);
+    var it=U.slider(r3,"補正の目標（平均の電流）",{values:[0.2,0.5,1,2,3,5],value:1,fmt:function(v){return v+" mA";},onInput:draw});
+    var br=U.btnrow(el);
+    function pre(c,v,r,f,d,k){col.set(c);vdd.set(v);rr.set(r);fq.set(f);du.set(d);cmp.set(k);it.set(1);draw();}
+    U.button(br,"2 節の例（赤・300 Ω・3.0 V）",function(){pre(0,3.0,300,1024,34,false);});
+    U.button(br,"電池の使い終わり 2.2 V",function(){pre(0,2.2,300,1024,34,false);});
+    U.button(br,"補正して 2.4 V",function(){pre(0,2.4,300,1024,34,true);});
+    U.button(br,"眠る間のクロックで 128 Hz",function(){pre(0,3.0,300,128,34,false);});
+    U.button(br,"白を 3.0 V で",function(){pre(2,3.0,0,1024,50,false);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function wave(p,T,D,Ion,t0,t1){ /* 時間 [s] t0〜t1 の PWM の電流 [mA] を描く */
+      var out=[],pts=[[p.X(t0),p.Y(0)]],n0=Math.floor(t0/T),n1=Math.ceil(t1/T);
+      for(var n=n0;n<n1;n++){var a=Math.max(t0,n*T),b=Math.min(t1,n*T+D*T);if(b>a){
+        out.push(S.RECT(p.X(a),p.Y(Ion*1e3),Math.max(0.6,p.X(b)-p.X(a)),p.Y(0)-p.Y(Ion*1e3),0,U.soft("purple"),"none",0));
+        pts.push([p.X(a),p.Y(0)],[p.X(a),p.Y(Ion*1e3)],[p.X(b),p.Y(Ion*1e3)],[p.X(b),p.Y(0)]);}}
+      pts.push([p.X(t1),p.Y(0)]);out.push(S.PL(pts,"purple",n1-n0>120?0.8:1.8));return out.join("");}
+    function draw(){
+      var Ld=_w12_LEDS[col.get()],V=vdd.get(),R=rr.get(),f=fq.get(),T=1/f,Ion=Math.max(0,(V-Ld.vf)/(R+RO)),D=du.get()/100,It=it.get()*1e-3,need=Ion>0?It/Ion:Infinity;
+      it.el.style.opacity=cmp.get()?"1":"0.45";du.el.style.opacity=cmp.get()?"0.45":"1";
+      if(cmp.get())D=Math.min(1,need);
+      var Iavg=D*Ion,nar=_w12_nar(box),W=nar?400:700,o=[];
+      var ymax=Math.max(1,Ion*1e3*1.25),yt=U.nice(0,ymax,4).filter(function(v){return v<=ymax+1e-9;});
+      var pa=nar?U.plot(52,30,320,110,[0,3*T],[0,ymax]):U.plot(64,30,270,140,[0,3*T],[0,ymax]);
+      var pb=nar?U.plot(52,206,320,110,[0,0.04],[0,ymax]):U.plot(420,30,260,140,[0,0.04],[0,ymax]);
+      o.push(S.T(pa.x-40,18,"(a) 3 周期（拡大）","start",10.5,"ink",true));
+      o.push(S.T(pb.x-40,pb.y-12,"(b) 40 ms の間","start",10.5,"ink",true));
+      var tu=T*3<2e-3?1e6:1e3,un=tu===1e6?"µs":"ms",tx=U.nice(0,3*T*tu,4).filter(function(v){return v<=3*T*tu+1e-9;});
+      o.push(pa.axes({xl:"時間 ["+un+"]",yl:"電流 [mA]",xt:tx.map(function(v){return v/tu;}),yt:yt,xfmt:function(v){return U.sig(v*tu,3);},yfmt:function(v){return U.sig(v,3);},ylOff:40}));
+      o.push(pb.axes({xl:"時間 [ms]",yl:"電流 [mA]",xt:[0,0.01,0.02,0.03,0.04],yt:yt,xfmt:function(v){return U.sig(v*1e3,3);},yfmt:function(v){return U.sig(v,3);},ylOff:40}));
+      if(Ion>0){o.push(wave(pa,T,D,Ion,0,3*T));o.push(wave(pb,T,D,Ion,0,0.04));}
+      [pa,pb].forEach(function(p){o.push(p.line([[p.xr[0],Iavg*1e3],[p.xr[1],Iavg*1e3]],"signal",1.6,"6 4"));});
+      o.push(S.T(pa.x+pa.w,pa.Y(Iavg*1e3)-5,"平均 "+F.cur(Iavg),"end",9.5,"signal",true,false,null,true));
+      if(20<=ymax){o.push(pa.line([[0,20],[3*T,20]],"alias",1.1,"3 3"));o.push(S.T(pa.x+4,pa.Y(20)-4,"ピン 1 本の上限の例 20 mA","start",9,"alias",false,false,null,true));}
+      box.set(S.svg(W,nar?352:232,o));
+      var fl=f<80?'<span class="warn">止まって見ていてもちらつく</span>':(f<1000?'<span class="warn">目を動かすと点の列に見えやすい</span>':(f<3000?'<b>目を動かすと見えることがある</b>':'<span class="ok">見えにくい</span>（カメラでは縞が写ることがある）'));
+      var N=Math.floor(32768/f);
+      var h=Ion<=0?'<span class="warn">LED は点かない（V_DD が V_F 以下）</span><br>':"";
+      h+="点いている間の電流 I_on = (V_DD − V_F) ÷ (R + R_o) = ("+V.toFixed(2)+" − "+Ld.vf.toFixed(1)+") V ÷ "+(R+RO)+" Ω = <b>"+F.cur(Ion)+"</b>"+(Ion>0.02?' <span class="warn">ピン 1 本の上限（例 20 mA）を超える</span>':"")+"<br>";
+      if(cmp.get())h+=(need>1?'<span class="warn">補正しきれない: 目標 '+F.cur(It)+' には D = '+U.sig(need*100,3)+' % が要る（100 % まで）</span><br>':'<span class="ok">補正した D = I_t ÷ I_on = '+U.sig(D*100,3)+' %</span><br>');
+      h+="平均の電流 D × I_on = "+U.sig(D*100,3)+" % × "+F.cur(Ion)+" = <b>"+F.cur(Iavg)+"</b>（点いている間のピーク電流は "+F.cur(Ion)+" のまま）<br>";
+      h+="PWM "+(f>=1000?(f/1000)+" kHz":f+" Hz")+"（周期 "+F.time(T)+"）: ちらつきの目安 — "+fl+"<br>";
+      h+="32.768 kHz のクロックで作ると、1 周期は "+(N>=2?"<b>"+N+" 段</b>（デューティの刻み "+U.sig(100/N,3)+" %）":'<span class="warn">2 段に満たず、作れない</span>');
+      ro.innerHTML=h+'<div class="wnote">出力の抵抗 R_o は 40 Ω、V_F は電流によらず一定とした。ちらつきの見え方は人・明るさ・見方で変わる目安。値はすべて例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 4 節: 誘導性負荷を切る ---- */
+  REG.w12_flyback=function(el,U){
+    var S=U.S,F=U.fmt,VF=0.8,CS=100e-12;
+    U.head(el,"FLYBACK","誘導性負荷を切ったときの電圧と電流 — クランプの比較");
+    var r1=U.ctrls(el);
+    var vs=U.slider(r1,"電源の電圧 V",{min:3,max:48,step:1,value:12,fmt:function(v){return v+" V";},onInput:draw});
+    var rc=U.slider(r1,"コイルの抵抗 R",{min:10,max:2000,log:true,value:400,fmt:function(v){return U.sig(v,3)+" Ω";},onInput:draw});
+    var lc=U.slider(r1,"インダクタンス L",{min:0.001,max:2,log:true,value:0.4,fmt:function(v){return v<1?U.sig(v*1e3,3)+" mH":U.sig(v,3)+" H";},onInput:draw});
+    var r2=U.ctrls(el);
+    var cl=U.select(r2,"クランプ",["(a) なし","(b) ダイオード","(b') ダイオード + 抵抗","(c) ダイオード + ツェナー","(d) TVS（ドレインと GND の間）"],1,draw);
+    var vz=U.slider(r2,"ツェナー・TVS の電圧",{values:[5.1,12,18,24,30,33,47,62],value:24,fmt:function(v){return v+" V";},onInput:draw});
+    var rs=U.slider(r2,"直列の抵抗（(b') のとき）",{values:[47,100,220,470,1000,2200],value:470,fmt:function(v){return v+" Ω";},onInput:draw});
+    var r3=U.ctrls(el);
+    var vr=U.slider(r3,"MOSFET の耐圧",{values:[20,30,40,60,100],value:60,fmt:function(v){return v+" V";},onInput:draw});
+    var kr=U.slider(r3,"接点が離れ始める電流（切る前の割合）",{values:[10,20,30,50],value:20,fmt:function(v){return v+" %";},onInput:draw});
+    var br=U.btnrow(el);
+    function pre(v,r,l,c,z){vs.set(v);rc.set(r);lc.set(l);cl.set(c);if(z)vz.set(z);draw();}
+    U.button(br,"4 節 (b) ダイオード",function(){pre(12,400,0.4,1);});
+    U.button(br,"4 節 (c) ツェナー 24 V",function(){pre(12,400,0.4,3,24);});
+    U.button(br,"4 節 (d) TVS 30 V",function(){pre(12,400,0.4,4,30);});
+    U.button(br,"4 節 (a) クランプなし",function(){pre(12,400,0.4,0);});
+    U.button(br,"ソレノイド（24 Ω・50 mH）",function(){pre(12,24,0.05,1);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var V=vs.get(),R=rc.get(),L=lc.get(),k=cl.get(),Vz=vz.get(),Rs=rs.get(),Vr=vr.get(),kk=kr.get()/100;
+      vz.el.style.opacity=(k===3||k===4)?"1":"0.45";rs.el.style.opacity=k===2?"1":"0.45";
+      var I0=V/R,tau=L/R,EL=0.5*L*I0*I0,nar=_w12_nar(box),W=nar?400:700,o=[],h="",warn="";
+      var pv=nar?U.plot(52,30,320,110,[0,1],[0,1]):U.plot(64,30,270,150,[0,1],[0,1]);
+      var pi=nar?U.plot(52,206,320,110,[0,1],[0,1]):U.plot(420,30,260,150,[0,1],[0,1]);
+      if(k===0){
+        /* クランプなし: コイルのエネルギーが浮遊容量 C へ（抵抗は無視）。v − V = −V cos ωt + I0 Z sin ωt */
+        var Z=Math.sqrt(L/CS),w=1/Math.sqrt(L*CS),th=Math.PI/w,vpk=V+Math.sqrt(V*V+I0*I0*Z*Z),tus=th*1e6;
+        var ymx=vpk*1.1;
+        pv=nar?U.plot(52,30,320,110,[0,tus],[0,ymx]):U.plot(64,30,270,150,[0,tus],[0,ymx]);
+        pi=nar?U.plot(52,206,320,110,[0,tus],[-I0*1e3*1.1,I0*1e3*1.1]):U.plot(420,30,260,150,[0,tus],[-I0*1e3*1.1,I0*1e3*1.1]);
+        var A=[],B=[];for(var j=0;j<=120;j++){var t=th*j/120;A.push([t*1e6,V-V*Math.cos(w*t)+I0*Z*Math.sin(w*t)]);B.push([t*1e6,(I0*Math.cos(w*t)+V/Z*Math.sin(w*t))*1e3]);}
+        o.push(pv.axes({xl:"切ってからの時間 [µs]",yl:"ドレインの電圧 [V]",xt:U.nice(0,tus,4),yt:U.nice(0,ymx,4),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
+        o.push(pi.axes({xl:"切ってからの時間 [µs]",yl:"コイルの電流 [mA]",xt:U.nice(0,tus,4),yt:U.nice(-I0*1e3,I0*1e3,4),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
+        o.push(pv.line(A,"alias",2.2));o.push(pi.line(B,"alias",2.2));
+        o.push(pv.line([[0,Vr],[tus,Vr]],"signal",1.4,"5 3"));o.push(S.T(pv.x+pv.w,pv.Y(Vr)-5,"MOSFET の耐圧 "+Vr+" V","end",9,"signal",true,false,null,true));
+        warn='<span class="warn">クランプが無い: ドレインは約 '+_w12_v(vpk)+' まで上がろうとし、耐圧 '+Vr+' V をはるかに超える</span><br>';
+        h="浮遊容量 C = 100 pF とすると、v = V + √(V² + I0² L/C) ≈ <b>"+_w12_v(vpk)+"</b>（"+F.time(th/2)+" 後に最大）。実際には MOSFET がこの手前で壊れるか、なだれ降伏で電流を流し、½ L I0² = "+U.sig(EL*1e3,3)+" mJ を熱にする。<br>";
+      }else{
+        /* クランプあり: L di/dt = −(R' i + Vc)、R' = R (+ Rs)。i(t) = −Vc/R' + (I0 + Vc/R') e^{−t R'/L} */
+        var Rp=R+(k===2?Rs:0),Vc=k===1||k===2?VF:(k===3?VF+Vz:Vz-V),dev=k===4?Vz:(k===3?VF+Vz:VF);
+        if(Vc<=0){warn='<span class="warn">TVS の電圧が電源の電圧以下: 普段から TVS に電流が流れる。電源の電圧より十分高い TVS を選ぶ</span><br>';Vc=0.01;}
+        var tp=L/Rp,t0=tp*Math.log(1+Rp*I0/Vc),tk=tp*Math.log((I0+Vc/Rp)/(kk*I0+Vc/Rp)),span=t0*1.3,su=span<2e-3?1e6:1e3,un=su===1e6?"µs":"ms";
+        var vpk=k===4?Vz:V+VF+(k===2?Rs*I0:0)+(k===3?Vz:0),ymx=Math.max(vpk,V)*1.25;
+        pv=nar?U.plot(52,30,320,110,[-0.1*span*su,span*su],[0,ymx]):U.plot(64,30,270,150,[-0.1*span*su,span*su],[0,ymx]);
+        pi=nar?U.plot(52,206,320,110,[-0.1*span*su,span*su],[0,I0*1e3*1.2]):U.plot(420,30,260,150,[-0.1*span*su,span*su],[0,I0*1e3*1.2]);
+        var xt=U.nice(0,span*su,4);
+        o.push(pv.axes({xl:"切ってからの時間 ["+un+"]",yl:"ドレインの電圧 [V]",xt:xt,yt:U.nice(0,ymx,4),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
+        o.push(pi.axes({xl:"切ってからの時間 ["+un+"]",yl:"コイルの電流 [mA]",xt:xt,yt:U.nice(0,I0*1e3*1.1,4),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
+        var A=[[-0.1*span*su,0],[0,0]],B=[[-0.1*span*su,I0*1e3],[0,I0*1e3]],ER=0,EC=0,Q=0,N=400;
+        for(var j=0;j<=N;j++){var t=t0*j/N,i=Math.max(0,-Vc/Rp+(I0+Vc/Rp)*Math.exp(-t/tp));
+          A.push([t*su,k===4?Vz:V+VF+(k===2?Rs*i:0)+(k===3?Vz:0)]);B.push([t*su,i*1e3]);
+          if(j>0){var dt=t0/N,ia=(i+B[B.length-2][1]/1e3)/2;ER+=R*ia*ia*dt;Q+=ia*dt;EC+=(k===2?(VF*ia+Rs*ia*ia):dev*ia)*dt;}}
+        A.push([t0*su,V],[span*su,V]);B.push([span*su,0]);
+        var c=["","teal","teal","purple","gold"][k];
+        o.push(pv.line([[-0.1*span*su,V],[span*su,V]],"faint",1,"3 3"));o.push(S.T(pv.x+4,pv.Y(V)+13,"電源 "+V+" V","start",9,"muted",false,false,null,true));
+        o.push(pv.line(A,c,2.2));o.push(pi.line(B,c,2.2));
+        o.push(pv.line([[-0.1*span*su,Vr],[span*su,Vr]],"signal",1.2,"5 3"));if(Vr<ymx)o.push(S.T(pv.x+pv.w,pv.Y(Vr)-5,"耐圧 "+Vr+" V","end",9,"signal",true,false,null,true));
+        o.push(pi.line([[-0.1*span*su,kk*I0*1e3],[span*su,kk*I0*1e3]],"gold",1.1,"3 3"));
+        o.push(S.D(pi.X(tk*su),pi.Y(kk*I0*1e3),"gold",3.6));o.push(S.T(pi.X(tk*su)+6,pi.Y(kk*I0*1e3)-6,"離れ始める "+F.time(tk),"start",9,"gold",true,false,null,true));
+        o.push(S.D(pi.X(t0*su),pi.Y(0),c,3.6));o.push(S.T(pi.X(t0*su),pi.Y(0)-8,"0 に "+F.time(t0),"middle",9,c,true,false,null,true));
+        var mg=vpk/Vr;
+        if(mg>1)warn+='<span class="warn">ドレインの最高 '+_w12_v(vpk)+' が MOSFET の耐圧 '+Vr+' V を超える</span><br>';
+        else if(mg>0.8)warn+='<b>ドレインの最高 '+_w12_v(vpk)+' は耐圧 '+Vr+' V の '+Math.round(mg*100)+' %: 余裕が少ない</b><br>';
+        else warn+='<span class="ok">ドレインの最高 '+_w12_v(vpk)+'（耐圧 '+Vr+' V の '+Math.round(mg*100)+' %）</span><br>';
+        var ES=k===4?V*Q:0;
+        h="コイルにかかる電圧 V_c = "+(k===2?"0.8 V + "+Rs+" Ω × i（最初 "+_w12_v(VF+Rs*I0)+"）":_w12_v(Vc))+"、電流が 0 になるまで t_0 = "+(k===2?"(L/R') ln(1 + R' I0/0.8 V)":"τ ln(1 + R I0/V_c)")+" = <b>"+F.time(t0)+"</b>、"+Math.round(kk*100)+" % まで <b>"+F.time(tk)+"</b><br>";
+        h+="½ L I0² = "+U.sig(EL*1e3,3)+" mJ"+(ES>0?" + 電源から "+U.sig(ES*1e3,3)+" mJ":"")+" の行き先: コイルの抵抗 "+U.sig(ER*1e3,3)+" mJ（"+Math.round(ER/(EL+ES)*100)+" %）、クランプ "+U.sig(EC*1e3,3)+" mJ（"+Math.round(EC/(EL+ES)*100)+" %）<br>";
+      }
+      o.push(S.T(pv.x-40,18,"ドレインの電圧","start",10.5,"ink",true));o.push(S.T(pi.x-40,pi.y-12,"コイルの電流","start",10.5,"ink",true));
+      box.set(S.svg(W,nar?352:232,o));
+      ro.innerHTML=warn+"切る前の電流 I0 = V ÷ R = <b>"+F.cur(I0)+"</b>、時定数 τ = L ÷ R = "+F.time(tau)+"<br>"+h+
+        '<div class="wnote">ダイオードの電圧は 0.8 V で一定、ツェナーと TVS はその電圧で一定とした。(b\') はダイオードに抵抗を直列に入れる方法（4 節）で、抵抗の電圧の分だけ速く消える。接点が離れ始める電流はリレーによる（例の値）。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 吸引と保持 ---- */
+  var _w12_COILS=[{t:"12 V のリレー（400 Ω・0.4 H）",V:12,R:400,L:0.4},{t:"5 V のリレー（70 Ω・50 mH）",V:5,R:70,L:0.05},{t:"12 V のソレノイド（24 Ω・50 mH）",V:12,R:24,L:0.05}];
+  REG.w12_hold=function(el,U){
+    var S=U.S,F=U.fmt,VF=0.8;
+    U.head(el,"HOLD","リレー・ソレノイドの吸引と、PWM での保持");
+    var r1=U.ctrls(el);
+    var cs=U.select(r1,"コイル",_w12_COILS.map(function(c){return c.t;}),0,function(){var c=_w12_COILS[cs.get()];vs.set(c.V);draw();});
+    var vs=U.slider(r1,"電源の電圧",{min:3,max:15,step:0.1,value:12,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var r2=U.ctrls(el);
+    var tpu=U.slider(r2,"吸引の時間（100 %）",{values:[2,5,10,20,50,100],value:50,fmt:function(v){return v+" ms";},onInput:draw});
+    var dh=U.slider(r2,"保持のデューティ",{min:10,max:100,step:1,value:53,fmt:function(v){return v+" %";},onInput:draw});
+    var fq=U.slider(r2,"PWM の周波数",{values:[200,500,1000,2000,5000,10000,20000,50000],value:20000,fmt:function(v){return v>=1000?(v/1000)+" kHz":v+" Hz";},onInput:draw});
+    var r3=U.ctrls(el);
+    var kp=U.slider(r3,"吸引に要る電流（定格の割合）",{values:[50,60,70,75,80],value:75,fmt:function(v){return v+" %";},onInput:draw});
+    var kh=U.slider(r3,"保持に要る電流（定格の割合）",{values:[20,30,40,50,60],value:40,fmt:function(v){return v+" %";},onInput:draw});
+    var br=U.btnrow(el);
+    function pre(v,t,d,f){vs.set(v);tpu.set(t);dh.set(d);fq.set(f);kp.set(75);kh.set(40);draw();}
+    U.button(br,"5 節の例（53 %・20 kHz）",function(){cs.set(0);pre(12,50,53,20000);});
+    U.button(br,"保持しない（100 % のまま）",function(){cs.set(0);pre(12,50,100,20000);});
+    U.button(br,"電源が 10 % 低い",function(){cs.set(0);pre(10.8,50,53,20000);});
+    U.button(br,"PWM 1 kHz",function(){cs.set(0);pre(12,50,53,1000);});
+    U.button(br,"電源が 8 V",function(){cs.set(0);pre(8,50,53,20000);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function sim(c,V,tp,D,f){
+      /* 0〜tp は入れたまま（吸引）。その後は PWM で、切っている間は V_F で還流する。周期ごとに式で進める */
+      var R=c.R,L=c.L,tau=L/R,T=1/f,ton=D*T,toff=(1-D)*T,tend=tp+Math.max(0.03,8*tau);
+      function onv(i0,d){return V/R+(i0-V/R)*Math.exp(-d/tau);}
+      function offv(i0,d){var tz=tau*Math.log(1+R*i0/VF);return d>=tz?0:-VF/R+(i0+VF/R)*Math.exp(-d/tau);}
+      function onq(i0,d){return V/R*d+(i0-V/R)*tau*(1-Math.exp(-d/tau));}   /* 入れている間の ∫ i dt */
+      var env=[],i,N=100,j;
+      for(j=0;j<=N;j++){var tt=tp*j/N,a=onv(0,tt);env.push([tt,a,a]);}
+      i=onv(0,tp);
+      var per=Math.max(1,Math.round((tend-tp)/T)),K=Math.max(20,Math.floor(per/10)),rec=Math.max(1,Math.floor(per/500));
+      var s2=0,ns=0,imin=Infinity,imax=0,q=0,t=tp;
+      for(var n=0;n<per;n++){
+        var full=D>=1,i1=onv(i,full?T:ton),i2=full?i1:offv(i1,toff);
+        if(n%rec===0||n===per-1)env.push([t+T,Math.min(i,i2),Math.max(i,i1)]);
+        if(n>=per-K){   /* 落ち着いた後（最後の K 周期）の値 */
+          for(var m=0;m<16;m++){var u=T*(m+0.5)/16,b=(full||u<ton)?onv(i,u):offv(i1,u-ton);s2+=b*b;ns++;}
+          imin=Math.min(imin,i,i2);imax=Math.max(imax,i1);
+          q+=onq(i,full?T:ton);
+        }
+        i=i2;t+=T;
+      }
+      return {env:env,irms2:s2/ns,imin:imin,imax:imax,isup:q/(K*T),tend:tend};
+    }
+    function draw(){
+      var c=_w12_COILS[cs.get()],V=vs.get(),tp=tpu.get()*1e-3,D=dh.get()/100,f=fq.get(),Ir=c.V/c.R,Ip=kp.get()/100*Ir,Ih=kh.get()/100*Ir;
+      var r=sim(c,V,tp,D,f),nar=_w12_nar(box),W=nar?400:700,o=[];
+      var tu=1e3,ymax=Math.max(Ir,V/c.R)*1.25*1e3;
+      var p=nar?U.plot(52,30,320,150,[0,r.tend*tu],[0,ymax]):U.plot(64,30,600,170,[0,r.tend*tu],[0,ymax]);
+      o.push(S.RECT(p.X(0),p.y,p.X(tp*tu)-p.X(0),p.h,0,U.soft("signal"),"none",0," fill-opacity=\"0.5\""));
+      o.push(p.axes({xl:"入れてからの時間 [ms]",yl:"コイルの電流 [mA]",xt:U.nice(0,r.tend*tu,6).filter(function(v){return v<=r.tend*tu+1e-9;}),yt:U.nice(0,ymax,4).filter(function(v){return v<=ymax;}),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:44}));
+      o.push(p.line([[0,Ip*1e3],[r.tend*tu,Ip*1e3]],"gold",1.2,"5 3"));o.push(S.T(p.x+p.w-2,p.Y(Ip*1e3)-5,"吸引に要る "+F.cur(Ip),"end",9,"gold",false,false,null,true));
+      o.push(p.line([[0,Ih*1e3],[r.tend*tu,Ih*1e3]],"alias",1.2,"5 3"));o.push(S.T(p.x+p.w-2,p.Y(Ih*1e3)+13,"保持に要る "+F.cur(Ih),"end",9,"alias",false,false,null,true));
+      /* 帯（周期ごとの最小と最大）と線 */
+      var up=[],dn=[];r.env.forEach(function(e){up.push([p.X(e[0]*tu),p.Y(e[2]*1e3)]);dn.unshift([p.X(e[0]*tu),p.Y(e[1]*1e3)]);});
+      o.push(S.PL(up.concat(dn),"purple",1.2,"purple",null,0.35));
+      o.push(S.T(p.X(tp*tu/2),p.y+13,"吸引 100 %","middle",9.5,"signal",true));
+      if(D<1)o.push(S.T(p.X((tp+r.tend)/2*tu),p.y+13,"保持 PWM "+Math.round(D*100)+" %","middle",9.5,"signal",true));
+      box.set(S.svg(W,nar?222:244,o));
+      var reached=r.env.some(function(e){return e[0]<=tp&&e[2]>=Ip;}),ok=r.imin>=Ih;
+      var Pfull=V*V/c.R,Pc=r.irms2*c.R,Ps=V*r.isup;
+      var h="";
+      h+=(reached&&tp>=0.01?'<span class="ok">吸引できる</span>（吸引の間に '+F.cur(Ip)+' を超える）':(!reached?'<span class="warn">電流が吸引に要る '+F.cur(Ip)+' に届かない: 引き寄せられない</span>':'<span class="warn">吸引の時間が動作時間の例（10 ms）より短い: 引き寄せきる前に保持へ移る</span>'))+"<br>";
+      h+=(ok?'<span class="ok">保持できる</span>':'<span class="warn">保持できない（落ちる）</span>')+": 保持の間の電流 "+F.cur(r.imin)+"〜"+F.cur(r.imax)+"（揺れ "+F.cur(r.imax-r.imin)+"）、保持に要る "+F.cur(Ih)+"<br>";
+      h+="コイルの電力 "+U.sig(Pc*1e3,3)+" mW（100 % のまま "+U.sig(Pfull*1e3,3)+" mW の "+Math.round(Pc/Pfull*100)+" %）、電源の電流の平均 "+F.cur(r.isup)+"・電源から見た電力 "+U.sig(Ps*1e3,3)+" mW<br>";
+      h+="式で求めた保持の電流の平均 (D V − (1 − D) V_F) ÷ R = "+F.cur(Math.max(0,(D*V-(1-D)*VF)/c.R))+"、保持に要る電流を流す D = (R I_h + V_F) ÷ (V + V_F) = "+U.sig((c.R*Ih+VF)/(V+VF)*100,3)+" %";
+      if(f<20000&&D<1)h+='<br><b>PWM の周波数が耳に聞こえる範囲: コイルや鉄片が鳴ることがある</b>';
+      ro.innerHTML=h+'<div class="wnote">フライバックダイオードの電圧は 0.8 V で一定とした。インダクタンスは鉄片の位置で変わるが、一定とした。吸引と保持に要る電流、動作時間（10 ms）はリレーやソレノイドによる例の値。帯は PWM の 1 周期ごとの電流の幅。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: ランプのソフトスタート ---- */
+  /* 電池（3.0 V・Rin）と大容量コンデンサ Cb の電源で、ランプ（冷えて 0.56 Ω、点いて 5.6 Ω。温度は一次遅れ 30 ms）を PWM で入れる。
+     デューティは 6 節の soft_tick と同じく 1 ms ごとに上げる（PWM_TOP = 1000、端数を持ち越す）。
+     スイッチの状態が変わらない区間では、電源の電圧は指数関数で動くので、その式で進める（区間は 2 µs 以下に分ける）。
+     返り値の out は 0.1 ms ごとの [時刻, 電池の電流の平均, 電源の電圧の最低, デューティ]。 */
+  function _w12_lamp(Rin,Cb,ramp,f,vlow,tend){
+    var E=3.0,RSW=0.05,RH=5.6,RC=0.56,PR=1.4,TT=0.03,T=1/f,rec=1e-4;
+    var v=E,th=0,duty=0,acc=0,t=0,nt=0,nr=rec,ia=0,ta=0,vmn=E,out=[],ibm=0,vmin=E,ilm=0,tdone=-1;
+    function step(dt,on){
+      var R=RC+(RH-RC)*th,g=1/Rin+(on?1/(R+RSW):0),vinf=E/Rin/g,v0=v;
+      v=vinf+(v0-vinf)*Math.exp(-dt*g/Cb);
+      var i0=on?v0/(R+RSW):0,i1=on?v/(R+RSW):0;
+      if(i0>ilm)ilm=i0;
+      th+=((on?(i0*i0+i1*i1)/2*R:0)/PR-th)*dt/TT;
+      var ib=(E-v)/Rin;if(ib>ibm)ibm=ib;if(v<vmin)vmin=v;if(v<vmn)vmn=v;
+      ia+=((E-v0)/Rin+ib)/2*dt;ta+=dt;t+=dt;
+      if(t>=nr-1e-12){out.push([nr,ia/ta,vmn,duty/1000]);ia=0;ta=0;vmn=v;nr+=rec;}
+    }
+    function run(dt,on){while(dt>1e-12){var d=Math.min(dt,2e-6,Math.max(nr-t,1e-9));step(d,on);dt-=d;}}
+    while(t<tend-1e-9){
+      if(t>=nt-1e-12){nt+=1e-3;
+        if(ramp===0||duty>=1000){duty=1000;acc=0;}
+        else if(vlow===null||v>=vlow){acc+=1000;duty=Math.min(1000,duty+Math.floor(acc/ramp));acc%=ramp;}
+        if(duty>=1000&&tdone<0)tdone=t;}
+      var D=duty/1000;
+      if(D>=1||D<=0)run(Math.min(nt,tend)-t,D>=1);
+      else{run(D*T,true);run((1-D)*T,false);}
+    }
+    return {out:out,ibm:ibm,vmin:vmin,ilm:ilm,tend:tend,tdone:tdone,ifin:out.length?out[out.length-1][1]:0};
+  }
+  REG.w12_soft=function(el,U){
+    var S=U.S,F=U.fmt,E=3.0,RSW=0.05,RH=5.6,RCOLD=0.56,PRAT=1.4,TAUTH=0.03;
+    U.head(el,"SOFT START","ランプのソフトスタート — 電池の電流と電源の電圧");
+    var r1=U.ctrls(el);
+    var ri=U.slider(r1,"電池の内部抵抗",{values:[0.1,0.2,0.3,0.5,0.8,1.2,2],value:0.5,fmt:function(v){return v+" Ω";},onInput:draw});
+    var cb=U.slider(r1,"大容量コンデンサ",{values:[10,47,100,220,470,1000,2200],value:470,fmt:function(v){return v+" µF";},onInput:draw});
+    var r2=U.ctrls(el);
+    var tr=U.slider(r2,"ソフトスタートの時間",{values:[0,5,10,20,50,100,200],value:50,fmt:function(v){return v?v+" ms":"0（一気に入れる）";},onInput:draw});
+    var fq=U.slider(r2,"PWM の周波数",{values:[1000,2000,5000,10000,20000,50000],value:20000,fmt:function(v){return (v/1000)+" kHz";},onInput:draw});
+    var r3=U.ctrls(el);
+    var vm=U.slider(r3,"マイコンが動く最低の電圧",{min:1.8,max:2.7,step:0.05,value:2.2,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var ad=U.checkbox(r3,"電源の電圧が最低 + 0.2 V より低い間は上げない（6 節のコード）",false,draw);
+    var br=U.btnrow(el);
+    function pre(r,c,t,f,a){ri.set(r);cb.set(c);tr.set(t);fq.set(f);vm.set(2.2);ad.set(!!a);draw();}
+    U.button(br,"6 節 (a) 一気に",function(){pre(0.5,470,0,20000);});
+    U.button(br,"6 節 (b) 50 ms",function(){pre(0.5,470,50,20000);});
+    U.button(br,"コンデンサ 10 µF で 50 ms",function(){pre(0.5,10,50,20000);});
+    U.button(br,"PWM 1 kHz で 50 ms",function(){pre(0.5,470,50,1000);});
+    U.button(br,"弱った電池 1.2 Ω・電圧を見て上げる",function(){pre(1.2,470,50,20000,true);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function sim(Rin,Cb,ramp,f,vlow){
+      return _w12_lamp(Rin,Cb,ramp,f,vlow,Math.max(0.1,ramp*1e-3+0.06));
+    }
+    function draw(){
+      var Rin=ri.get(),Cb=cb.get()*1e-6,ramp=tr.get(),f=fq.get(),Vm=vm.get(),vlow=ad.get()?Vm+0.2:null;
+      var r=sim(Rin,Cb,ramp,f,vlow),nar=_w12_nar(box),W=nar?400:700,o=[],tm=r.tend*1e3;
+      var below=0;r.out.forEach(function(q){if(q[2]<Vm)below+=0.1;});
+      var ymx=Math.max(0.8,r.ibm*1.15);
+      var pi=nar?U.plot(52,30,320,110,[0,tm],[0,ymx]):U.plot(64,30,270,160,[0,tm],[0,ymx]);
+      var pv=nar?U.plot(52,206,320,110,[0,tm],[1.4,3.2]):U.plot(420,30,260,160,[0,tm],[1.4,3.2]);
+      var xt=U.nice(0,tm,4).filter(function(v){return v<=tm+1e-9;});
+      o.push(S.T(pi.x-40,18,"電池の電流","start",10.5,"ink",true));o.push(S.T(pv.x-40,pv.y-12,"電源の電圧（マイコン）","start",10.5,"ink",true));
+      o.push(pi.axes({xl:"入れてからの時間 [ms]",yl:"電流 [A]",xt:xt,yt:U.nice(0,ymx,4).filter(function(v){return v<=ymx;}),xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:42}));
+      o.push(pv.axes({xl:"入れてからの時間 [ms]",yl:"電圧 [V]",xt:xt,yt:[1.4,1.8,2.2,2.6,3.0],xfmt:function(v){return U.sig(v,3);},yfmt:function(v){return U.sig(v,3);},ylOff:42}));
+      o.push(pi.line(r.out.map(function(q){return [q[0]*1e3,q[3]*ymx];}),"faint",1.1,"3 3"));
+      o.push(pi.line([[0,0]].concat(r.out.map(function(q){return [q[0]*1e3,q[1]];})),"gold",2));
+      o.push(pv.line([[0,E]].concat(r.out.map(function(q){return [q[0]*1e3,Math.max(1.4,q[2])];})),"signal",2));
+      o.push(pv.line([[0,Vm],[tm,Vm]],"alias",1.2,"5 3"));o.push(S.T(pv.x+pv.w-2,pv.Y(Vm)+13,"最低 "+Vm.toFixed(2)+" V","end",9,"alias",false,false,null,true));
+      o.push(S.T(pi.x+pi.w-2,pi.y+12,"破線: デューティ（上端で 100 %）","end",9,"muted",false,false,null,true));
+      box.set(S.svg(W,nar?352:242,o));
+      var reset=r.vmin<Vm;
+      var h=(reset?'<span class="warn">電源の電圧が '+_w12_v(r.vmin)+' まで下がり、最低の電圧を約 '+U.sig(below,2)+' ms 下回る: マイコンはリセットされる</span>':'<span class="ok">電源の電圧の最低 '+_w12_v(r.vmin)+'（最低の電圧を下回らない）</span>')+"<br>";
+      h+="電池の電流の最大 <b>"+U.sig(r.ibm,3)+" A</b>、落ち着いた後 "+U.sig(r.ifin,3)+" A ・ MOSFET に流れるパルスの最大 "+U.sig(r.ilm,3)+" A（冷えたフィラメント）<br>";
+      h+="電池の内部抵抗 × 大容量コンデンサ = "+F.time(Rin*Cb)+"、PWM の周期 "+F.time(1/f)+(ramp>0?(1/f<Rin*Cb/2?" → コンデンサがパルスをならす":' → <b>周期が長く、パルスが電池にそのまま出る</b>'):"")+"<br>";
+      if(ramp>0)h+="100 % に届いた時刻: "+(r.tdone>=0?F.time(r.tdone):'<span class="warn">届かない（電源の電圧が低いまま）</span>')+(ad.get()?"（電源の電圧が "+_w12_v(vlow)+" より低い間は上げない）":"");
+      ro.innerHTML=h+'<div class="wnote">電池は起電力 3.0 V、ランプは 2.8 V・0.5 A（冷えているとき 0.56 Ω）、フィラメントの温度は一次遅れ（30 ms）の簡単な模型。リセットした後のことは計算に入れていない（実際には、リセットでランプが切れ、起動し直して入れるとまたリセットする、を繰り返すことがある。15 章 3 節）。値はすべて例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 13 章 モータを回す ===== */
+  /* 例のモータ（例の値）: k = 0.02 N·m/A（= V/(rad/s)）。ほかの値はデモで変えられる */
+  var _w13_K=0.02;
+  function _w13_sig(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
+
+  /* PWM の 1 周期（速さ w は一定とみなす）の電流を閉じた式で求める。diode: OFF の間はダイオードで流す（電流は負にならない） */
+  function _w13_cycle(V,R,L,k,D,f,w,diode){
+    var tau=L/R,T=1/f,t1=D*T,t2=(1-D)*T,Ion=(V-k*w)/R,Ioff=-k*w/R,x1=Math.exp(-t1/tau),x2=Math.exp(-t2/tau);
+    var Ia=(Ioff*(1-x2)+Ion*(1-x1)*x2)/(1-x1*x2),Ib,tz=null;
+    if(diode&&Ia<0){Ia=0;Ib=Math.max(0,Ion*(1-x1));tz=Ioff>=0?t2:Math.min(t2,tau*Math.log((Ib-Ioff)/(-Ioff)));}
+    else Ib=Ion+(Ia-Ion)*x1;
+    var q=Ion*t1+(Ia-Ion)*tau*(1-x1);
+    if(tz===null)q+=Ioff*t2+(Ib-Ioff)*tau*(1-x2);else q+=Ioff*tz+(Ib-Ioff)*tau*(1-Math.exp(-tz/tau));
+    return {Ia:Ia,Ib:Ib,tz:tz,Iavg:q/T,t1:t1,t2:t2,tau:tau,Ion:Ion,Ioff:Ioff};}
+  function _w13_cur(c,t){if(t<=c.t1)return c.Ion+(c.Ia-c.Ion)*Math.exp(-t/c.tau);var u=t-c.t1;return (c.tz!==null&&u>=c.tz)?0:c.Ioff+(c.Ib-c.Ioff)*Math.exp(-u/c.tau);}
+  /* 落ち着いた角速度: k × 平均の電流 = 負荷のトルク を二分法で解く */
+  function _w13_ss(V,R,L,k,TL,D,f,diode){
+    var c0=_w13_cycle(V,R,L,k,D,f,0,diode);if(k*c0.Iavg<=TL)return {w:0,c:c0,stall:true};
+    var lo=0,hi=V/k;for(var i=0;i<60;i++){var m=(lo+hi)/2;if(k*_w13_cycle(V,R,L,k,D,f,m,diode).Iavg>TL)lo=m;else hi=m;}
+    var w=(lo+hi)/2;return {w:w,c:_w13_cycle(V,R,L,k,D,f,w,diode),stall:false};}
+
+  /* ---- 2 節: DC モータの PWM ---- */
+  REG.w13_pwm=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"PWM","DC モータの PWM — 電流の波・リップル・速さ・損失");
+    var r1=U.ctrls(el);
+    var vv=U.slider(r1,"電源の電圧 V",{values:[3,5,6,9,12,18,24],value:12,fmt:function(v){return v+" V";},onInput:draw});
+    var ff=U.slider(r1,"PWM の周波数 f",{min:100,max:100000,log:true,value:20000,fmt:function(v){return v>=1000?_w13_sig(v/1000,3)+" kHz":Math.round(v)+" Hz";},onInput:draw});
+    var dd=U.slider(r1,"デューティ比 D",{min:0.05,max:1,step:0.01,value:0.5,fmt:function(v){return v.toFixed(2);},onInput:draw});
+    var r2=U.ctrls(el);
+    var rr=U.slider(r2,"巻線の抵抗 R",{values:[0.5,1,2,3,5,10],value:2,fmt:function(v){return v+" Ω";},onInput:draw});
+    var ll=U.slider(r2,"インダクタンス L",{min:0.1,max:10,log:true,value:1,fmt:function(v){return _w13_sig(v,3)+" mH";},onInput:draw});
+    var tl=U.slider(r2,"負荷のトルク T_L",{min:0,max:0.03,step:0.001,value:0.01,fmt:function(v){return v.toFixed(3)+" N·m";},onInput:draw});
+    var r3=U.ctrls(el);
+    var path=U.select(r3,"OFF の間の電流の道",["フライバックダイオード（電流は 0 で止まる）","H ブリッジの下の 2 つ（逆向きにも流れる）"],0,draw);
+    var br=U.btnrow(el);
+    function preset(f,D,p){vv.set(12);ff.set(f);dd.set(D);rr.set(2);ll.set(1);tl.set(0.01);path.set(p);draw();}
+    U.button(br,"例の値（20 kHz）",function(){preset(20000,0.5,0);});
+    U.button(br,"2 kHz に下げる",function(){preset(2000,0.5,0);});
+    U.button(br,"2 kHz・下の 2 つで流す",function(){preset(2000,0.5,1);});
+    U.button(br,"25 kHz・デューティ比 0.3",function(){preset(25000,0.3,0);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var V=vv.get(),f=ff.get(),D=dd.get(),R=rr.get(),L=ll.get()*1e-3,TL=tl.get(),diode=path.get()===0,k=_w13_K;
+      var s=_w13_ss(V,R,L,k,TL,D,f,diode),c=s.c,T=1/f,n=4;
+      var us=4*T<2e-3,sc=us?1e6:1e3,un=us?"µs":"ms";
+      /* 波形の点と、2 乗の平均 */
+      var pts=[],imax=-1e9,imin=1e9,sq=0,M=160;
+      for(var p=0;p<n;p++)for(var i=0;i<=M;i++){var t=i/M*T,I=_w13_cur(c,t);pts.push([(p*T+t)*sc,I]);if(p===0&&i<M){sq+=I*I/M;}imax=Math.max(imax,I);imin=Math.min(imin,I);}
+      var ripple=imax-imin,approx=V*D*(1-D)/(L*f),Iavg=c.Iavg;
+      var span=Math.max(imax-imin,0.08*Math.abs(imax),0.02),y0=imin-0.3*span,y1=imax+0.3*span;
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?400:700,o=[],pl=U.plot(nar?62:80,44,nar?320:580,180,[0,n*T*sc],[y0,y1]);
+      o.push(pl.axes({xl:"時間 ["+un+"]",yl:"電流 [A]",ylOff:nar?46:52,nx:nar?4:6}));
+      for(var q=0;q<n;q++)o.push(S.RECT(pl.X(q*T*sc),16,pl.X(D*T*sc)-pl.X(0),12,1,U.soft("gold"),"gold",0.8));
+      o.push(S.T(pl.x-6,26,"ON","end",9,"gold",true));
+      if(y0<0&&y1>0)o.push(S.L(pl.x,pl.Y(0),pl.x+pl.w,pl.Y(0),"faint",1.2));
+      o.push(S.L(pl.x,pl.Y(Iavg),pl.x+pl.w,pl.Y(Iavg),"muted",1,"4 3"));
+      o.push(pl.line(pts,"signal",2));
+      o.push(S.T(pl.x+4,pl.y+12,"破線: 平均 "+_w13_sig(Iavg,3)+" A","start",9.5,"muted",false,false,null,true));
+      box.set(S.svg(W,262,o));
+      var w=s.w,ideal=(D*V-R*Iavg)/k,rpm=w*60/(2*Math.PI);
+      var Pr=R*sq,Prip=R*ripple*ripple/12,Psw=0.5*V*Math.max(Iavg,0)*1e-6*f;
+      var tauE=L/R;
+      var note="";
+      if(s.stall)note='<span class="warn">負荷のトルクに勝てず、回らない（k × 電流 '+_w13_sig(k*c.Iavg,3)+' N·m ≤ T_L）。拘束電流 D V / R が流れ続ける。</span><br>';
+      else if(c.tz!==null)note='<span class="warn">電流が OFF の途中で 0 になる（不連続）。平均の電圧が D V より高くなり、速さはデューティ比どおりにならない。</span><br>';
+      ro.innerHTML=note+
+        "リップル ΔI = <b>"+_w13_sig(ripple,3)+" A</b>（式 V D (1 − D) / (L f) = "+_w13_sig(approx,3)+" A）。周期 1/f = "+F.time(T)+"、電流の時定数 L/R = "+F.time(tauE)+(T<0.2*tauE?"（周期が十分短いので、式が合う）":'（周期が L/R に近いか長いので、<span class="warn">式は合わない</span>）')+"<br>"+
+        "平均の電流 <b>"+_w13_sig(Iavg,3)+" A</b>、角速度 <b>"+_w13_sig(w,3)+" rad/s</b>（"+Math.round(rpm)+" rpm）。デューティ比から求めた (D V − R I) / k = "+_w13_sig(Math.max(0,ideal),3)+" rad/s<br>"+
+        "損失: 巻線の熱 R ×（電流の 2 乗の平均）= "+_w13_sig(Pr,3)+" W（うちリップルの分 R ΔI²/12 ≈ "+_w13_sig(Prip,3)+" W）、スイッチ ½ V I (t_r + t_f) f ≈ "+_w13_sig(Psw,3)+" W（t_r + t_f = 1 µs として）<br>"+
+        (f<20000?'<span class="warn">'+_w13_sig(f/1000,3)+' kHz は人の耳に聞こえる周波数（20 kHz 程度まで）。巻線が鳴ることがある。</span>':'<span class="ok">20 kHz 以上: 耳には聞こえにくい。</span>')+
+        '<div class="wnote">トルク定数 k は 0.02 N·m/A に固めた。速さは 1 周期の中では変わらないとして、周期ごとの電流を閉じた式で求め、平均の電流 × k が負荷のトルクに等しくなる速さを探した。ダイオードの順電圧は無視した。値は例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 3 節: 止め方と電源の線の電圧 ---- */
+  REG.w13_stop=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"STOP","止め方と電源の線の電圧 — 惰性・短絡ブレーキ・回生");
+    var r1=U.ctrls(el);
+    var how=U.select(r1,"止め方",["惰性停止（4 つとも切る）","短絡ブレーキ（下の 2 つを入れる）","回生しながら減速（デューティ比を下げる）","回生しながら減速し、電圧を見張って短絡ブレーキへ"],2,draw);
+    var sink=U.select(r1,"電源",["電流を吸い込めない（AC アダプタ・ダイオードの後ろ）","電流を吸い込める（充電できる電池）"],0,draw);
+    var r2=U.ctrls(el);
+    var td=U.slider(r2,"減速の時間",{values:[0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.8,1.0],value:0.1,fmt:function(v){return v+" s";},onInput:draw});
+    var cc=U.slider(r2,"電源の線の容量 C",{values:[100,220,470,1000,2200,4700],value:470,fmt:function(v){return v+" µF";},onInput:draw});
+    var io=U.slider(r2,"ほかの回路の電流",{values:[0,0.05,0.1,0.2,0.5],value:0.1,fmt:function(v){return v+" A";},onInput:draw});
+    var r3=U.ctrls(el);
+    var jj=U.slider(r3,"慣性モーメント J",{values:[2e-6,5e-6,1e-5,2e-5,5e-5],value:1e-5,fmt:function(v){return _w13_sig(v*1e5,2)+" × 10⁻⁵ kg·m²";},onInput:draw});
+    var vl=U.slider(r3,"見張る電圧（最後の止め方）",{values:[13,14,15,16,18,20],value:15,fmt:function(v){return v+" V";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(h,t){how.set(h);td.set(t);cc.set(470);io.set(0.1);sink.set(0);jj.set(1e-5);vl.set(15);draw();}
+    U.button(br,"3 節の例（回生・0.1 s）",function(){preset(2,0.1);});
+    U.button(br,"惰性停止",function(){preset(0,0.1);});
+    U.button(br,"短絡ブレーキ",function(){preset(1,0.1);});
+    U.button(br,"惰性停止の時間より長く減速（0.6 s）",function(){preset(2,0.6);});
+    U.button(br,"見張って 15 V で短絡ブレーキへ",function(){preset(3,0.1);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function sim(m,tdec,C,Io,snk,J,vlim){
+      var R=2,L=1e-3,k=_w13_K,TL=0.01,V0=12,w=(V0-R*TL/k)/k,I=TL/k,Vb=V0,mode=m,t=0,dt=1e-5,tend=Math.max(0.6,Math.min(3,J*w/TL+0.15));
+      if(m>=2)tend=Math.max(tend,tdec+0.2);
+      var out=[],tstop=null,vmax=Vb,imin=0,ER=0,El=0,Er=0,N=Math.round(tend/dt),ev=Math.max(1,Math.floor(N/500)),Ek=0.5*J*w*w;
+      for(var i=0;i<=N;i++){
+        if(i%ev===0)out.push([t,w,I,Vb]);
+        var vm;
+        if(mode===0)vm=I>1e-12?-Vb:null;
+        else if(mode===1)vm=0;
+        else{vm=Math.max(0,1-t/tdec)*Vb;if(mode===3&&Vb>vlim){mode=1;vm=0;}}
+        var ib=0;
+        if(vm===null)I=0;
+        else{I+=(vm-R*I-k*w)/L*dt;if(mode===0&&I<0)I=0;ib=vm*I/Vb;}
+        var tm=k*I,tl=w>1e-9?TL:Math.min(TL,Math.max(-TL,tm));
+        w+=(tm-tl)/J*dt;if(w<0)w=0;
+        if(snk)Vb=V0;else Vb+=(Math.max(0,(V0-Vb)/0.05)-Io-ib)/C*dt;
+        ER+=R*I*I*dt;El+=tl*w*dt;if(vm!==null&&vm*I<0)Er+=-vm*I*dt;
+        if(Vb>vmax)vmax=Vb;if(I<imin)imin=I;if(tstop===null&&w<=0)tstop=t;t+=dt;}
+      return {out:out,tstop:tstop,vmax:vmax,imin:imin,ER:ER,El:El,Er:Er,Ek:Ek,tend:tend,w0:(V0-R*TL/k)/k};}
+    function draw(){
+      var m=how.get(),tdec=td.get(),C=cc.get()*1e-6,Io=io.get(),snk=sink.get()===1,J=jj.get(),vlim=vl.get();
+      td.el.style.opacity=m>=2?"1":"0.45";vl.el.style.opacity=m===3?"1":"0.45";
+      var r=sim(m,tdec,C,Io,snk,J,vlim),tm=r.tend*1e3,o=[],nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?400:700,pw=nar?300:560;
+      var vtop=Math.max(14,Math.ceil(r.vmax/5)*5+2);
+      var pa=U.plot(84,30,pw,80,[0,tm],[0,600]),pb=U.plot(84,146,pw,80,[0,tm],[-6,1]),pc=U.plot(84,262,pw,80,[0,tm],[10,vtop]);
+      function frame(p,title,yl,yt){o.push(S.T(p.x,p.y-8,title,"start",10.5,"ink",true));
+        yt.forEach(function(v){o.push(S.L(p.x,p.Y(v),p.x+p.w,p.Y(v),"grid",1));o.push(S.T(p.x-6,p.Y(v)+3.5,String(v),"end",9.5,"muted"));});
+        o.push(S.W([p.x,p.y,p.x,p.y+p.h,p.x+p.w,p.y+p.h],"muted",1.2));o.push(S.T(p.x-44,p.y+p.h/2,yl,"middle",9.5,"muted",false,false,-90));}
+      frame(pa,"角速度","[rad/s]",[0,200,400,600]);frame(pb,"モータの電流（負は逆向き）","[A]",[-6,-4,-2,0]);
+      var vt=[];for(var v=10;v<=vtop;v+=vtop>25?10:5)vt.push(v);frame(pc,"電源の線の電圧","[V]",vt);
+      var xt=U.nice(0,tm,nar?4:6);xt.forEach(function(x){if(x<=tm+1e-9){o.push(S.T(pc.X(x),pc.y+pc.h+15,String(x),"middle",9.5,"muted"));}});
+      o.push(S.T(pc.x+pc.w/2,pc.y+pc.h+31,"止め始めてからの時間 [ms]","middle",10,"muted"));
+      var col=["signal","purple","alias","alias"][m];
+      o.push(pa.line(r.out.map(function(q){return [q[0]*1e3,q[1]];}),col,2));
+      o.push(pb.line(r.out.map(function(q){return [q[0]*1e3,Math.max(-6,q[2])];}),col,2));
+      o.push(pc.line(r.out.map(function(q){return [q[0]*1e3,Math.min(vtop,q[3])];}),col,2));
+      var tc=J*r.w0/0.01;
+      if(m>=2&&tdec*1e3<=tm)o.push(S.L(pa.X(tdec*1e3),pa.y,pa.X(tdec*1e3),pa.y+pa.h,"faint",1,"3 3"));
+      if(tc*1e3<=tm){o.push(S.L(pa.X(tc*1e3),pa.y,pa.X(tc*1e3),pa.y+pa.h,"green",1.2,"4 3"));o.push(S.T(pa.X(tc*1e3)+4,pa.y+12,"惰性停止の時間","start",9,"green",false,false,null,true));}
+      if(m===3)o.push(S.L(pc.x,pc.Y(vlim),pc.x+pc.w,pc.Y(vlim),"alias",1,"4 3"));
+      box.set(S.svg(W,384,o));
+      var rest=r.Ek-r.ER-r.El;
+      ro.innerHTML="止まるまで <b>"+(r.tstop!==null?F.time(r.tstop):"表示の範囲では止まらない")+"</b>、逆向きの電流の最大 <b>"+_w13_sig(-r.imin,3)+" A</b>、電源の線の電圧の最大 <b>"+_w13_sig(r.vmax,3)+" V</b>"+
+        (r.vmax>16?'（<span class="warn">12 V 用の部品の耐える電圧を超えうる</span>）':"")+"<br>"+
+        "惰性停止の時間 J ω₀ / T_L = "+F.time(tc)+(m>=2?(tdec>=tc?'。減速の時間がこれ以上なので、<span class="ok">電流は逆向きにならず、回生は起きない</span>':'。減速の時間がこれより短いので、<span class="warn">回生が起きる</span>'):"")+"<br>"+
+        U.tbl(["エネルギー","値"],[["はじめの運動のエネルギー ½ J ω²",_w13_sig(r.Ek,3)+" J"],["巻線の抵抗の熱",_w13_sig(r.ER,3)+" J"],["負荷の摩擦の熱",_w13_sig(r.El,3)+" J"],["電源の側へ戻った分",_w13_sig(r.Er,3)+" J"]],["left","right"])+
+        '<div class="wnote">例のモータ（R = 2 Ω、L = 1 mH、k = 0.02、負荷のトルク 0.01 N·m）が 12 V で回っているところから止める。H ブリッジは平均の電圧で表した。減速の初めはまだモータを回す向きに電流が流れるので、熱と戻った分の和は、はじめの運動のエネルギーより大きくなることがある。値は例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: ステッピングモータの加減速と脱調 ---- */
+  REG.w13_step=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"STEPPER","ステッピングモータの加減速と脱調");
+    var r1=U.ctrls(el);
+    var vm=U.slider(r1,"最高の速さ",{values:[1000,1500,2000,2500,3000,3500,4000,5000],value:3000,fmt:function(v){return v+" 段/s";},onInput:draw});
+    var ac=U.slider(r1,"加速度 a",{values:[2000,5000,10000,15000,20000,30000,40000,60000],value:10000,fmt:function(v){return v.toLocaleString("en-US")+" 段/s²";},onInput:draw});
+    var r2=U.ctrls(el);
+    var tl=U.slider(r2,"負荷のトルク T_L",{values:[0,0.02,0.05,0.08,0.1],value:0.05,fmt:function(v){return v+" N·m";},onInput:draw});
+    var jj=U.slider(r2,"慣性モーメント J",{values:[0.5e-4,1e-4,2e-4,4e-4],value:1e-4,fmt:function(v){return _w13_sig(v*1e4,2)+" × 10⁻⁴ kg·m²";},onInput:draw});
+    var th=U.slider(r2,"保持トルク（電流で決まる）",{values:[0.2,0.3,0.4,0.5],value:0.4,fmt:function(v){return v+" N·m";},onInput:draw});
+    var r3=U.ctrls(el);
+    var ns=U.slider(r3,"動かす段の数",{values:[1000,2000,4000,8000],value:4000,fmt:function(v){return v+" 段";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(v,a,h){vm.set(v);ac.set(a);tl.set(0.05);jj.set(1e-4);th.set(h);ns.set(4000);draw();}
+    U.button(br,"5 節の例（10,000 段/s²）",function(){preset(3000,10000,0.4);});
+    U.button(br,"加速を急に（30,000 段/s²）",function(){preset(3000,30000,0.4);});
+    U.button(br,"最高の速さを上げる（5,000 段/s）",function(){preset(5000,10000,0.4);});
+    U.button(br,"電流を下げる（保持トルク 0.2 N·m）",function(){preset(3000,10000,0.2);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    var TH=Math.PI/100,NR=50;
+    function tp(v,h){return h/Math.sqrt(1+Math.pow(v/800,2));}
+    function sim(vmax,a,TL,J,h,N){
+      var wn=Math.sqrt(NR*h/J),b=2*0.03*J*wn,dt=2e-5,p=0,v=0,th_=0,om=0,t=0,tdone=null,slip=false,maxlag=0,out=[],k=0;
+      for(;;){
+        var rem=N-p;
+        if(rem<=0){v=0;p=N;}else{if(v*v/(2*a)>=rem)v=Math.max(0,v-a*dt);else if(v<vmax)v=Math.min(vmax,v+a*dt);p=Math.min(N,p+v*dt);}
+        if(p>=N&&v===0&&tdone===null)tdone=t;
+        var lag=NR*(p*TH-th_),T=tp(v,h)*Math.sin(lag)-b*(om-v*TH);
+        var fr=Math.abs(om)>1e-6?TL*(om>0?1:-1):Math.max(-TL,Math.min(TL,T));
+        om+=(T-fr)/J*dt;th_+=om*dt;t+=dt;
+        if(Math.abs(lag)>maxlag)maxlag=Math.abs(lag);if(Math.abs(lag)>Math.PI)slip=true;
+        if(k%100===0)out.push([t,v,om/TH,p-th_/TH]);k++;
+        if((tdone!==null&&t>tdone+0.3)||t>12)break;}
+      return {out:out,slip:slip,err:N-th_/TH,tdone:tdone,maxlag:maxlag};}
+    function draw(){
+      var vmax=vm.get(),a=ac.get(),TL=tl.get(),J=jj.get(),h=th.get(),N=ns.get();
+      var r=sim(vmax,a,TL,J,h,N),tend=r.out[r.out.length-1][0],o=[],nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?400:700;
+      var need=J*a*TH+TL,have=tp(vmax,h),amax=(have-TL)/(J*TH);
+      /* 左: 速さと位置の差 */
+      var emax=0;r.out.forEach(function(q){emax=Math.max(emax,Math.abs(q[3]));});emax=Math.max(8,emax*1.1);
+      var pa=U.plot(70,34,nar?300:330,140,[0,tend],[0,Math.max(vmax*1.15,500)]),pb=U.plot(70,226,nar?300:330,90,[0,tend],[-emax*0.15,emax]);
+      o.push(S.T(pa.x,20,"(a) 指令の速さと回転子の速さ","start",10.5,"ink",true));
+      o.push(pa.axes({yl:"[段/s]",ylOff:52,xt:U.nice(0,tend,5).filter(function(x){return x<=tend;}),xfmt:function(x){return _w13_sig(x,3);}}));
+      o.push(pa.line(r.out.map(function(q){return [q[0],Math.max(-vmax*0.1,q[2])];}),r.slip?"alias":"signal",1.6));
+      o.push(pa.line(r.out.map(function(q){return [q[0],q[1]];}),"gold",1.6,"5 3"));
+      o.push(S.T(pa.x+pa.w-4,pa.y+12,"破線: 指令","end",9.5,"gold",true,false,null,true));
+      o.push(S.T(pa.x+pa.w-4,pa.y+26,"実線: 回転子","end",9.5,r.slip?"alias":"signal",true,false,null,true));
+      o.push(S.T(pb.x,pb.y-10,"(b) 指令と回転子の位置の差","start",10.5,"ink",true));
+      o.push(pb.axes({xl:"時間 [s]",yl:"[段]",ylOff:52,xt:U.nice(0,tend,5).filter(function(x){return x<=tend;}),yt:U.nice(0,emax,3),xfmt:function(x){return _w13_sig(x,3);}}));
+      o.push(S.L(pb.x,pb.Y(4),pb.x+pb.w,pb.Y(4),"alias",1,"3 3"));
+      o.push(pb.line(r.out.map(function(q){return [q[0],q[3]];}),r.slip?"alias":"signal",1.6));
+      o.push(S.T(pb.x+pb.w-4,pb.Y(4)-5,"4 段（脱調の目安）","end",9,"alias",false,false,null,true));
+      /* 右: 速さとトルク */
+      var pc=nar?U.plot(70,390,300,170,[0,5000],[0,Math.max(0.55,need*1.1)]):U.plot(470,34,210,240,[0,5000],[0,Math.max(0.55,need*1.1)]);
+      o.push(S.T(nar?70:440,pc.y-14,"(c) 要るトルクと出せるトルク","start",10.5,"ink",true));
+      o.push(pc.axes({xl:"速さ [段/s]",yl:"[N·m]",ylOff:44,xt:[0,2500,5000],xfmt:function(x){return String(x);},yfmt:function(x){return _w13_sig(x,2);}}));
+      var cv=[];for(var vv=0;vv<=5000;vv+=50)cv.push([vv,tp(vv,h)]);
+      o.push(pc.line(cv,"green",2));
+      o.push(pc.line([[0,TL],[5000,TL]],"muted",1,"4 3"));
+      var bad=need>have;
+      o.push(pc.line([[0,need],[vmax,need]],bad?"alias":"signal",2));
+      o.push(S.L(pc.X(vmax),pc.y,pc.X(vmax),pc.y+pc.h,"faint",1,"3 3"));
+      if(bad&&need<h){var vx=800*Math.sqrt(Math.pow(h/need,2)-1);o.push(S.D(pc.X(vx),pc.Y(need),"alias",4));}
+      o.push(S.T(pc.X(5000)-4,pc.Y(tp(5000,h))-8,"出せる","end",9.5,"green",true,false,null,true));
+      o.push(S.T(pc.X(60),pc.Y(need)-6,"加速の間に要る","start",9.5,bad?"alias":"signal",true,false,null,true));
+      box.set(S.svg(W,nar?610:360,o));
+      var dist=vmax*vmax/(2*a);
+      ro.innerHTML=(r.slip?'<span class="warn">脱調した</span>。回転子は指令に '+_w13_sig(r.err,3)+' 段遅れたまま止まった（マイコンは気づかない）。':(need>have?'脱調しなかったが、<span class="warn">要るトルクが出せるトルクを超えていて、余裕が無い</span>（この模型では遅れが戻った）。':'<span class="ok">脱調しない</span>。')+'最後の位置の差 '+_w13_sig(r.err,2)+' 段。')+"<br>"+
+        "加速の間に要るトルク J a θ_s + T_L = <b>"+_w13_sig(need,3)+" N·m</b>、最高の速さで出せるトルク T_p = <b>"+_w13_sig(have,3)+" N·m</b> → 加速度の上限 (T_p − T_L) / (J θ_s) = <b>"+(amax>0?Math.round(amax).toLocaleString("en-US")+" 段/s²":"0（負荷にも勝てない）")+"</b><br>"+
+        "減速を始める位置: 残り v² / (2a) = "+Math.round(dist).toLocaleString("en-US")+" 段（"+F.time(vmax/a)+"）"+(2*dist>N?"。段の数が少なく、最高の速さに届く前に減速する":"")+(r.tdone?"。指令を出し終えるまで "+F.time(r.tdone):"")+
+        '<div class="wnote">出せるトルクは T_p(v) = 保持トルク ÷ √(1 + (v/800)²) の代表的な形の例。回転子は、指令の角度との差に応じたトルク（差が 1 段で最大）で引かれる簡単な模型で、振動を少し抑える減衰を加えた。ステップ角 1.8°。値は例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 14 章 熱を扱う ===== */
+  /* 狭い画面（表示枠が 520 px 未満）では、図を幅 400 に組み替える */
+  function _w14_nar(box){var w=box.el.clientWidth;return w>0&&w<520;}
+  function _w14_sig(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
+  function _w14_f(v,d){v=+v;if(Math.abs(v)<0.5*Math.pow(10,-d))v=0;return v.toFixed(d).replace("-","−");}
+  function _w14_days(n){return n>=365?_w14_sig(n/365,2)+" 年":_w14_sig(n,3)+" 日";}
+
+  /* PID（本文 3 節の離散の式。微分は読みに掛け、aw なら条件付きの積分と積分の項の上限） */
+  function _w14_pid(Kp,Ti,Td,aw,dt,Tset){
+    var I=0,y1=null;
+    return {
+      step:function(y,ok){
+        if(!ok){y1=null;return 0;}
+        var e=Tset-y,P=Kp*e,D=(Td&&y1!==null)?-Kp*Td*(y-y1)/dt:0;y1=y;
+        var dI=Ti?Kp*dt/Ti*e:0,u0=P+I+D;
+        if(aw){if(!((u0>=1&&dI>0)||(u0<=0&&dI<0)))I+=dI;I=Math.min(Math.max(I,0),1);}else I+=dI;
+        return Math.min(Math.max(P+I+D,0),1);},
+      setI:function(v){I=v;},
+      I:function(){return I;}};
+  }
+  /* オンオフ（本文 2 節の onoff_step と同じ。1 s ごと） */
+  function _w14_onoff(Tset,h,minOff){
+    var on=false,off=0;
+    return {step:function(y,ok){
+      if(!on&&off<65535)off++;
+      if(!ok||(on&&y>=Tset+h))on=false;
+      else if(!on&&y<=Tset-h&&off>=minOff){on=true;off=0;}
+      return on?1:0;}};
+  }
+  /* 見張り（本文 5 節の guard_step と同じ。温度は °C、出力は 0〜1） */
+  function _w14_guard(g,sf,t,u){
+    if(!g.fault&&sf)g.fault="センサの故障（範囲の外が 3 回続いた）";
+    else if(!g.fault&&t>=75)g.fault="上限の温度（75 °C）";
+    if(g.fault)return 0;
+    if(u<0.9){g.hi=0;return u;}
+    if(g.hi%60===0)g.t0=t;
+    g.hi++;
+    if(g.hi%60===0&&t-g.t0<2)g.fault="入れているのに上がらない";
+    else if(g.hi>=600)g.fault="高い出力が長すぎる";
+    return g.fault?0:u;
+  }
+  /* 時間の軸に沿った帯（0〜1 の出力）を描く */
+  function _w14_strip(S,U,x,y,w,h,t1,pts,c,label){
+    var o=[S.RECT(x,y,w,h,2,"var(--screen)","line",0.8)],q=[[x,y+h]];
+    pts.forEach(function(p){q.push([x+p[0]/t1*w,y+h-p[1]*h]);});
+    q.push([x+w,y+h]);o.push(S.PL(q,c,0.8,c,null,0.3));
+    if(label)o.push(S.T(x-6,y+h-2,label,"end",9.5,c));
+    return o.join("");
+  }
+
+  /* ---- 3 節: 保温プレートの温度の制御 ---- */
+  REG.w14_ctrl=function(el,U){
+    var S=U.S;
+    U.head(el,"HEATER","保温プレートの温度の制御（オンオフ・P・PI・PID）");
+    var r1=U.ctrls(el);
+    var mode=U.select(r1,"制御の方法",["オンオフ","P（比例だけ）","PI","PID"],3,draw);
+    var ta=U.slider(r1,"周囲温度",{min:0,max:40,step:1,value:25,fmt:function(v){return v+" °C";},onInput:draw});
+    var ts=U.slider(r1,"目標",{min:40,max:90,step:1,value:60,fmt:function(v){return v+" °C";},onInput:draw});
+    var r2=U.ctrls(el);
+    var rth=U.slider(r2,"熱抵抗",{values:[0.5,0.75,1,1.25,1.5,2,2.5,3],value:1.25,fmt:function(v){return v+" K/W";},onInput:draw});
+    var cth=U.slider(r2,"熱容量",{values:[100,200,300,400,600,800,1200,1600],value:400,fmt:function(v){return v+" J/K";},onInput:draw});
+    var pm=U.slider(r2,"ヒータの電力",{values:[20,40,60,80,100,150,200],value:80,fmt:function(v){return v+" W";},onInput:draw});
+    var ld=U.slider(r2,"むだ時間 L",{values:[0,5,10,20,30,40,60],value:20,fmt:function(v){return v+" s";},onInput:draw});
+    var rO=U.ctrls(el);
+    var hy=U.slider(rO,"ヒステリシス h",{values:[0,0.25,0.5,1,2,3],value:0.5,fmt:function(v){return "± "+v+" K";},onInput:draw});
+    var mo=U.slider(rO,"切ってから入れるまでの最短",{values:[0,30,60,120,180,300],value:0,fmt:function(v){return v+" s";},onInput:draw});
+    var rP=U.ctrls(el);
+    var kp=U.slider(rP,"Kp",{values:[0.02,0.05,0.1,0.15,0.2,0.3,0.4,0.5,0.8,1],value:0.3,fmt:function(v){return v+" /K";},onInput:draw});
+    var ti=U.slider(rP,"Ti",{values:[10,20,40,60,80,120,200,400,1000],value:40,fmt:function(v){return v+" s";},onInput:draw});
+    var td=U.slider(rP,"Td",{values:[0,2,5,10,15,20,30],value:10,fmt:function(v){return v+" s";},onInput:draw});
+    var r4=U.ctrls(el);
+    var aw=U.checkbox(r4,"積分の飽和の対策",true,draw);
+    var wind=U.checkbox(r4,"1200 s に風が当たる（熱抵抗 × 0.64）",true,draw);
+    var br=U.btnrow(el);
+    function base(){ta.set(25);ts.set(60);rth.set(1.25);cth.set(400);pm.set(80);ld.set(20);hy.set(0.5);mo.set(0);aw.set(true);wind.set(true);}
+    function pid(m,k,i,d){mode.set(m);kp.set(k);ti.set(i);td.set(d);}
+    U.button(br,"2 節の例（オンオフ）",function(){base();mode.set(0);draw();});
+    U.button(br,"P（0.3 /K）",function(){base();pid(1,0.3,40,10);draw();});
+    U.button(br,"PI（0.3 /K・40 s）",function(){base();pid(2,0.3,40,10);draw();});
+    U.button(br,"PID（ジーグラとニコルス）",function(){base();pid(3,0.3,40,10);draw();});
+    U.button(br,"積分の飽和の対策なし",function(){base();pid(3,0.3,40,10);aw.set(false);draw();});
+    U.button(br,"むだ時間を見誤る（実は 40 s）",function(){base();pid(3,0.3,40,10);ld.set(40);draw();});
+    U.button(br,"穏やかな PID で L 40 s（0.15 /K・80 s・10 s）",function(){base();pid(3,0.15,80,10);ld.set(40);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var M=mode.get();
+      rO.style.display=M===0?"":"none";rP.style.display=M>0?"":"none";
+      ti.el.style.display=M>=2?"":"none";td.el.style.display=M===3?"":"none";aw.el.style.display=M>=2?"":"none";
+      var Ta=ta.get(),Tset=ts.get(),R=rth.get(),C=cth.get(),P=pm.get(),L=ld.get(),W2=wind.get();
+      var ctl=M===0?_w14_onoff(Tset,hy.get(),mo.get()):_w14_pid(kp.get(),M>=2?ti.get():0,M===3?td.get():0,aw.get(),1,Tset);
+      /* 0.1 s 刻みで板を進め、1 s ごとに読んで出力を決める */
+      var dt=0.1,tend=2400,n=Math.round(tend/dt),nd=Math.round(L/dt),hist=new Float64Array(n+1),T=Ta,u=0,out=[],ons=[],prevOn=0;
+      for(var k=0;k<=n;k++){
+        var t=k*dt;hist[k]=T;
+        var rd=k>=nd?hist[k-nd]:Ta;
+        if(k%10===0){u=ctl.step(rd,true);if(u>0.5&&prevOn<0.5)ons.push(t);prevOn=u;}
+        if(k%20===0)out.push([t,T,rd,u]);
+        var Rt=(W2&&t>=1200)?R*0.64:R,Tinf=Ta+P*u*Rt;
+        T=Tinf+(T-Tinf)*Math.exp(-dt/(Rt*C));
+      }
+      /* 指標 */
+      function seg(a,b){var v=out.filter(function(p){return p[0]>=a&&p[0]<b;}).map(function(p){return p[1];});var mn=Math.min.apply(null,v),mx=Math.max.apply(null,v),av=v.reduce(function(s,x){return s+x;},0)/v.length;return {mn:mn,mx:mx,av:av};}
+      var A=seg(0,1200),B=seg(1000,1200),D2=seg(2200,2400),Dd=seg(1200,2400);
+      var settle=-1;out.forEach(function(p){if(p[0]<1200&&Math.abs(p[1]-Tset)>0.5)settle=p[0];});
+      var nar=_w14_nar(box),Wd=nar?400:700,x0=nar?52:62,pw=nar?330:610,o=[];
+      var all=out.map(function(p){return p[1];}),hi=Math.max(Math.max.apply(null,all),Tset)+3,lo=Math.min(Ta,Tset-10)-2;
+      var y0=Math.floor(lo/5)*5,y1=Math.ceil(hi/5)*5;
+      var p=U.plot(x0,16,pw,190,[0,2400],[y0,y1]);
+      o.push(p.axes({xl:"時間 [s]",yl:"温度 [°C]",xt:[0,400,800,1200,1600,2000,2400],yt:U.nice(y0,y1,5).filter(function(v){return v>=y0&&v<=y1;}),xfmt:function(v){return String(v);},yfmt:function(v){return String(v);},ylOff:nar?36:40}));
+      o.push(p.line([[0,Tset],[2400,Tset]],"green",1.2,"5 3"));
+      if(W2){o.push(S.L(p.X(1200),p.y,p.X(1200),p.y+p.h,"alias",1,"3 3"));o.push(S.T(p.X(1200)+4,p.y+12,"風","start",9.5,"alias",true,false,null,true));}
+      if(L>0)o.push(p.line(out.map(function(q){return [q[0],q[2]];}),"teal",1.3,"5 3"));
+      o.push(p.line(out.map(function(q){return [q[0],q[1]];}),"signal",2));
+      o.push(S.T(p.X(2390),p.Y(Tset)-5,"目標 "+Tset+" °C","end",9.5,"green",false,false,null,true));
+      o.push(_w14_strip(S,U,p.x,p.y+p.h+40,p.w,14,2400,out.map(function(q){return [q[0],q[3]];}),"purple","ヒータ"));
+      o.push(S.T(p.x,p.y+p.h+70,"青: 板の温度　緑の破線: 目標"+(L>0?"　青緑の破線: センサの読み（L 遅れ）":""),"start",9.5,"muted"));
+      box.set(S.svg(Wd,p.y+p.h+78,o));
+      /* 読み出し */
+      var h="",K=P*R,warn="";
+      if(Ta+K<Tset)warn+='<span class="warn">ヒータの電力が足りない: 入れ続けても '+_w14_f(Ta+K,1)+' °C までしか上がらない</span><br>';
+      if(W2&&Ta+P*R*0.64<Tset)warn+='<span class="warn">風が当たると、入れ続けても '+_w14_f(Ta+P*R*0.64,1)+' °C までしか上がらない</span><br>';
+      h+="冷えた所から: 最高 <b>"+_w14_f(A.mx,2)+" °C</b>"+(A.mx>Tset?"（行き過ぎ "+_w14_f(A.mx-Tset,2)+" K）":"")+(M===0?"":(settle>=1100?'、<span class="warn">1200 s までに ±0.5 K に落ち着かない</span>':"、±0.5 K に入るのは "+Math.round(settle+2)+" s（その後は出ない）"))+"<br>";
+      h+="1000〜1200 s: 平均 "+_w14_f(B.av,2)+" °C（偏差 "+_w14_f(Tset-B.av,2)+" K）、振れ幅 "+_w14_f(B.mx-B.mn,2)+" K"+(M>0&&B.mx-B.mn>0.5?' <span class="warn">振動が収まらない</span>':"")+"<br>";
+      if(W2)h+="風の後: 最低 "+_w14_f(Dd.mn,2)+" °C、2200〜2400 s の平均 "+_w14_f(D2.av,2)+" °C（偏差 "+_w14_f(Tset-D2.av,2)+" K）、振れ幅 "+_w14_f(D2.mx-D2.mn,2)+" K<br>";
+      if(M===0){
+        var on1=ons.filter(function(t){return t>=300&&t<1200;}),c1=on1.length,perDay=c1>=2?86400*(c1-1)/(on1[c1-1]-on1[0]):0,hh=hy.get();
+        var up=(Ta+K-(Tset+hh))*(1-Math.exp(-L/(R*C))),dn=((Tset-hh)-Ta)*(1-Math.exp(-L/(R*C)));
+        h+="入れ切り: 300〜1200 s の往復の周期 "+(c1>=2?_w14_sig((on1[c1-1]-on1[0])/(c1-1),4)+" s":"—")+" → 1 日 約 "+Math.round(perDay)+" 回、リレー（10 万回）は約 "+(perDay>0?_w14_days(1e5/perDay):"—")+"<br>";
+        if(Ta+K>Tset+hh&&Tset-hh>Ta)h+="2 節の式（読む間隔を 0 とした値）: "+_w14_f(Tset-hh-dn,2)+"〜"+_w14_f(Tset+hh+up,2)+" °C（行き過ぎ "+_w14_f(up,2)+" K、下がり過ぎ "+_w14_f(dn,2)+" K）<br>";
+      }
+      if(M===1){var kv=kp.get();h+="定常偏差の式 (T_set − T_a) ÷ (1 + K Kp) = "+_w14_f((Tset-Ta)/(1+K*kv),2)+" K（K = "+_w14_sig(K,3)+" K）"+(W2?"、風の後 "+_w14_f((Tset-Ta)/(1+K*0.64*kv),2)+" K":"")+"<br>";}
+      if(M>0&&L>0){var zn=1.2*R*C/(K*L);h+="ジーグラとニコルスの目安: Kp = 1.2τ ÷ (KL) = "+_w14_sig(zn,2)+" /K、Ti = "+(2*L)+" s、Td = "+(0.5*L)+" s（τ = "+_w14_sig(R*C,3)+" s、K = "+_w14_sig(K,3)+" K）<br>";}
+      ro.innerHTML=warn+h+'<div class="wnote">板は熱抵抗と熱容量の一次遅れ、センサの読みはむだ時間 L だけ遅れるとした。0.1 s 刻みで計算し、制御は 1 s ごと。冷えた板（周囲温度）から始める。値はどれも例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 4 節: 交流のヒータの入れ切り ---- */
+  REG.w14_cycle=function(el,U){
+    var S=U.S;
+    U.head(el,"AC HEATER","交流のヒータの入れ切りの方法");
+    var r1=U.ctrls(el);
+    var uu=U.slider(r1,"出力",{min:0,max:100,step:1,value:30,fmt:function(v){return v+" %";},onInput:draw});
+    var meth=U.select(r1,"入れ方",["散らす（1 周期ごとに足し込む）","窓でまとめる（バースト）","半周期単位で散らす","位相制御（06 章 6 節）"],0,draw);
+    var r2=U.ctrls(el);
+    var nw=U.slider(r2,"窓の周期数 N",{values:[5,10,20,50,100,200],value:50,fmt:function(v){return v+" 周期";},onInput:draw});
+    var fq=U.select(r2,"周波数",["50 Hz","60 Hz"],0,draw);
+    var ht=U.select(r2,"ヒータ",["保温プレート 80 W（板 400 J/K）","ファンヒータ 1 kW（例）"],0,draw);
+    var br=U.btnrow(el);
+    U.button(br,"4 節の例（30 %・散らす）",function(){uu.set(30);meth.set(0);nw.set(50);draw();});
+    U.button(br,"窓 100 周期でまとめる（35 %）",function(){uu.set(35);meth.set(1);nw.set(100);draw();});
+    U.button(br,"半周期単位で 50 %",function(){uu.set(50);meth.set(2);draw();});
+    U.button(br,"位相制御 30 %",function(){uu.set(30);meth.set(3);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function phaseFrac(a){return 1-a/Math.PI+Math.sin(2*a)/(2*Math.PI);}
+    function draw(){
+      var u=uu.get()/100,m=+meth.get(),N=nw.get(),f=fq.get()===0?50:60,big=ht.get()===1;
+      nw.el.style.display=m===1?"":"none";
+      var Pm=big?1000:80,Vr=100,Irms=Pm/Vr,Ipk=Irms*Math.SQRT2,Cth=400;
+      /* 半周期ごとの導通の割合（0〜1）を 2000 周期ぶん作る */
+      var NH=4000,frac=new Float64Array(NH),alpha=0,i;
+      if(m===3){var lo=0,hi=Math.PI;for(i=0;i<60;i++){var mid=(lo+hi)/2;if(phaseFrac(mid)>u)lo=mid;else hi=mid;}alpha=(lo+hi)/2;if(u<=0)alpha=Math.PI;if(u>=1)alpha=0;}
+      var acc=0,nOn=Math.round(u*N);
+      for(i=0;i<NH;i++){
+        if(m===0){if(i%2===0){acc+=Math.round(u*1000);var on=acc>=1000;if(on)acc-=1000;frac[i]=on?1:0;}else frac[i]=frac[i-1];}
+        else if(m===1){var c=Math.floor(i/2)%N;frac[i]=c<nOn?1:0;}
+        else if(m===2){acc+=Math.round(u*1000);if(acc>=1000){acc-=1000;frac[i]=1;}else frac[i]=0;}
+        else frac[i]=u<=0?0:(u>=1?1:1);   /* 位相制御は毎半周期、α から導通 */
+      }
+      /* 電力・直流の成分・入れ切りの回数 */
+      var pw=0,dc=0,tr=0;
+      for(i=0;i<NH;i++){
+        var pf=m===3?phaseFrac(alpha):frac[i];pw+=pf;
+        var area=m===3?(1+Math.cos(alpha))/2:frac[i];      /* 半周期の電流の面積（全導通で 1） */
+        dc+=(i%2===0?1:-1)*area;
+        if(i>0&&m!==3&&frac[i]!==frac[i-1])tr++;
+      }
+      pw/=NH;
+      var Idc=dc/NH*(2/Math.PI)*Ipk;                        /* 電流の平均 [A] */
+      var trPerS=m===3?2*f*2:tr/(NH/(2*f));
+      /* 板の温度の上下（周期の中の熱の出入りを積算。80 W の板） */
+      var dev=0,mn=0,mx=0,dth=1/(2*f),Pavg=pw*80;
+      for(i=0;i<NH;i++){var pf2=m===3?phaseFrac(alpha):frac[i];dev+=(pf2*80-Pavg)*dth/Cth;if(i>200){mn=Math.min(mn,dev);mx=Math.max(mx,dev);}}
+      if(NH<=200){mn=0;mx=0;}
+      /* 図: 表示する周期の数 */
+      var nar=_w14_nar(box),Wd=nar?400:700,x0=14,ww=nar?370:670,o=[];
+      var ncy=m===1?Math.min(Math.max(2*N,20),200):40,yy=40,amp=26,tspan=ncy/f;
+      o.push(S.T(nar?14:10,16,"ヒータの電流（"+ncy+" 周期 = "+_w14_sig(tspan,3)+" s）。灰色は電源の電圧の形","start",10,"ink",true));
+      o.push(S.L(x0,yy+amp,x0+ww,yy+amp,"faint",0.8));
+      var X=function(c){return x0+c/ncy*ww;};
+      if(ncy<=60){
+        var ref=[],cur=[],K=ncy*24;
+        for(var j=0;j<=K;j++){var ph=j/24,v=Math.sin(2*Math.PI*ph),hk=Math.min(Math.floor(ph*2),NH-1),on2;
+          if(m===3){var fr=(ph*2)%1;on2=fr*Math.PI>=alpha;}else on2=frac[hk]>0.5;
+          ref.push([X(ph),yy+amp-amp*v]);cur.push([X(ph),on2?yy+amp-amp*v:yy+amp]);}
+        o.push(S.PL(ref,"faint",0.9,null,"2 2"));o.push(S.PL(cur,m===3||m===2?"alias":(m===1?"gold":"green"),1.5));
+      }else{
+        for(var c2=0;c2<ncy;c2++){var a2=frac[2*c2],b2=frac[2*c2+1];
+          if(a2>0.5)o.push(S.RECT(X(c2),yy,X(c2+0.5)-X(c2),amp,0,U.soft("gold"),"gold",0.6));
+          if(b2>0.5)o.push(S.RECT(X(c2+0.5),yy+amp,X(c2+1)-X(c2+0.5),amp,0,U.soft("gold"),"gold",0.6));}
+        o.push(S.T(x0+ww,yy-4,"周期が多いので、正（上）と負（下）の半周期を帯で示す","end",9,"muted"));
+      }
+      o.push(S.L(x0,yy+2*amp+8,x0+ww,yy+2*amp+8,"muted",1));
+      U.nice(0,tspan*1000,5).forEach(function(v){if(v<=tspan*1000+1e-6){var xx=x0+v/(tspan*1000)*ww;o.push(S.L(xx,yy+2*amp+8,xx,yy+2*amp+12,"muted",1));o.push(S.T(xx,yy+2*amp+24,_w14_sig(v,3),"middle",9,"muted"));}});
+      o.push(S.T(x0+ww/2,yy+2*amp+38,"時間 [ms]","middle",9.5,"muted"));
+      box.set(S.svg(Wd,yy+2*amp+46,o));
+      var h="";
+      h+="平均の電力: <b>"+_w14_sig(pw*100,4)+" %</b>（"+_w14_sig(pw*Pm,4)+" W）"+(m===1?"・細かさ 1/N = "+_w14_sig(100/N,3)+" %、窓 "+_w14_sig(N/f,3)+" s":"")+(m===3?"・α = "+_w14_sig(alpha*180/Math.PI,4)+"°（半周期の途中で入れる: ノイズと高調波）":"")+"<br>";
+      h+="直流の成分（電流の平均）: "+(Math.abs(Idc)<1e-3*Ipk?'<span class="ok">ほぼ 0</span>':'<span class="warn">'+_w14_sig(Math.abs(Idc),3)+" A（山の値 "+_w14_sig(Ipk,3)+" A の "+_w14_sig(Math.abs(Idc)/Ipk*100,3)+" %）</span>")+"<br>";
+      h+="板（80 W・400 J/K）の温度の上下の幅: "+(mx-mn<1e-6?"ほぼ 0":_w14_sig(mx-mn,2)+" K")+(m===1?"（式 D(1 − D) P T_w ÷ C = "+_w14_sig(pw*(1-pw)*80*(N/f)/Cth,2)+" K）":"")+"<br>";
+      h+="入れ切りの変わり目: 1 秒に約 "+_w14_sig(trPerS,3)+" 回"+(big?"・変わり目ごとに電流が "+_w14_sig(Irms,3)+" A 変わり、配線の抵抗 0.2 Ω（例）なら電圧が "+_w14_sig(Irms*0.2,2)+" V 変わる":"")+"<br>";
+      ro.innerHTML=h+'<div class="wnote">電流は抵抗の負荷（ヒータ）の正弦波とした。散らす入れ方は本文 4 節の cycle_on と同じ規則（1 周期ごとに出力を足し込み、1000 ‰ に届いたら入れる）。半周期単位は、同じ規則を半周期ごとに使った例。温度の上下の幅は、80 W・400 J/K の板で、周期の中の熱の出入りを足し合わせて求めた。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 異常のときの温度と守り ---- */
+  REG.w14_fault=function(el,U){
+    var S=U.S;
+    U.head(el,"FAULT","異常のときの板の温度と、守りの働き");
+    var r1=U.ctrls(el);
+    var fs=U.select(r1,"600 s に起きる異常",["なし（普段の運転）","センサの断線","センサがはがれる","マイコンが止まる（出力が入ったまま）","SSR が短絡する","ヒータが切れる"],2,draw);
+    var ta=U.slider(r1,"周囲温度",{min:0,max:40,step:1,value:25,fmt:function(v){return v+" °C";},onInput:draw});
+    var r2=U.ctrls(el);
+    var gd=U.checkbox(r2,"プログラムの見張り",true,draw);
+    var wd=U.checkbox(r2,"ウォッチドッグ",true,draw);
+    var ry=U.checkbox(r2,"2 つ目のスイッチ（リレー）",true,draw);
+    var r3=U.ctrls(el);
+    var th=U.checkbox(r3,"サーモスタット（90 °C で開き、80 °C で戻る）",true,draw);
+    var fu=U.checkbox(r3,"温度ヒューズ（115 °C）",true,draw);
+    var br=U.btnrow(el);
+    function setAll(a,b,c,d,e){gd.set(a);wd.set(b);ry.set(c);th.set(d);fu.set(e);draw();}
+    U.button(br,"すべての守り",function(){setAll(true,true,true,true,true);});
+    U.button(br,"守りなし",function(){setAll(false,false,false,false,false);});
+    U.button(br,"プログラムの守りだけ",function(){setAll(true,true,true,false,false);});
+    U.button(br,"マイコンに頼らない守りだけ",function(){setAll(false,false,false,true,true);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var F=+fs.get(),Ta=ta.get(),G=gd.get(),WD=wd.get(),RY=ry.get(),TH=th.get(),FU=fu.get();
+      var dt=0.1,tend=2400,n=Math.round(tend/dt),nd=Math.round(20/dt),tf=600,C=400,R=1.25,Pm=80,a=Math.exp(-dt/(R*C));
+      var T=60,hist=new Float64Array(n+1),pid=_w14_pid(0.15,80,10,true,1,60);pid.setI((60-Ta)/(Pm*R));
+      var g={fault:"",hi:0,t0:0},bad=0,u=(60-Ta)/(Pm*R),relay=true,tsT=60,tsOn=true,fuT=60,fuOk=true,alive=true,tdead=0,reset=false,rdDet=null;
+      var ev=[],out=[],tsCount=0,stopBy="",tStop=-1,tmax=60,tmaxAt=0;
+      function mark(t,s,c){ev.push([t,s,c]);}
+      for(var k=0;k<=n;k++){
+        var t=k*dt;hist[k]=T;
+        var rd=k>=nd?hist[k-nd]:60;
+        if(F===2&&t>=tf){if(rdDet===null)rdDet=rd;}
+        if(k%10===0){
+          var ok=true,rv=rd;
+          if(F===1&&t>=tf){rv=-50;ok=!G;}              /* 断線: 最も冷たいと読める。見張りがあれば範囲の外として扱う */
+          if(F===2&&t>=tf){rdDet+=(Ta-rdDet)*(1-Math.exp(-1/30));rv=rdDet;}
+          if(F===3&&t>=tf&&alive){alive=false;tdead=t;u=1;mark(t,"マイコンが止まる","alias");}
+          if(alive){
+            bad=ok?0:bad+1;
+            var uc=pid.step(rv,ok);
+            if(G){var had=g.fault;uc=_w14_guard(g,bad>=3,rv,uc);if(!had&&g.fault){mark(t,"見張り: "+g.fault,"signal");if(RY){relay=false;}if(!stopBy&&!(F===4&&!RY)){stopBy="プログラムの見張り（"+g.fault+"）"+(RY?"→ 2 つ目のスイッチも切る":"");tStop=t;}}}
+            u=uc;
+          }else if(WD&&!reset&&t>=tdead+1){reset=true;u=0;relay=false;mark(t,"ウォッチドッグでリセット","signal");if(!stopBy){stopBy="ウォッチドッグ（リセットの間と再起動の後は切れたまま）";tStop=t;}}
+          if(t%2===0)out.push([t,T,(F===1&&t>=tf)?Math.max(rv,-5):rv,0]);
+        }
+        var ssr=(F===4&&t>=tf)?1:u;
+        if(F===4&&t===tf)mark(t,"SSR が短絡","alias");
+        var heaterOk=!(F===5&&t>=tf);
+        tsT+=(T-tsT)*dt/10;fuT+=(T-fuT)*dt/10;
+        if(TH){if(tsOn&&tsT>=90){tsOn=false;tsCount++;if(tsCount===1)mark(t,"サーモスタットが開く","alias");if(!stopBy){stopBy="サーモスタット（開いては閉じて 80〜90 °C 付近に保つ）";tStop=t;}}else if(!tsOn&&tsT<=80)tsOn=true;}
+        if(FU&&fuOk&&fuT>=115){fuOk=false;mark(t,"温度ヒューズが切れる","alias");if(!stopBy||stopBy.indexOf("サーモスタット")===0){stopBy="温度ヒューズ（戻らない。交換が要る）";tStop=t;}}
+        var pw=Pm*ssr*(relay?1:0)*(tsOn?1:0)*(fuOk?1:0)*(heaterOk?1:0);
+        if(out.length&&out[out.length-1][0]===t)out[out.length-1][3]=pw/Pm;
+        var Ti=Ta+pw*R;T=Ti+(T-Ti)*a;
+        if(T>tmax){tmax=T;tmaxAt=t;}
+      }
+      /* 図 */
+      var nar=_w14_nar(box),Wd=nar?400:700,x0=nar?52:62,pw2=nar?330:610,o=[];
+      var y1=Math.max(160,Math.ceil((tmax+35)/10)*10),y0=Math.min(20,Math.floor((Ta-5)/10)*10);
+      if(F===1&&!G)y0=Math.min(y0,-10);
+      var p=U.plot(x0,16,pw2,210,[0,2400],[y0,y1]);
+      o.push(p.axes({xl:"時間 [s]",yl:"温度 [°C]",xt:[0,400,800,1200,1600,2000,2400],yt:U.nice(y0,y1,6).filter(function(v){return v>=y0&&v<=y1;}),xfmt:function(v){return String(v);},yfmt:function(v){return String(v);},ylOff:nar?36:40}));
+      var lines=[[Ta+Pm*R,"最大の電力で行き着く "+_w14_f(Ta+Pm*R,0)+" °C","gold",true]];
+      if(FU)lines.push([115,"温度ヒューズ 115 °C","alias",true]);
+      if(TH)lines.push([90,"サーモスタット 90 °C","alias",true]);
+      if(G)lines.push([75,"ソフトの上限 75 °C","signal",true]);
+      lines.push([60,"目標 60 °C","green",true]);
+      lines.forEach(function(L){if(L[0]<=y1){o.push(p.line([[0,L[0]],[2400,L[0]]],L[2],1,"4 3"));o.push(S.T(p.x+4,p.Y(L[0])-4,L[1],"start",9,L[2],false,false,null,true));}});
+      o.push(S.L(p.X(tf),p.y,p.X(tf),p.y+p.h,"alias",1,"2 3"));
+      o.push(p.line(out.map(function(q){return [q[0],Math.max(y0,q[2])];}),"teal",1.3,"5 3"));
+      o.push(p.line(out.map(function(q){return [q[0],q[1]];}),"signal",2.2));
+      ev.slice(0,4).forEach(function(e,i){var xx=p.X(e[0]),yy=p.y+12+i*13,rt=xx>p.x+p.w*0.6;o.push(S.D(xx,yy-3,e[2],3.2));o.push(S.T(xx+(rt?-6:6),yy+1,e[1],rt?"end":"start",9,e[2],true,false,null,true));});
+      o.push(_w14_strip(S,U,p.x,p.y+p.h+40,p.w,14,2400,out.map(function(q){return [q[0],q[3]];}),"purple","ヒータ"));
+      o.push(S.T(p.x,p.y+p.h+70,"青: 板の温度　青緑の破線: センサの読み　赤の縦線: 異常が起きた時刻","start",9.5,"muted"));
+      box.set(S.svg(Wd,p.y+p.h+78,o));
+      var h="";
+      h+="板の最高温度: <b>"+_w14_f(tmax,1)+" °C</b>（"+Math.round(tmaxAt)+" s）"+(tmax>=100?' <span class="warn">危ない温度まで上がった</span>':(tmax<=75.5?' <span class="ok">ソフトの上限以下</span>':""))+"<br>";
+      if(F===0)h+="異常なし: 板は目標の付近に保たれる<br>";
+      else if(F===5&&!stopBy)h+="止めたもの: なし（ヒータが切れているので、温まらないだけ）<br>";
+      else h+="止めたもの: "+(stopBy?"<b>"+stopBy+"</b>（異常から "+Math.round(tStop-tf)+" s）":'<span class="warn">何も止めない（最大の電力のまま上がり続ける）</span>')+"<br>";
+      if(F===4&&G&&!RY)h+='<span class="warn">見張りは異常に気づくが、SSR が短絡しているので、プログラムでは切れない</span><br>';
+      if(F===3&&!WD)h+='<span class="warn">マイコンが止まったので、プログラムの見張りは働かない</span><br>';
+      if(F===2&&!G)h+='<span class="warn">読みは範囲の中で下がるので、制御はヒータを最大にする</span><br>';
+      if(F===1&&!G)h+='<span class="warn">断線した NTC は最も冷たいと読め、制御はヒータを最大にする</span><br>';
+      if(F===5)h+=G?"ヒータが切れたことは、見張りが「上がらない」で知らせる<br>":"ヒータが切れても危険は無いが、見張りが無いと気づけない<br>";
+      ro.innerHTML=h+'<div class="wnote">本文 5 節の例の値: PID は 0.15 /K・80 s・10 s、見張りは 75 °C・90 % で 60 s ごとに 2 K・600 s。センサがはがれると読みは 30 s の時定数で周囲温度へ向かう。サーモスタットと温度ヒューズは、板の温度に 10 s の遅れで追いつくとした。ウォッチドッグは 1 s でリセットし、再起動の後はヒータを入れない。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 15 章 異常に備える ===== */
+  function _w15_sig(v,d){d=d||3;if(v===0)return "0";if(!isFinite(v))return v>0?"∞":"−∞";var a=Math.abs(v);var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
+  function _w15_ohm(r){return r==null?"なし":(r>=1e6?_w15_sig(r/1e6,3)+" MΩ":(r>=1e3?_w15_sig(r/1e3,3)+" kΩ":_w15_sig(r,3)+" Ω"));}
+
+  /* ---- 1 節: リセットの間の負荷の入力の電圧 ---- */
+  /* 入力の種類: しきい値（入る電圧の最小）、入力の容量、負荷の電源から入る容量、中のプルダウン */
+  var _w15_IN=[
+    {t:"ロジックレベル MOSFET のゲート（しきい値の最小 0.8 V）",vth:0.8,cin:1.1e-9,cc:0.1e-9,rint:null},
+    {t:"普通の MOSFET のゲート（しきい値の最小 2.0 V）",vth:2.0,cin:1.1e-9,cc:0.1e-9,rint:null},
+    {t:"モータドライバ IC の入力（L と読む上限 0.8 V、中に 100 kΩ のプルダウン）",vth:0.8,cin:10e-12,cc:0,rint:100e3}];
+
+  REG.w15_reset=function(el,U){
+    var S=U.S,F=U.fmt,VDD=3.3,MG=0.3;
+    U.head(el,"RESET PIN","リセットの間の負荷の入力の電圧 — 抵抗・漏れ電流・内蔵のプル・電源の立ち上がり");
+    var r1=U.ctrls(el);
+    var kind=U.select(r1,"負荷の入力",_w15_IN.map(function(x){return x.t;}),0,draw);
+    var rr=U.slider(r1,"外付けの抵抗 R（GND へ）",{values:[0,1e3,4.7e3,10e3,47e3,100e3,470e3,1e6],value:100e3,fmt:function(v){return v?_w15_ohm(v):"なし（浮く）";},onInput:draw});
+    var r2=U.ctrls(el);
+    var lk=U.slider(r2,"漏れ電流（入力へ流れ込む）",{min:0.01,max:10,log:true,value:1,fmt:function(v){return F.cur(v*1e-6);},onInput:draw});
+    var pu=U.select(r2,"リセットの間の内蔵のプルアップ",["なし","30 kΩ（小さい側の例）","50 kΩ"],0,draw);
+    var r3=U.ctrls(el);
+    var tr=U.slider(r3,"負荷の電源の立ち上がり時間",{min:1e-6,max:10e-3,log:true,value:1e-3,fmt:function(v){return F.time(v);},onInput:draw});
+    var vl=U.slider(r3,"負荷の電源の電圧",{values:[5,12,24],value:12,fmt:function(v){return v+" V";},onInput:draw});
+    var tb=U.slider(r3,"リセットと起動の処理の長さ",{min:1e-3,max:300e-3,log:true,value:20e-3,fmt:function(v){return F.time(v);},onInput:draw});
+    var br=U.btnrow(el);
+    function pre(k,R,l,p,t){kind.set(k);rr.set(R);lk.set(l);pu.set(p);tr.set(t);vl.set(12);tb.set(20e-3);draw();}
+    U.button(br,"本文の例（100 kΩ）",function(){pre(0,100e3,1,0,1e-3);});
+    U.button(br,"抵抗なし（浮く）",function(){pre(0,0,1,0,1e-3);});
+    U.button(br,"内蔵のプルアップ 30 kΩ が入るピン",function(){pre(0,100e3,1,1,1e-3);});
+    U.button(br,"電源が 10 µs で立ち上がる",function(){pre(0,100e3,1,0,10e-6);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    /* 入力が一定の区間ごとに、閉じた式で解く: C dV/dt = I − G V（G = 0 なら直線）。電圧は VDD + 0.3 V で頭打ち（ピンの保護ダイオード） */
+    function seg(V0,I,G,C,t){var v;if(G>0){var vi=I/G;v=vi+(V0-vi)*Math.exp(-t*G/C);}else v=V0+I*t/C;return Math.min(v,VDD+0.3);}
+    function draw(){
+      var K=_w15_IN[kind.get()],R=rr.get()||null,Ilk=lk.get()*1e-6,Rpu=[null,30e3,50e3][pu.get()],t_r=tr.get(),dV=vl.get(),Tb=tb.get();
+      var G=(R?1/R:0)+(Rpu?1/Rpu:0)+(K.rint?1/K.rint:0),C=K.cin,I0=Ilk+(Rpu?VDD/Rpu:0),Ic=K.cc*dV/t_r;
+      /* 点を作る。立ち上がりの終わりと、プログラムが L を出す時刻を区切りに入れ、区切りの間は入力が一定なので閉じた式で進める */
+      var T=1.25*Tb,N=600,times=[],pts=[],V=0,vmax=0,tp=0,prev=0;
+      for(var i=0;i<=N;i++)times.push(T*i/N);
+      if(t_r<Tb)times.push(t_r);
+      times.push(Tb);times.sort(function(a,b){return a-b;});
+      times.forEach(function(t){
+        if(t<=Tb){V=seg(V,I0+(t<=t_r?Ic:0),G,C,t-prev);if(V>vmax){vmax=V;tp=t;}}
+        else V=0;                 /* プログラムが L を出す */
+        pts.push([t,V]);prev=t;
+      });
+      var vss=G>0?Math.min(I0/G,VDD+0.3):VDD+0.3;   /* 立ち上がりが終わった後の落ち着いた値（浮いていれば頭打ちへ） */
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?420:700,o=[];
+      var ymax=Math.max(1,Math.min(VDD+0.5,Math.ceil((Math.max(vmax,K.vth)+0.3)*2)/2));
+      var p=U.plot(nar?56:70,40,nar?340:560,170,[0,T*1e3],[0,ymax]);
+      o.push(p.axes({xl:"時間 [ms]（0 でリセットが始まり、負荷の電源も立ち上がり始める）",yl:"入力の電圧 [V]",nx:nar?4:6,xfmt:function(v){return _w15_sig(v,3);}}));
+      o.push(S.RECT(p.X(0),p.y-22,p.X(Tb*1e3)-p.X(0),14,2,U.soft("green"),"green",0.8));
+      o.push(S.T((p.X(0)+p.X(Tb*1e3))/2,p.y-11,"リセット・起動の処理（外付けの回路が決める）","middle",9,"green",true));
+      o.push(S.RECT(p.X(Tb*1e3),p.y-22,p.X(T*1e3)-p.X(Tb*1e3),14,2,U.soft("signal"),"signal",0.8));
+      o.push(S.T((p.X(Tb*1e3)+p.X(T*1e3))/2,p.y-11,"L を出す","middle",9,"signal",true));
+      o.push(p.line([[0,K.vth],[T*1e3,K.vth]],"alias",1.3,"5 3"));
+      o.push(S.T(p.x+p.w-4,p.Y(K.vth)-4,"しきい値 "+K.vth+" V","end",9.5,"alias",true,false,null,true));
+      if(K.vth-MG>0){o.push(p.line([[0,K.vth-MG],[T*1e3,K.vth-MG]],"green",1.1,"2 3"));
+        o.push(S.T(p.x+4,p.Y(K.vth-MG)+12,"余裕 0.3 V をとった上限","start",9,"green",false,false,null,true));}
+      o.push(p.line(pts.map(function(q){return [q[0]*1e3,q[1]];}),vmax>=K.vth?"alias":(vmax>=K.vth-MG?"gold":"signal"),2.2));
+      o.push(S.D(p.X(tp*1e3),p.Y(vmax),vmax>=K.vth?"alias":"signal",4));
+      box.set(S.svg(W,262,o));
+      var verdict=vmax>=K.vth?'<span class="warn">しきい値を超える。負荷が入りうる</span>':(vmax>=K.vth-MG?'<b style="color:var(--gold)">しきい値より低いが、余裕 0.3 V が足りない</b>':'<span class="ok">負荷は切れたまま</span>');
+      ro.innerHTML="リセットの間の入力の電圧の最大 <b>"+_w15_sig(vmax,3)+" V</b>（"+F.time(tp)+" の時点）→ "+verdict+"<br>"+
+        "立ち上がりの後に落ち着く値: "+(G>0?_w15_sig(vss,3)+" V（入る電流 "+F.cur(I0)+" ÷ コンダクタンス）":'<span class="warn">決まらない。漏れ電流で上がり続ける（ピンの保護ダイオードで頭打ち）</span>')+"<br>"+
+        (K.cc>0?"負荷の電源から容量で入る電流 "+F.cur(Ic)+"（"+dV+" V ÷ "+F.time(t_r)+" × "+_w15_sig(K.cc*1e12,3)+" pF）"+(R?"、時定数 τ = R C = "+F.time(R*C):"")+"<br>":"")+
+        (R?"ピンが H を出している間に抵抗に流れる電流: "+F.cur(VDD/R)+"（3.3 V ÷ "+_w15_ohm(R)+"）":"外付けの抵抗が無い")+
+        '<div class="wnote">漏れ電流は、入力の電圧を上げる向きに流れるとした（最も悪い向き）。内蔵のプルアップは、リセットの間にも入っているピンの場合。ゲートの電圧は、ピンの保護ダイオードで VDD + 0.3 V に抑えられるとした。値はどれも例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 3 節: モータの起動で電源が下がり、リセットを繰り返すか ---- */
+  /* 平均化した PWM の模型（13 章の例のモータ。R 2 Ω・L 1 mH・k 0.02・J 1e-5・T_L 0.01）。dt = 10 µs で解く */
+  function _w15_dipsim(o){
+    var Rm=2,L=1e-3,k=0.02,J=1e-5,TL=0.01,Vdo=0.3,VD=0.3,Im=10e-3,Ir=1e-3,tpor=3e-3,tboot=50e-3,Vhys=0.1,dt=10e-6;
+    var E=o.E,Rin=o.Rin,C=o.C,Cm=o.Cm,split=o.split,V=E,Vm=split?E-VD:E,I=0,w=0,st=0,tst=0,started=-1,nxt=tboot,streak=0,gave=false;
+    var T=o.T,n=Math.round(T/dt),q=0,res=[],vmin=E,vmmin=9,bk=o.bucket,buf=[],cur={t:0,vlo:9,vhi:-9,mlo:9,mhi:-9,ihi:0,ilo:9};
+    for(var s=0;s<n;s++){
+      var t=s*dt,vm=Math.min(3.3,Math.max(0,(split?Vm:V)-Vdo));
+      if(st===0&&vm<o.Vbor){st=1;tst=t;res.push(t);started=-1;streak++;}
+      else if(st===1&&vm>o.Vbor+Vhys){st=2;tst=t;}
+      else if(st===2&&t-tst>=tpor){st=0;
+        if(o.policy===0||streak===0)nxt=t+tboot;
+        else if(streak>=3){gave=true;nxt=1e9;}
+        else nxt=t+tboot+0.25*Math.pow(2,streak-1);}
+      if(st===0&&started<0&&t>=nxt)started=t;
+      var D=0;
+      if(st===0&&started>=0){var ta=(o.policy===1&&streak>0)?Math.max(o.tacc,0.5):o.tacc;D=ta<=0?1:Math.min(1,(t-started)/ta);}
+      I=Math.max(0,I+(D*V-Rm*I-k*w)/L*dt);
+      var tq=k*I-TL;w=(w<=0&&tq<0)?0:Math.max(0,w+tq/J*dt);
+      var im=st===0?Im:Ir,isup=(E-V)/Rin;
+      if(split){var idd=Math.max(0,(V-VD-Vm)/0.05);Vm+=(idd-im)/Cm*dt;V+=(isup-D*I-idd)/C*dt;}
+      else V+=(isup-D*I-im)/C*dt;
+      q+=isup*dt;if(V<vmin)vmin=V;if(vm<vmmin)vmmin=vm;
+      if(t<o.Tshow){var bi=Math.floor(t/bk);
+        if(bi!==cur.i){if(cur.i!=null)buf.push(cur);cur={i:bi,t:bi*bk,vlo:V,vhi:V,mlo:vm,mhi:vm,ihi:D*I,ilo:D*I};}
+        else{cur.vlo=Math.min(cur.vlo,V);cur.vhi=Math.max(cur.vhi,V);cur.mlo=Math.min(cur.mlo,vm);cur.mhi=Math.max(cur.mhi,vm);cur.ihi=Math.max(cur.ihi,D*I);cur.ilo=Math.min(cur.ilo,D*I);}}
+    }
+    if(cur.i!=null)buf.push(cur);
+    return {res:res,vmin:vmin,vmmin:vmmin,Iavg:q/T,w:w,gave:gave,buf:buf};
+  }
+
+  REG.w15_dip=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"SUPPLY DIP","モータの起動で電源が下がり、リセットを繰り返すか");
+    var r1=U.ctrls(el);
+    var ee=U.slider(r1,"電池の起電力 E",{min:3.6,max:6.4,step:0.1,value:4.8,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var ri=U.slider(r1,"内部抵抗 R_in（配線を含む）",{min:0.2,max:3,step:0.1,value:1.6,fmt:function(v){return v.toFixed(1)+" Ω";},onInput:draw});
+    var cc=U.slider(r1,"電源の線のコンデンサ",{values:[100,220,470,1000,2200,4700,10000],value:1000,fmt:function(v){return v+" µF";},onInput:draw});
+    var r2=U.ctrls(el);
+    var ta=U.slider(r2,"加速の時間（0 は一気に）",{values:[0,0.02,0.05,0.08,0.12,0.2,0.5],value:0,fmt:function(v){return v?v+" s":"一気に";},onInput:draw});
+    var sp=U.select(r2,"マイコンの電源",["電源の線から直接（同じ線）","ダイオードとコンデンサで分ける"],0,draw);
+    var cm=U.slider(r2,"マイコンの側のコンデンサ",{values:[100,220,470,1000,2200],value:1000,fmt:function(v){return v+" µF";},onInput:draw});
+    var r3=U.ctrls(el);
+    var vb=U.slider(r3,"BOR のしきい値",{values:[1.8,2.0,2.2,2.5,2.7,2.9],value:2.7,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    var po=U.select(r3,"BOR から起動したとき",["すぐ同じように回し直す","待つ時間を延ばし、ゆっくり回す。3 回続いたらやめる"],0,draw);
+    var tw_=U.select(r3,"表示する時間",["0.3 s","2 s"],0,draw);
+    var br=U.btnrow(el);
+    function pre(E,R,C,t,s,c,b,p){ee.set(E);ri.set(R);cc.set(C);ta.set(t);sp.set(s);cm.set(c);vb.set(b);po.set(p);draw();}
+    U.button(br,"新しい電池（6.2 V・0.6 Ω）",function(){pre(6.2,0.6,1000,0,0,1000,2.7,0);});
+    U.button(br,"使い終わりで寒い（4.8 V・1.6 Ω）",function(){pre(4.8,1.6,1000,0,0,1000,2.7,0);});
+    U.button(br,"本文の (b) 0.12 s かけて加速",function(){pre(4.8,1.6,1000,0.12,0,1000,2.7,0);});
+    U.button(br,"本文の (c) マイコンの側を分ける",function(){pre(4.8,1.6,1000,0,1,1000,2.7,0);});
+    U.button(br,"BOR から起動したら待つ",function(){pre(4.8,1.6,1000,0,0,1000,2.7,1);tw_.set(1);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var Tshow=tw_.get()?2.0:0.3,E=ee.get(),Rin=ri.get(),Vbor=vb.get(),split=sp.get()===1;
+      var r=_w15_dipsim({E:E,Rin:Rin,C:cc.get()*1e-6,Cm:cm.get()*1e-6,split:split,tacc:ta.get(),Vbor:Vbor,policy:po.get(),T:2.0,Tshow:Tshow,bucket:Tshow/700});
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?420:700,o=[],ms=1e3;
+      var p=U.plot(nar?50:64,20,nar?350:590,160,[0,Tshow*ms],[Math.max(0,Math.min(2,Vbor-0.4)),Math.max(5,Math.ceil(E+0.3))]);
+      var xt=U.nice(0,Tshow*ms,nar?4:6);
+      o.push(p.axes({yl:"電圧 [V]",xt:xt,xfmt:function(){return "";},ylOff:nar?36:42}));
+      o.push(p.line([[0,Vbor],[Tshow*ms,Vbor]],"alias",1.1,"5 3"));
+      o.push(S.T(p.x+p.w-4,p.Y(Vbor)+12,"BOR "+Vbor.toFixed(1)+" V","end",9,"alias",false,false,null,true));
+      function env(lo,hi){var a=[];r.buf.forEach(function(b){a.push([b.t*ms,b[lo]]);a.push([b.t*ms,b[hi]]);});return a;}
+      o.push(p.line(env("vlo","vhi"),"gold",1.5));
+      o.push(p.line(env("mlo","mhi"),"signal",1.5));
+      r.res.forEach(function(t){if(t<Tshow)o.push(S.L(p.X(t*ms),p.y,p.X(t*ms),p.y+8,"alias",1.6));});
+      var q=U.plot(p.x,p.y+p.h+14,p.w,40,[0,Tshow*ms],[0,2.5]);
+      o.push(S.L(q.x,q.y+q.h,q.x+q.w,q.y+q.h,"muted",1));
+      o.push(q.line(env("ilo","ihi"),"purple",1.2));
+      o.push(S.T(q.x-6,q.y+24,"電流","end",9,"purple"));
+      var ya=q.y+q.h;
+      xt.forEach(function(v){o.push(S.L(q.X(v),ya,q.X(v),ya+4,"muted",1));o.push(S.T(q.X(v),ya+15,_w15_sig(v,3),"middle",9,"muted"));});
+      o.push(S.T(q.x+q.w,ya+28,"時間 [ms]（起動して 50 ms でモータを回し始める）","end",9.5,"muted"));
+      var lg=[["gold","電源の線"],["signal","マイコンの電源"],["purple","モータの電流（0〜2.5 A）"],["alias","赤の印: リセット"]],lx=p.x,ly=ya+40;
+      lg.forEach(function(l){var wl=U.tw(l[1],9.5)+34;if(lx+wl>W-4){lx=p.x;ly+=16;}o.push(S.RECT(lx,ly,10,10,2,U.soft(l[0]),l[0],1.1));o.push(S.T(lx+14,ly+9,l[1],"start",9.5,"muted"));lx+=wl;});
+      box.set(S.svg(W,ly+18,o));
+      var Vreq=Vbor+0.3,lim=2*(E/Vreq-1),n=r.res.length;
+      ro.innerHTML="2 s の間のリセット: <b>"+(n?'<span class="warn">'+n+" 回</span>":'<span class="ok">0 回</span>')+"</b>"+(n?"（最初は回し始めて "+_w15_sig((r.res[0]-0.05)*1e3,3)+" ms 後）":"")+
+        "、電源の線の最低 <b>"+r.vmin.toFixed(2)+" V</b>、マイコンの電源の最低 <b>"+r.vmmin.toFixed(2)+" V</b><br>"+
+        "電池の平均の電流 "+F.cur(r.Iavg)+"、2 s 後のモータの速さ "+Math.round(r.w)+" rad/s"+(r.gave?'（<span class="warn">3 回続いたので回すのをやめた。電池が少ないと知らせる</span>）':"")+"<br>"+
+        "一気に回すときに BOR を割らない内部抵抗の上限 R(E/V_req − 1) = 2 × ("+E.toFixed(1)+" ÷ "+Vreq.toFixed(1)+" − 1) = <b>"+(lim>0?lim.toFixed(2)+" Ω":"なし")+"</b>（V_req = BOR + LDO のドロップアウト 0.3 V）"+
+        '<div class="wnote">PWM は平均にならした模型で、モータは 13 章の例の値。マイコンは 10 mA（リセットの間 1 mA）、リセットが解けて 3 ms 後に起動し、50 ms 後にモータを回し始める（すぐ回し直す設定のとき）。「待つ」設定では、BOR からの起動のたびに 0.25 s・0.5 s と待つ時間を延ばし、0.5 s 以上かけて加速する。ダイオードの電圧 0.3 V。値はどれも例の値。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 4 節: ウォッチドッグ（窓付き）と、止まってから安全な状態まで ---- */
+  /* o: {mode 0 監視のタスク / 1 タイマ割り込みで無条件, win, To, Tw, Ts, J, clk（発振器の速さの比 1+e）, fault 0〜3, tf, Tend, seed}
+     戻り値: 合図・チェックイン・リセットの記録。時刻は ms */
+  function _w15_wdsim(o,U){
+    var R=U.rng(o.seed),t=0,lastSig=0,openR=o.To/o.clk,closeR=o.Tw/o.clk,rst=null,kind="";
+    var alive=0,tempT=0,taskN=0,nextTask=50,nextSup=o.Ts,sig=[],chk=[],early=[];
+    function speed(tt){if(tt<o.tf)return 1;return o.fault===2?4:(o.fault===3?0.5:1);}
+    function signal(tt){if(o.win&&tt-lastSig<openR){rst=tt;kind="early";early.push(tt);return;}sig.push(tt);lastSig=tt;}
+    while(t<o.Tend&&rst===null){
+      var tn=Math.min(nextTask,nextSup);
+      if(lastSig+closeR<tn){rst=lastSig+closeR;kind="late";break;}
+      t=tn;
+      if(t===nextTask){
+        taskN++;var sp=speed(t),stop=(o.fault===1&&t>=o.tf);
+        if(!stop){if(taskN%10===0)tempT=t;alive|=1;chk.push([t,0]);}
+        if(t-tempT<=2000){alive|=2;chk.push([t,1]);}
+        alive|=4;chk.push([t,2]);
+        nextTask=t+(50+R.range(-5,5))/sp;
+      } else {
+        var sp2=speed(t);
+        if(o.mode===1){signal(t);nextSup=t+o.Ts/sp2;}
+        else{var a=alive;alive=0;if((a&7)===7)signal(t);nextSup=t+(o.Ts+R.range(-o.J,o.J))/sp2;}
+      }
+    }
+    return {sig:sig,chk:chk,rst:rst,kind:kind,early:early,openR:openR,closeR:closeR};
+  }
+
+  REG.w15_wdt=function(el,U){
+    var S=U.S,F=U.fmt,seed=7;
+    U.head(el,"WATCHDOG","ウォッチドッグの合図・窓・故障から安全な状態まで");
+    var r1=U.ctrls(el);
+    var md=U.select(r1,"合図の送り方",["各タスクの生存を確かめて（監視のタスク）","タイマの割り込みで無条件に"],0,draw);
+    var wn=U.checkbox(r1,"窓付き（ウィンドウウォッチドッグ）",true,draw);
+    var fl=U.select(r1,"起こす故障（1 s の時点）",["なし","温度のタスクが止まる","CPU の時計が 4 倍速くなる（ループも合図も速く回る）","CPU の時計が半分の速さになる"],1,draw);
+    var r2=U.ctrls(el);
+    var to=U.slider(r2,"窓の開始 T_open",{min:0,max:140,step:5,value:75,fmt:function(v){return v+" ms";},onInput:draw});
+    var twd=U.slider(r2,"ウォッチドッグの時間 T_W",{min:60,max:400,step:10,value:150,fmt:function(v){return v+" ms";},onInput:draw});
+    var ts=U.slider(r2,"監視の周期 T_s",{values:[50,100,200],value:100,fmt:function(v){return v+" ms";},onInput:draw});
+    var r3=U.ctrls(el);
+    var jj=U.slider(r3,"合図の間隔のばらつき ±T_j",{min:0,max:40,step:1,value:10,fmt:function(v){return "±"+v+" ms";},onInput:draw});
+    var ep=U.slider(r3,"発振器のずれ ε",{min:0,max:50,step:1,value:10,fmt:function(v){return v+" %";},onInput:draw});
+    var ed=U.select(r3,"ずれの向き",["遅い側（窓が遅く開き、遅く閉じる）","速い側（早く開き、早く閉じる）","範囲の中の乱数"],0,draw);
+    var ac=U.select(r3,"アクチュエータ",["SSR のヒータ（次のゼロクロスまで最大 10 ms）","モータ（惰性で止まるまで 550 ms）"],0,draw);
+    var br=U.btnrow(el);
+    function pre(m,w,f,To,Tw){md.set(m);wn.set(w);fl.set(f);to.set(To);twd.set(Tw);ts.set(100);jj.set(10);ep.set(10);ed.set(0);draw();}
+    U.button(br,"本文の例（75〜150 ms）",function(){pre(0,true,1,75,150);});
+    U.button(br,"割り込みで無条件に合図",function(){pre(1,true,1,75,150);});
+    U.button(br,"時計が速くなる・窓なし",function(){pre(0,false,2,75,150);});
+    U.button(br,"窓が狭すぎる（90〜115 ms）",function(){pre(0,true,0,90,115);ed.set(0);draw();});
+    U.button(br,"もう一度（別の乱数で）",function(){seed++;draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function clkOf(R){var e=ep.get()/100,d=ed.get();return d===0?1-e:(d===1?1+e:1+R.range(-e,e));}
+    function draw(){
+      var mode=md.get(),win=wn.get(),fault=fl.get(),To=to.get(),Tw=twd.get(),Ts=ts.get(),J=jj.get(),e=ep.get()/100,tact=ac.get()===0?10:550;
+      var R0=U.rng(seed*7919),clk=clkOf(R0);
+      if(win&&To>=Tw){To=Tw-10;}
+      var r=_w15_wdsim({mode:mode,win:win,To:win?To:0,Tw:Tw,Ts:Ts,J:J,clk:clk,fault:fault,tf:1000,Tend:3000,seed:seed},U);
+      /* 正常なまま長く動かして、誤ったリセットが起きるかを見る（600 s。同じずれ） */
+      var Rn=U.rng(seed*31+1),falseN=0;
+      for(var k=0;k<5;k++){var rn=_w15_wdsim({mode:mode,win:win,To:win?To:0,Tw:Tw,Ts:Ts,J:J,clk:(ed.get()===2?1+Rn.range(-e,e):clk),fault:0,tf:1e12,Tend:120000,seed:seed*13+k},U);if(rn.rst!==null)falseN++;}
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?420:700,o=[];
+      var x0=nar?92:120,x1=W-10,t0=600,t1=2000,X=function(t){return x0+(t-t0)/(t1-t0)*(x1-x0);};
+      function inR(t){return t>=t0&&t<=t1;}
+      var y=24,lab=function(yy,s,c){o.push(S.T(x0-8,yy,s,"end",9.5,c||"ink",true));};
+      /* チェックイン */
+      var names=["温度","ヒータ","ファン"],cols=["teal","purple","green"];
+      for(var q=0;q<3;q++){lab(y+q*11+8,names[q]+"のタスク",cols[q]);}
+      r.chk.forEach(function(c){if(inR(c[0])&&(r.rst===null||c[0]<=r.rst))o.push(S.L(X(c[0]),y+c[1]*11+1,X(c[0]),y+c[1]*11+9,cols[c[1]],1.4));});
+      y+=44;
+      /* 合図 */
+      lab(y+12,"合図","signal");
+      o.push(S.L(x0,y+16,x1,y+16,"line",1));
+      r.sig.forEach(function(t){if(inR(t))o.push(S.L(X(t),y+2,X(t),y+26,"signal",2));});
+      r.early.forEach(function(t){if(inR(t))o.push(S.L(X(t),y+2,X(t),y+26,"alias",2.4));});
+      y+=40;
+      /* カウンタ（前の合図からの時間） */
+      var hc=70,cmax=Math.max(r.closeR*1.15,160),Yc=function(v){return y+hc-v/cmax*hc;};
+      lab(y+hc/2+4,"前の合図から","gold");
+      o.push(S.T(x0-8,y+hc/2+17,"の時間","end",9.5,"gold",true));
+      o.push(S.L(x0,Yc(0),x1,Yc(0),"muted",1));
+      if(win){o.push(S.L(x0,Yc(r.openR),x1,Yc(r.openR),"gold",1,"4 3"));o.push(S.T(x1,Yc(r.openR)-3,"窓が開く "+Math.round(r.openR)+" ms","end",9,"gold",false,false,null,true));}
+      o.push(S.L(x0,Yc(r.closeR),x1,Yc(r.closeR),"alias",1,"4 3"));o.push(S.T(x1,Yc(r.closeR)-3,"窓が閉じる "+Math.round(r.closeR)+" ms","end",9,"alias",false,false,null,true));
+      var ss=[0].concat(r.sig),pts=[];
+      for(var i=0;i<ss.length;i++){var a=ss[i],b=i+1<ss.length?ss[i+1]:(r.rst!==null?r.rst:3000);
+        var aa=Math.max(a,t0),bb=Math.min(b,t1);if(bb>aa){pts.push([X(aa),Yc(aa-a)]);pts.push([X(bb),Yc(bb-a)]);pts.push([X(bb),Yc(0)]);}}
+      if(pts.length)o.push(S.PL(pts,"gold",1.6));
+      y+=hc+18;
+      /* アクチュエータ */
+      lab(y+14,"アクチュエータ","purple");
+      var tOff=r.rst!==null?r.rst+tact:null;
+      o.push(S.RECT(X(t0),y,X(Math.min(t1,tOff!==null?tOff:t1))-X(t0),20,2,U.soft("purple"),"purple",1));
+      o.push(S.T((X(t0)+X(Math.min(t1,tOff!==null?tOff:t1)))/2,y+14,"制御中（入ることがある）","middle",9,"purple",true));
+      if(tOff!==null&&tOff<t1){o.push(S.RECT(X(tOff),y,X(t1)-X(tOff),20,2,U.soft("green"),"green",1));if(X(t1)-X(tOff)>60)o.push(S.T((X(tOff)+X(t1))/2,y+14,"安全な状態","middle",9,"green",true));}
+      y+=34;
+      /* 故障とリセットの線 */
+      if(fault){o.push(S.L(X(1000),14,X(1000),y-8,"alias",1.2,"3 3"));o.push(S.T(X(1000)+3,12,"故障","start",9,"alias",true));}
+      if(r.rst!==null&&inR(r.rst)){o.push(S.L(X(r.rst),14,X(r.rst),y-8,"alias",2));o.push(S.T(X(r.rst)+3,y+4,"リセット（"+(r.kind==="early"?"早すぎる合図":"合図が来ない")+"）","start",9.5,"alias",true));}
+      [600,800,1000,1200,1400,1600,1800,2000].forEach(function(t){o.push(S.T(X(t),y+20,String(t),"middle",9,"muted"));});
+      o.push(S.T(x1,y+34,"時間 [ms]","end",9,"muted"));
+      box.set(S.svg(W,y+40,o));
+      var condO=(Ts-J)*(1-e),condW=(Ts+J)*(1+e),ok1=!win||To<=condO+1e-9,ok2=Tw>=condW-1e-9;
+      var out="";
+      if(fault===0)out=r.rst===null?'故障なし: <span class="ok">3 s の間リセットされない</span>':'故障なし: <span class="warn">誤ってリセットされた（'+(r.kind==="early"?"早すぎる合図":"合図が来ない")+"）</span>";
+      else if(r.rst===null)out='<span class="warn">故障から 2 s たってもリセットされない（この送り方・設定では見つからない）</span>';
+      else if(r.rst<1000)out='<span class="warn">故障の前に誤ってリセットされた</span>';
+      else out="故障からリセットまで <b>"+Math.round(r.rst-1000)+" ms</b>、アクチュエータが安全な状態になるまで <b>"+Math.round(r.rst-1000+tact)+" ms</b>（式の上限 T_s + T_j + T_W/(1 − ε) + t_act = "+Math.round(Ts+J+Tw/(1-e)+tact)+" ms）";
+      ro.innerHTML=out+"<br>発振器の速さは名目の "+(clk*100).toFixed(1)+" %。窓は実際には "+(win?Math.round(r.openR)+"〜":"0〜")+Math.round(r.closeR)+" ms<br>"+
+        "誤ってリセットしない条件: "+(win?"T_open ≤ (T_s − T_j)(1 − ε) = "+_w15_sig(condO,3)+" ms "+(ok1?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"、":"")+
+        "T_W ≥ (T_s + T_j)(1 + ε) = "+_w15_sig(condW,3)+" ms "+(ok2?'<span class="ok">満たす</span>':'<span class="warn">満たさない</span>')+"<br>"+
+        "故障なしで 120 s ずつ 5 回動かした（同じ設定、別の乱数）: "+(falseN?'<span class="warn">'+falseN+" 回で誤ってリセット</span>":'<span class="ok">誤ったリセットなし</span>')+
+        '<div class="wnote">温度・ヒータ・ファンのタスクは 50 ms（±5 ms）ごとに動き、ヒータのタスクは 2 s より新しい温度があるときだけチェックインする。監視のタスクは、合図の間隔が T_s ± T_j の乱数になるように動く。「タイマの割り込みで無条件に」では、T_s ごとに必ず合図を送る。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 5 節: 故障とリセットの繰り返しによる縮退（本文の rlog_boot・deg_allowed と同じ規則） ---- */
+  var _w15_FN=[["AUTO","室温に合わせる暖房"],["WEAK","弱い決まった出力の暖房"],["FAN","ファン（送風）"],["REMOTE","無線（遠くからの操作と知らせ）"]];
+  var _w15_FAULT=[["室温のセンサ",1,false],["過熱を見張るセンサ",3,true],["ファンが回らない",7,true],["切ったのにヒータに電流",15,true],["無線",8,false]];
+  REG.w15_mode=function(el,U){
+    var S=U.S,streak=0,latched=0,log=[],nbor=0,nwdt=0;
+    U.head(el,"DEGRADE","故障とリセットの繰り返しで、縮退の段階と使える機能がどう変わるか");
+    var r1=U.ctrls(el),fc=[];
+    _w15_FAULT.forEach(function(f){fc.push(U.checkbox(r1,f[0]+"が壊れている",false,function(v){add(f[0]+(v?"が壊れた":"が直った"));draw();}));});
+    var br=U.btnrow(el);
+    function boot(c){if(c==="POR"){streak=0;nbor=0;nwdt=0;}if(c==="BOR"){streak++;nbor++;}if(c==="WDT"){streak++;nwdt++;}
+      add(c==="POR"?"電源を入れ直した（POR）: 回数を 0 に":(c==="BOR"?"BOR でリセット":"ウォッチドッグでリセット")+"（続けて "+streak+" 回目）");draw();}
+    U.button(br,"BOR でリセット",function(){boot("BOR");});
+    U.button(br,"ウォッチドッグでリセット",function(){boot("WDT");});
+    U.button(br,"10 分続けて正常",function(){streak=0;add("10 分続けて正常に動いた: 回数を 0 に");draw();});
+    U.button(br,"利用者が入れ直す",function(){streak=0;latched=0;add("利用者が入れ直した: 止めたままの機能と回数を 0 に");draw();});
+    U.button(br,"電源を入れ直す（POR）",function(){boot("POR");});
+    U.button(br,"はじめに戻す",function(){streak=0;latched=0;nbor=0;nwdt=0;log=[];fc.forEach(function(c){c.set(false);});draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function add(t){log.unshift(t);if(log.length>5)log.pop();}
+    function draw(){
+      var mode=streak>=6?2:(streak>=3?1:0),stop=0,why=[[],[],[],[]];
+      _w15_FAULT.forEach(function(f,i){if(fc[i].get()){stop|=f[1];if(f[2])latched|=f[1];for(var b=0;b<4;b++)if(f[1]&(1<<b))why[b].push(f[0]);}});
+      for(var b=0;b<4;b++)if((latched&(1<<b))&&!(stop&(1<<b)))why[b].push("利用者が戻すまで");
+      stop|=latched;
+      if(mode===1){stop|=7;for(var b2=0;b2<3;b2++)why[b2].push("縮退の段階");}
+      if(mode===2){stop|=15;for(var b3=0;b3<4;b3++)why[b3].push("安全な停止の段階");}
+      var nar=box.el.clientWidth>0&&box.el.clientWidth<520,W=nar?420:700,o=[];
+      var st=[["通常","green"],["縮退","gold"],["安全な停止","alias"]],sw=nar?120:180,gap=(W-20-3*sw)/2;
+      st.forEach(function(s,i){var x=10+i*(sw+gap),on=i===mode;
+        o.push(S.RECT(x,14,sw,40,16,on?U.soft(s[1]):"panel",s[1],on?3:1.2));
+        o.push(S.T(x+sw/2,39,s[0],"middle",12,s[1],true));
+        if(i<2)o.push(S.ARR(x+sw+4,34,x+sw+gap-4,34,"alias",1.3,6));});
+      o.push(S.T(10,74,"続けて起きた異常なリセット: "+streak+" 回（3 回で縮退、6 回で安全な停止）","start",10,"ink",true));
+      var y0=92,rh=26;
+      _w15_FN.forEach(function(f,i){var ok=!(stop&(1<<i)),y=y0+i*rh;
+        o.push(S.RECT(10,y,W-20,rh-4,4,U.soft(ok?"green":"alias"),ok?"green":"alias",1));
+        o.push(S.T(20,y+16,f[1],"start",10.5,ok?"green":"alias",true));
+        o.push(S.T(W-20,y+16,ok?"使ってよい":"止める（"+why[i].join("・")+"）","end",nar?9:10,ok?"green":"alias",false));});
+      box.set(S.svg(W,y0+4*rh+4,o));
+      ro.innerHTML="原因ごとの累計: BOR "+nbor+" 回、ウォッチドッグ "+nwdt+" 回<br>"+(log.length?"できごと（新しい順）: "+log.map(U.esc).join(" ／ "):"故障のチェックとボタンで、できごとを起こす")+
+        '<div class="wnote">5 節のファンヒータの例の決め方。表示（LED など）で知らせることは、どの段階でも続ける。利用者が戻すまで止めたままにする故障（過熱を見張るセンサ・ファン・ヒータの電流）は、直っても、利用者が入れ直すまで止めたままにする。</div>';
+    }
+    draw();
+  };
+
+  /* ===== 16 章 条件別の設計ガイド ===== */
+  /* 電池の模型（03 章 4 節・04 章 1 節と同じ代表的な形と例の値。1 セルあたり）
+     E: 休んでいるときの電圧の点 [x, V]、R: 25 °C の R0 + R1 の点 [x, Ω]、k10: 10 °C 下がるごとの倍率、tau: R1 と C1 の時定数 [s] */
+  var _w16_B={
+    cr:{nm:"CR2032 1 個",Qn:220,N:1,sd:0.01,vnom:3.0,k10:1.4,tau:0.005,
+      E:[[0,3.20],[0.02,3.05],[0.1,3.00],[0.3,2.96],[0.5,2.92],[0.7,2.87],[0.8,2.82],[0.88,2.74],[0.93,2.60],[0.97,2.40],[1.0,2.00]],
+      R:[[0,15],[0.5,17],[0.7,20],[0.8,25],[0.9,40],[0.95,60],[1.0,120]]},
+    alk:{nm:"単 3 形アルカリ乾電池 2 本",Qn:2000,N:2,sd:0.02,vnom:3.0,k10:1.5,tau:0.010,
+      E:[[0,1.58],[0.03,1.48],[0.2,1.36],[0.4,1.27],[0.6,1.19],[0.75,1.12],[0.85,1.06],[0.93,1.00],[0.97,0.95],[1.0,0.90]],
+      R:[[0,0.15],[0.3,0.19],[0.5,0.26],[0.7,0.37],[0.85,0.48],[1.0,0.60]]},
+    soc:{nm:"塩化チオニルリチウム電池 1 本",Qn:2400,N:1,sd:0.01,vnom:3.6,k10:1.3,tau:0.010,
+      E:[[0,3.66],[0.02,3.62],[0.3,3.60],[0.6,3.58],[0.85,3.54],[0.92,3.48],[0.96,3.35],[0.985,3.00],[1.0,2.00]],
+      R:[[0,4.0],[0.5,4.5],[0.8,6.0],[0.9,9.0],[0.96,15.0],[1.0,40.0]]}};
+  function _w16_ip(p,x){if(x<=p[0][0])return p[0][1];for(var i=1;i<p.length;i++)if(x<=p[i][0])return p[i-1][1]+(p[i][1]-p[i-1][1])*(x-p[i-1][0])/(p[i][0]-p[i-1][0]);return p[p.length-1][1];}
+  function _w16_E(b,x){return b.N*_w16_ip(b.E,x);}
+  function _w16_R(b,x,T){return b.N*_w16_ip(b.R,x)*Math.pow(b.k10,(25-T)/10);}
+  /* 長さ tp のパルスに対する電圧降下 ÷ 電流 [Ω]。コンデンサが無ければ 03 章の R0 + R1(1 − e^(−tp/τ))（R0 は 55 %）、
+     あれば 04 章の、電池（1 つの内部抵抗）とコンデンサ（容量 C・ESR）の式 */
+  function _w16_drop(b,x,T,tp,C,esr){var R=_w16_R(b,x,T);
+    if(!(C>0))return R*(0.55+0.45*(1-Math.exp(-tp/b.tau)));
+    var Rp=R*esr/(R+esr),tau=C*(R+esr);return R-(R-Rp)*Math.exp(-tp/tau);}
+  function _w16_cross(f){if(f(0)<=0)return 0;if(f(1)>0)return 1;var lo=0,hi=1;for(var i=0;i<50;i++){var m=(lo+hi)/2;if(f(m)>0)lo=m;else hi=m;}return (lo+hi)/2;}
+  /* パルスの底が vb に届くまでに使える割合。pulses = [[電流 A, 長さ s], ...] の最も厳しいもの */
+  function _w16_usable(b,T,pulses,C,esr,vb){var u=1,which=0;
+    pulses.forEach(function(p,i){var v=_w16_cross(function(x){return _w16_E(b,x)-p[0]*_w16_drop(b,x,T,p[1],C,esr)-vb;});if(v<u){u=v;which=i;}});
+    return {u:u,which:which};}
+  function _w16_sig(v,d){d=d||3;if(v===0)return "0";var a=Math.abs(v);var s=a>=Math.pow(10,d)?String(Math.round(v)):(+v.toPrecision(d)).toString();return s.replace("-","−");}
+  function _w16_yr(h){var y=h/8760;return y>=1?_w16_sig(y,3)+" 年":(h/24>=1?_w16_sig(h/24,3)+" 日":_w16_sig(h,3)+" 時間");}
+  function _w16_ok(b,t){return b?'<span class="ok">'+(t||"○")+'</span>':'<span class="warn">'+(t||"×")+'</span>';}
+  /* 前の章の節へのリンク（ページの名前は NN.html） */
+  function _w16_a(ch,sec,anc,txt){return '<a href="'+ch+'.html#'+anc+'">'+(txt||(ch+" 章 "+sec+" 節"))+'</a>';}
+  var _w16_L={
+    p01_4:["01",4,"平均電流とピーク電流"],p02_3:["02",3,"usb-と-ac-アダプタ"],p02_4:["02",4,"商用電源から直接つくる"],p02_5:["02",5,"車の電源"],p02_6:["02",6,"環境発電"],
+    p03_3:["03",3,"容量は使い方で変わる-電流と温度"],p03_4:["03",4,"内部抵抗とパルス負荷"],p03_5:["03",5,"自己放電と保管"],
+    p04_1:["04",1,"ピーク電流を電池から隠す-大容量コンデンサ"],p04_2:["04",2,"負荷を重ねない-動作の順番を決める"],p04_3:["04",3,"低電圧で正しく止まる"],p04_5:["04",5,"二次電池を充電する"],p04_6:["04",6,"電池を守る-逆接続-過放電-出荷時"],
+    p05_2:["05",2,"静止電流が効く条件"],p05_3:["05",3,"周辺の電源を切る-負荷スイッチと突入電流"],p05_5:["05",5,"電源の立ち上がりと立ち下がり-por-と-bor"],p05_6:["05",6,"電源電圧を見張る"],
+    p06_2:["06",2,"安全のための絶縁"],p06_3:["06",3,"停電を知り-保持時間で後始末する"],p06_4:["06",4,"電源が戻ったとき"],p06_5:["06",5,"サージと電源のノイズ"],p06_6:["06",6,"商用電源に合わせる-ゼロクロス検出"],p06_7:["06",7,"待機電力"],
+    p07_3:["07",3,"眠る間のピンの状態と漏れ電流"],p08_3:["08",3,"センサの電源を切る-起動時間との釣り合い"],p09_2:["09",2,"電池の電圧が変わるとき-基準の選び方"],p09_4:["09",4,"分圧の電流と-測るときだけ流す工夫"],
+    p10_6:["10",6,"センサの故障を見つける"],p11_5:["11",5,"長い配線-esd-誘導ノイズ-保護"],p11_6:["11",6,"電圧の違う入力と絶縁"],p12_2:["12",2,"led-を点ける-電流と-pwm"],p12_6:["12",6,"突入電流の大きい負荷"],
+    p13_3:["13",3,"回し始めと止め方"],p13_7:["13",7,"電池で回すとき"],p14_4:["14",4,"ac-のヒータをオンオフする"],p14_5:["14",5,"過熱から守る"],p14_6:["14",6,"機器自身の発熱"],
+    p15_1:["15",1,"リセットの間のピンの状態"],p15_2:["15",2,"安全な状態を決める"],p15_3:["15",3,"負荷がマイコンを乱すとき-電源の揺れとグラウンド"],p15_4:["15",4,"ウォッチドッグと安全な停止"],p15_5:["15",5,"故障を見つけて縮退する"],p15_6:["15",6,"電源が戻った後と-更新の間"]};
+  function _w16_lk(keys){return keys.map(function(k){var l=_w16_L[k];return '<span style="white-space:nowrap">'+_w16_a(l[0],l[1],l[2])+'</span>';}).join("<br>");}
+
+  /* ---- 2 節: 電池の機器の電力の予算 ---- */
+  REG.w16_budget=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"BUDGET","電池の機器の電力の予算と電池寿命");
+    var r1=U.ctrls(el);
+    var bt=U.select(r1,"電池",[{v:"cr",t:"CR2032 1 個"},{v:"alk",t:"単 3 形アルカリ乾電池 2 本"},{v:"soc",t:"塩化チオニルリチウム電池 1 本"}],"cr",draw);
+    var per=U.slider(r1,"測って送る周期",{values:[10,30,60,300,600,1800,3600],value:60,fmt:function(v){return F.time(v);},onInput:draw});
+    var slp=U.slider(r1,"眠りの電流",{min:0.5,max:20,log:true,value:2,fmt:function(v){return U.sig(v,3)+" µA";},onInput:draw});
+    var r2=U.ctrls(el);
+    var sen=U.select(r2,"温度センサ",["入れたまま待たせる（待機 2 µA）","測るときだけ電源を入れる"],0,draw);
+    var div=U.select(r2,"電池の電圧の測り方",["1 MΩ と 1 MΩ の分圧（流しっぱなし）","内部の基準電圧で電源電圧を求める"],0,draw);
+    var r3=U.ctrls(el);
+    var ord=U.select(r3,"LED と送信",["同時に始める（15 mA）","重ねない（10 mA と 5 mA）"],0,draw);
+    var cap=U.select(r3,"大容量コンデンサ",["なし","100 µF（漏れ電流 0.1 µA）"],0,draw);
+    var shp=U.select(r3,"出荷まで 6 か月",["電池を入れたまま（機器が動く）","絶縁のシートで止めておく"],0,draw);
+    var r4=U.ctrls(el);
+    var tmin=U.slider(r4,"使う場所の最も低い温度",{min:-20,max:25,step:1,value:0,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var goal=U.slider(r4,"目標の寿命",{min:1,max:15,step:1,value:5,fmt:function(v){return v+" 年";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(a){bt.set("cr");per.set(60);slp.set(2);sen.set(a);div.set(a);ord.set(a);cap.set(a);shp.set(a);goal.set(5);draw();}
+    U.button(br,"2 節: はじめの設計",function(){preset(0);});
+    U.button(br,"2 節: 直した設計",function(){preset(1);});
+    U.button(br,"冷凍庫（−20 °C）",function(){tmin.set(-20);draw();});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      var b=_w16_B[bt.get()],T=per.get(),Is=slp.get();
+      /* 平均電流の行 [µA]（µC ÷ s = µA） */
+      var tsen=sen.get()===0?2+(600-2)*0.010/T:0.05+(4.0+600*0.010)/T;
+      var rows=[["眠り（マイコン・RTC）",Is,"07 章 1 節"],["処理（3 mA・4 ms）",3000*0.004/T,"01 章 4 節"],["送信（10 mA・3 ms）",10000*0.003/T,"01 章 4 節"],
+        ["温度センサ",tsen,"08 章 3 節"],["電池の電圧の分圧",div.get()===0?b.vnom/2e6*1e6:0,"09 章 2・4 節"],["コンデンサの漏れ電流",cap.get()===1?0.1:0,"04 章 1 節"],
+        ["LED（1 日 10 回）",5000*0.020*10/86400,"12 章 2 節"],["自己放電",b.sd*b.Qn*1000/8760,"03 章 5 節"]];
+      var dev=0,tot=0;rows.forEach(function(r,i){tot+=r[1];if(i<7)dev+=r[1];});
+      var Tc=tmin.get(),C=cap.get()===1?100e-6:0,ov=ord.get()===0;
+      var pulses=ov?[[0.015,0.003],[0.005,0.020]]:[[0.010,0.003],[0.005,0.020]];
+      var us=_w16_usable(b,Tc,pulses,C,0.1,2.2),Ipk=ov?15:10;
+      var stor=(shp.get()===0?dev*1e-3*4380:0)+b.sd*b.Qn*0.5;   /* mAh */
+      var Qu=us.u*b.Qn,Qleft=Qu-stor,lifeH=Qleft>0?Qleft/(tot*1e-3):0;
+      /* ---- 図: 左に行ごとの平均電流、下に容量の内訳 ---- */
+      var W=700,o=[],x0=176,mx=Math.max.apply(null,rows.map(function(r){return r[1];})),sc=300/Math.max(mx,0.5),rh=22;
+      o.push(S.T(x0,14,"1 行ごとの平均電流 [µA]","start",10.5,"ink",true));
+      rows.forEach(function(r,i){var y=24+i*rh,c=i===7?"gold":(r[1]>1?"alias":"signal");
+        o.push(S.T(x0-8,y+13,r[0],"end",10,"ink"));
+        o.push(S.RECT(x0,y+3,Math.max(r[1]*sc,0.8),13,2,U.soft(c),c,1.1));
+        o.push(S.T(x0+r[1]*sc+6,y+13,r[1]>=0.1||r[1]===0?r[1].toFixed(2):U.sig(r[1],2),"start",9.5,c,true));
+        o.push(S.T(640,y+13,r[2],"end",9,"muted"));});
+      var yt=24+rows.length*rh+8;
+      o.push(S.T(x0-8,yt+12,"合計","end",10.5,"ink",true));
+      o.push(S.T(x0,yt+12,U.sig(tot,3)+" µA（自己放電を含む）・ピーク電流 "+Ipk+" mA","start",10.5,"ink",true));
+      var yc=yt+30,wd=470,s2=wd/b.Qn;
+      o.push(S.T(x0-8,yc+13,"公称容量 "+b.Qn+" mAh","end",10,"ink",true));
+      var xx=x0;
+      if(Qleft>0){o.push(S.RECT(xx,yc,Qleft*s2,18,2,U.soft("green"),"green",1.1));xx+=Qleft*s2;o.push(S.RECT(xx,yc,stor*s2,18,2,U.soft("gold"),"gold",1.1));xx+=stor*s2;}
+      else{o.push(S.RECT(xx,yc,Qu*s2,18,2,U.soft("gold"),"gold",1.1));xx+=Qu*s2;}
+      o.push(S.RECT(xx,yc,Math.max(0,x0+wd-xx),18,2,U.soft("muted"),"muted",1,"3 2"));
+      o.push(S.T(x0,yc+34,"緑: 寿命の間に使える "+U.sig(Math.max(Qleft,0),3)+" mAh　金: 保管で失う "+U.sig(stor,3)+" mAh　灰: パルスの底で使えない "+U.sig((1-us.u)*100,3)+" %","start",9.5,"muted"));
+      box.set(S.svg(W,yc+44,o));
+      var okLife=lifeH/8760>=goal.get();
+      var lim=["LED と送信が重なるパルス（15 mA・3 ms）","LED のパルス（5 mA・20 ms）"];if(!ov)lim[0]="送信のパルス（10 mA・3 ms）";
+      var trs=[["電力の予算","平均電流（自己放電を含む）","—",U.sig(tot,3)+" µA","",_w16_lk(["p01_4","p03_5"])],
+        ["電力の予算","ピーク電流","—",Ipk+" mA","",_w16_lk(["p04_2"])],
+        ["電源の構成","パルスの底で使える割合（"+String(Tc).replace("-","−")+" °C）","—",U.sig(us.u*100,3)+" %（"+lim[us.which]+"で決まる）","",_w16_lk(["p03_4","p04_1"])],
+        ["条件の書き出し","出荷までに失う電荷","—",U.sig(stor,3)+" mAh","",_w16_lk(["p04_6"])],
+        ["確かめ","電池寿命",goal.get()+" 年以上",Qleft>0?_w16_yr(lifeH):"保管の後に使える電荷が残らない",_w16_ok(okLife),_w16_lk(["p03_5"])]];
+      ro.innerHTML="平均電流 = Σ（行の電流）= <b>"+U.sig(tot,3)+" µA</b>、使える電荷 = "+U.sig(us.u*100,3)+" % × "+b.Qn+" mAh − 保管 "+U.sig(stor,3)+" mAh = <b>"+U.sig(Math.max(Qleft,0),3)+" mAh</b> → 電池寿命 <b>"+(Qleft>0?_w16_yr(lifeH):"0（すぐ止まる）")+"</b><br>"+
+        U.tbl(["段","確かめること","基準","値","判定","読む節"],trs,["left","wrap","left","wrap","center","wrap"])+
+        '<div class="wnote">温度センサ・分圧・LED・送信・自己放電の値は 2 節と同じ例の値（08 章 3 節の待機 2 µA のセンサ、起動の電荷 4 µC）。使える割合は、BOR のしきい値 2.2 V として、03 章 4 節（コンデンサなし）と 04 章 1 節（コンデンサあり、ESR 0.1 Ω）の電池の模型で、LED と送信のパルスのうち厳しいほうで求めた。実際の電池の値は仕様書で確かめる。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節: 冬の 1 週間（fig/f16.py の _f16_week_sim と同じ計算。1 分刻み） ---- */
+  var _w16_WK={
+    ex:[["晴れ",-8,1],["曇り",-8,-2],["雪",-10,-4],["雪",-12,-6],["晴れ",-14,-3],["曇り",-10,-3],["晴れ",-9,0]],
+    sun:[["晴れ",-8,1],["晴れ",-8,-2],["晴れ",-10,-4],["晴れ",-12,-6],["晴れ",-14,-3],["晴れ",-10,-3],["晴れ",-9,0]],
+    snow:[["曇り",-8,1],["雪",-8,-2],["雪",-10,-4],["曇り",-12,-6],["雪",-14,-3],["曇り",-10,-3],["雪",-9,0]]};
+  var _w16_FAC={"晴れ":0.6,"曇り":0.12,"雪":0};
+  /* p: {wk, shift [K], Pp [W], Emax [Wh], soc0, dT [K], tau [h], adapt, hold [日]} */
+  function _w16_week(p){
+    var E=p.soc0*p.Emax*3600,Emax=p.Emax*3600,Tb=p.wk[0][1]+p.shift,dt=60,pts=[],down=0,inJ=0,outJ=0,chg=0,nrep=0,minE=E,stopAt=null;
+    for(var k=0;k<7*1440;k++){
+      var t=k*dt,d=Math.floor(t/86400),h=(t%86400)/3600,day=p.wk[d],lo=day[1]+p.shift,hi=day[2]+p.shift;
+      var Ta=(lo+hi)/2-(hi-lo)/2*Math.cos(2*Math.PI*(h-4)/24);
+      var irr=(h>=8&&h<=16)?_w16_FAC[day[0]]*Math.sin(Math.PI*(h-8)/8):0;
+      Tb+=(Ta+p.dT*irr-Tb)/(p.tau*3600)*dt;
+      var c=Tb>=0&&Tb<=45&&irr>0&&E<Emax;
+      if(c){var add=0.8*p.Pp*irr*dt;E=Math.min(Emax,E+add);inJ+=add;chg+=dt;}
+      var Tr=300;
+      if(p.adapt){var pt=E/(p.hold*86400)-1e-3;Tr=pt<=0?3600:Math.min(3600,Math.max(300,2.7/pt));}
+      var run=E>0;
+      if(run){var use=(1e-3+2.7/Tr)*dt;E=Math.max(0,E-use);outJ+=use;nrep+=dt/Tr;if(E===0&&stopAt===null)stopAt=(t+dt)/86400;}
+      else down+=dt;
+      if(E<minE)minE=E;
+      if(k%10===0)pts.push([t/86400,E/3600,Tb,Ta,c,run]);
+    }
+    return {pts:pts,downH:down/3600,inWh:inJ/3600,outWh:outJ/3600,chgH:chg/3600,nrep:nrep,minWh:minE/3600,stopAt:stopAt};
+  }
+  REG.w16_week=function(el,U){
+    var S=U.S;
+    U.head(el,"WINTER","冬の 1 週間の蓄え — 低温で充電できない時間");
+    var r1=U.ctrls(el);
+    var wk=U.select(r1,"天気の並び",[{v:"ex",t:"例の週（晴れ・曇り・雪・雪・晴れ・曇り・晴れ）"},{v:"sun",t:"晴れが続く週"},{v:"snow",t:"曇りと雪が続く週"}],"ex",draw);
+    var sh=U.slider(r1,"気温を全体にずらす",{min:-6,max:12,step:1,value:0,fmt:function(v){return (v>0?"+":"")+String(v).replace("-","−")+" K";},onInput:draw});
+    var r2=U.ctrls(el);
+    var pp=U.slider(r2,"太陽電池（晴れた夏の山）",{values:[0.1,0.2,0.3,0.5,0.8,1,1.5,2],value:0.5,fmt:function(v){return v+" W";},onInput:draw});
+    var em=U.slider(r2,"蓄え（使えるエネルギー）",{values:[0.4,0.8,1.6,3.2,6.4],value:1.6,fmt:function(v){return v+" Wh";},onInput:draw});
+    var s0=U.slider(r2,"始めの蓄え",{min:10,max:100,step:10,value:60,fmt:function(v){return v+" %";},onInput:draw});
+    var r3=U.ctrls(el);
+    var pl=U.select(r3,"電池の置き方",["日陰の箱（+1.8 K・2 時間）","日なたで断熱（+9 K・4 時間）"],0,draw);
+    var md=U.select(r3,"送る間隔",["5 分ごと（平均 10 mW）","蓄えに合わせる（5〜60 分）"],0,draw);
+    var hd=U.slider(r3,"蓄えを使い切る日数の見込み",{min:2,max:10,step:1,value:5,fmt:function(v){return v+" 日";},onInput:draw});
+    var br=U.btnrow(el);
+    function preset(a,b){wk.set("ex");sh.set(0);pp.set(0.5);em.set(1.6);s0.set(60);pl.set(a);md.set(b);hd.set(5);draw();}
+    U.button(br,"(a) 日陰・5 分ごと",function(){preset(0,0);});
+    U.button(br,"(b) 日陰・蓄えに合わせる",function(){preset(0,1);});
+    U.button(br,"(c) 日なた・断熱・蓄えに合わせる",function(){preset(1,1);});
+    var box=U.svgbox(el); var ro=U.readout(el);
+    function draw(){
+      hd.el.style.display=md.get()===1?"":"none";
+      var W=_w16_WK[wk.get()],shift=sh.get(),place=pl.get();
+      var r=_w16_week({wk:W,shift:shift,Pp:pp.get(),Emax:em.get(),soc0:s0.get()/100,dT:place?15:3,tau:place?4:2,adapt:md.get()===1,hold:hd.get()});
+      var o=[],x0=70,wd=600,dw=wd/7;
+      W.forEach(function(d,i){var xc=x0+i*dw+dw/2;o.push(S.T(xc,16,(i+1)+" 日目 "+d[0],"middle",10,"ink",true));
+        o.push(S.T(xc,30,String(d[1]+shift).replace("-","−")+"〜"+String(d[2]+shift).replace("-","−")+" °C","middle",9.5,"muted"));});
+      var pt=U.plot(x0,42,wd,100,[0,7],[-20,20]);
+      o.push(pt.axes({yl:"温度 [°C]",xt:[],yt:[-20,-10,0,10,20],yfmt:function(v){return String(v).replace("-","−");}}));
+      for(var d=1;d<7;d++)o.push(S.L(pt.X(d),pt.y,pt.X(d),pt.y+pt.h,"grid",1));
+      o.push(pt.line([[0,0],[7,0]],"alias",1.2,"6 4"));
+      o.push(pt.line(r.pts.map(function(q){return [q[0],Math.max(-20,Math.min(20,q[3]))];}),"muted",1.1));
+      o.push(pt.line(r.pts.map(function(q){return [q[0],Math.max(-20,Math.min(20,q[2]))];}),"teal",2));
+      o.push(S.T(pt.X(7)-4,pt.Y(0)-5,"0 °C より冷たい間は充電しない","end",9.5,"alias",false,false,null,true));
+      var yc=pt.y+pt.h+8;
+      o.push(S.T(x0-6,yc+8,"充電","end",9,"green",true));o.push(S.RECT(x0,yc,wd,9,1,"panel","line",0.8));
+      var st=null;r.pts.concat([[7,0,0,0,false,true]]).forEach(function(q){if(q[4]&&st===null)st=q[0];if(!q[4]&&st!==null){o.push(S.RECT(pt.X(st),yc,Math.max(1.5,pt.X(q[0])-pt.X(st)),9,0,U.soft("green"),"green",0.8));st=null;}});
+      var ymax=Math.max(1.0,em.get()*1.06),pe=U.plot(x0,yc+30,wd,140,[0,7],[0,ymax]);
+      o.push(pe.axes({xl:"日",yl:"蓄え [Wh]",xt:[0,1,2,3,4,5,6,7],yt:U.nice(0,ymax,4),xfmt:function(v){return String(v);},yfmt:function(v){return String(+v.toFixed(2));}}));
+      st=null;r.pts.concat([[7,1,0,0,false,true]]).forEach(function(q){if(!q[5]&&st===null)st=q[0];if(q[5]&&st!==null){o.push(S.RECT(pe.X(st),pe.y,pe.X(q[0])-pe.X(st),pe.h,0,U.soft("alias"),"none",0));
+        o.push(S.T((pe.X(st)+pe.X(q[0]))/2,pe.y+14,"止まる","middle",9.5,"alias",true,false,null,true));st=null;}});
+      o.push(pe.line(r.pts.map(function(q){return [q[0],q[1]];}),r.downH>0?"alias":"green",2.2));
+      box.set(S.svg(700,pe.y+pe.h+40,o));
+      var stopTxt=r.stopAt===null?'<span class="ok">止まらない</span>':'<span class="warn">'+(Math.floor(r.stopAt)+1)+' 日目の '+Math.floor((r.stopAt%1)*24)+' 時ごろに蓄えが尽き、'+U.sig(r.downH,3)+' 時間止まる</span>';
+      ro.innerHTML="入ったエネルギー <b>"+U.sig(r.inWh,3)+" Wh</b>（充電できた時間 "+U.sig(r.chgH,3)+" 時間）・使ったエネルギー <b>"+U.sig(r.outWh,3)+" Wh</b>・最も少ない蓄え <b>"+U.sig(r.minWh,3)+" Wh</b><br>"+
+        "送った回数 "+Math.round(r.nrep)+" 回（5 分ごとなら 2016 回）・"+stopTxt+
+        '<div class="wnote">電池の温度は、気温に時定数（置き方の括弧の中の時間）で追いつき、日が当たると最大で括弧の中の K だけ高くなる簡単な模型（例の値）。太陽電池は 8〜16 時に、晴れで夏の山の 6 割、曇りで 1.2 割、雪で 0 の正弦の形で電力を出し、蓄えへ移すときに 2 割を失う。眠りとセンサで 1 mW、1 回の送信に 2.7 J。蓄えに合わせるときは、蓄えを見込みの日数で使い切る電力を上限に間隔を決める（02 章 6 節のコードと同じ考え方）。</div>';
+    }
+    draw();
+  };
+
+  /* ---- 6 節の最後: 5 つの条件のチェックの表 ---- */
+  /* 停電の後に残る時間（06 章 3 節の模型を解析的に解く）: 全波整流の山から一定の電力で下がる。
+     停電の始まりを半周期の中で 200 通りに変え、交流の検出の信号が H になってから 3.0〜3.5 ms で気づくとして、最も短いものを返す */
+  function _w16_hold(Vr,f,C,P,V2,Pa){
+    var Vp=Math.SQRT2*Vr,w=2*Math.PI*f,Th=0.5/f,tpk=0.25/f,tz=0.5/f,a=Math.asin(Math.min(1,20/Vp))/w;
+    function vd(t){return Math.sqrt(Math.max(Vp*Vp-2*P*(t-tpk)/C,0));}
+    var t=tz;while(t<1/f){t+=1e-6;if(Math.abs(Vp*Math.sin(w*t))>=vd(t))break;}
+    var tch=t,vv=vd(tch),best=1e9;
+    for(var k=0;k<200;k++){var T0=tpk+k/200*Th,v0=T0<tch?vd(T0):Math.abs(Vp*Math.sin(w*T0));
+      var hs=(T0>=tz-a&&T0<=tz+a)?tz-a:T0,j=0;while(T0+j*5e-4-hs<=3e-3+1e-12)j++;
+      var rem=(0.5*C*v0*v0-P*j*5e-4-0.5*C*V2*V2)/Pa;if(rem<best)best=rem;}
+    return {valley:vv,rem:best};
+  }
+  /* 空だき: 底の板（熱容量 Cb）とサーミスタ（時定数 tau の一次遅れ）。1 秒ごとの読みの差が r を超えることが 3 回続いたら気づく */
+  function _w16_dry(P,Cb,tau,r){var Tp=20,Ts=20,dt=0.01,prev=20,cnt=0;
+    for(var n=1;n<=12000;n++){Tp+=P/Cb*dt;Ts+=(Tp-Ts)/tau*dt;
+      if(n%100===0){cnt=(Ts-prev>r)?cnt+1:0;prev=Ts;if(cnt>=3)return {t:n*dt,Tp:Tp};}}
+    return null;}
+  REG.w16_check=function(el,U){
+    var S=U.S,F=U.fmt;
+    U.head(el,"CHECK","条件ごとのチェックの表 — 例の機器の値で判定する");
+    var r0=U.ctrls(el);
+    var cond=U.select(r0,"条件",["電池（2 節の記録計）","USB・AC アダプタ（3 節の扇風機）","商用電源に直結（4 節の電気ポット）","車の電源（5 節の記録計）","屋外・環境発電（6 節の観測器）"],0,draw);
+    var G=[],QL=[];
+    function grp(){var d=U.mk("div");el.appendChild(d);G.push(d);return d;}
+    function quals(g,list){var row=U.ctrls(g),cs=list.map(function(q){return U.checkbox(row,"確かめた: "+q[1],false,draw);});QL.push({list:list,cs:cs});}
+    function C(v,u){return U.sig(v,3)+(u||"");}
+    /* 0: 電池 */
+    var g=grp(),c1=U.ctrls(g);
+    var bb=U.select(c1,"電池",[{v:"cr",t:"CR2032 1 個"},{v:"alk",t:"単 3 形アルカリ乾電池 2 本"},{v:"soc",t:"塩化チオニルリチウム電池 1 本"}],"cr",draw);
+    var bi=U.slider(c1,"機器の平均電流（自己放電を除く）",{min:0.5,max:500,log:true,value:3.03,fmt:function(v){return U.sig(v,3)+" µA";},onInput:draw});
+    var c2=U.ctrls(g);
+    var bp=U.slider(c2,"最も厳しいパルスの電流",{min:1,max:200,log:true,value:5,fmt:function(v){return U.sig(v,3)+" mA";},onInput:draw});
+    var bl=U.slider(c2,"その長さ",{min:0.5,max:100,log:true,value:20,fmt:function(v){return U.sig(v,3)+" ms";},onInput:draw});
+    var bc=U.select(c2,"大容量コンデンサ",["なし","100 µF","1 mF"],1,draw);
+    var c3=U.ctrls(g);
+    var bt=U.slider(c3,"最も低い温度",{min:-20,max:25,step:1,value:0,fmt:function(v){return String(v).replace("-","−")+" °C";},onInput:draw});
+    var bv=U.slider(c3,"BOR のしきい値",{min:1.8,max:3.0,step:0.05,value:2.2,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var bs=U.slider(c3,"出荷までの月数",{min:0,max:24,step:1,value:6,fmt:function(v){return v+" か月";},onInput:draw});
+    var bg=U.slider(c3,"目標の寿命",{min:1,max:15,step:1,value:5,fmt:function(v){return v+" 年";},onInput:draw});
+    var c4=U.ctrls(g);var ba=U.checkbox(c4,"保管の間も機器が動く（電池を入れたまま出荷）",false,draw);
+    var p0=U.btnrow(g);
+    U.button(p0,"2 節: はじめの設計",function(){bb.set("cr");bi.set(6.31);bp.set(15);bl.set(3);bc.set(0);bt.set(0);bv.set(2.2);bs.set(6);ba.set(true);bg.set(5);draw();});
+    U.button(p0,"2 節: 直した設計",function(){bb.set("cr");bi.set(3.03);bp.set(5);bl.set(20);bc.set(1);bt.set(0);bv.set(2.2);bs.set(6);ba.set(false);bg.set(5);draw();});
+    quals(g,[["異常への備え","尽きかけたら OK・LOW・CRIT で止まる",["p04_3"]],["電力の予算","眠る前にピンを整え、センサと分圧は測るときだけ",["p07_3","p08_3","p09_4"]],
+      ["駆動の設計","大きな動作を重ねない",["p04_2"]],["電源の構成","逆に入れても壊れない・出荷モード",["p04_6"]]]);
+    /* 1: USB・AC アダプタ */
+    g=grp();c1=U.ctrls(g);
+    var us=U.select(c1,"電源",[{v:"0.1",t:"ふつうのポート（通信しない機器）100 mA"},{v:"0.5",t:"USB 2.0（設定の後）500 mA"},{v:"1.5",t:"BC 1.2・Type-C 1.5 A"},{v:"3",t:"Type-C 3.0 A"},{v:"1",t:"専用の AC アダプタ 1 A"},{v:"2",t:"専用の AC アダプタ 2 A"}],"1",draw);
+    c2=U.ctrls(g);
+    var ui=U.slider(c2,"定常の電流",{min:10,max:3000,log:true,value:370,int:true,fmt:function(v){return v+" mA";},onInput:draw});
+    var up=U.slider(c2,"回し始め・入れた瞬間の最大の電流",{min:10,max:5000,log:true,value:1010,int:true,fmt:function(v){return v+" mA";},onInput:draw});
+    c3=U.ctrls(g);
+    var ur=U.slider(c3,"ケーブルとコネクタの往復の抵抗",{min:0.05,max:1,step:0.05,value:0.4,fmt:function(v){return v.toFixed(2)+" Ω";},onInput:draw});
+    var uv=U.slider(c3,"機器が動く最低の入力の電圧",{min:3,max:4.8,step:0.1,value:3.6,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    p0=U.btnrow(g);
+    U.button(p0,"強を一気に（AC アダプタ）",function(){us.set("1");ui.set(370);up.set(1010);draw();});
+    U.button(p0,"強を 0.5 s で上げる",function(){ui.set(370);up.set(420);draw();});
+    U.button(p0,"弱を 2 s で（ふつうのポート）",function(){us.set("0.1");ui.set(80);up.set(85);draw();});
+    quals(g,[["電源の構成","差した瞬間の突入電流を抑える",["p05_3"]],["異常への備え","抜かれたら新しく書き始めない",["p05_6"]],
+      ["電力の予算","充電の電流は予算の残りにする",["p02_3","p04_5"]],["駆動の設計","回し始めは時間をかけて上げる",["p13_3","p12_6"]]]);
+    /* 2: 商用電源に直結 */
+    g=grp();c1=U.ctrls(g);
+    var mt=U.checkbox(c1,"人が触れる所がある",true,draw),mc=U.checkbox(c1,"ほかの機器と配線でつなぐ",false,draw);
+    c2=U.ctrls(g);
+    var mv=U.slider(c2,"コンセントの電圧の下限",{min:85,max:100,step:1,value:90,fmt:function(v){return v+" V";},onInput:draw});
+    var mf=U.select(c2,"周波数",["50 Hz","60 Hz"],0,draw);
+    var mcap=U.slider(c2,"平滑コンデンサ",{values:[4.7,10,22,47,100],value:22,fmt:function(v){return v+" µF";},onInput:draw});
+    var mp=U.slider(c2,"入力の電力",{min:0.5,max:10,step:0.5,value:2,fmt:function(v){return v+" W";},onInput:draw});
+    c3=U.ctrls(g);
+    var mr=U.select(c3,"気づいた後の電力",["そのまま","1/4 に減らす"],0,draw);
+    var mw=U.slider(c3,"後始末の時間",{min:0.1,max:30,log:true,value:0.7,fmt:function(v){return U.sig(v,3)+" ms";},onInput:draw});
+    var ms=U.slider(c3,"待機電力",{min:0.05,max:2,log:true,value:0.3,fmt:function(v){return U.sig(v,3)+" W";},onInput:draw});
+    c4=U.ctrls(g);
+    var mh=U.slider(c4,"ヒータ",{min:300,max:2000,step:100,value:1000,fmt:function(v){return v+" W";},onInput:draw});
+    var mb=U.slider(c4,"本体の熱容量",{min:100,max:1000,step:50,value:400,fmt:function(v){return v+" J/K";},onInput:draw});
+    var mk=U.slider(c4,"判定の速さ",{min:0.3,max:3,step:0.1,value:1,fmt:function(v){return v.toFixed(1)+" K/s";},onInput:draw});
+    var mtau=U.slider(c4,"サーミスタの遅れ（時定数）",{min:1,max:20,step:1,value:5,fmt:function(v){return v+" s";},onInput:draw});
+    quals(g,[["異常への備え","復電で危険な動作は利用者の操作を待つ",["p06_4","p15_6"]],["異常への備え","リセットの間は既定の状態で切れる",["p15_1"]],
+      ["異常への備え","2 つ目のスイッチとマイコンに頼らない保護",["p15_2","p14_5"]],["駆動の設計","ゼロクロスに合わせて入れ切りする",["p06_6","p14_4"]],["電源の構成","サージは入口の部品で守る",["p06_5"]]]);
+    /* 3: 車の電源 */
+    g=grp();c1=U.ctrls(g);
+    var vr=U.slider(c1,"バッテリの内部抵抗と配線",{min:5,max:50,step:1,value:30,fmt:function(v){return v+" mΩ";},onInput:draw});
+    var vd=U.slider(c1,"入口のダイオードの電圧",{min:0,max:0.8,step:0.05,value:0.4,fmt:function(v){return v.toFixed(2)+" V";},onInput:draw});
+    var vm=U.slider(c1,"電源が保てる最低の入力",{min:3,max:8,step:0.1,value:4,fmt:function(v){return v.toFixed(1)+" V";},onInput:draw});
+    c2=U.ctrls(g);
+    var vc=U.slider(c2,"保持のコンデンサ",{values:[0.1,0.22,0.47,1,2.2,4.7],value:0.47,fmt:function(v){return v+" mF";},onInput:draw});
+    var vp=U.slider(c2,"動作中の電力",{min:0.01,max:1,log:true,value:0.1,fmt:function(v){return U.sig(v,3)+" W";},onInput:draw});
+    var vq=U.slider(c2,"気づいた後の電力",{min:1,max:100,log:true,value:5,fmt:function(v){return U.sig(v,3)+" mW";},onInput:draw});
+    var vt=U.slider(c2,"クランキングの長さ",{min:0.2,max:3,step:0.1,value:1,fmt:function(v){return v.toFixed(1)+" s";},onInput:draw});
+    c3=U.ctrls(g);
+    var vk=U.checkbox(c3,"下がったことに気づいて電力を減らす",true,draw);
+    var vi=U.slider(c3,"止めている間の平均電流",{min:1,max:2000,log:true,value:5.7,fmt:function(v){return U.sig(v,3)+" µA";},onInput:draw});
+    var vn=U.slider(c3,"乗らない日数",{min:1,max:90,step:1,value:30,fmt:function(v){return v+" 日";},onInput:draw});
+    quals(g,[["電源の構成","ロードダンプ・ノイズ・逆接続を入口の回路で守る（規格で確かめる）",["p02_5","p04_6"]],["測り方の設計","ACC の途切れの長さで判断する",["p02_5","p11_6"]],
+      ["異常への備え","BOR から起動したら重い負荷をすぐ動かさない",["p05_5","p15_3"]],["駆動の設計","夏の高温で出力を下げる",["p14_6"]]]);
+    /* 4: 屋外・環境発電 */
+    g=grp();c1=U.ctrls(g);
+    var op=U.slider(c1,"太陽電池（晴れた夏の山）",{values:[0.1,0.2,0.3,0.5,0.8,1,1.5,2],value:0.5,fmt:function(v){return v+" W";},onInput:draw});
+    var of=U.slider(c1,"冬の山の割合",{min:0.3,max:1,step:0.05,value:0.6,fmt:function(v){return Math.round(v*100)+" %";},onInput:draw});
+    var oh=U.slider(c1,"冬の日の出ている時間",{min:6,max:12,step:1,value:8,fmt:function(v){return v+" 時間";},onInput:draw});
+    c2=U.ctrls(g);
+    var ol=U.slider(c2,"平均の電力",{min:1,max:50,log:true,value:10,fmt:function(v){return U.sig(v,3)+" mW";},onInput:draw});
+    var oe=U.slider(c2,"蓄え",{values:[0.4,0.8,1.6,3.2,6.4],value:1.6,fmt:function(v){return v+" Wh";},onInput:draw});
+    var os=U.slider(c2,"始めの蓄え",{min:10,max:100,step:10,value:60,fmt:function(v){return v+" %";},onInput:draw});
+    c3=U.ctrls(g);
+    var oc=U.slider(c3,"寒くて充電できない日が続く日数",{min:0,max:14,step:1,value:5,fmt:function(v){return v+" 日";},onInput:draw});
+    var ow=U.slider(c3,"晴れた日に充電できる時間（電池が 0 °C 以上）",{min:0,max:8,step:0.1,value:2.1,fmt:function(v){return v.toFixed(1)+" 時間";},onInput:draw});
+    quals(g,[["測り方の設計","結露のときの値を妥当性の検査で確かめる",["p10_6"]],["測り方の設計","長い配線を TVS と直列抵抗で守る",["p11_5"]],
+      ["電力の予算","蓄えに合わせて送る間隔を決める",["p02_6"]],["異常への備え","故障したら縮退運転する",["p15_5"]]]);
+    var box=U.svgbox(el); var ro=U.readout(el);
+    /* rows: [段, 確かめること, 基準, 値, 余裕の比（≥ 1 で満たす。null は判定なし）, 読む節のキー] */
+    function rowsOf(m){
+      var R=[];
+      if(m===0){var b=_w16_B[bb.get()],T=bt.get(),Cc=[0,100e-6,1e-3][bc.get()],I=bi.get(),Isd=b.sd*b.Qn*1000/8760;
+        var u=_w16_usable(b,T,[[bp.get()*1e-3,bl.get()*1e-3]],Cc,0.1,bv.get()).u;
+        var st=(ba.get()?I*1e-3*730*bs.get():0)+b.sd*b.Qn*bs.get()/12,left=u*b.Qn-st,life=left>0?left/((I+Isd)*1e-3)/8760:0;
+        var vb0=_w16_E(b,0)-bp.get()*1e-3*_w16_drop(b,0,T,bl.get()*1e-3,Cc,0.1);
+        R.push(["電源の構成","新しい電池のパルスの底（"+String(T).replace("-","−")+" °C）","BOR + 0.1 V 以上",C(vb0," V"),vb0/(bv.get()+0.1),["p03_4","p04_1"]]);
+        R.push(["電源の構成","パルスの底で使える割合","—",C(u*100," %"),null,["p03_4","p04_1"]]);
+        R.push(["条件の書き出し","出荷までに失う電荷","—",C(st," mAh"),null,["p03_5","p04_6"]]);
+        R.push(["確かめ","電池寿命（自己放電 "+C(Isd," µA")+" を含む）",bg.get()+" 年以上",left>0?C(life," 年"):"残らない",left>0?life/bg.get():0.01,["p03_5"]]);}
+      if(m===1){var bud=+us.get()*1000*0.9,Vd=5-ur.get()*up.get()/1000;
+        R.push(["電力の予算","定常の電流","予算の 9 割 "+bud+" mA 以下",ui.get()+" mA",bud/ui.get(),["p02_3"]]);
+        R.push(["駆動の設計","回し始め・入れた瞬間の最大","同じ",up.get()+" mA",bud/up.get(),["p13_3","p12_6"]]);
+        R.push(["電源の構成","最大の電流のときの端子の電圧","最低の入力 "+uv.get().toFixed(1)+" V 以上",C(Vd," V"),Vd/uv.get(),["p02_3"]]);}
+      if(m===2){var iso=mt.get()||mc.get(),f=mf.get()?60:50,P=mp.get(),h=_w16_hold(mv.get(),f,mcap.get()*1e-6,P,70,mr.get()?P/4:P),rem=Math.max(0,h.rem*1000);
+        var dry=_w16_dry(mh.get(),mb.get(),mtau.get(),mk.get()),mmin=(mh.get()/mk.get()-mb.get())/4.18;
+        R.push(["電源の構成","絶縁が要るか","触れる・つなぐなら要る",iso?"要る（絶縁電源）":"非絶縁も選べる",null,["p02_4","p06_2"]]);
+        R.push(["異常への備え","停電に気づいてから電源が保てるまで（後始末の 2 倍以上）",C(2*mw.get()," ms")+" 以上",h.rem>0?C(rem," ms"):"谷で既に下限を割る",h.rem>0?rem/(2*mw.get()):0.01,["p06_3"]]);
+        R.push(["異常への備え","空だきに気づく時間と底の板の温度","100 °C より低いうち（例の基準）",dry?dry.t.toFixed(1)+" s・"+C(dry.Tp," °C"):"2 分では気づかない",dry?100/dry.Tp:0.01,["p14_5","p10_6"]]);
+        R.push(["測り方の設計","空とみなす水の量（これより少ないと判定の速さを超える）","—",mmin>0?U.sig(mmin,4)+" g":"水があっても超える",null,["p14_5"]]);
+        R.push(["条件の書き出し","待機電力の 1 年の電力量","規格と地域の値",C(ms.get()*8.76," kWh"),null,["p06_7"]]);}
+      if(m===3){var E0=12.6,Rb=vr.get()/1000,I0=E0/(Rb+0.015),Vc=E0-I0*Rb-vd.get(),need=Vc<vm.get();
+        var V1=E0-vd.get(),Ej=0.5*vc.get()*1e-3*(V1*V1-vm.get()*vm.get()),th=Ej/(vk.get()?vq.get()*1e-3:vp.get());
+        R.push(["電源の構成","クランキングの間の入力（ダイオードの後。スタータ 15 mΩ）",vm.get().toFixed(1)+" V 以上",C(Vc," V"),Vc/vm.get(),["p02_5"]]);
+        R.push(["異常への備え","保持のコンデンサで支えられる時間",need?"クランキングの "+vt.get().toFixed(1)+" s 以上":"（要らない）",need?C(th," s"):"—",need?th/vt.get():null,["p06_3","p05_6"]]);
+        var ah=vi.get()*1e-6*24*vn.get();
+        R.push(["電力の予算","止めている間の電荷（"+vn.get()+" 日）","車両のメーカの上限",C(ah*1000," mAh")+"（40 Ah の "+C(ah/40*100," %")+"）",null,["p02_5","p05_2","p09_4"]]);}
+      if(m===4){var L=oh.get(),Pk=op.get()*of.get(),use=ol.get()*24/1000;
+        var full=0.8*Pk*2*L/Math.PI,win=Math.min(ow.get(),L),part=0.8*Pk*(L/Math.PI)*(1+Math.cos(Math.PI*(L-win)/L));
+        var E0b=oe.get()*os.get()/100,days=E0b/use;
+        R.push(["電力の予算","晴れて 1 日中充電できたときの収支","使う "+C(use*1000," mWh")+" 以上",C(full*1000," mWh"),full/use,["p02_6"]]);
+        R.push(["電源の構成","晴れても電池が 0 °C 以上の "+win.toFixed(1)+" 時間だけ充電できるとき","同じ",C(part*1000," mWh"),part/use,["p04_5","p02_6"]]);
+        R.push(["電力の予算","蓄えだけで動ける日数","充電できない "+oc.get()+" 日以上",C(days," 日"),oc.get()>0?days/oc.get():null,["p02_6"]]);}
+      return R;
+    }
+    function draw(){
+      var m=cond.get();G.forEach(function(d,i){d.style.display=i===m?"":"none";});
+      var R=rowsOf(m),q=QL[m],num=R.filter(function(r){return r[4]!==null;});
+      /* 余裕の図: log2(比) を ±3 に限って、基準を真ん中に置く */
+      var o=[],x0=290,wd=360,xc=x0+wd/2,rh=34,W=700;
+      o.push(S.T(xc,14,"基準","middle",10,"ink",true));o.push(S.T(x0,14,"足りない","start",9.5,"alias",true));o.push(S.T(x0+wd,14,"余裕がある","end",9.5,"green",true));
+      [-3,-2,-1,0,1,2,3].forEach(function(k){var xx=xc+k*wd/6;o.push(S.L(xx,22,xx,26+Math.max(1,num.length)*rh,k===0?"ink":"grid",k===0?1.4:1));
+        o.push(S.T(xx,38+Math.max(1,num.length)*rh,k===0?"1 倍":(k>0?Math.pow(2,k)+" 倍":"1/"+Math.pow(2,-k)),"middle",9,"muted"));});
+      num.forEach(function(r,i){var y=28+i*rh,lr=Math.max(-3,Math.min(3,Math.log(Math.max(r[4],1e-9))/Math.LN2)),ok=r[4]>=1,c=ok?"green":"alias";
+        o.push(S.T(x0-8,y+12,r[1].length>24?r[1].slice(0,23)+"…":r[1],"end",9.5,"ink"));
+        o.push(S.T(x0-8,y+25,"値 "+r[3].replace(/<[^>]*>/g,""),"end",9,"muted"));
+        o.push(S.RECT(Math.min(xc,xc+lr*wd/6),y+6,Math.max(2,Math.abs(lr*wd/6)),14,2,U.soft(c),c,1.2));});
+      if(!num.length)o.push(S.T(xc,50,"この条件には、数で判定する行がない","middle",10,"muted"));
+      box.set(S.svg(W,46+Math.max(1,num.length)*rh,o));
+      var rows=R.map(function(r){return [r[0],r[1],r[2],r[3],r[4]===null?"—":_w16_ok(r[4]>=1),_w16_lk(r[5])];});
+      q.list.forEach(function(x,i){rows.push([x[0],x[1],"—","—",q.cs[i].get()?'<span class="ok">確かめた</span>':"まだ",_w16_lk(x[2])]);});
+      var bad=num.filter(function(r){return r[4]<1;}).length,done=q.cs.filter(function(c){return c.get();}).length;
+      ro.innerHTML="数で判定した "+num.length+" 行のうち、基準を満たさないもの <b>"+bad+"</b> 行・確かめた印 <b>"+done+" / "+q.cs.length+"</b>"+
+        U.tbl(["段","確かめること","基準","値","判定","読む節"],rows,["left","wrap","wrap","wrap","center","wrap"])+
+        '<div class="wnote">値はどれも例の値で、前の章の模型で計算した。基準を満たさない行は、読む節の方法で直してから、もう一度確かめる。商用電源と車の電源では、規格・法令・車両のメーカの要求を必ず確かめること。</div>';
+    }
+    draw();
+  };
+
+  /* ===== END CHAPTER WIDGETS ===== */
+
+  window.PERIPH=U;
+  function boot(){
+    document.querySelectorAll("[data-widget]").forEach(function(el){
+      if(el.getAttribute("data-ready"))return; el.setAttribute("data-ready","1");
+      var fn=REG[el.getAttribute("data-widget")];
+      if(!fn){el.innerHTML='<div style="color:var(--alias);font-family:var(--mono);font-size:.8rem">demo error: 部品 '+esc(el.getAttribute("data-widget"))+' が見つからない</div>';return;}
+      try{fn(el,U);}catch(e){el.innerHTML='<div style="color:var(--alias);font-family:var(--mono);font-size:.8rem">demo error: '+esc(e.message)+'</div>';if(window.console)console.error(e);}
+    });
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
+})();
