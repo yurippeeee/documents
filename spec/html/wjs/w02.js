@@ -11,14 +11,14 @@
   var _W02_ST=["停止中","待ち","測定中","書き込み中"],_W02_EV=["長押し","記録の時刻","測定の完了","応答なし","書き込みの完了"];
   /* マスの処理。t は表に書く短い文字（1 行 7 文字まで）、d は読み出しに書く説明、x は起きない理由（起きないマス）、no は決めていないマス */
   var _W02_CELL={
-    "0,0":[{t:["記録を始める","→ 待ち"],d:"記録を始める（RTC を設定、緑を 3 回）→ 待ち"}],
+    "0,0":[{t:["記録を始め、","すぐ測る","→ 測定中"],d:"記録を始める（RTC を設定、緑を 3 回）。すぐに 1 件目の測定の命令を送り、5 ms のタイマを掛ける → 測定中"}],
     "1,0":[{t:["記録を止める","→ 停止中"],d:"記録を止める（RTC を止める、赤を 3 回）→ 停止中"}],
     "1,1":[{t:["測定の命令","→ 測定中"],d:"測定の命令を送り、5 ms のタイマを掛ける → 測定中"}],
     "2,0":[{t:["止める印を","立てる"],d:"止める印を立てる（測定と書き込みを終えてから止める）"},
            {t:["すぐ","→ 停止中"],d:"すぐ停止中へ（RTC を止め、赤を 3 回。測定のタイマはそのまま）"},
            {t:["（空き）"],d:"（決めていない）",no:true}],
     "2,2":[{t:["結果から 1 件","→ 書き込み中"],d:"結果を読み、1 件を書き始める → 書き込み中"}],
-    "2,3":[{t:["測れなかった","1 件","→ 書き込み中"],d:"「測れなかった」の 1 件を書き始める → 書き込み中"},
+    "2,3":[{t:["測定異常の","1 件","→ 書き込み中"],d:"測定異常の印を付けた 1 件を書き始める → 書き込み中"},
            {t:["何も書かず","→ 待ち"],d:"何も書かずに → 待ち"},
            {t:["（空き）"],d:"（決めていない）",no:true}],
     "3,0":[{t:["止める印を","立てる"],d:"止める印を立てる（書き込みを終えてから止める）"},
@@ -31,10 +31,10 @@
     "2,1":"記録の間隔は 1 分以上","2,4":"書いていない","3,1":"記録の間隔は 1 分以上","3,2":"タイマを掛けていない","3,3":"タイマを掛けていない"};
   var _W02_EDIT=[["2,0","測定中 × 長押し"],["3,0","書き込み中 × 長押し"],["2,3","測定中 × 応答なし"],["3,4","書き込み中 × 書き込みの完了"]];
   var _W02_SEQ=[
-    {n:"普通の記録（2 回測って止める）",e:[0,1,2,4,1,2,4,0]},
-    {n:"書き込み中に長押し",e:[0,1,2,0,4,1]},
-    {n:"測定中に長押し",e:[0,1,0,2,4,1]},
-    {n:"センサが応答しない",e:[0,1,3,4,1,2,4]}];
+    {n:"普通の記録（2 回測って止める）",e:[0,2,4,1,2,4,0]},
+    {n:"書き込み中に長押し",e:[0,2,4,1,2,0,4,1]},
+    {n:"測定中に長押し",e:[0,2,4,1,0,2,4,1]},
+    {n:"センサが応答しない",e:[0,3,4,1,2,4]}];
   REG.w02_fsm=function(el,U){
     var S=U.S;
     U.head(el,"STATE TABLE","中の状態遷移表 — マスの処理と出来事の列で、状態の動きを 1 つずつ確かめる");
@@ -71,7 +71,7 @@
         if(e===3)line.w.push("応答なしの後の動きが無く、測定中のまま止まる。次の記録の時刻からも動けない");
         log.push(line);lastT=null;check(line);return;}
       line.d=o.d;var to=s0;
-      if(key==="0,0"){sim.rtc=true;sim.led="緑を 3 回";to=1;}
+      if(key==="0,0"){sim.rtc=true;sim.timer=true;sim.led="緑を 3 回";to=2;}
       else if(key==="1,0"){sim.rtc=false;sim.led="赤を 3 回";to=0;}
       else if(key==="1,1"){sim.timer=true;to=2;}
       else if(key==="2,0"||key==="3,0"){var c=choice[key]||0;if(c===0)sim.stop=true;else{sim.rtc=false;sim.led="赤を 3 回";to=0;
@@ -82,7 +82,7 @@
       else if(key==="3,4"){var c4=choice[key]||0;if(c4===0){sim.awake=false;if(sim.stop){sim.stop=false;sim.rtc=false;sim.led="赤を 3 回";to=0;}else to=1;}
         else{to=1;if(sim.stop)line.w.push("止める印を見ないので、長押しで止めたはずの記録が続く");sim.stop=false;}}
       sim.st=to;line.to=_W02_ST[to];lastT=[s0,to,key];log.push(line);check(line);}
-    function check(line){if(sim.awake&&(sim.st===0||sim.st===1)&&!sim.writing&&!sim.warned){sim.warned=true;line.w.push("フラッシュが眠っていない（スタンバイ 25 µA）。5 節の予算で、寿命が 7.6 年から 0.76 年になる");}}
+    function check(line){if(sim.awake&&(sim.st===0||sim.st===1)&&!sim.writing&&!sim.warned){sim.warned=true;line.w.push("フラッシュが眠っていない（スタンバイ 25 µA）。5 節の予算で、寿命が 7.3 年から 0.75 年になる");}}
     /* ---- 描く ---- */
     function draw(){
       var nar=_w02_nar(box),Wd=nar?400:700,o=[],sq=seq();
@@ -112,18 +112,18 @@
       o.push(S.T(tx,tb+15,"緑: 処理を変えられるマス（本文の表のとおり）　金: 変えたマス　赤: 空いたマス","start",9.5,"muted"));
       /* 状態遷移図（表から描く）と、仕様から見た様子 */
       var dy=tb+28,dx=nar?8:8,dw=nar?384:430,P={0:[dx+50,dy+70],1:[dx+165,dy+110],2:[dx+265,dy+44],3:[dx+350,dy+110]};
-      o.push(S.RECT(dx,dy,dw,150,6,"var(--screen)","line",1));
+      o.push(S.RECT(dx,dy,dw,160,6,"var(--screen)","line",1));
       o.push(S.T(dx+8,dy+16,"表から描いた状態遷移図","start",10,"ink",true));
       var arrows=[];function add(a,b,lab,key){arrows.push([a,b,lab,key]);}
-      add(0,1,"長押し","0,0");add(1,0,"長押し","1,0");add(1,2,"記録の時刻","1,1");
+      add(0,2,"長押し","0,0");add(1,0,"長押し","1,0");add(1,2,"記録の時刻","1,1");
       if(!opt("2,0").no&&(choice["2,0"]||0)===1)add(2,0,"長押し","2,0");
       add(2,3,"測定の完了","2,2");var c23=choice["2,3"]||0;if(c23===0)add(2,3,"","2,3");if(c23===1)add(2,1,"応答なし","2,3");
       if((choice["3,0"]||0)===1)add(3,0,"長押し","3,0");
       add(3,1,"書き込みの完了","3,4");if((choice["3,4"]||0)===0)add(3,0,"完了（印）","3,4");
       arrows.forEach(function(a){var A=P[a[0]],B=P[a[1]],hl=lastT&&lastT[2]===a[3]&&lastT[0]===a[0]&&lastT[1]===a[1],c=hl?"gold":"purple",lw=hl?2.6:1.3;
-        if(a[0]===3&&a[1]===0){var low=a[3]==="3,4",ym=dy+(low?160:150),x0p=A[0]-6,y0p=A[1]+13,x1p=B[0]+(low?-8:8),y1p=B[1]+13,cx=(x0p+x1p)/2;
+        if(a[0]===3&&a[1]===0){var low=a[3]==="3,4",ym=dy+(low?180:165),x0p=A[0]-6,y0p=A[1]+13,x1p=B[0]+(low?-8:8),y1p=B[1]+13,cx=(x0p+x1p)/2;
           o.push(S.PATH("M"+x0p+","+y0p+" Q"+cx+","+ym+" "+x1p+","+y1p,c,lw));o.push(S.head(cx,ym,x1p,y1p,c,6));
-          o.push(S.T(low?A[0]-34:A[0]-52,low?A[1]+33:A[1]+25,a[2],"middle",9,c,hl,false,null,true));return;}
+          o.push(S.T(low?dx+175:dx+290,low?dy+150:dy+129,a[2],"middle",9,c,hl,false,null,true));return;}
         if(a[0]===2&&a[1]===0){var pth="M"+(A[0]-34)+","+(A[1]-4)+" Q"+(A[0]-130)+","+(A[1]-30)+" "+(B[0]+10)+","+(B[1]-13);o.push(S.PATH(pth,c,lw));o.push(S.head(A[0]-130,A[1]-30,B[0]+10,B[1]-13,c,6));
           o.push(S.T(A[0]-110,A[1]-24,"長押し","middle",9,c,hl,false,null,true));return;}
         var fw=a[0]<a[1],Pp=fw?A:B,Qq=fw?B:A,L=Math.hypot(Qq[0]-Pp[0],Qq[1]-Pp[1])||1,cx_=(Qq[0]-Pp[0])/L,cy_=(Qq[1]-Pp[1])/L,off=fw?-7:7,nx=-cy_*off,ny=cx_*off;
@@ -132,17 +132,17 @@
         if(a[2]){var up=(a[0]===3&&a[1]===1),mx=(x1+x2)/2+(up?0:nx*1.9),my=up?(y1+y2)/2-6:(y1+y2)/2+ny*1.9+3;o.push(S.T(mx,my,a[2],"middle",9,c,hl,false,null,true));}});
       _W02_ST.forEach(function(s,i){var q=P[i],cur=sim.st===i;o.push(S.RECT(q[0]-34,q[1]-13,68,26,10,cur?U.soft("gold"):U.soft("purple"),cur?"gold":"purple",cur?2.4:1.3));o.push(S.T(q[0],q[1]+4,s,"middle",10,cur?"gold":"purple",true));});
       /* 仕様から見た様子 */
-      var sx=nar?8:448,sy=nar?dy+160:dy,sw=nar?384:244;
-      o.push(S.RECT(sx,sy,sw,150,6,"var(--screen)","signal",1.1));
+      var sx=nar?8:448,sy=nar?dy+170:dy,sw=nar?384:244;
+      o.push(S.RECT(sx,sy,sw,160,6,"var(--screen)","signal",1.1));
       o.push(S.T(sx+8,sy+16,"仕様から見た様子","start",10,"signal",true));
       var mode=sim.st===0?"停止中":"記録中";
       o.push(S.T(sx+8,sy+38,"動作モード","start",9.5,"muted"));o.push(S.T(sx+86,sy+38,mode,"start",11,"signal",true));
       o.push(S.T(sx+8,sy+60,"LED（最後）","start",9.5,"muted"));o.push(S.T(sx+86,sy+60,sim.led,"start",10,sim.led.indexOf("赤")>=0?"alias":(sim.led.indexOf("緑")>=0?"green":"ink"),true));
-      o.push(S.T(sx+8,sy+82,"記録の件数","start",9.5,"muted"));o.push(S.T(sx+86,sy+82,sim.recs+" 件"+(sim.miss?"（うち測れなかった "+sim.miss+" 件）":""),"start",10,"ink",true));
+      o.push(S.T(sx+8,sy+82,"記録の件数","start",9.5,"muted"));o.push(S.T(sx+86,sy+82,sim.recs+" 件"+(sim.miss?"（うち測定異常 "+sim.miss+" 件）":""),"start",10,"ink",true));
       o.push(S.T(sx+8,sy+104,"フラッシュ","start",9.5,"muted"));o.push(S.T(sx+86,sy+104,sim.writing?"書き込み中":(sim.awake?"起きたまま（25 µA）":"眠っている（0.5 µA）"),"start",10,sim.awake&&!sim.writing?"alias":"ink",true));
       o.push(S.T(sx+8,sy+126,"止める印","start",9.5,"muted"));o.push(S.T(sx+86,sy+126,sim.stop?"あり":"なし","start",10,"ink",true));
-      o.push(S.T(sx+8,sy+144,"進んだ数 "+pos+" / "+sq.length,"start",9.5,"muted"));
-      box.set(S.svg(Wd,nar?sy+158:dy+158,o));
+      o.push(S.T(sx+8,sy+150,"進んだ数 "+pos+" / "+sq.length,"start",9.5,"muted"));
+      box.set(S.svg(Wd,nar?sy+168:dy+168,o));
       /* 読み出し */
       var h="";if(!log.length)h="「1 つ進める」で、出来事の列を 1 つずつ起こす。<br>";
       log.forEach(function(l){h+=l.i+". "+l.s+" で <b>"+l.e+"</b>: "+l.d+(l.to?"　⇒ <b>"+l.to+"</b>":"")+"<br>";l.w.forEach(function(w){h+='　<span class="warn">'+w+"</span><br>";});});
@@ -157,7 +157,7 @@
   /* ---- 5 節: 電力の予算 ---- */
   var _W02_DAY=86400;
   function _w02_budget(p){
-    var nM=1440/p.iv,act=p.act*1e-3*nM,adv=p.adv===0?p.press*1200*1.5e-3:(p.adv===1?_W02_DAY/1.0*1.5e-3:_W02_DAY/0.1*1.5e-3),conn=p.read/7*60*0.05;
+    var nM=1440/p.iv,act=p.act*1e-3*nM,adv=p.adv===0?p.press*1200*2e-3:(p.adv===1?_W02_DAY/1.0*2e-3:_W02_DAY/0.1*2e-3),conn=p.read/7*60*0.2;
     var sen=5e-3*nM,wr=0.7e-3*nM,er=45e-3*nM/512,led=p.press*20e-3+(p.alarm?_W02_DAY/5*20e-3:0);
     var it=[
       ["マイコン","眠り",p.sl*1e-3,1-(act+adv+conn)/_W02_DAY],["マイコン","動作",3.0,act/_W02_DAY],["マイコン","送信（受付）",5.0,adv/_W02_DAY],["マイコン","送信（接続）",5.0,conn/_W02_DAY],
@@ -219,7 +219,7 @@
       h+="上限 "+_w02_f(b.lim,1)+" µA（= Q ÷ 8760 h）に対する余裕 <b>"+_w02_f(b.lim/b.tot,1)+" 倍</b>。"+(ok?(b.lim/b.tot>=2?'<span class="ok">SR-W02（1 年以上）を満たし、目標（余裕 2 倍）にも届く</span>':'<span class="ok">SR-W02 は満たす</span>が、目標の余裕 2 倍に届かない'):'<span class="warn">SR-W02（1 年以上）を満たさない</span>')+"<br>";
       h+="最も大きい項目: <b>"+b.it[mk][0]+" "+b.it[mk][1]+"</b>（"+_w02_f(b.it[mk][4]/b.tot*100,1)+" %）。眠りの 3 つの合計 "+_w02_f((b.it[0][4]+b.it[4][4]+b.it[6][4])/b.tot*100,1)+" %<br>";
       if(!cond)h+='（記録の間隔・短押し・読み出し・警報のどれかが、SR-W02 の使い方の条件と違う。この寿命では SR-W02 の合否は決められない）<br>';
-      ro.innerHTML=h+'<div class="wnote">本文の表と同じ計算。1 日のうち各状態にいる時間の割合 d に電流 I を掛けて足す。アドバタイズ 1 回は 5 mA で 1.5 ms、接続の間は時間の 5 % だけ無線が動く、セクタの消去は 512 件ごとに 45 ms・10 mA とした（どれも例の値）。眠りの割合は、1 日から動いている時間を引いて求めた。</div>';
+      ro.innerHTML=h+'<div class="wnote">本文の表と同じ計算。1 日のうち各状態にいる時間の割合 d に電流 I を掛けて足す。アドバタイズ 1 回は 5 mA で 2 ms、接続の間は時間の 20 % だけ無線が動く（平均 1 mA）、セクタの消去は 512 件ごとに 45 ms・10 mA とした（どれも例の値）。眠りの割合は、1 日から動いている時間を引いて求めた。</div>';
     }
     draw();
   };

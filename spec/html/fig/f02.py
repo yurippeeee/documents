@@ -60,9 +60,9 @@ def _f02_levels():
         ("仕様", "システム仕様書", SIG, ["外から見て、", "満たすべきこと"],
          ["52 560 件（記録の間隔 10 分で 365 日分）", "以上の記録を保存できること"], ["システム試験", "（ST-）"]),
         ("方式設計", "方式設計書", PUR, ["部分に分け、", "要求を割り当てる"],
-         ["記録用フラッシュ DS-H03 と、記録の", "ソフトウェア DS-S02 が受け持つ。記録の", "記憶は 410.6 KiB 以上が要る → 4 Mbit"], ["部分を組み", "合わせた試験"]),
+         ["記録用フラッシュ DS-H03 と、記録の", "ソフトウェア DS-S02 が受け持つ。記録の", "記憶は 410.6 KiB 以上が要る → 4 Mbit"], ["結合試験"]),
         ("詳細設計", "詳細設計書", PUR, ["部分の中を、作る人が", "迷わずに作れるまで"],
-         ["記録のモジュール: セクタを順に使い、", "満ちたら最も古い記録から上書きする。", "関数と、呼んでよい条件（6 節）"], ["モジュールの", "試験"]),
+         ["記録のモジュール: セクタを順に使い、", "満ちたら最も古い記録から上書きする。", "関数と、呼んでよい条件（6 節）"], ["単体試験"]),
         ("コード", "ソースコード", MUT, ["詳細設計のとおりに", "手順を書く"],
          ["rec_append() の本体。手順はコードが", "示すので、設計書には写さない（6 節）"], ["コードの", "レビュー"]),
     ]
@@ -79,7 +79,7 @@ def _f02_levels():
             o.append(_f02_lines(338, y + 35, ex, "start", 10, INK, lh=14))
         else:
             o.append(_f02_lines(338, y + rh / 2 - (len(ex) - 1) * 7 + 3.5, ex, "start", 10, INK, lh=14))
-        o.append(_f02_lines(644, y + rh / 2 - 3, tst, "middle", 9.5, GRN, True, lh=13))
+        o.append(_f02_lines(644, y + rh / 2 + 4 - (len(tst) - 1) * 6.5, tst, "middle", 9.5, GRN, True, lh=13))
         if k < 3:
             o.append(ARR(82, y + rh + 1, 82, y + rh + gap - 1, c=MUT, lw=1.4, head=6))
             o.append(ARR(459, y + rh + 1, 459, y + rh + gap - 1, c=MUT, lw=1.4, head=6))
@@ -603,16 +603,17 @@ def _f02_refine():
     o.append(T(133, 104, "長押し", "middle", 9.5, SIG, False, halo=True))
     o.append(ARR(76, 88, 112, 130, c=SIG, lw=1.3, head=6))
     o.append(ARR(190, 88, 156, 130, c=SIG, lw=1.3, head=6))
-    o.append(T(133, 176, "電池の電圧が下がる", "middle", 9.5, SIG, False))
+    o.append(T(133, 176, "電池の残りで記録を", "middle", 9.5, SIG, False))
+    o.append(T(133, 189, "続けられなくなる", "middle", 9.5, SIG, False))
     # (a) 通信の状態
     o.append(T(14, 214, "通信の状態", "start", 10, MUT, True))
     o.append(STATE(56, 244, 74, 28, "通信なし", SIG))
-    o.append(STATE(204, 244, 68, 28, "受付中", SIG))
+    o.append(STATE(200, 244, 92, 28, "接続の受付中", SIG))
     o.append(STATE(130, 304, 68, 28, "接続中", SIG))
-    o.append(ARR(94, 238, 169, 238, c=SIG, lw=1.3, head=6))
-    o.append(T(132, 232, "短押し", "middle", 9.5, SIG, False, halo=True))
-    o.append(ARR(169, 251, 94, 251, c=SIG, lw=1.3, head=6))
-    o.append(T(132, 265, "2 分たつ", "middle", 9.5, SIG, False, halo=True))
+    o.append(ARR(94, 238, 153, 238, c=SIG, lw=1.3, head=6))
+    o.append(T(124, 232, "短押し", "middle", 9.5, SIG, False, halo=True))
+    o.append(ARR(153, 251, 94, 251, c=SIG, lw=1.3, head=6))
+    o.append(T(124, 265, "2 分たつ", "middle", 9.5, SIG, False, halo=True))
     o.append(ARR(196, 259, 160, 289, c=SIG, lw=1.3, head=6))
     o.append(T(196, 288, "接続", "start", 9.5, SIG, False, halo=True))
     o.append(ARR(100, 289, 64, 259, c=SIG, lw=1.3, head=6))
@@ -621,35 +622,36 @@ def _f02_refine():
     # (b) 測定タスク
     o.append(RECT(270, 28, 416, 156, 10, "none", PUR, 1.3, dash="6 4"))
     o.append(T(280, 44, "測定タスク", "start", 10.5, PUR, True))
-    o.append(STATE(320, 140, 76, 30, "停止中", PUR))
+    o.append(STATE(320, 100, 76, 30, "停止中", PUR))
     o.append(RECT(390, 36, 288, 140, 10, soft(SIG), SIG, 1.0))
     o.append(T(398, 52, "仕様の「記録中」", "start", 9.5, SIG, True))
     o.append(STATE(440, 140, 70, 30, "待ち", PUR))
     o.append(STATE(534, 74, 76, 30, "測定中", PUR))
     o.append(STATE(626, 140, 84, 30, "書き込み中", PUR))
     o.append(ARR(462, 124, 508, 90, c=PUR, lw=1.4, head=6))
-    o.append(T(470, 98, "記録の時刻", "end", 9.5, PUR, False, halo=True))
+    o.append(T(462, 114, "記録の時刻", "end", 9.5, PUR, False, halo=True))
     o.append(ARR(560, 90, 604, 124, c=PUR, lw=1.4, head=6))
     o.append(T(598, 98, "測定の完了", "start", 9.5, PUR, False, halo=True))
     o.append(ARR(584, 146, 476, 146, c=PUR, lw=1.4, head=6))
     o.append(T(530, 166, "書き込みの完了", "middle", 9.5, PUR, False, halo=True))
-    o.append(ARR(358, 134, 404, 134, c=PUR, lw=1.4, head=6))
-    o.append(ARR(404, 147, 358, 147, c=PUR, lw=1.4, head=6))
-    o.append(T(366, 122, "長押し", "middle", 9.5, PUR, False, halo=True))
+    o.append(ARR(358, 94, 495, 74, c=PUR, lw=1.4, head=6))
+    o.append(T(430, 76, "長押し（すぐ 1 件目）", "middle", 9.5, PUR, False, halo=True))
+    o.append(ARR(405, 136, 352, 116, c=PUR, lw=1.4, head=6))
+    o.append(T(352, 140, "長押し", "middle", 9.5, PUR, False, halo=True))
     # (b) 通信タスク
     o.append(RECT(270, 196, 416, 134, 10, "none", PUR, 1.3, dash="6 4"))
     o.append(T(280, 212, "通信タスク", "start", 10.5, PUR, True))
     o.append(STATE(318, 262, 72, 28, "通信なし", PUR))
-    o.append(STATE(428, 262, 64, 28, "受付中", PUR))
+    o.append(STATE(426, 262, 88, 28, "接続の受付中", PUR))
     o.append(RECT(486, 204, 192, 118, 10, soft(SIG), SIG, 1.0))
     o.append(T(494, 220, "仕様の「接続中」", "start", 9.5, SIG, True))
     o.append(STATE(582, 244, 132, 28, "やり取りを待つ", PUR))
     o.append(STATE(582, 300, 132, 28, "読み出し中", PUR))
-    o.append(ARR(355, 256, 395, 256, c=PUR, lw=1.3, head=6))
-    o.append(T(375, 248, "短押し", "middle", 9.5, PUR, False, halo=True))
-    o.append(ARR(395, 269, 355, 269, c=PUR, lw=1.3, head=6))
-    o.append(T(375, 284, "2 分たつ", "middle", 9.5, PUR, False, halo=True))
-    o.append(ARR(460, 256, 515, 247, c=PUR, lw=1.3, head=6))
+    o.append(ARR(355, 256, 381, 256, c=PUR, lw=1.3, head=6))
+    o.append(T(368, 248, "短押し", "middle", 9.5, PUR, False, halo=True))
+    o.append(ARR(381, 269, 355, 269, c=PUR, lw=1.3, head=6))
+    o.append(T(368, 284, "2 分たつ", "middle", 9.5, PUR, False, halo=True))
+    o.append(ARR(471, 256, 515, 247, c=PUR, lw=1.3, head=6))
     o.append(T(486, 240, "接続", "end", 9.5, PUR, False, halo=True))
     o.append(CARR(556, 258, 556, 286, 0.35, PUR, 1.3))
     o.append(CARR(608, 286, 608, 258, 0.35, PUR, 1.3))
@@ -744,8 +746,8 @@ F["e02_timeline"] = _f02_timeline()
 # =====================================================================
 _F02_Q = 180.0       # 設計で使う容量 [mAh]
 _F02_PB = [  # (部品, 状態, 平均電流への寄与 [µA])。本文の表と同じ値（check.py で計算）
-    ("マイコン", "眠り", 1.99994), ("マイコン", "動作", 0.0055), ("マイコン", "送信（受付）", 0.104167), ("マイコン", "送信（接続）", 0.024802),
-    ("センサ", "待機", 0.049999), ("センサ", "測定", 0.0025), ("フラッシュ", "眠り", 0.499999), ("フラッシュ", "書き込み", 0.005833),
+    ("マイコン", "眠り", 1.999901), ("マイコン", "動作", 0.0055), ("マイコン", "送信（受付）", 0.138889), ("マイコン", "送信（接続）", 0.099206),
+    ("センサ", "待機", 0.05), ("センサ", "測定", 0.0025), ("フラッシュ", "眠り", 0.499999), ("フラッシュ", "書き込み", 0.005833),
     ("フラッシュ", "消去", 0.001465), ("LED", "点灯", 0.000463)]
 
 
@@ -774,7 +776,7 @@ def _f02_power():
     # (b) 設計の違いと電池寿命
     xl = 470
     o.append(T(xl - 10, 16, "(b) 電池寿命（Q = 180 mAh）", "start", 11.5, INK, True))
-    cases = [("本文の設計", 7.625), ("記録の間隔を 1 分にする", 7.255), ("受付を常に 1 秒ごとにする", 2.037), ("フラッシュを眠らせ忘れる", 0.756)]
+    cases = [("本文の設計", 7.329), ("記録の間隔を 1 分にする", 6.986), ("受付を常に 1 秒ごとにする", 1.623), ("フラッシュを眠らせ忘れる", 0.753)]
     L0, L1 = xl, 676
     XL = lambda v: L0 + v / 8.0 * (L1 - L0)
     yb = 50
