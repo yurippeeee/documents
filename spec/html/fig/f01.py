@@ -15,7 +15,20 @@ def _f01_tokens(text):
 
 
 def _f01_lines(text, maxw, sz):
-    """文字列を幅 maxw [px] で折り返した行のリスト（行頭に句読点や閉じ括弧を置かない）。"""
+    """文字列を幅 maxw [px] で折り返した行のリスト（行頭に句読点や閉じ括弧を置かない）。
+    最後の行が短く残るときは、行の数を変えずに、行の長さをそろえ直す。"""
+    lines = _f01_lines1(text, maxw, sz)
+    if len(lines) > 1 and tw(lines[-1], sz) < 0.3 * maxw:
+        m = sum(tw(tk, sz) for tk in _f01_tokens(text)) / len(lines) + 2
+        while m < maxw:
+            cand = _f01_lines1(text, m, sz)
+            if len(cand) <= len(lines):
+                return cand
+            m += 4
+    return lines
+
+
+def _f01_lines1(text, maxw, sz):
     lines, cur, cw = [], "", 0.0
     for tk in _f01_tokens(text):
         w = tw(tk, sz)
@@ -36,13 +49,7 @@ def _f01_text(x, y, text, maxw, sz=10, c=INK, b=False, a="start", lh=None, halo=
     return "".join(T(x, y + i * lh, l, a, sz, c, b, halo=halo) for i, l in enumerate(ls)), len(ls)
 
 
-def _f01_rich(x, y, segs, maxw, sz=10.5, lh=None, a="start"):
-    """色と太さの違う部分 segs = [(文字, 色, 太字), ...] をつないで、幅 maxw で折り返して書く。返り値 (svg, 行数)。"""
-    lh = lh or sz * 1.45
-    toks = []
-    for text, c, b in segs:
-        for tk in _f01_tokens(text):
-            toks.append((tk, c, b))
+def _f01_rich_lines(toks, maxw, sz):
     lines, cur, cw = [], [], 0.0
     for tk, c, b in toks:
         w = tw(tk, sz)
@@ -51,6 +58,25 @@ def _f01_rich(x, y, segs, maxw, sz=10.5, lh=None, a="start"):
         cur.append((tk, c, b)); cw += w
     if cur:
         lines.append(cur)
+    return lines
+
+
+def _f01_rich(x, y, segs, maxw, sz=10.5, lh=None, a="start"):
+    """色と太さの違う部分 segs = [(文字, 色, 太字), ...] をつないで、幅 maxw で折り返して書く。返り値 (svg, 行数)。"""
+    lh = lh or sz * 1.45
+    toks = []
+    for text, c, b in segs:
+        for tk in _f01_tokens(text):
+            toks.append((tk, c, b))
+    lines = _f01_rich_lines(toks, maxw, sz)
+    if len(lines) > 1 and sum(tw(t, sz) for t, _, _ in lines[-1]) < 0.3 * maxw:
+        m = sum(tw(t, sz) for t, _, _ in toks) / len(lines) + 2
+        while m < maxw:
+            cand = _f01_rich_lines(toks, m, sz)
+            if len(cand) <= len(lines):
+                lines = cand
+                break
+            m += 4
     o = []
     for i, L in enumerate(lines):
         runs = []
