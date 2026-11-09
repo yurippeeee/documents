@@ -412,12 +412,13 @@ def _f03_led():
     # (b) 表示の形
     yb = 166
     o.append(W(14, yb - 12, 686, yb - 12, c=LIN, lw=0.8))
-    o.append(T(14, yb + 6, "(b) 表示の形（1 回の点灯 20 ms・間隔 0.3 秒）", "start", 11.5, INK, True))
+    o.append(T(14, yb + 6, "(b) 表示の形（点灯の間隔 0.3 秒。点灯の長さは設計で決める）", "start", 11.5, INK, True))
     bx0, bx1 = 170, 390
     BX = lambda t: bx0 + (bx1 - bx0) * t / 1.0
     rows = [("開始の応答", "GGG", "長押しで開始したとき 1 度"), ("停止の応答", "RRR", "長押しで止めたとき 1 度"),
-            ("状態の応答", "G", "短押しで離したとき 1 度（停止中は赤）"), ("警報の表示", "RR", "10 秒ごと（確認の操作まで）"),
-            ("電池少の表示", "RG", "10 秒ごと"), ("通信中の表示", "G", "2 秒ごと（接続の受付中・接続中）")]
+            ("状態の応答", "G", "短押しで離したとき 1 度（停止中は赤）"), ("警報の表示", "RR", "30 秒ごと（確認の操作まで）"),
+            ("電池少の表示", "RG", "30 秒ごと"), ("記録中の表示", "G", "30 秒ごと（記録中の間）"),
+            ("通信中の表示", "G", "2 秒ごと（接続の受付中・接続中）")]
     for k, (nm, pat, when) in enumerate(rows):
         y = yb + 22 + k * 22
         o.append(T(14, y + 10, nm, "start", 10, INK, True))
@@ -425,43 +426,44 @@ def _f03_led():
         for j, ch in enumerate(pat):
             o.append(_f03_flash(BX(0.3 * j), y + 1, GRN if ch == "G" else ALI, 4.4, 12))
         o.append(T(410, y + 10, when, "start", 9.5, MUT))
-    ya = yb + 22 + 6 * 22 + 4
+    ya = yb + 22 + len(rows) * 22 + 4
     for t in (0, 0.3, 0.6, 0.9):
         o.append(W(BX(t), ya, BX(t), ya + 4, c=MUT, lw=1))
         o.append(T(BX(t), ya + 15, ("%g 秒" % t) if t else "0", "middle", 9.5, MUT))
     o.append(W(bx0, ya, bx1, ya, c=MUT, lw=1))
     o.append(LEGEND(560, yb + 6, [(GRN, "緑"), (ALI, "赤")], 9.5, 14))
-    # (c) 重なりの例
+    # (c) 重なりの例（2 つ）
     yc = ya + 44
     o.append(W(14, yc - 14, 686, yc - 14, c=LIN, lw=0.8))
-    o.append(T(14, yc + 4, "(c) 重なりの例（記録中で、警報の印と電池少がある。1 秒に短押し）", "start", 11.5, INK, True))
-    cx0, cx1 = 90, 676
-    CX = lambda t: cx0 + (cx1 - cx0) * t / 31.0
-    yy = yc + 30
-    o.append(T(14, yy + 10, "表示した", "start", 10, INK, True))
-    o.append(T(14, yy + 36, "省いた", "start", 10, MUT, True))
-    o.append(W(cx0, yy + 14, cx1, yy + 14, c=LIN, lw=0.8))
-    o.append(W(cx0, yy + 40, cx1, yy + 40, c=LIN, lw=0.8))
-    o.append(_f03_flash(CX(1), yy, GRN))
-    for t in range(2, 31, 2):
-        if t % 10 == 0:
-            o.append(RECT(CX(t), yy + 26, 3.4, 12, 1, "none", GRN, 1, dash="2 2"))
-            continue
-        o.append(_f03_flash(CX(t), yy, GRN, 3.4, 12))
-    for t, pat in ((10, "RR"), (20, "RG"), (30, "RR")):
-        for j, ch in enumerate(pat):
-            o.append(_f03_flash(CX(t + 0.3 * j) + (3 if j else 0), yy, GRN if ch == "G" else ALI, 3.4, 12))
-    o.append(T(CX(1), yy - 8, "状態の応答", "start", 9.5, GRN, True))
-    o.append(T(CX(15), yy - 8, "通信中（2 秒ごと）", "middle", 9.5, GRN))
-    o.append(T(CX(10), yy - 8, "警報", "middle", 9.5, ALI, True))
-    o.append(T(CX(20), yy - 8, "電池少", "middle", 9.5, ALI, True))
-    o.append(T(CX(30), yy - 8, "警報", "middle", 9.5, ALI, True))
-    o.append(T(CX(15.5), yy + 72, "10・20・30 秒の通信中の表示は、優先順位の高い警報・電池少と重なったので省いた", "middle", 9.5, MUT))
-    o.append(T(CX(25), yy - 8, "警報と電池少は交互", "middle", 9.5, ALI))
-    for t in (0, 10, 20, 30):
-        o.append(W(CX(t), yy + 40, CX(t), yy + 44, c=MUT, lw=1))
-        o.append(T(CX(t), yy + 55, "%d 秒" % t if t else "0", "middle", 9.5, MUT))
-    return SVG(700, yy + 82, o, "図 3-5 ボタンの押し方と LED の表示のタイミング（表 3-5・表 3-6 のとおり。(c) の点灯は形が見えるように太く描いた）。")
+    o.append(T(14, yc + 4, "(c) 重なりの例（記録中に、1 秒の時点で短押し。30 秒ごとの表示は 1 つだけ）", "start", 11.5, INK, True))
+    cx0, cx1 = 150, 676
+    CX = lambda t: cx0 + (cx1 - cx0) * t / 62.0
+    exs = [("例 1: 警報と電池少がある", {30: "RR", 60: "RG"}, {30: "警報", 60: "電池少"}),
+           ("例 2: 警報も電池少も無い", {30: "G", 60: "G"}, {30: "記録中", 60: "記録中"})]
+    for e, (title, per, lab) in enumerate(exs):
+        yy = yc + 40 + e * 62
+        o.append(T(14, yy + 10, title, "start", 10, INK, True))
+        o.append(T(14, yy + 30, "（破線は省いた表示）", "start", 9, MUT))
+        o.append(W(cx0, yy + 14, cx1, yy + 14, c=LIN, lw=0.8))
+        o.append(_f03_flash(CX(1), yy, GRN))
+        o.append(T(CX(1), yy - 6, "状態の応答", "start", 9.5, GRN, True))
+        for t in range(2, 63, 2):
+            if t in per:
+                o.append(RECT(CX(t) - 1, yy + 18, 3.4, 9, 1, "none", GRN, 1, dash="2 2"))
+                continue
+            o.append(_f03_flash(CX(t), yy + 5, GRN, 2.4, 7))
+        for t, pat in per.items():
+            for j, ch in enumerate(pat):
+                o.append(_f03_flash(CX(t + 0.3 * j) + (3 if j else 0), yy, GRN if ch == "G" else ALI, 3.4, 12))
+            o.append(T(CX(t), yy - 6, lab[t], "middle", 9.5, ALI if pat != "G" else GRN, True))
+    o.append(T(CX(16), yc + 30, "通信中（2 秒ごと）", "middle", 9.5, GRN))
+    yz = yc + 40 + 2 * 62 - 14
+    o.append(W(cx0, yz, cx1, yz, c=MUT, lw=1))
+    for t in range(0, 61, 10):
+        o.append(W(CX(t), yz, CX(t), yz + 4, c=MUT, lw=1))
+        o.append(T(CX(t), yz + 15, "%d 秒" % t if t else "0", "middle", 9.5, MUT))
+    o.append(T(14, yz + 34, "30・60 秒の通信中の表示は、優先順位の高い 30 秒ごとの表示と重なったので省いた（例 1 では警報と電池少が交互）", "start", 9.5, MUT))
+    return SVG(700, yz + 44, o, "図 3-5 ボタンの押し方と LED の表示のタイミング（表 3-5・表 3-6 のとおり。(c) の点灯は形が見えるように太く描いた）。")
 F["e03_led"] = _f03_led()
 
 
@@ -596,18 +598,18 @@ def _f03_week():
     o = []
     x0, x1 = 150, 680
     X = lambda d: x0 + (x1 - x0) * d / 7.0
-    rows = [("周囲の温度", 34), ("測定", 62), ("警報の表示", 90), ("短押し", 118), ("読み出し", 158)]
+    rows = [("周囲の温度", 34), ("測定", 62), ("記録中の表示", 90), ("短押し", 118), ("読み出し", 158)]
     for lab, y in rows:
         o.append(T(14, y + 4, lab, "start", 10, INK, True))
     y = rows[0][1]
     o.append(W(x0, y, x1, y, c=GLD, lw=2))
-    o.append(T((x0 + x1) / 2, y - 6, "25 °C（初期値の上限 8.0 °C より高い）", "middle", 9.5, GLD, True, halo=True))
+    o.append(T((x0 + x1) / 2, y - 6, "25 °C（警報の印が付かない上限と下限に設定。警報の表示と電池少の表示は無い）", "middle", 9.5, GLD, True, halo=True))
     y = rows[1][1]
     o.append(RECT(x0, y - 8, x1 - x0, 14, 2, SSOFT, SIG, 1))
     o.append(T((x0 + x1) / 2, y + 3, "10 分ごと（1 週間に 1 008 回）", "middle", 9.5, SIG, True))
     y = rows[2][1]
-    o.append(RECT(x0, y - 8, x1 - x0, 14, 2, ASOFT, ALI, 1))
-    o.append(T((x0 + x1) / 2, y + 3, "赤を 2 回、10 秒ごと（1 週間に 60 480 回）", "middle", 9.5, ALI, True))
+    o.append(RECT(x0, y - 8, x1 - x0, 14, 2, GSOFT, GRN, 1))
+    o.append(T((x0 + x1) / 2, y + 3, "緑を 1 回、30 秒ごと（1 週間に 20 160 回）", "middle", 9.5, GRN, True))
     y = rows[3][1]
     for d in range(7):
         xx = X(d + 9 / 24.0)
@@ -625,11 +627,12 @@ def _f03_week():
     # 拡大: 7 日目の 9:00〜9:05
     zt = 216
     Zx0, Zx1 = 150, 680
-    Zs = lambda s: Zx0 + (Zx1 - Zx0) * s / 300.0
+    Zs = lambda s_: Zx0 + (Zx1 - Zx0) * s_ / 300.0
     o.append(W(xr, ya + 22, Zx0, zt - 4, c=FNT, lw=1, dash="3 3"))
     o.append(W(xr, ya + 22, Zx1, zt - 4, c=FNT, lw=1, dash="3 3"))
     o.append(RECT(14, zt, 672, 150, 6, "none", LIN, 1))
     o.append(T(22, zt + 16, "拡大: 7 日目の 9:00〜9:05", "start", 10, INK, True))
+    o.append(T(678, zt + 16, "高い緑: 記録中の表示（30 秒ごと）　低い緑: 通信中の表示（2 秒ごと。重なる回は省く）", "end", 9.5, MUT))
     zr = [("ボタン", zt + 40), ("通信の状態", zt + 62), ("LED", zt + 86), ("測定", zt + 110)]
     for lab, y in zr:
         o.append(T(22, y + 4, lab, "start", 10, INK, True))
@@ -644,20 +647,19 @@ def _f03_week():
     o.append(T(Zs(84), y + 4, "通信なし", "start", 9.5, MUT))
     y = zr[2][1]
     o.append(_f03_flash(Zs(0), y - 6, GRN, 2.4, 12))
-    for s in range(2, 80, 2):
-        if s % 10:
-            o.append(_f03_flash(Zs(s), y - 6, GRN, 1.4, 8))
-    for s in range(10, 301, 10):
-        o.append(_f03_flash(Zs(s), y - 6, ALI, 2.4, 12))
-    o.append(T(678, zt + 16, "赤: 警報の表示（10 秒ごと）　緑: 通信中の表示（2 秒ごと。警報と重なる回は省く）", "end", 9.5, MUT))
+    for s_ in range(2, 80, 2):
+        if s_ % 30:
+            o.append(_f03_flash(Zs(s_), y - 1, GRN, 1.4, 7))
+    for s_ in range(30, 301, 30):
+        o.append(_f03_flash(Zs(s_), y - 6, GRN, 2.4, 12))
     y = zr[3][1]
     o.append(W(Zs(240), y - 8, Zs(240), y + 6, c=SIG, lw=2.4))
     o.append(T(Zs(240) + 6, y + 4, "記録（例 9:04）", "start", 9.5, SIG, True))
     yz = zt + 128
     o.append(W(Zx0, yz, Zx1, yz, c=MUT, lw=1))
-    for s, lab in ((0, "9:00"), (60, "9:01"), (120, "9:02"), (180, "9:03"), (240, "9:04"), (300, "9:05")):
-        o.append(W(Zs(s), yz, Zs(s), yz + 4, c=MUT, lw=1))
-        o.append(T(Zs(s), yz + 16, lab, "middle", 9.5, MUT))
+    for s_, lab in ((0, "9:00"), (60, "9:01"), (120, "9:02"), (180, "9:03"), (240, "9:04"), (300, "9:05")):
+        o.append(W(Zs(s_), yz, Zs(s_), yz + 4, c=MUT, lw=1))
+        o.append(T(Zs(s_), yz + 16, lab, "middle", 9.5, MUT))
     return SVG(700, zt + 158, o, "図 5-2 SR-W02 の使い方の条件の 1 週間（下は 7 日目の 9:00〜9:05 の拡大。短押しと読み出しの時刻は例）。")
 F["e03_week"] = _f03_week()
 
