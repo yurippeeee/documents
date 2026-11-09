@@ -12,7 +12,7 @@
     var S=U.S;
     U.head(el,"FLASH RING","記録用フラッシュ — リングバッファ・空きのセクタ・書きかけの記録と起動時の走査");
     var r1=U.ctrls(el);
-    var mode=U.select(r1,"容量に達したときの動作",["上書き（初期値）","記録を止める"],0,function(){draw();});
+    var mode=U.select(r1,"容量に達したときの動作",["上書き（初期値）","記録を止める"],0,function(){if(mode.get()===0&&stopped){stopped=false;scanlog=[];msg='上書きの設定にしたので、記録を開始すれば、最も古いセクタを消して書き続ける';}draw();});
     var iv=U.slider(r1,"記録の間隔",{values:[1,10,60],value:10,fmt:function(v){return v+" 分";},onInput:function(){draw();}});
     var b1=U.btnrow(el);
     U.button(b1,"+1 件",function(){add(1);});
@@ -32,7 +32,7 @@
     function nfull(){var n=0;sec.forEach(function(s){if(s.st==="full")n++;});return n;}
     /* 書いているセクタが満ちたときに、次のセクタへ移る。返り値 false なら止めた */
     function advance(interrupt){
-      if(mode.get()===1&&nfull()+1>=_W04_NS-1){sec[cur].st="full";stopped=true;msg='止める設定で 125 セクタが満ちたので、REC_FULL を返して停止中になった（SR-F05）';return false;}
+      if(mode.get()===1&&nfull()+1>=_W04_NS-1){sec[cur].st="full";stopped=true;return false;}
       sec[cur].st="full";var nx=(cur+1)%_W04_NS;
       if(interrupt==="head"){sec[nx].st="bad";sec[nx].seq=-1;sec[nx].n=0;sec[nx].torn={};return "off";}
       cur=nx;seq++;sec[cur]={st:"open",seq:seq,n:0,torn:{}};
@@ -42,14 +42,14 @@
         sec[sp]={st:"erased",seq:-1,n:0,torn:{}};erases[sp]++;}
       return true;}
     function add(n){if(off){msg='電池が抜けている。「電池を入れる」で起動する';draw();return;}
-      n=Math.round(n);msg="";
+      n=Math.round(n);msg="";scanlog=[];
       for(var i=0;i<n;i++){if(stopped)break;
         if(sec[cur].n>=_W04_SPR){if(advance()===false)break;}
         sec[cur].n++;total++;}
-      if(stopped&&!msg)msg='止める設定で容量に達している（記録しない）';
       draw();}
     function pull(kind){if(off){msg='電池はもう抜けている';draw();return;}
-      if(stopped&&(kind==="erase"||kind==="head")){msg='止める設定で容量に達しているので、消去も頭の書き込みも起きない';draw();return;}
+      scanlog=[];
+      if(stopped){msg='止める設定で容量に達して停止中なので、記録の書き込みも消去も頭の書き込みも起きない';draw();return;}
       if(kind==="rec"||kind==="commit"){
         if(sec[cur].n>=_W04_SPR){var a=advance();if(a===false){draw();return;}}
         sec[cur].torn[sec[cur].n]=kind;sec[cur].n++;total++;lastTorn=kind;
@@ -106,7 +106,10 @@
       var yb=y0+Math.ceil(_W04_NS/cols)*(ch+4)+6;
       /* 凡例 */
       var lg=[["none","ink","最も古い"],["var(--purple-soft)","purple","満ちた"],["var(--screen)","purple","書いている"],["var(--green-soft)","green","空きのセクタ"],["var(--alias-soft)","alias","消し残し・頭が壊れた"],["panel","line","まだ使っていない"]],lx=x0;
-      lg.forEach(function(g){if(nar&&lx>300){lx=x0;yb+=16;}o.push(S.RECT(lx,yb,11,11,2,g[0],g[1],1));o.push(S.T(lx+15,yb+9.5,g[2],"start",9,"muted"));lx+=24+U.tw(g[2],9)+6;});
+      lg.push(["x","alias","書きかけの記録がある"]);
+      lg.forEach(function(g){var wi=15+U.tw(g[2],9);if(lx>x0&&lx+wi>Wd-8){lx=x0;yb+=16;}
+        if(g[0]==="x")o.push(S.X(lx+5.5,yb+5.5,4,"alias",2));else o.push(S.RECT(lx,yb,11,11,2,g[0],g[1],1));
+        o.push(S.T(lx+15,yb+9.5,g[2],"start",9,"muted"));lx+=wi+14;});
       yb+=24;
       /* 書いているセクタの終わりの拡大 */
       var s=sec[cur],m=Math.max(0,Math.min(s.n-5,_W04_SPR-8));
@@ -121,7 +124,7 @@
       var h="保存している記録: <b>"+_w04_g(n)+" 件</b>（記録の間隔 "+iv.get()+" 分で "+_w04_f(days,1)+" 日分）。書いた記録の合計 "+_w04_g(total)+" 件<br>";
       h+="SR-F04（52 560 件）: "+(n>=_W04_CAPREQ?'<span class="ok">保存している件数が 52 560 件以上</span>':(total>=63750?'<span class="warn">52 560 件より少ない</span>':"まだ容量に達していない（上書きのとき、満ちた後は 63 240〜63 750 件を保つ）"))+"<br>";
       h+="セクタの消去: 合計 "+_w04_g(tot)+" 回、1 セクタで最も多いのは "+mx+" 回（書き換えの上限 10 万回）<br>";
-      if(stopped)h+='<span class="warn">止める設定で容量（63 750 件）に達した</span>。記録を続けるには、読み出してから記録を消す<br>';
+      if(stopped)h+='<span class="warn">止める設定で 125 セクタ（63 750 件）が満ちたので、REC_FULL を返して停止中になった（SR-F05）</span>。記録を続けるには、読み出してから記録を消す<br>';
       if(msg)h+=(off?'<span class="warn">'+msg+'</span>':msg)+"<br>";
       if(scanlog.length)h+=scanlog.join("<br>")+"<br>";
       ro.innerHTML=h+'<div class="wnote">1 マスは記録用フラッシュの 1 セクタ（4 KiB）で、頭の 16 B と記録 510 件が入る。書いているセクタの次は、いつも消しておく（空きのセクタ）。「+30 日」は記録の間隔で件数が変わる（10 分なら 4 320 件、1 分なら 43 200 件）。電池を抜いた後は、「電池を入れる」で起動時の走査（図 3-3 の ①〜④）を行う。</div>';
@@ -184,19 +187,19 @@
         if(on&&X(g[1])-X(g[0])>U.tw(g[3],9)+4)o.push(S.T((X(g[0])+X(g[1]))/2,r[3]+13,g[3],"middle",9,c,true));});
       tl.forEach(function(b){var xm=(X(b[0])+X(b[1]))/2;o.push(S.T(xm,30,"≈ "+_w04_f(b[1]-b[0],b[1]-b[0]>=10?0:1)+" ms","middle",9,"muted",true,false,null,true));});
       /* 電流（対数の目盛） */
-      var yp=150,hp=nar?96:110,P=U.plot(x0,yp,x1-x0,hp,[0,1],[0.001,20],{ylog:true});
+      var yp=172,hp=nar?96:110,P=U.plot(x0,yp,x1-x0,hp,[0,1],[0.001,20],{ylog:true});
       [0.001,0.01,0.1,1,10].forEach(function(v){o.push(S.L(x0,P.Y(v),x1,P.Y(v),"grid",1));o.push(S.T(x0-6,P.Y(v)+3,v>=1?v+" mA":(v*1000)+" µA","end",9,"muted"));});
       var ev=[];R.s.forEach(function(g){ev.push(g[0]);ev.push(g[1]);});ev.push(-0.4);ev.push(R.end+0.5);ev=ev.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});
       var sp=[];for(var k=0;k<ev.length-1;k++){var tm=(ev[k]+ev[k+1])/2,I=0.0025;R.s.forEach(function(g){if(tm>=g[0]&&tm<g[1]&&g[4]>=0.02)I+=g[4];});
 sp.push([X(ev[k]),P.Y(I)]);sp.push([X(ev[k+1]),P.Y(I)]);}
       o.push(S.PL(sp,"signal",2));
       o.push(S.L(x0,yp+hp,x1,yp+hp,"muted",1.2));
-      o.push(S.T(x0-6,yp-6,"電流の合計","end",9.5,"ink",true));
+      o.push(S.T(8,yp-14,"電流の合計（対数の目盛）","start",10,"ink",true));
       var H=yp+hp+18;
       box.set(S.svg(Wd,H,o));
       var h="この回の動作の電荷: <b>"+_w04_f(q,2)+" µC</b>"+(batch?"（まとめて書くとき、32 回のうち書かない 31 回の 1 回）":"（0.1 mA 以上の動作。本文の設計のふつうの回は 8.55 µC）")+"<br>";
       h+="1 回あたりの平均: <b>"+_w04_f(qavg,2)+" µC</b>（消去 450 µC を 510 回に割り振った "+_w04_f(450/_W04_SPR,2)+" µC を含む"+(batch?"。書き込みは 32 回に 1 回":"")+"。本文の設計は 9.43 µC）<br>";
-      h+="1 日（144 回）: "+_w04_g(qavg*144)+" µC。平均電流は本文の 4.17 µA から "+(dI>=0?"+":"−")+_w04_ua(Math.abs(dI))+" µA で "+_w04_ua(Itot)+" µA、電池寿命 "+_w04_yr(L)+" 年<br>";
+      h+="1 日（144 回）: "+_w04_g(qavg*144)+" µC。平均電流は"+(Math.abs(dI)<0.00005?"本文と同じ "+_w04_ua(Itot)+" µA":"本文の 4.17 µA から "+(dI>=0?"+":"−")+_w04_ua(Math.abs(dI))+" µA で "+_w04_ua(Itot)+" µA")+"、電池寿命 "+_w04_yr(L)+" 年<br>";
       if(p.ov===1)h+="消去の回は、消去だけで 450 µC（ふつうの回の "+_w04_f(450/8.55,0)+" 倍）。それでも 510 回に 1 回なので、1 回あたりでは 0.88 µC<br>";
       if(p.ov===2)h+="電池の電圧の測定は、試しの負荷 8 mA とマイコン 3 mA を 1 ms（11 µC）。1 時間に 1 回なので平均電流では 0.003 µA<br>";
       if(p.awake)h+='<span class="warn">測る間も起きていると、1 回に '+_w04_f(3*p.ts,1)+' µC 増える</span>（センサの測定の時間 × 3 mA）<br>';
@@ -250,7 +253,8 @@ sp.push([X(ev[k]),P.Y(I)]);sp.push([X(ev[k+1]),P.Y(I)]);}
     var box=U.svgbox(el),ro=U.readout(el);
     function draw(){
       var p={sl:sl.get(),act:act.get(),on:on.get(),adv:+adv.get(),win:win.get(),iv:iv.get(),press:press.get(),read:read.get(),alarm:alarm.get(),low:false},b=_w04_budget(p);
-      var Q=_W04_QT[+tmp.get()],L,Llow=null,days=null;
+      var Q=_W04_QT[+tmp.get()],L,days=null;
+      b.lim=Q/8760*1000;   /* 上限は、使える電荷を 1 年で使い切る平均電流 */
       if(low.get()){var bl=_w04_budget({sl:p.sl,act:p.act,on:p.on,adv:p.adv,win:p.win,iv:p.iv,press:p.press,read:p.read,alarm:p.alarm,low:true});
         var Il=p.alarm?b.tot:bl.tot;L=((Q-_W04_DQ)/(b.tot/1000)+_W04_DQ/(Il/1000))/8760;days=_W04_DQ/(Il/1000)/24;}
       else L=Q/(b.tot/1000)/8760;
@@ -260,11 +264,12 @@ sp.push([X(ev[k]),P.Y(I)]);sp.push([X(ev[k+1]),P.Y(I)]);}
       [[1e-4,"0.0001"],[1e-2,"0.01"],[1,"1"],[100,"100"]].forEach(function(t){o.push(S.L(X(t[0]),y0-2,X(t[0]),y0+rh*n+2,"grid",1));o.push(S.T(X(t[0]),y0+rh*n+15,t[1],"middle",9.5,"muted"));});
       o.push(S.T((xb0+xb1)/2,y0+rh*n+30,"平均電流 [µA]（対数の目盛）","middle",9.5,"muted"));
       var mx=0,mk=0;b.it.forEach(function(r,k){if(r[4]>mx){mx=r[4];mk=k;}});
+      var xl=X(b.lim);o.push(S.L(xl,y0-2,xl,y0+rh*n,"signal",1.6));
       b.it.concat([["合計","",0,0,b.tot]]).forEach(function(r,k){var y=y0+k*rh,last=k===n-1,add=/＊/.test(r[1]),c=last?"purple":(add?"gold":(k===mk?"alias":"teal"));
         o.push(S.T(xb0-6,y+12.5,r[1]?r[0]+" "+r[1]:r[0],"end",nar?8.5:9.5,"ink",last||r[4]>=0.4));
         o.push(S.RECT(xb0,y+3,Math.max(1,X(r[4])-xb0),rh-6,2,U.soft(c),c,1));
         o.push(S.T(X(r[4])+4,y+12.5,_w04_ua(r[4])+" µA","start",9,c,true,false,null,true));});
-      var xl=X(b.lim);o.push(S.L(xl,y0-2,xl,y0+rh*n,"signal",1.6));o.push(S.T(xl-2,y0-5,"上限 "+_w04_f(b.lim,1)+" µA","end",9.5,"signal",true,false,null,true));
+      o.push(S.T(xl-2,y0-5,"上限 "+_w04_f(b.lim,1)+" µA","end",9.5,"signal",true,false,null,true));
       /* 電池寿命 */
       var lx=nar?20:470,ly=nar?y0+rh*n+64:52,lw=nar?340:200,Lmax=Math.max(6,Math.ceil(L/2)*2),XL=function(v){return lx+Math.min(v,Lmax)/Lmax*lw;},ok=L>=1,good=L>=2;
       o.push(S.T(nar?8:460,ly-24,"電池寿命（Q = "+_w04_f(Q,Q%1?1:0)+" mAh）","start",10,"ink",true));
@@ -280,14 +285,14 @@ sp.push([X(ev[k]),P.Y(I)]);sp.push([X(ev[k+1]),P.Y(I)]);}
       o.push(S.T(lx,ly+106,"余裕（上限 ÷ 平均電流）"+_w04_f(b.lim/b.tot,1)+" 倍","start",10,ok?"ink":"alias",true));
       box.set(S.svg(Wd,nar?ly+118:Math.max(y0+rh*n+40,ly+118),o));
       var cond=(p.iv===10&&p.press===1&&p.read===1&&!p.alarm&&p.win===120&&+tmp.get()===0);
-      var h="平均電流 Ī = Σ I·d = <b>"+_w04_ua(b.tot)+" µA</b>、上限 "+_w04_f(b.lim,1)+" µA に対する余裕 <b>"+_w04_f(b.lim/b.tot,1)+" 倍</b><br>";
+      var h="平均電流 Ī = Σ I·d = <b>"+_w04_ua(b.tot)+" µA</b>、上限 "+_w04_f(b.lim,1)+" µA（"+_w04_f(Q,Q%1?1:0)+" mAh ÷ 1 年）に対する余裕 <b>"+_w04_f(b.lim/b.tot,1)+" 倍</b><br>";
       if(days!==null)h+="電池寿命 L = (Q − ΔQ) ÷ Ī + ΔQ ÷ Ī<sub>low</sub> = <b>"+_w04_g(L*8760)+" h = "+_w04_yr(L)+" 年</b>（電池少から電池切れまで "+_w04_f(days,0)+" 日）<br>";
       else h+="電池寿命 L = Q ÷ Ī = "+_w04_f(Q,Q%1?1:0)+" mAh ÷ "+_w04_ua(b.tot)+" µA = <b>"+_w04_g(L*8760)+" h = "+_w04_yr(L)+" 年</b><br>";
-      h+=(ok?(good?'<span class="ok">要求の 1 年を満たし、目標の余裕 2 倍にも届く</span>':'<span class="ok">要求の 1 年は満たす</span>が、目標の余裕 2 倍（2 年）に届かない'):'<span class="warn">要求の 1 年を満たさない</span>')+"<br>";
+      if(cond)h+=(ok?(good?'<span class="ok">要求の 1 年を満たし、目標の余裕 2 倍にも届く</span>':'<span class="ok">要求の 1 年は満たす</span>が、目標の余裕 2 倍（2 年）に届かない'):'<span class="warn">要求の 1 年を満たさない</span>')+"<br>";
+      else h+=(ok?'寿命は 1 年より長い':'<span class="warn">寿命は 1 年より短い</span>')+'（SR-W02 の使い方の条件と違う所があるので、SR-W02 の合否ではない）<br>';
       if(+adv.get()>0)h+='<span class="warn">常にアドバタイズする代案は、受付を短押しから 2 分に限る SR-U06 に反し、仕様書の変更（変更要求）が要る</span><br>';
       if(p.win!==120)h+='受付の窓を 2 分以外にすると、SR-U06（2 分間受け付ける）と食い違う<br>';
       h+="最も大きい項目: <b>"+b.it[mk][0]+" "+b.it[mk][1]+"</b>（"+_w04_f(b.it[mk][4]/b.tot*100,1)+" %）<br>";
-      if(!cond)h+='（SR-W02 の使い方の条件と違う所がある。この寿命では SR-W02 の合否は決められない）<br>';
       ro.innerHTML=h+'<div class="wnote">表 5-1 と同じ計算（02 章 5 節と同じ置き方に、＊の 4 項目を足した）。アドバタイズ 1 回は 5 mA で 2 ms、接続の間は時間の 20 % だけ無線が動く。使える電荷は、電池の例の模型で電池切れの判定（2.50 V）までに取り出せる電荷で、25 °C は設計で使う容量 180 mAh を使う。電池少の期間は、25 °C の模型の ΔQ = 5.4 mAh を、電池少の表示の電流で使う。</div>';
     }
     draw();

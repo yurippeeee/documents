@@ -798,6 +798,7 @@ def _f04_power():
     o.append(T((xb0 + xb1) / 2, y0 + rh * n + 32, "平均電流 [µA]（対数の目盛）", "middle", 10, MUT))
     items = [(p + " " + s + ("＊" if add else ""), v, add) for p, s, v, add in _F04_PB] + [("合計", _F04_TOT, False)]
     big = max(v for _, v, _ in items[:-1])
+    o.append(W(X(_F04_LIM), y0 - 2, X(_F04_LIM), y0 + rh * n, c=SIG, lw=1.6))
     for k, (lab, v, add) in enumerate(items):
         y = y0 + k * rh
         last = k == len(items) - 1
@@ -806,7 +807,6 @@ def _f04_power():
         o.append(RECT(xb0, y + 3, X(v) - xb0, rh - 6, 2, soft(c), c, 1.0))
         txt = ("%.4f" % v) if v < 0.01 else (("%.3f" % v) if v < 1 else ("%.2f" % v))
         o.append(T(X(v) + 4, y + 12.5, txt + " µA", "start", 9.5, c, True, halo=True))
-    o.append(W(X(_F04_LIM), y0 - 2, X(_F04_LIM), y0 + rh * n, c=SIG, lw=1.6))
     o.append(T(X(_F04_LIM) - 2, y0 - 5, "上限 20.5 µA", "end", 9.5, SIG, True, halo=True))
     # (b) 電池寿命
     xl = 444
@@ -814,6 +814,10 @@ def _f04_power():
     L0, L1 = xl + 4, 680
     XL = lambda v: L0 + v / 6.0 * (L1 - L0)
     yb = 48
+    ya = yb + len(_F04_CASES) * 40 + 4
+    # 要求と目標の線は、名前と値の文字より先に描き、文字の縁取りで線を隠す
+    o.append(W(XL(1), yb - 10, XL(1), ya, c=SIG, lw=1.6))
+    o.append(W(XL(2), yb - 10, XL(2), ya, c=PUR, lw=1.3, dash="5 3"))
     for k, (nm, sub, L, chg) in enumerate(_F04_CASES):
         y = yb + k * 40 + (8 if k >= 5 else 0)
         c = GRN if L >= 2 else (GLD if L >= 1 else ALI)
@@ -822,18 +826,17 @@ def _f04_power():
         lab = ("%.1f 年" % L) if L >= 1 else ("%.2f 年" % L)
         if XL(L) - L0 > 60:
             o.append(T(XL(L) - 4, y + 16, lab, "end", 9.5, c, True))
+            xe = XL(L)
         else:
             o.append(T(XL(L) + 4, y + 16, lab, "start", 9.5, c, True, halo=True))
+            xe = XL(L) + 4 + tw(lab, 9.5)
         if sub:
-            o.append(T(XL(L) + (52 if L >= 1 else 40), y + 16, sub, "start", 9, ALI, True, halo=True))
-    ya = yb + len(_F04_CASES) * 40 + 4
+            o.append(T(max(xe + 14, XL(2) + 8), y + 16, sub, "start", 9, ALI, True, halo=True))
     for v in range(0, 7):
         o.append(W(XL(v), ya, XL(v), ya + 4, c=MUT, lw=1))
         o.append(T(XL(v), ya + 16, "%d" % v, "middle", 9.5, MUT))
     o.append(W(L0, ya, L1, ya, c=MUT, lw=1))
     o.append(T((L0 + L1) / 2, ya + 31, "電池寿命 [年]", "middle", 10, MUT))
-    o.append(W(XL(1), yb - 10, XL(1), ya, c=SIG, lw=1.6))
-    o.append(W(XL(2), yb - 10, XL(2), ya, c=PUR, lw=1.3, dash="5 3"))
     o.append(LEGL(L0, ya + 50, [(SIG, None, "要求 1 年"), (PUR, "5 3", "目標 2 年（余裕 2 倍）")], 9.5, 12))
     H = max(y0 + rh * n + 42, ya + 60)
     return SVG(700, H, o, "図 5-1 ロガーの電力の予算（SR-W02 の使い方の条件、25 °C、例の値）。(b) は本文の設計から 1 か所だけを変えた電池寿命で、代案 B・C は 5.2 の設計判断の代案。")
