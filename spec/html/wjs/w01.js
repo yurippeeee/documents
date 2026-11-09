@@ -18,31 +18,31 @@
         [_w01_go(0,"赤を 3 回点滅"),{k:"stay",a:"何もしない"},_w01_go(0),{k:"rec"},{k:"cond"},_w01_go(2),{k:"undef"}],
         [{k:"undef"},{k:"none"},{k:"none"},{k:"none"},{k:"none"},{k:"none"},{k:"undef"}]];},
       rule:function(i,j){
-        if(i===0&&j===0)return {ok:function(c){return c.k==="go"&&c.to===1;},msg:"長押しで記録を始める（SR-F06・SR-U04）"};
-        if(i===1&&j===0)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"長押しで記録を止める（SR-F06・SR-U04）"};
-        if(i===0&&j===1)return {ok:function(c){return c.k==="go"&&c.to===1;},msg:"アプリから記録を始められる（SR-F06）"};
-        if(i===1&&j===2)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"アプリから記録を止められる（SR-F06）"};
+        if(i===0&&j===0)return {ok:function(c){return c.k==="go"&&c.to===1;},msg:"長押しで記録を始め、緑を 3 回点滅させる（SR-F06・SR-U04）"};
+        if(i===1&&j===0)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"長押しで記録を止め、赤を 3 回点滅させる（SR-F06・SR-U07）"};
+        if(i===0&&j===1)return {ok:function(c){return c.k==="go"&&c.to===1;},msg:"アプリから記録を始められる（SR-F14）"};
+        if(i===1&&j===2)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"アプリから記録を止められる（SR-F14）"};
         if(i===1&&j===3)return {ok:function(c){return c.k==="rec";},msg:"記録中は、記録の間隔ごとに測定して記録する（SR-F01・SR-F03）"};
-        if(i!==1&&j===3)return {ok:function(c){return c.k!=="rec"&&!(c.k==="go"&&c.to===1);},msg:"記録中でなければ記録しない（主のモードの決まり）"};
+        if(i!==1&&j===3)return {ok:function(c){return c.k!=="rec"&&!(c.k==="go"&&c.to===1);},msg:"記録中でなければ記録しない（SR-F01・SR-F18）"};
         if(i===1&&j===4)return {ok:function(c){return c.k==="cond";},msg:"容量に達したときに上書きするか止めるかは、設定で選ぶ（SR-F05）"};
-        if(i<2&&j===5)return {ok:function(c){return c.k==="go"&&c.to===2;},msg:"電池が尽きたら記録を止める（SR-F13）"};
-        if(i===2&&(j===1||j===2))return {ok:function(c){return c.k==="none";},msg:"電池切れでは通信しないので、アプリからの出来事は起きない（通信の状態の決まり）"};
-        if(i===2&&j<6)return {ok:function(c){return !(c.k==="go"&&c.to===1)&&c.k!=="rec";},msg:"電池切れのまま記録はできない"};
+        if(i<2&&j===5)return {ok:function(c){return c.k==="go"&&c.to===2;},msg:"電池が尽きたら電池切れへ移る（SR-F18）"};
+        if(i===2&&(j===1||j===2))return {ok:function(c){return c.k==="none";},msg:"電池切れでは通信しないので、アプリからの出来事は起きない（SR-F18）"};
+        if(i===2&&j<6)return {ok:function(c){return !(c.k==="go"&&c.to===1)&&c.k!=="rec";},msg:"電池切れのまま記録はできない（SR-F18）"};
         return null;}},
-    com:{name:"通信の状態",st:["通信なし","受付中","接続中"],ev:["短押し","アプリが接続","接続が切れる","2 分たつ","電池が尽きる"],extra:{},
-      act:function(i,j,to){if(i===0&&j===0&&to===1)return "LED で状態を示し、受付を始める";if(i===1&&j===1&&to===2)return "接続を受ける";if(j===4)return "通信を止める";return "";},
+    com:{name:"通信の状態",st:["通信なし","受付中","接続中"],ev:["短押し","アプリが接続","接続が切れる","2 分たつ","電池が尽きる","電池を入れ直す"],extra:{},
+      act:function(i,j,to){if(i===0&&j===0&&to===1)return "LED で状態を示し、受付を始める";if(i===1&&j===1&&to===2)return "接続を受ける";if(j>=4&&to===0)return "通信を止める";return "";},
       init:function(){return [
-        [_w01_go(1,"LED で状態を示し、受付を始める"),{k:"none"},{k:"none"},{k:"none"},{k:"stay",a:"何もしない"}],
-        [{k:"undef"},_w01_go(2,"接続を受ける"),{k:"none"},_w01_go(0),_w01_go(0,"通信を止める")],
-        [{k:"undef"},{k:"none"},_w01_go(0),{k:"stay",a:"何もしない"},_w01_go(0,"通信を止める")]];},
+        [_w01_go(1,"LED で状態を示し、受付を始める"),{k:"none"},{k:"none"},{k:"none"},{k:"stay",a:"何もしない"},{k:"stay",a:"何もしない"}],
+        [{k:"undef"},_w01_go(2,"接続を受ける"),{k:"none"},_w01_go(0),_w01_go(0,"通信を止める"),_w01_go(0,"通信を止める")],
+        [{k:"undef"},{k:"none"},_w01_go(0),{k:"stay",a:"何もしない"},_w01_go(0,"通信を止める"),_w01_go(0,"通信を止める")]];},
       rule:function(i,j){
-        if(i===0&&j===0)return {ok:function(c){return c.k==="go"&&c.to===1;},msg:"短押しで接続の受付を始める（SR-U02）"};
-        if(i===0&&j===1)return {ok:function(c){return c.k==="none";},msg:"受付中でなければ接続されない（SR-U02）"};
-        if(i===1&&j===1)return {ok:function(c){return c.k==="go"&&c.to===2;},msg:"受付中は接続を受ける（SR-U02）"};
-        if(i===1&&j===3)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"受け付けるのは 2 分間（SR-U02）"};
-        if(i===2&&j===2)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"接続が切れたら通信なしに戻る（通信の状態の決まり）"};
-        if(i>0&&j===4)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"電池が尽きたら通信しない（通信の状態の決まり）"};
-        if(i===0&&j===4)return {ok:function(c){return c.k==="stay"||c.k==="none";},msg:"電池が尽きたら通信しない（通信の状態の決まり）"};
+        if(i===0&&j===0)return {ok:function(c){return c.k==="go"&&c.to===1;},msg:"短押しで接続の受付を始める（SR-U06）"};
+        if(i===0&&j===1)return {ok:function(c){return c.k==="none";},msg:"受付中でなければ接続されない（SR-U06）"};
+        if(i===1&&j===1)return {ok:function(c){return c.k==="go"&&c.to===2;},msg:"受付中は接続を受ける（SR-U06）"};
+        if(i===1&&j===3)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"受け付けるのは短押しから 2 分間（SR-U06）"};
+        if(i===2&&j===2)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"接続が切れたら通信なしに戻る（SR-F18）"};
+        if(i>0&&j>=4)return {ok:function(c){return c.k==="go"&&c.to===0;},msg:"電池が尽きたとき・入れ直したときは通信しない（SR-F18）"};
+        if(i===0&&j>=4)return {ok:function(c){return c.k==="stay"||c.k==="none";},msg:"電池が尽きたとき・入れ直したときは通信しない（SR-F18）"};
         return null;}}
   };
   function _w01_cellTxt(M,c,short){
@@ -157,7 +157,7 @@
       var r="今の状態: <b>"+m.st[cur]+"</b>"+(log.length?"　直前: "+log[0]:"（上の出来事のボタンで、今の状態から遷移させる）")+"<br>";
       r+=(A.gaps.length?'<span class="warn">抜け（未定） '+A.gaps.length+' マス</span>: '+A.gaps.map(function(g){return m.st[g[0]]+" × "+m.ev[g[1]];}).join("、"):'<span class="ok">抜けは無い</span>')+"<br>";
       r+=(A.bad.length?'<span class="warn">矛盾 '+A.bad.length+' マス</span>: '+A.bad.map(function(b){return m.st[b[0]]+" × "+m.ev[b[1]]+"（"+b[2]+"）";}).join("、"):'<span class="ok">要求と矛盾するマスは無い</span>');
-      ro.innerHTML=r+(log.length>1?'<div class="wnote">'+log.slice(1).join("<br>")+'</div>':"")+'<div class="wnote">矛盾は、ロガーの要求（SR-F01・SR-F05・SR-F06・SR-F13・SR-U02・SR-U04）と 3 節の動作モードの決まりに照らして判定する。未定のマスの決め方は、どれを選んでも要求とは矛盾しない（どれにするかを仕様書で決める）。</div>';
+      ro.innerHTML=r+(log.length>1?'<div class="wnote">'+log.slice(1).join("<br>")+'</div>':"")+'<div class="wnote">矛盾は、ロガーの要求（SR-F01・SR-F05・SR-F06・SR-F14・SR-F18・SR-U04・SR-U06・SR-U07。03 章の最終の要求）に照らして判定する。未定のマスは、どれを選んでも要求とは矛盾しない（どれにするかを仕様書で決める。03 章の表 3-3・3-4 が決めた答え）。</div>';
     }
     tdiv.addEventListener("click",function(e){var td=e.target.closest?e.target.closest("[data-c]"):null;if(!td)return;var q=td.getAttribute("data-c").split(",");si=+q[0];sj=+q[1];sync();draw();});
     build();sync();draw();
@@ -166,17 +166,17 @@
   /* ---- 4 節: 要求文の点検（曖昧な言葉・数値と単位・1 文に 1 つ・条件・否定・文末） ---- */
   var _W01_RQ=[
     {t:"ボタンを押したら、速やかにアプリとつながること",fix:[["SR-P06","短押しから 10 秒以内に、アプリが接続を始められること"]],why:"「速やかに」を、起点（短押し）と時間の上限（10 秒以内）に直した。"},
-    {t:"電池は十分に長くもつこと",fix:[["SR-W02","次の条件で、新しい電池で 1 年以上記録を続けられること: 記録の間隔 10 分、周囲 25 °C、読み出しは 1 週間に 1 回（接続 1 分）、短押しは 1 日に 1 回"]],why:"「十分に長く」を 1 年以上という数値にし、使い方の条件（5 節）を添えた。"},
-    {t:"温度の誤差は ±0.5 °C 以内であること",fix:[["SR-P01","温度の誤差は 0〜40 °C で ±0.5 °C 以内、−20〜0 °C と 40〜60 °C で ±1.0 °C 以内であること"]],why:"誤差を満たす温度の範囲（条件）を書き、範囲ごとに許容差を決めた。"},
-    {t:"温度と湿度を 10 分ごとに測定して記録し、また上限を超えたら LED で知らせること",fix:[["SR-F01","温度と相対湿度を、設定した記録の間隔ごとに測定すること"],["SR-F03","測定ごとに、時刻・温度・湿度・状態の印を 1 件の記録として保存すること"],["SR-F10","温度が上限を超えたら、LED で知らせること（要点）"]],why:"別々に合否が決まる 3 つの要求に分け、ID を 1 つずつ付けた。それぞれに試験を結べる。"},
+    {t:"電池は十分に長くもつこと",fix:[["SR-W02","次の使い方の条件で、新しい電池で 1 年以上記録を続けられること: 記録の間隔 10 分、周囲 25 °C、読み出しは 1 週間に 1 回（接続 1 分）、短押しは 1 日に 1 回、警報の表示は無い（警報の印が付かない上限と下限に設定する）、電池少の表示は電池少と判定してから電池切れまでの間だけ（SR-F13）"]],why:"「十分に長く」を 1 年以上という数値にし、使い方の条件（5 節）を添えた。LED の表示も電池を使うので、条件に入れた。"},
+    {t:"温度の誤差は ±0.5 °C 以内であること",fix:[["SR-P01","温度の誤差は、0 °C 以上 40 °C 以下で ±0.5 °C 以内、−20 °C 以上 0 °C 未満と 40 °C より高く 60 °C 以下で ±1.0 °C 以内であること（分解能 0.1 °C）"]],why:"誤差を満たす温度の範囲（条件）を書き、範囲ごとに許容差を決めた。境目（0 °C と 40 °C）がどちらの範囲に入るかも書いた。"},
+    {t:"温度と湿度を 10 分ごとに測定して記録し、また上限を超えたら LED で知らせること",fix:[["SR-F01","記録中は、記録の間隔ごとに温度と相対湿度を測定すること"],["SR-F03","測定ごとに、時刻・温度・湿度・状態の印（警報・時刻未設定・電池少・測定異常）を 1 件の記録として保存すること"],["SR-F15","警報の印を付けた記録を保存したときは、LED で知らせること（警報の表示。表 3-5）"]],why:"別々に合否が決まる 3 つの要求に分け、ID を 1 つずつ付けた（警報の印を付けることは SR-F10）。それぞれに試験を結べる。"},
     {t:"誤った時刻で記録しないこと",fix:[["SR-F09","電池を入れてから最初に時刻を合わせるまでの記録には、時刻未設定の印を付けること"]],why:"否定だけの文を、条件（時刻を合わせるまで）と、そのときにすること（印を付ける）に直した。"},
-    {t:"電池の残りが少なくなったら、すぐに知らせること",fix:[["SR-F13","電池の残りが少ないことを、記録を止める 14 日以上前に、LED とアプリで知らせること"]],why:"「すぐに」を、いつまでに（記録を止める 14 日以上前）と、何で（LED とアプリ）知らせるかに直した。"},
-    {t:"LED の表示は分かりやすくする",fix:[["SR-U03","LED の表示は、状態ごとの表示の表（表示が重なるときの優先順位を含む）のとおりにすること"]],why:"「分かりやすく」を、表示の決まり（表）に従うことに直し、文末を「〜すること」にした。"},
+    {t:"電池の残りが少なくなったら、すぐに知らせること",fix:[["SR-F13","電池の残りが少ないことを、電池切れになる 14 日以上前（SR-W02 の使い方の条件で）に、LED とアプリで知らせること"]],why:"「すぐに」を、いつまでに（電池切れになる 14 日以上前。数えるときの使い方の条件も書く）と、何で（LED とアプリ）知らせるかに直した。"},
+    {t:"LED の表示は分かりやすくする",fix:[["SR-U03","LED の表示は、表 3-5 の表示と表 3-6 の決まり（重なるときの優先順位を含む）のとおりにすること"]],why:"「分かりやすく」を、表示の表と決まり（03 章の表 3-5・3-6）に従うことに直し、文末を「〜すること」にした。"},
     {t:"記録の読み出しは、なるべく速いことが望ましい",fix:[["SR-P05","接続してから、記録 52 560 件の読み出しを 60 秒以内に終えること（例のスマートフォンで、見通し 2 m）"]],why:"「なるべく速い」を、件数・時間の上限・試す条件のそろった必須の要求に直した。"}
   ];
   var _W01_VAGUE=["可能な限り","できるだけ","なるべく","ある程度","問題なく","効率よく","効率的","適切","十分","速やか","迅速","直ちに","すぐに","高速","素早く","正確","正しく","確実に","使いやす","分かりやす","わかりやす","見やす","簡単","容易","柔軟","最適","適宜","極力","など","長く","短く","早く","遅く","多く","少なく"];
-  var _W01_QWORD=["速","時間","誤差","精度","寿命","もつ","距離","容量","重さ","大きさ","費用","電流","遅れ"];
-  var _W01_UNIT="%RH|°C|℃|ms|µs|秒|分|時間|日|週間|週|か月|年|mm|cm|kg|g|件|回|個|台|円|mAh|µA|mA|KiB|KB\\/s|KB|dBm|dB|kHz|MHz|GHz|Hz|%|桁|ppm|m|A|V|B";
+  var _W01_QWORD=["速","時間","誤差","精度","寿命","もつ","距離","重さ","大きさ","費用","電流","遅れ"];
+  var _W01_UNIT="%RH|°C|℃|ms|µs|秒|分|時間|日|週間|週|か月|年|mm|cm|kg|g|件|回|個|台|面|円|mAh|µA|mA|KiB|KB\\/s|KB|dBm|dB|kHz|MHz|GHz|Hz|%|桁|ppm|m|A|V|B";
   var _W01_NUMRE=new RegExp("(?:\\d+(?:[.]\\d+)?\\s?×\\s?)*[−\\-+±]?(?:\\d{1,3}(?: \\d{3})+|\\d+)(?:[.]\\d+)?(?:\\s?[〜~]\\s?[−\\-+]?\\d+(?:[.]\\d+)?)?\\s?(?:"+_W01_UNIT+")(?![A-Za-z])","g");
   function _w01_check(s){
     var t=String(s).trim(),R=[],rng=[];  /* rng: [start, end, 種類] 文字に色を付ける範囲 */
@@ -184,26 +184,26 @@
     /* 曖昧な言葉 */
     var vg=[];_W01_VAGUE.forEach(function(w){var i=t.indexOf(w);while(i>=0){var dup=rng.some(function(r){return r[2]==="vague"&&i>=r[0]&&i<r[1];});if(!dup){vg.push(w);add(i,i+w.length,"vague");}i=t.indexOf(w,i+w.length);}});
     /* 数値と単位（ID・型番を除く） */
-    var body=t.replace(/(SR|DS|ST|LG)-[A-Z0-9-]+|CR\d+|IP\d+|Bluetooth \d+(?:\.\d+)?/g,function(m){return new Array(m.length+1).join("#");});
+    var body=t.replace(/(SR|DS|ST|LG)-[A-Z0-9-]+|CR\d+|IP\d+|Bluetooth \d+(?:\.\d+)?|表 \d+(?:-\d+)?/g,function(m){return new Array(m.length+1).join("#");});
     var nums=[],m;_W01_NUMRE.lastIndex=0;while((m=_W01_NUMRE.exec(body))){nums.push(m[0]);add(m.index,m.index+m[0].length,"num");}
     var bare=body.replace(_W01_NUMRE,function(x){return new Array(x.length+1).join("#");}).match(/\d+/g)||[];
     var needNum=vg.length>0||_W01_QWORD.some(function(w){return t.indexOf(w)>=0;});
     /* 1 文に 1 つ */
-    var sents=t.split(/[。．]/).filter(function(x){return x.trim().length>0;});
+    var core=t.replace(/（[^（）]*）/g,""),sents=core.split(/[。．]/).filter(function(x){return x.trim().length>0;});
     var joinX=[],joinC=[];
     [/また(?!は)/g].forEach(function(re){var q;while((q=re.exec(t))){joinX.push(q[0]);add(q.index,q.index+q[0].length,"join");}});
     [/および|ならびに|並びに|かつ/g,/[しりきけせめべびみ]、/g].forEach(function(re){var q;while((q=re.exec(t))){joinC.push(q[0]);add(q.index,q.index+q[0].length,"join");}});
     /* 文末 */
-    var last=(sents.length?sents[sents.length-1]:t).trim().replace(/こと[:：].*$/,"こと").replace(/（[^（）]*）$/,"").trim(),endOK=/こと$/.test(last)&&!/ことが望ましい$/.test(last),endWant=/ことが望ましい$/.test(last);
+    var last=(sents.length?sents[sents.length-1]:core).trim().replace(/こと[:：].*$/,"こと").trim(),endOK=/こと$/.test(last)&&!/ことが望ましい$/.test(last),endWant=/ことが望ましい$/.test(last);
     var neg=/(ない|ず)こと$/.test(last);
-    var ei=t.lastIndexOf(last),em=last.match(/(ことが望ましい|ないこと|こと|する|します|できる|したい|ほしい|である|にする)$/);
-    if(em)add(ei+last.length-em[0].length,ei+last.length,endOK&&!neg?"endok":"endbad");
+    var ei=t.lastIndexOf(last.slice(-6)),em=last.match(/(ことが望ましい|ないこと|こと|する|します|できる|したい|ほしい|である|にする)$/);
+    if(em&&ei>=0){var ee=ei+Math.min(6,last.length);add(ee-em[0].length,ee,endOK&&!neg?"endok":"endbad");}
     /* 条件 */
     var condBad=[];
-    if(/誤差|精度/.test(t)&&!/\d+\s?〜\s?[−\-+]?\d+\s?°C\s?で|の範囲で|°C で/.test(t))condBad.push("どの範囲（温度など）での誤差かが無い");
-    if(/電池/.test(t)&&/年|寿命|もつ/.test(t)&&!/条件|間隔/.test(t))condBad.push("使い方の条件（記録の間隔・読み出しの回数・温度）が無い");
+    if(/誤差|精度/.test(t)&&!/\d+\s?〜\s?[−\-+]?\d+\s?°C\s?で|の範囲で|(°C|%RH|以下|以上|未満)\s?で/.test(t))condBad.push("どの範囲（温度など）での誤差かが無い");
+    if(/電池/.test(t)&&/寿命|もつ|動く|続けられる|動き続け/.test(t)&&!/条件|間隔/.test(t))condBad.push("使い方の条件（記録の間隔・読み出しの回数・温度）が無い");
     if(/\d+\s?(秒|分|時間|日|ms)\s?以内/.test(t)&&!/から|まで|のうちに|とき|たら|ごとに/.test(t))condBad.push("いつから測るか（起点）が無い");
-    var condMark=/とき|たら|れば|ならば|ごとに|たびに|から|までの|の間|で、|次の条件|°C で|の範囲で|前に|までに/.test(t);
+    var condMark=/とき|たら|れば|ならば|ごとに|たびに|から|までの|の間|で、|の条件|(°C|%RH|以下|以上|未満)\s?で|の範囲で|前に|前（|までに|中は/.test(t);
     /* 判定（ok / chk / bad / na） */
     R.push(["曖昧な言葉",vg.length?"bad":"ok",vg.length?"「"+vg.join("」「")+"」は、読む人ごとに意味が変わる":"無い"]);
     R.push(["数値と単位",nums.length?(bare.length?"chk":"ok"):(needNum?"bad":"na"),nums.length?(nums.join("・")+(bare.length?"。単位の無い数 "+bare.join("・")+" がある":"")):(needNum?"量を決める要求なのに、数値と単位が無い":"数値の要らない要求")]);

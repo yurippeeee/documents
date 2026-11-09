@@ -42,6 +42,10 @@ def _f01_lines1(text, maxw, sz):
     return lines
 
 
+def _f01_lines_n(text, maxw, sz):
+    return len(_f01_lines(text, maxw, sz))
+
+
 def _f01_text(x, y, text, maxw, sz=10, c=INK, b=False, a="start", lh=None, halo=False):
     """折り返して書く。返り値 (svg, 行数)。"""
     lh = lh or sz * 1.42
@@ -61,9 +65,8 @@ def _f01_rich_lines(toks, maxw, sz):
     return lines
 
 
-def _f01_rich(x, y, segs, maxw, sz=10.5, lh=None, a="start"):
-    """色と太さの違う部分 segs = [(文字, 色, 太字), ...] をつないで、幅 maxw で折り返して書く。返り値 (svg, 行数)。"""
-    lh = lh or sz * 1.45
+def _f01_rich_wrap(segs, maxw, sz):
+    """_f01_rich の折り返しだけを行う（描かない）。返り値は行のリスト。"""
     toks = []
     for text, c, b in segs:
         for tk in _f01_tokens(text):
@@ -77,6 +80,13 @@ def _f01_rich(x, y, segs, maxw, sz=10.5, lh=None, a="start"):
                 lines = cand
                 break
             m += 4
+    return lines
+
+
+def _f01_rich(x, y, segs, maxw, sz=10.5, lh=None, a="start"):
+    """色と太さの違う部分 segs = [(文字, 色, 太字), ...] をつないで、幅 maxw で折り返して書く。返り値 (svg, 行数)。"""
+    lh = lh or sz * 1.45
+    lines = _f01_rich_wrap(segs, maxw, sz)
     o = []
     for i, L in enumerate(lines):
         runs = []
@@ -234,11 +244,11 @@ def _f01_whathow():
          "受付中は 100 ms ごとにアドバタイズする（理由: SR-P06 の 10 秒と、電池寿命 SR-W02 の釣り合い）"),
         ("記録はフラッシュのセクタに順に書き、最後まで来たら先頭に戻って上書きすること",
          "書き方を変えられない。止めるか上書きするかを利用者が選べることが書かれていない",
-         [("SR-F05", SIG, True), (" 記録が容量に達したときの動作を「最も古い記録から上書きする」「記録を止める」から設定できること", INK, False)],
+         [("SR-F05", SIG, True), (" 記録が記録の容量に達したときの動作を、「上書き」と「記録を止める」から設定できること", INK, False)],
          "セクタに順に書き、最後まで来たら先頭のセクタを消して書く（止める設定なら書かない）"),
         ("ウォッチドッグタイマを 8 秒に設定すること",
          "ほかの方法を選べない。何秒で戻り、何を失ってはいけないかが決まっていない",
-         [("SR-R03", SIG, True), (" ソフトウェアが止まったときは 10 秒以内に自動で復帰し、記録と設定を失わないこと", INK, False)],
+         [("SR-R03", SIG, True), (" ソフトウェアが止まったときは、10 秒以内に自動で、止まる前の主のモードの動作に戻ること（記録と設定を保持することは ", INK, False), ("SR-R05", SIG, True), ("）", INK, False)],
          "ウォッチドッグタイマ（8 秒）でリセットし、起動のときに記録の続きの位置を探す"),
     ]
     y, RH = 34, 96
@@ -375,7 +385,7 @@ def _f01_context():
     # 作業者（左）
     px, py = 62, 90
     o.append(_f01_person(px, py, GLD, 1.15))
-    o.append(T(px, py + 16, "作業者", "middle", 11, GLD, True))
+    o.append(T(px, py + 16, "作業者・管理者", "middle", 11, GLD, True))
     o.append(ARR(px + 22, cy - 30, L - 2, cy - 30, c=GLD, lw=1.6, head=6))
     o.append(T((px + 22 + L) / 2, cy - 36, "ボタン（短押し・長押し）", "middle", 10, INK, halo=True))
     o.append(ARR(L - 2, cy - 8, px + 22, cy - 8, c=SIG, lw=1.6, head=6))
@@ -403,7 +413,7 @@ def _f01_context():
     # 管理者（右上）
     mx, my = 636, 68
     o.append(_f01_person(mx, my, GLD, 1.15))
-    o.append(T(mx - 16, my - 10, "管理者", "end", 11, GLD, True))
+    o.append(T(mx - 16, my - 10, "作業者・管理者", "end", 11, GLD, True))
     o.append(W(mx, my + 2, mx, ay - 2, c=GLD, lw=1.2, dash="3 3"))
     o.append(T(mx + 8, my + 28, "操作", "start", 9.5, GLD))
     # 周囲の環境（下）
@@ -588,14 +598,14 @@ def _f01_split():
     o.append(T(X + 7 * 14 + 10, 78, "3 × 7 = 21 マス", "start", 10.5, INK, True))
     o.append(T(X, 122, "通信の状態", "start", 10, TEA, True))
     o.append(T(X + 76, 122, "通信なし・受付中・接続中", "start", 9.5, MUT))
-    o.append(_f01_grid(X, 132, 3, 5, TEA))
-    o.append(T(X + 5 * 14 + 10, 156, "3 × 5 = 15 マス", "start", 10.5, INK, True))
-    o.append(T(X, 210, "合わせて 36 マス", "start", 13, GRN, True))
+    o.append(_f01_grid(X, 132, 3, 6, TEA))
+    o.append(T(X + 6 * 14 + 10, 156, "3 × 6 = 18 マス", "start", 10.5, INK, True))
+    o.append(T(X, 210, "合わせて 39 マス", "start", 13, GRN, True))
     o.append(T(X, 234, "2 つの表のつながりは出来事で書く:", "start", 9.5, INK, True))
     o.append(T(X, 250, "・アプリから開始・停止は、接続中にだけ起きる", "start", 9.5, MUT))
-    o.append(T(X, 266, "・電池が尽きると、通信の状態も通信なしへ", "start", 9.5, MUT))
+    o.append(T(X, 266, "・電池が尽きる・入れ直すと、通信なしへ", "start", 9.5, MUT))
     o.append(LEGEND(gx, 290, [(PUR, "まとめた状態"), (MUT, "起きない組み合わせ")], 9.5, 16))
-    return SVG(700, 300, o, "主のモード（出来事 7 つ）と通信の状態（出来事 5 つ。電池が尽きるは両方に共通）を、1 つの表にまとめた場合と分けた場合のマスの数。")
+    return SVG(700, 300, o, "主のモード（出来事 7 つ）と通信の状態（出来事 6 つ。電池が尽きる・電池を入れ直すは両方に共通）を、1 つの表にまとめた場合と分けた場合のマスの数（出来事は 03 章の表 3-3・3-4 と同じ）。")
 F["e01_split"] = _f01_split()
 
 
@@ -622,7 +632,7 @@ def _f01_sentence(x, y, parts, sz=11.5):
 def _f01_anatomy():
     o = []
     rows = [
-        [("SR-P03", "ID"), ("各記録の時刻は、", "subj"), ("予定の測定時刻から", "cond"), ("±2 秒以内", "num"), ("であること", "end")],
+        [("SR-P03", "ID"), ("各記録の時刻は、", "subj"), ("ロガーの時計で予定した測定の時刻から", "cond"), ("±2 秒以内", "num"), ("であること", "end")],
         [("SR-P06", "ID"), ("短押しから", "cond"), ("10 秒以内に、", "num"), ("アプリが", "subj"), ("接続を始められる", "act"), ("こと", "end")],
         [("SR-F09", "ID"), ("電池を入れてから最初に時刻を合わせるまでの記録には、", "cond"), ("（ロガーは）", "subj0"), ("時刻未設定の印を付ける", "act"), ("こと", "end")],
     ]
@@ -650,16 +660,19 @@ def _f01_badgood():
          [("SR-P06", SIG, True), (" 短押しから ", INK, False), ("10 秒以内に", GRN, True), ("、アプリが接続を始められること", INK, False)]),
         ("条件の抜け", [("温度の誤差は ±0.5 °C 以内であること", INK, False)],
          "どの温度で測るかが無い。−20 °C で 0.8 °C ずれたら合格かが決まらない",
-         [("SR-P01", SIG, True), (" 温度の誤差は ", INK, False), ("0〜40 °C で", GRN, True), (" ±0.5 °C 以内、", INK, False), ("−20〜0 °C と 40〜60 °C で", GRN, True), (" ±1.0 °C 以内であること", INK, False)]),
+         [("SR-P01", SIG, True), (" 温度の誤差は、", INK, False), ("0 °C 以上 40 °C 以下で", GRN, True), (" ±0.5 °C 以内、", INK, False),
+          ("−20 °C 以上 0 °C 未満と 40 °C より高く 60 °C 以下で", GRN, True), (" ±1.0 °C 以内であること", INK, False)]),
         ("1 文に 2 つ", [("温度と湿度を 10 分ごとに測定して記録し、", INK, False), ("また", ALI, True), ("上限を超えたら LED で知らせること", INK, False)],
          "測定は合格で LED が不合格のとき、この要求の合否が決まらない。1 つの試験に結べない",
-         [("SR-F01", SIG, True), (" 測定する・", INK, False), ("SR-F03", SIG, True), (" 記録する・", INK, False), ("SR-F10", SIG, True), (" 警報を知らせる、の 3 つに分け、それぞれに試験を結ぶ", INK, False)]),
+         [("SR-F01", SIG, True), (" 測定する・", INK, False), ("SR-F03", SIG, True), (" 記録する・", INK, False), ("SR-F15", SIG, True), (" LED で知らせる、の 3 つに分け、それぞれに試験を結ぶ", INK, False)]),
         ("否定だけ", [("誤った時刻で記録", INK, False), ("しないこと", ALI, True)],
          "電池を入れた直後は正しい時刻を知らないので満たせない。何を試せば合格かも決まらない",
          [("SR-F09", SIG, True), (" 電池を入れてから最初に時刻を合わせるまでの記録には、", INK, False), ("時刻未設定の印を付ける", GRN, True), ("こと", INK, False)]),
     ]
-    y, RH = 30, 74
+    y = 30
     for name, bad, why, good in rows:
+        nl = max(len(_f01_rich_wrap(bad, C[1][1] - 20, 10.5)) * 15.2, _f01_lines_n(why, C[2][1] - 14, 9.5) * 13.5, len(_f01_rich_wrap(good, C[3][1] - 20, 10)) * 14.5)
+        RH = max(74, nl + 26)
         o.append(RECT(C[0][0], y, C[0][1], RH - 6, 5, MSOFT, LIN, 1))
         o.append(_f01_text(C[0][0] + C[0][1] / 2, y + 22, name, C[0][1] - 8, 10, INK, True, "middle")[0])
         o.append(_f01_box(C[1][0], y, C[1][1], RH - 6, ALI, 1.1, 5))
@@ -681,9 +694,9 @@ def _f01_methods():
     qx, qw = 22, 322
     rx, rw = 390, 298
     qs = [
-        ("見る、寸法や重さを測る、図面や部品表を調べる、で分かるか", "検査（I）", "SR-C01 大きさと重さ・SR-W01 電池の種類・SR-C02 費用", GLD),
-        ("操作して、できることを見せれば足りるか（数値の合否の基準が無い）", "実演（D）", "工具を使わずに電池を交換できる（SR-W03）", PUR),
-        ("決めた条件で動かして測り、合否の基準と比べられるか（時間と費用の範囲で）", "試験（T）", "SR-P06 接続までの時間・SR-P01 温度の誤差・SR-F10 警報", GRN),
+        ("見る、寸法や重さを測る、図面や部品表を調べる、で分かるか", "検査（I）", "SR-C01 大きさと重さ・SR-W01 電池の種類・SR-S02 電波法の適合", GLD),
+        ("操作して、できることを見せれば足りるか（数値の合否の基準が無い）", "実演（D）", "SR-W03 工具を使わずに電池を交換できる", PUR),
+        ("決めた条件で動かして測り、合否の基準と比べられるか（時間と費用の範囲で）", "試験（T）", "SR-P06 接続までの時間・SR-P01 温度の誤差・SR-F10 警報の印", GRN),
     ]
     o.append(_f01_box(qx, 10, 120, 28, SIG))
     o.append(T(qx + 60, 29, "要求", "middle", 11.5, SIG, True))
@@ -703,7 +716,7 @@ def _f01_methods():
     o.append(_f01_box(qx, y, qw + 2 + (rx - qx - qw - 2) + rw, 46, SIG))
     o.append(T(qx + 12, y + 19, "解析（A）", "start", 11.5, SIG, True))
     o.append(T(qx + 90, y + 19, "計算・模擬・部品のデータで示す。短い試験で測った値を使ってよい", "start", 10, INK))
-    o.append(T(qx + 12, y + 37, "SR-R01 10 年の保持・SR-R04 5 年の使用・SR-W02 1 年の電池寿命（試験では年単位かかる）", "start", 9.5, INK))
+    o.append(T(qx + 12, y + 37, "SR-R01 10 年の保持・SR-R04 5 年の使用・SR-W02 1 年の電池寿命（試験では年単位かかる）・SR-C02 部品の費用", "start", 9.5, INK))
     return SVG(700, y + 54, o, "検証の方法の選び方（上から順に問う。例はロガーの要求）。")
 F["e01_methods"] = _f01_methods()
 
@@ -751,47 +764,52 @@ F["e01_nfr"] = _f01_nfr()
 # =====================================================================
 _F01_Q = 180.0          # 設計で使う電池の容量 [mAh]
 _F01_ISL = 2.55         # 眠りの電流 [µA]（25 °C。マイコン 2.0 + センサ 0.05 + フラッシュ 0.5）
-_F01_QREC = 3.0 * 8 + 0.3 * 5 + 5 * 0.7 + 10 * 45 / 512   # 記録 1 回 [µC]
+_F01_QREC = 3.0 * 8 + 0.3 * 5 + 5 * 0.7 + 10 * 45 / 512   # 記録 1 回 [µC]（大まかに置いた値）
 _F01_QADV = 5.0 * 2.0   # アドバタイズ 1 回 [µC]（100 ms ごと）
 _F01_WIN = 120.0        # 接続の受付の窓 [s]
 _F01_ICON = 1.0         # 接続中の平均の電流 [mA]
 _F01_TCON = 5.0         # 読み出しのとき、接続までのアドバタイズの時間 [s]
+_F01_QLED = 2.0 * 20    # LED の点灯 1 回 [µC]（2 mA × 20 ms）。記録中の表示は 30 秒ごとに 1 回、警報の表示は 30 秒ごとに 2 回
 
 
-def _f01_life(interval=10, press=1, reads=1, conn=1.0, temp=25):
-    """返り値 (眠り, 記録, 受付, 読み出し の電流 [µA], 合計 [µA], 電池寿命 [年])。
-    interval: 記録の間隔 [分]、press: 短押し [回/日]、reads: 読み出し [回/週]、conn: 接続の長さ [分]、temp: 周囲の温度 [°C]。"""
+def _f01_life(interval=10, press=1, reads=1, conn=1.0, temp=25, alarm=False):
+    """返り値 (眠り, 記録, 受付, 読み出し, LED の電流 [µA], 合計 [µA], 電池寿命 [年])。
+    interval: 記録の間隔 [分]、press: 短押し [回/日]、reads: 読み出し [回/週]、conn: 接続の長さ [分]、temp: 周囲の温度 [°C]、
+    alarm: 警報の表示が続く（30 秒ごとの表示が、記録中の表示の緑 1 回から、警報の表示の赤 2 回に代わる）。"""
     k = 1.5 ** ((temp - 25) / 10.0) if temp > 25 else 1.0
     i_sl = _F01_ISL * k
     i_rec = _F01_QREC / (interval * 60.0)
     i_adv = press * (_F01_QADV / 0.1 * _F01_WIN) / 86400.0
     i_rd = reads * (_F01_QADV / 0.1 * _F01_TCON + _F01_ICON * 1000 * conn * 60) / (7 * 86400.0)
-    tot = i_sl + i_rec + i_adv + i_rd
-    return i_sl, i_rec, i_adv, i_rd, tot, _F01_Q * 1000 / tot / 8760.0
+    i_led = (2 if alarm else 1) * _F01_QLED / 30.0
+    tot = i_sl + i_rec + i_adv + i_rd + i_led
+    return i_sl, i_rec, i_adv, i_rd, i_led, tot, _F01_Q * 1000 / tot / 8760.0
 
 
 _F01_CASES = [
-    ("SR-W02 の条件", "10 分・25 °C・週 1 回 1 分の読み出し・短押し 1 日 1 回", dict()),
+    ("SR-W02 の条件", "10 分・25 °C・週 1 回 1 分の読み出し・短押し 1 日 1 回・警報なし", dict()),
     ("使い方が最も軽い", "60 分・25 °C・読み出しも短押しもしない", dict(interval=60, press=0, reads=0)),
     ("記録の間隔 1 分", "ほかは SR-W02 の条件と同じ", dict(interval=1)),
+    ("警報の表示が続く", "上限と下限を初期値のまま 25 °C で使う", dict(alarm=True)),
     ("毎日 5 分ずつ読み出す", "ほかは SR-W02 の条件と同じ", dict(reads=7, conn=5)),
     ("周囲 60 °C", "ほかは SR-W02 の条件と同じ", dict(temp=60)),
     ("1 日 10 回、5 分ずつ読み出す", "短押しも 1 日 10 回", dict(press=10, reads=70, conn=5)),
-    ("全部が重い", "1 分・60 °C・1 日 10 回 5 分の読み出し・短押し 1 日 20 回", dict(interval=1, press=20, reads=70, conn=5, temp=60)),
+    ("全部が重い", "1 分・60 °C・警報あり・1 日 10 回 5 分の読み出し・短押し 1 日 20 回", dict(interval=1, press=20, reads=70, conn=5, temp=60, alarm=True)),
 ]
 
 
 def _f01_profile():
     o = []
-    p = Plot(318, 30, 350, 7 * 38, (0, 9), (0, 7))
-    for v in range(0, 10):
+    n = len(_F01_CASES)
+    p = Plot(330, 30, 340, n * 36, (0, 6), (0, n))
+    for v in range(0, 7):
         o.append(W(p.X(v), p.y, p.X(v), p.y + p.h, c=GRD, lw=1))
         o.append(T(p.X(v), p.y + p.h + 15, "%d" % v, "middle", 9.5, MUT))
     o.append(W(p.x, p.y, p.x, p.y + p.h, p.x + p.w, p.y + p.h, c=MUT, lw=1.2))
     o.append(T(p.x + p.w / 2, p.y + p.h + 32, "電池寿命 [年]", "middle", 10, MUT))
     for i, (name, cond, kw) in enumerate(_F01_CASES):
         L = _f01_life(**kw)[-1]
-        y = p.y + 5 + i * 38
+        y = p.y + 4 + i * 36
         c = GRN if L >= 1 else ALI
         o.append(T(14, y + 12, name, "start", 10.5, SIG if i == 0 else INK, True))
         o.append(T(14, y + 26, cond, "start", 9, MUT))
@@ -799,7 +817,7 @@ def _f01_profile():
         o.append(T(max(p.X(L), p.X(1)) + 6, y + 18, "%.1f 年" % L, "start", 10, c, True, halo=True))
     o.append(W(p.X(1), p.y - 6, p.X(1), p.y + p.h, c=ALI, lw=1.6, dash="5 3"))
     o.append(T(p.X(1) + 4, p.y - 10, "要求の 1 年", "start", 9.5, ALI, True))
-    return SVG(700, p.y + p.h + 42, o, "使い方の条件を変えたときの、同じロガーの電池寿命（この章の簡単な模型。容量 180 mAh、眠りの電流 2.55 µA（25 °C）、記録 1 回 30 µC、受付 1 回 12 mC、接続 1 分 60 mC。どれも例の値）。")
+    return SVG(700, p.y + p.h + 42, o, "使い方の条件を変えたときの、同じロガーの電池寿命（この章の簡単な模型。容量 180 mAh、眠りの電流 2.55 µA（25 °C）、記録 1 回 30 µC、受付 1 回 12 mC、接続 1 分 60 mC、記録中の LED の表示 1.33 µA（警報の表示が続くと 2.67 µA）。どれも例の値）。")
 F["e01_profile"] = _f01_profile()
 
 
@@ -807,14 +825,15 @@ F["e01_profile"] = _f01_profile()
 # 6 節: トレーサビリティの網とマトリクス（この節の例。w01.js の _W01_TR と同じデータ）
 # =====================================================================
 _F01_TU = ["1 温湿度を後で確かめる", "2 逸脱にすぐ気づく", "3 電池の交換は年 1 回", "4 5 年使い 10 年残す"]
-_F01_TS = [("SR-F01", "測定"), ("SR-F02", "記録の間隔"), ("SR-F04", "記録の容量"), ("SR-F10", "警報"), ("SR-P01", "温度の誤差"),
+_F01_TS = [("SR-F01", "測定"), ("SR-F02", "記録の間隔"), ("SR-F04", "記録の容量"), ("SR-F10", "警報の印"), ("SR-P01", "温度の誤差"),
            ("SR-W02", "電池寿命"), ("SR-R01", "記録の保持"), ("SR-R04", "5 年の使用")]
 _F01_TD = [("DS-H01", "マイコン"), ("DS-H02", "温湿度センサ"), ("DS-H03", "記録用フラッシュ"), ("DS-S01", "測定と記録の処理"),
            ("DS-S02", "警報と LED の処理"), ("DS-D01", "記録 1 件の形式"), ("DS-B01", "電力の予算"), ("DS-S09", "デバッグ用の命令")]
-_F01_TT = [("ST-001", "測定と間隔"), ("ST-002", "記録の容量"), ("ST-003", "警報"), ("ST-004", "温度の誤差"), ("ST-005", "電池寿命（解析）"), ("ST-006", "書き換え回数（解析）")]
+_F01_TT = [("ST-001", "測定"), ("ST-002", "記録の間隔"), ("ST-004", "記録の容量"), ("ST-010", "警報の印"), ("ST-029", "温度の誤差"), ("ST-036", "電池寿命（解析）"),
+           ("ST-046", "書き換え回数（解析）")]   # 番号は 03 章の表 6-1 と同じ
 _F01_TUS = {0: [0, 1, 2, 4], 1: [3], 2: [5], 3: [6, 7]}
 _F01_TSD = {0: [1, 3], 1: [3, 6], 2: [2, 5], 3: [4], 4: [1], 5: [0, 6], 6: [2], 7: [2, 3]}
-_F01_TST = {0: [0], 1: [0], 2: [1], 3: [2], 4: [3], 5: [4], 6: [], 7: [5]}
+_F01_TST = {0: [0], 1: [1], 2: [2], 3: [3], 4: [4], 5: [5], 6: [], 7: [6]}
 
 
 def _f01_trace():
@@ -829,7 +848,7 @@ def _f01_trace():
     ys = [52 + i * 40 for i in range(8)]
     yu = [ys[0] + 30, ys[3], ys[5], ys[6] + 20]
     yd = [48 + i * 24 for i in range(8)]
-    yt = [yd[-1] + 46 + i * 24 for i in range(6)]
+    yt = [yd[-1] + 46 + i * 24 for i in range(len(_F01_TT))]
     def link(x1, y1, x2, y2, c, lw, dash=None):
         return PATH("M%g,%g C%g,%g %g,%g %g,%g" % (x1, y1, (x1 + x2) / 2, y1, (x1 + x2) / 2, y2, x2, y2), c=c, lw=lw, dash=dash)
     for u, js in _F01_TUS.items():
@@ -870,8 +889,8 @@ def _f01_trace():
     o.append(T(xn, yd[3] + 4, "← 変える", "start", 9.5, SIG, True))
     o.append(T(xn, yd[3] + 17, "要求が使う", "start", 9.5, SIG, True))
     o.append(T(xn, yd[7] + 14, "← 要求が無い", "start", 9.5, ALI, True))
-    o.append(T(xn, yt[0] + 14, "← 確かめ直す", "start", 9.5, SIG, True))
-    o.append(T(xn, yt[5] + 14, "← 確かめ直す", "start", 9.5, GLD, True))
+    for j in sorted(stt):
+        o.append(T(xn, yt[j] + 14, "← 確かめ直す", "start", 9.5, SIG if j in _F01_TST[CH] else GLD, True))
     o.append(T(xs + ws, ys[6] - 4, "試験が無い", "end", 9.5, ALI, True, halo=True))
     o.append(LEGL(14, yt[-1] + 44, [(SIG, None, "SR-F02 に直接つながる"), (GLD, "4 3", "同じ設計の要素を通して広がる")], 9.5, 18))
     # (b) マトリクス
@@ -897,10 +916,10 @@ def _f01_trace():
             if on:
                 o.append(D(x + cw / 2, y + rh / 2, SIG if i == CH else INK, 4))
     ye = hy + 8 * rh
-    xe = mx + 14 * cw + 12
+    xe = mx + len(cols) * cw + 12
     o.append(T(xe + 10, hy + 6 * rh + 13, "← 空の行: 試験の無い要求", "start", 9.5, ALI, True))
     o.append(T(mx + 7 * cw + cw / 2, ye + 14, "↑ 空の列: 要求の無い設計", "middle", 9.5, ALI, True))
-    return SVG(700, ye + 24, o, "要求・設計・試験のトレーサビリティ（ID は、この節の説明のための例。ロガーの実際の対応は 03 章 6 節と 04 章 6 節）。")
+    return SVG(700, ye + 24, o, "要求・設計・試験のトレーサビリティ（要求と ST の番号は 03 章の表 6-1 と同じ。載せた要求の選び方、要求仕様書の項目、DS の ID と対応は、この節の説明のための例。ロガーの設計の要素は 04 章 6 節）。")
 F["e01_trace"] = _f01_trace()
 
 
@@ -936,8 +955,8 @@ def _f01_baseline():
     o.append(W(X(70), y1 + 12, X(70), by, c=GLD, lw=1.1, dash="3 3"))
     o.append(_f01_box(bx, by, bw, 62, GLD, 1.1, 6))
     o.append(T(bx + 8, by + 17, "CR-001: SR-F02 の記録の間隔の下限を 1 分から 30 秒に（例）", "start", 9.5, INK, True))
-    o.append(T(bx + 8, by + 33, "影響: 設計の要素 DS-S01・DS-B01 → 要求 SR-R04・SR-W02（網をたどる）", "start", 9.5, INK))
-    o.append(T(bx + 8, by + 49, "確かめ直す試験: ST-001・ST-005・ST-006", "start", 9.5, INK))
+    o.append(T(bx + 8, by + 33, "影響（網をたどる）: DS-S01・DS-B01 → 要求 SR-F01・SR-R04・SR-W02", "start", 9.5, INK))
+    o.append(T(bx + 8, by + 49, "確かめ直す試験: ST-001・ST-002・ST-036・ST-046", "start", 9.5, INK))
     # 設計書と試験仕様書
     for y, nm, sub, c in ((y2, "LG-DES-001", "設計書", PUR), (y3, "LG-TST-001", "試験仕様書", GRN)):
         o.append(T(14, y + 4, nm, "start", 10, c, True, True))
