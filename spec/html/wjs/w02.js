@@ -11,20 +11,20 @@
   var _W02_ST=["停止中","待ち","測定中","書き込み中"],_W02_EV=["長押し","記録の時刻","測定の完了","応答なし","書き込みの完了"];
   /* マスの処理。t は表に書く短い文字（1 行 7 文字まで）、d は読み出しに書く説明、x は起きない理由（起きないマス）、no は決めていないマス */
   var _W02_CELL={
-    "0,0":[{t:["記録を始め、","すぐ測る","→ 測定中"],d:"記録を始める（RTC を設定、緑を 3 回）。すぐに 1 件目の測定の命令を送り、5 ms のタイマを掛ける → 測定中"}],
-    "1,0":[{t:["記録を止める","→ 停止中"],d:"記録を止める（RTC を止める、赤を 3 回）→ 停止中"}],
+    "0,0":[{t:["記録を始め、","すぐ測る","→ 測定中"],d:"記録を始める（RTC を設定し、開始の応答をする）。すぐに 1 件目の測定の命令を送り、5 ms のタイマを掛ける → 測定中（記録が容量に達していて止める設定のときは、停止の応答だけをする）"}],
+    "1,0":[{t:["記録を止める","→ 停止中"],d:"記録を止める（RTC を止め、停止の応答をする）→ 停止中"}],
     "1,1":[{t:["測定の命令","→ 測定中"],d:"測定の命令を送り、5 ms のタイマを掛ける → 測定中"}],
     "2,0":[{t:["止める印を","立てる"],d:"止める印を立てる（測定と書き込みを終えてから止める）"},
-           {t:["すぐ","→ 停止中"],d:"すぐ停止中へ（RTC を止め、赤を 3 回。測定のタイマはそのまま）"},
+           {t:["すぐ","→ 停止中"],d:"すぐ停止中へ（RTC を止め、停止の応答をする。測定のタイマはそのまま）"},
            {t:["（空き）"],d:"（決めていない）",no:true}],
     "2,2":[{t:["結果から 1 件","→ 書き込み中"],d:"結果を読み、1 件を書き始める → 書き込み中"}],
     "2,3":[{t:["測定異常の","1 件","→ 書き込み中"],d:"測定異常の印を付けた 1 件を書き始める → 書き込み中"},
            {t:["何も書かず","→ 待ち"],d:"何も書かずに → 待ち"},
            {t:["（空き）"],d:"（決めていない）",no:true}],
     "3,0":[{t:["止める印を","立てる"],d:"止める印を立てる（書き込みを終えてから止める）"},
-           {t:["すぐ","→ 停止中"],d:"すぐ停止中へ（RTC を止め、赤を 3 回。書き込みの完了は待たない）"},
+           {t:["すぐ","→ 停止中"],d:"すぐ停止中へ（RTC を止め、停止の応答をする。書き込みの完了は待たない）"},
            {t:["（空き）"],d:"（決めていない）",no:true}],
-    "3,4":[{t:["眠らせる","印なし → 待ち","印 → 停止中"],d:"フラッシュを眠らせる。止める印があれば赤を 3 回 → 停止中、無ければ → 待ち"},
+    "3,4":[{t:["眠らせる","印なし → 待ち","印 → 停止中"],d:"フラッシュを眠らせる。止める印があれば停止の応答をして → 停止中、無ければ → 待ち"},
            {t:["眠らせずに","→ 待ち"],d:"フラッシュを眠らせずに → 待ち（止める印も見ない）"}]
   };
   var _W02_WHY={"0,1":"RTC を止めてある","0,2":"タイマを掛けていない","0,3":"タイマを掛けていない","0,4":"書いていない","1,2":"タイマを掛けていない","1,3":"タイマを掛けていない","1,4":"書いていない",
@@ -67,22 +67,22 @@
         line.w.push(s0===0?"表の前提が崩れた。タイマや書き込みを止めないまま停止中に移ったので、その完了が後から届いた":"表の前提が崩れた。前の測定が終わらないまま、次の記録の時刻が来た（この記録は取られない）");
         log.push(line);lastT=null;check(line);return;}
       if(o.no){line.d="マスが空いている（決めていない）ので、イベントは捨てられた";
-        if(e===0)line.w.push("長押しが無視された。利用者は止めたつもりでも、記録は続く（SR-F06・SR-U04 を満たさない）");
+        if(e===0)line.w.push("長押しが無視された。利用者は止めたつもりでも、記録は続く（SR-F06・SR-U07 を満たさない）");
         if(e===3)line.w.push("応答なしの後の動きが無く、測定中のまま止まる。次の記録の時刻からも動けない");
         log.push(line);lastT=null;check(line);return;}
       line.d=o.d;var to=s0;
-      if(key==="0,0"){sim.rtc=true;sim.timer=true;sim.led="緑を 3 回";to=2;}
-      else if(key==="1,0"){sim.rtc=false;sim.led="赤を 3 回";to=0;}
+      if(key==="0,0"){sim.rtc=true;sim.timer=true;sim.led="開始の応答（緑 3 回）";to=2;}
+      else if(key==="1,0"){sim.rtc=false;sim.led="停止の応答（赤 3 回）";to=0;}
       else if(key==="1,1"){sim.timer=true;to=2;}
-      else if(key==="2,0"||key==="3,0"){var c=choice[key]||0;if(c===0)sim.stop=true;else{sim.rtc=false;sim.led="赤を 3 回";to=0;
+      else if(key==="2,0"||key==="3,0"){var c=choice[key]||0;if(c===0)sim.stop=true;else{sim.rtc=false;sim.led="停止の応答（赤 3 回）";to=0;
           if(key==="2,0")line.w.push("測定のタイマが掛かったまま停止中に移った。5 ms 後に、停止中で「測定の完了」が届く");
           else{line.w.push("書き込みの途中で停止中に移った。書き込みの完了を待たないので、フラッシュを眠らせる処理が行われない");}}}
       else if(key==="2,2"){sim.writing=true;sim.awake=true;to=3;}
       else if(key==="2,3"){var c3=choice[key]||0;if(c3===0){sim.writing=true;sim.awake=true;sim.miss++;to=3;}else{to=1;line.w.push("記録が 1 件抜けた。アプリからは、測らなかったのか測れなかったのかが分からない（SR-F03）");}}
-      else if(key==="3,4"){var c4=choice[key]||0;if(c4===0){sim.awake=false;if(sim.stop){sim.stop=false;sim.rtc=false;sim.led="赤を 3 回";to=0;}else to=1;}
+      else if(key==="3,4"){var c4=choice[key]||0;if(c4===0){sim.awake=false;if(sim.stop){sim.stop=false;sim.rtc=false;sim.led="停止の応答（赤 3 回）";to=0;}else to=1;}
         else{to=1;if(sim.stop)line.w.push("止める印を見ないので、長押しで止めたはずの記録が続く");sim.stop=false;}}
       sim.st=to;line.to=_W02_ST[to];lastT=[s0,to,key];log.push(line);check(line);}
-    function check(line){if(sim.awake&&(sim.st===0||sim.st===1)&&!sim.writing&&!sim.warned){sim.warned=true;line.w.push("フラッシュが眠っていない（スタンバイ 25 µA）。5 節の予算で、寿命が 7.3 年から 0.75 年になる");}}
+    function check(line){if(sim.awake&&(sim.st===0||sim.st===1)&&!sim.writing&&!sim.warned){sim.warned=true;line.w.push("フラッシュが眠っていない（スタンバイ 25 µA）。5 節の予算で、寿命が 4.9 年から 0.72 年になる");}}
     /* ---- 描く ---- */
     function draw(){
       var nar=_w02_nar(box),Wd=nar?400:700,o=[],sq=seq();
@@ -136,7 +136,7 @@
       o.push(S.RECT(sx,sy,sw,160,6,"var(--screen)","signal",1.1));
       o.push(S.T(sx+8,sy+16,"仕様から見た様子","start",10,"signal",true));
       var mode=sim.st===0?"停止中":"記録中";
-      o.push(S.T(sx+8,sy+38,"動作モード","start",9.5,"muted"));o.push(S.T(sx+86,sy+38,mode,"start",11,"signal",true));
+      o.push(S.T(sx+8,sy+38,"主のモード","start",9.5,"muted"));o.push(S.T(sx+86,sy+38,mode,"start",11,"signal",true));
       o.push(S.T(sx+8,sy+60,"LED（最後）","start",9.5,"muted"));o.push(S.T(sx+86,sy+60,sim.led,"start",10,sim.led.indexOf("赤")>=0?"alias":(sim.led.indexOf("緑")>=0?"green":"ink"),true));
       o.push(S.T(sx+8,sy+82,"記録の件数","start",9.5,"muted"));o.push(S.T(sx+86,sy+82,sim.recs+" 件"+(sim.miss?"（うち測定異常 "+sim.miss+" 件）":""),"start",10,"ink",true));
       o.push(S.T(sx+8,sy+104,"フラッシュ","start",9.5,"muted"));o.push(S.T(sx+86,sy+104,sim.writing?"書き込み中":(sim.awake?"起きたまま（25 µA）":"眠っている（0.5 µA）"),"start",10,sim.awake&&!sim.writing?"alias":"ink",true));
@@ -156,17 +156,21 @@
 
   /* ---- 5 節: 電力の予算 ---- */
   var _W02_DAY=86400;
+  /* s02/power2.py の budget と同じ計算。LED は表 3-5 の表示（30 秒ごとの表示・通信中の表示・状態の応答）で点く */
   function _w02_budget(p){
-    var nM=1440/p.iv,act=p.act*1e-3*nM,adv=p.adv===0?p.press*1200*2e-3:(p.adv===1?_W02_DAY/1.0*2e-3:_W02_DAY/0.1*2e-3),conn=p.read/7*60*0.2;
-    var sen=5e-3*nM,wr=0.7e-3*nM,er=45e-3*nM/512,led=p.press*20e-3+(p.alarm?_W02_DAY/5*20e-3:0);
+    var nM=1440/p.iv,act=p.act*1e-3*nM,adv=p.press*1200*2e-3,conn=p.read/7*60*0.2;
+    var sen=5e-3*nM,wr=0.7e-3*nM,er=45e-3*nM/512,on=p.on*1e-3;
+    var l30=_W02_DAY/30*(p.alarm?2:1)*on,lcom=(p.press*120+p.read/7*60)/2*on,lst=p.press*on;
     var it=[
       ["マイコン","眠り",p.sl*1e-3,1-(act+adv+conn)/_W02_DAY],["マイコン","動作",3.0,act/_W02_DAY],["マイコン","送信（受付）",5.0,adv/_W02_DAY],["マイコン","送信（接続）",5.0,conn/_W02_DAY],
       ["センサ","待機",0.05e-3,1-sen/_W02_DAY],["センサ","測定",0.3,sen/_W02_DAY],
       ["フラッシュ","眠り",p.fl?25e-3:0.5e-3,1-(wr+er)/_W02_DAY],["フラッシュ","書き込み",5.0,wr/_W02_DAY],["フラッシュ","消去",10.0,er/_W02_DAY],
-      ["LED","点灯",2.0,led/_W02_DAY]];
+      ["LED",p.alarm?"警報の表示":"記録中の表示",2.0,l30/_W02_DAY],["LED","通信中の表示",2.0,lcom/_W02_DAY],["LED","状態の応答",2.0,lst/_W02_DAY]];
     var tot=0;it.forEach(function(r){r.push(r[2]*r[3]*1000);tot+=r[4];});
     return {it:it,tot:tot,life:p.Q/(tot/1000)/8760,lim:p.Q/8760*1000};}
-  var _W02_P0={iv:10,sl:2.0,fl:0,act:1.1,adv:0,press:1,read:1,alarm:0,Q:180};
+  /* 有効数字 3 桁に丸めた時間（43 200 など） */
+  function _w02_h(v){if(!(v>0))return "0";var e=Math.pow(10,Math.max(0,Math.floor(Math.log10(v))-2));return _w02_g(Math.round(v/e)*e);}
+  var _W02_P0={iv:10,sl:2.0,fl:0,act:1.1,on:20,press:1,read:1,alarm:0,Q:180};
   REG.w02_power=function(el,U){
     var S=U.S;
     U.head(el,"POWER BUDGET","電力の予算 — 部品の状態ごとの電流と時間の割合から、平均電流と電池寿命を求める");
@@ -176,33 +180,34 @@
     var act=U.slider(r1,"測定 1 回のマイコンの動作",{values:[0.5,1.1,2,5,10,20],value:1.1,fmt:function(v){return v+" ms";},onInput:draw});
     var r2=U.ctrls(el);
     var fl=U.select(r2,"測定の後のフラッシュ",["ディープパワーダウンにする（0.5 µA）","眠らせ忘れる（スタンバイ 25 µA）"],0,draw);
-    var adv=U.select(r2,"接続の受付",["短押しの後 2 分だけ（100 ms ごと）","常に 1 秒ごと","常に 100 ms ごと"],0,draw);
-    var alarm=U.select(r2,"警報の LED",["点けない（SR-W02 の条件）","5 秒ごとに 20 ms 点ける"],0,draw);
+    var on=U.slider(r2,"LED の 1 回の点灯",{values:[5,10,20,50,100,150,200],value:20,fmt:function(v){return v+" ms";},onInput:draw});
+    var alarm=U.select(r2,"警報の表示",["無い（SR-W02 の条件）","続く（30 秒ごとに赤を 2 回）"],0,draw);
     var r3=U.ctrls(el);
     var press=U.slider(r3,"短押しの回数",{values:[0,1,2,5,10],value:1,fmt:function(v){return "1 日に "+v+" 回";},onInput:draw});
     var read=U.slider(r3,"読み出しの回数",{values:[0,1,2,7],value:1,fmt:function(v){return "1 週間に "+v+" 回";},onInput:draw});
     var Q=U.slider(r3,"設計で使う容量 Q",{min:100,max:220,step:5,value:180,fmt:function(v){return v+" mAh";},onInput:draw});
     var br=U.btnrow(el);
-    function setp(p){iv.set(p.iv);sl.set(p.sl);act.set(p.act);fl.set(p.fl);adv.set(p.adv);alarm.set(p.alarm);press.set(p.press);read.set(p.read);Q.set(p.Q);}
+    function setp(p){iv.set(p.iv);sl.set(p.sl);act.set(p.act);fl.set(p.fl);on.set(p.on);alarm.set(p.alarm);press.set(p.press);read.set(p.read);Q.set(p.Q);}
     U.button(br,"本文の例",function(){setp(_W02_P0);draw();});
     U.button(br,"フラッシュを眠らせ忘れる",function(){setp(_W02_P0);fl.set(1);draw();});
-    U.button(br,"受付を常に 1 秒ごとにする",function(){setp(_W02_P0);adv.set(1);draw();});
+    U.button(br,"点灯を 150 ms にする",function(){setp(_W02_P0);on.set(150);draw();});
+    U.button(br,"警報の表示が続く",function(){setp(_W02_P0);alarm.set(1);draw();});
     var box=U.svgbox(el),ro=U.readout(el);
     function draw(){
-      var p={iv:iv.get(),sl:sl.get(),fl:fl.get(),act:act.get(),adv:adv.get(),press:press.get(),read:read.get(),alarm:alarm.get(),Q:Q.get()},b=_w02_budget(p);
-      var nar=_w02_nar(box),Wd=nar?400:700,o=[];
+      var p={iv:iv.get(),sl:sl.get(),fl:fl.get(),act:act.get(),on:on.get(),alarm:alarm.get(),press:press.get(),read:read.get(),Q:Q.get()},b=_w02_budget(p);
+      var nar=_w02_nar(box),Wd=nar?400:700,o=[],n=b.it.length+1;
       var xb0=nar?150:196,xb1=nar?330:430,X=function(v){return xb0+(Math.log10(Math.max(v,1e-5))+4)/6*(xb1-xb0);},y0=30,rh=nar?19:21;
       o.push(S.T(8,16,"平均電流の内訳","start",10,"ink",true));
-      [[1e-4,"0.0001"],[1e-2,"0.01"],[1,"1"],[100,"100"]].forEach(function(t){o.push(S.L(X(t[0]),y0-2,X(t[0]),y0+rh*11+2,"grid",1));o.push(S.T(X(t[0]),y0+rh*11+15,t[1],"middle",9.5,"muted"));});
-      o.push(S.T((xb0+xb1)/2,y0+rh*11+30,"平均電流 [µA]（対数の目盛）","middle",9.5,"muted"));
+      [[1e-4,"0.0001"],[1e-2,"0.01"],[1,"1"],[100,"100"]].forEach(function(t){o.push(S.L(X(t[0]),y0-2,X(t[0]),y0+rh*n+2,"grid",1));o.push(S.T(X(t[0]),y0+rh*n+15,t[1],"middle",9.5,"muted"));});
+      o.push(S.T((xb0+xb1)/2,y0+rh*n+30,"平均電流 [µA]（対数の目盛）","middle",9.5,"muted"));
       var mx=0,mk=0;b.it.forEach(function(r,k){if(r[4]>mx){mx=r[4];mk=k;}});
-      b.it.concat([["合計","",0,0,b.tot]]).forEach(function(r,k){var y=y0+k*rh,last=k===10,c=last?"purple":(k===mk?"gold":"teal");
+      b.it.concat([["合計","",0,0,b.tot]]).forEach(function(r,k){var y=y0+k*rh,last=k===n-1,c=last?"purple":(k===mk?"gold":"teal");
         o.push(S.T(xb0-6,y+14,r[1]?r[0]+" "+r[1]:r[0],"end",9.5,"ink",last||k===mk));
         o.push(S.RECT(xb0,y+3,Math.max(1,X(r[4])-xb0),rh-6,2,U.soft(c),c,1.1));
         o.push(S.T(X(r[4])+4,y+14,_w02_ua(r[4])+" µA","start",9.5,c,true,false,null,true));});
-      var xl=X(b.lim);o.push(S.L(xl,y0-2,xl,y0+rh*11,"signal",1.6));o.push(S.T(xl-2,y0-6,"上限 "+_w02_f(b.lim,1)+" µA（1 年）","end",9.5,"signal",true,false,null,true));
+      var xl=X(b.lim);o.push(S.L(xl,y0-2,xl,y0+rh*n,"signal",1.6));o.push(S.T(xl-2,y0-6,"上限 "+_w02_f(b.lim,1)+" µA（1 年）","end",9.5,"signal",true,false,null,true));
       /* 電池寿命 */
-      var lx=nar?20:470,ly=nar?y0+rh*11+64:46,lw=nar?340:200,Lmax=Math.max(8,Math.ceil(b.life/2)*2),XL=function(v){return lx+Math.min(v,Lmax)/Lmax*lw;},ok=b.life>=1;
+      var lx=nar?20:470,ly=nar?y0+rh*n+64:46,lw=nar?340:200,Lmax=Math.max(6,Math.ceil(b.life/2)*2),XL=function(v){return lx+Math.min(v,Lmax)/Lmax*lw;},ok=b.life>=1;
       o.push(S.T(nar?8:460,ly-22,"電池寿命（Q = "+p.Q+" mAh）","start",10,"ink",true));
       o.push(S.RECT(lx,ly,Math.max(1,XL(b.life)-lx),24,3,U.soft(ok?"green":"alias"),ok?"green":"alias",1.3));
       var lt=(b.life>=1?_w02_f(b.life,1):_w02_f(b.life,2))+" 年",inside=XL(b.life)-lx>U.tw(lt,12)+12;
@@ -213,13 +218,15 @@
       o.push(S.T(lx+lw/2,ly+62,"電池寿命 [年]","middle",9.5,"muted"));
       o.push(S.LEGL(lx,ly+84,[["signal",null,"要求 1 年"],["purple","5 3","目標 2 年"]],9.5,12));
       o.push(S.T(lx,ly+106,"余裕（上限 ÷ 平均電流）"+_w02_f(b.lim/b.tot,1)+" 倍","start",10,ok?"ink":"alias",true));
-      box.set(S.svg(Wd,nar?ly+116:Math.max(y0+rh*11+40,ly+116),o));
+      box.set(S.svg(Wd,nar?ly+116:Math.max(y0+rh*n+40,ly+116),o));
       var cond=(p.iv===10&&p.press===1&&p.read===1&&p.alarm===0);
-      var h="平均電流 Ī = Σ I·d = <b>"+_w02_ua(b.tot)+" µA</b>、電池寿命 L = Q ÷ Ī = "+p.Q+" mAh ÷ "+_w02_ua(b.tot)+" µA = <b>"+_w02_g(b.tot>0?p.Q/(b.tot/1000):0)+" h = "+(b.life>=1?_w02_f(b.life,1):_w02_f(b.life,2))+" 年</b><br>";
-      h+="上限 "+_w02_f(b.lim,1)+" µA（= Q ÷ 8760 h）に対する余裕 <b>"+_w02_f(b.lim/b.tot,1)+" 倍</b>。"+(ok?(b.lim/b.tot>=2?'<span class="ok">SR-W02（1 年以上）を満たし、目標（余裕 2 倍）にも届く</span>':'<span class="ok">SR-W02 は満たす</span>が、目標の余裕 2 倍に届かない'):'<span class="warn">SR-W02（1 年以上）を満たさない</span>')+"<br>";
-      h+="最も大きい項目: <b>"+b.it[mk][0]+" "+b.it[mk][1]+"</b>（"+_w02_f(b.it[mk][4]/b.tot*100,1)+" %）。眠りの 3 つの合計 "+_w02_f((b.it[0][4]+b.it[4][4]+b.it[6][4])/b.tot*100,1)+" %<br>";
-      if(!cond)h+='（記録の間隔・短押し・読み出し・警報のどれかが、SR-W02 の使い方の条件と違う。この寿命では SR-W02 の合否は決められない）<br>';
-      ro.innerHTML=h+'<div class="wnote">本文の表と同じ計算。1 日のうち各状態にいる時間の割合 d に電流 I を掛けて足す。アドバタイズ 1 回は 5 mA で 2 ms、接続の間は時間の 20 % だけ無線が動く（平均 1 mA）、セクタの消去は 512 件ごとに 45 ms・10 mA とした（どれも例の値）。眠りの割合は、1 日から動いている時間を引いて求めた。</div>';
+      var h="平均電流 Ī = Σ I·d = <b>"+_w02_ua(b.tot)+" µA</b>、電池寿命 L = Q ÷ Ī = "+p.Q+" mAh ÷ "+_w02_ua(b.tot)+" µA = <b>"+_w02_h(b.tot>0?p.Q/(b.tot/1000):0)+" h = "+(b.life>=1?_w02_f(b.life,1):_w02_f(b.life,2))+" 年</b><br>";
+      h+="上限 "+_w02_f(b.lim,1)+" µA（= Q ÷ 8760 h）に対する余裕 <b>"+_w02_f(b.lim/b.tot,1)+" 倍</b>。";
+      if(cond)h+=(ok?(b.lim/b.tot>=2?'<span class="ok">SR-W02（1 年以上）を満たし、目標（余裕 2 倍）にも届く</span>':'<span class="ok">SR-W02 は満たす</span>が、目標の余裕 2 倍に届かない'):'<span class="warn">SR-W02（1 年以上）を満たさない</span>')+"<br>";
+      else h+=(ok?"1 年以上もつ":'<span class="warn">1 年もたない</span>')+"。ただし、記録の間隔・短押し・読み出し・警報の表示のどれかが SR-W02 の使い方の条件と違うので、この寿命では SR-W02 の合否は決められない<br>";
+      var slp=b.it[0][4]+b.it[4][4]+b.it[6][4],led=b.it[9][4]+b.it[10][4]+b.it[11][4];
+      h+="最も大きい項目: <b>"+b.it[mk][0]+" "+b.it[mk][1]+"</b>（"+_w02_f(b.it[mk][4]/b.tot*100,1)+" %）。眠りの 3 つの合計 "+_w02_f(slp/b.tot*100,1)+" %、LED の表示の合計 "+_w02_f(led/b.tot*100,1)+" %<br>";
+      ro.innerHTML=h+'<div class="wnote">本文の表と同じ計算。1 日のうち各状態にいる時間の割合 d に電流 I を掛けて足す。アドバタイズ 1 回は 5 mA で 2 ms（短押しのたびに 100 ms ごとを 2 分）、接続の間は時間の 20 % だけ無線が動く（平均 1 mA）、セクタの消去は 512 件ごとに 45 ms・10 mA とした。LED は 1 回 2 mA で、30 秒ごとの表示（記録中の表示は緑 1 回、続く警報の表示はそれに代わって赤 2 回）、受付中と接続中に 2 秒ごとの通信中の表示、短押しのたびの状態の応答で点く（どれも例の値）。眠りの割合は、1 日から動いている時間を引いて求めた。</div>';
     }
     draw();
   };

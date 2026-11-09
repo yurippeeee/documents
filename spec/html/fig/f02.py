@@ -603,8 +603,8 @@ def _f02_refine():
     o.append(T(133, 104, "長押し", "middle", 9.5, SIG, False, halo=True))
     o.append(ARR(76, 88, 112, 130, c=SIG, lw=1.3, head=6))
     o.append(ARR(190, 88, 156, 130, c=SIG, lw=1.3, head=6))
-    o.append(T(133, 176, "電池の残りで記録を", "middle", 9.5, SIG, False))
-    o.append(T(133, 189, "続けられなくなる", "middle", 9.5, SIG, False))
+    o.append(T(88, 124, "電池が尽きる", "end", 9.5, SIG, False, halo=True))
+    o.append(T(178, 124, "電池が尽きる", "start", 9.5, SIG, False, halo=True))
     # (a) 通信の状態
     o.append(T(14, 214, "通信の状態", "start", 10, MUT, True))
     o.append(STATE(56, 244, 74, 28, "通信なし", SIG))
@@ -615,9 +615,9 @@ def _f02_refine():
     o.append(ARR(153, 251, 94, 251, c=SIG, lw=1.3, head=6))
     o.append(T(124, 265, "2 分たつ", "middle", 9.5, SIG, False, halo=True))
     o.append(ARR(196, 259, 160, 289, c=SIG, lw=1.3, head=6))
-    o.append(T(196, 288, "接続", "start", 9.5, SIG, False, halo=True))
+    o.append(T(186, 290, "アプリが接続", "start", 9.5, SIG, False, halo=True))
     o.append(ARR(100, 289, 64, 259, c=SIG, lw=1.3, head=6))
-    o.append(T(66, 290, "切れる", "end", 9.5, SIG, False, halo=True))
+    o.append(T(76, 290, "接続が切れる", "end", 9.5, SIG, False, halo=True))
     o.append(W(254, 28, 254, 330, c=LIN, lw=0.8))
     # (b) 測定タスク
     o.append(RECT(270, 28, 416, 156, 10, "none", PUR, 1.3, dash="6 4"))
@@ -652,14 +652,14 @@ def _f02_refine():
     o.append(ARR(381, 269, 355, 269, c=PUR, lw=1.3, head=6))
     o.append(T(368, 284, "2 分たつ", "middle", 9.5, PUR, False, halo=True))
     o.append(ARR(471, 256, 515, 247, c=PUR, lw=1.3, head=6))
-    o.append(T(486, 240, "接続", "end", 9.5, PUR, False, halo=True))
+    o.append(T(482, 240, "アプリが接続", "end", 9.5, PUR, False, halo=True))
     o.append(CARR(556, 258, 556, 286, 0.35, PUR, 1.3))
     o.append(CARR(608, 286, 608, 258, 0.35, PUR, 1.3))
     o.append(T(530, 276, "要求", "end", 9.5, PUR, False, halo=True))
     o.append(T(634, 276, "送り終わり", "start", 9.5, PUR, False, halo=True))
     o.append(CARR(516, 314, 318, 277, -0.2, PUR, 1.3))
-    o.append(T(420, 324, "切れる", "middle", 9.5, PUR, False, halo=True))
-    return SVG(700, 338, o, "仕様の状態（左）を、設計で中の状態に分け、タスクに受け持たせる（右）。電池切れの扱いは 04 章。")
+    o.append(T(420, 324, "接続が切れる", "middle", 9.5, PUR, False, halo=True))
+    return SVG(700, 338, o, "仕様の状態（左。ロガーの仕様書の表 3-2〜3-4 から、主な遷移だけを描いた）を、設計で中の状態に分け、タスクに受け持たせる（右）。電池切れの扱いは 04 章。")
 F["e02_refine"] = _f02_refine()
 
 
@@ -745,61 +745,63 @@ F["e02_timeline"] = _f02_timeline()
 # 5 節: 電力の予算（内訳と、設計の違いによる電池寿命）
 # =====================================================================
 _F02_Q = 180.0       # 設計で使う容量 [mAh]
-_F02_PB = [  # (部品, 状態, 平均電流への寄与 [µA])。本文の表と同じ値（check.py で計算）
+_F02_PB = [  # (部品, 状態, 平均電流への寄与 [µA])。本文の表と同じ値（s02/power2.py で計算）
     ("マイコン", "眠り", 1.999901), ("マイコン", "動作", 0.0055), ("マイコン", "送信（受付）", 0.138889), ("マイコン", "送信（接続）", 0.099206),
     ("センサ", "待機", 0.05), ("センサ", "測定", 0.0025), ("フラッシュ", "眠り", 0.499999), ("フラッシュ", "書き込み", 0.005833),
-    ("フラッシュ", "消去", 0.001465), ("LED", "点灯", 0.000463)]
+    ("フラッシュ", "消去", 0.001465), ("LED", "記録中の表示", 1.333333), ("LED", "通信中の表示", 0.029762), ("LED", "状態の応答", 0.000463)]
+# 本文の設計から 1 か所だけを変えたときの電池寿命 [年]（s02/power2.py）
+_F02_CASES = [("本文の設計", 4.931), ("記録の間隔を 1 分にする", 4.774), ("警報の表示が続く", 3.736),
+              ("表示の点灯を 150 ms にする", 1.577), ("フラッシュを眠らせ忘れる", 0.717)]
 
 
 def _f02_power():
     o = []
     tot = sum(v for _, _, v in _F02_PB)
     lim = _F02_Q / 8760 * 1000
+    n = len(_F02_PB) + 1
     o.append(T(14, 16, "(a) 平均電流の内訳（本文の設計）", "start", 11.5, INK, True))
     xb0, xb1 = 196, 424
     X = lambda v: xb0 + (math.log10(v) + 4) / 6 * (xb1 - xb0)
     y0, rh = 34, 21
     for v, s in ((1e-4, "0.0001"), (1e-2, "0.01"), (1.0, "1"), (100.0, "100")):
-        o.append(W(X(v), y0 - 2, X(v), y0 + rh * 11 + 2, c=GRD, lw=1))
-        o.append(T(X(v), y0 + rh * 11 + 16, s, "middle", 9.5, MUT))
-    o.append(T((xb0 + xb1) / 2, y0 + rh * 11 + 32, "平均電流 [µA]（対数の目盛）", "middle", 10, MUT))
+        o.append(W(X(v), y0 - 2, X(v), y0 + rh * n + 2, c=GRD, lw=1))
+        o.append(T(X(v), y0 + rh * n + 16, s, "middle", 9.5, MUT))
+    o.append(T((xb0 + xb1) / 2, y0 + rh * n + 32, "平均電流 [µA]（対数の目盛）", "middle", 10, MUT))
     items = _F02_PB + [("合計", "", tot)]
     for k, (pt, st, v) in enumerate(items):
         y = y0 + k * rh
         last = k == len(items) - 1
         c = PUR if last else TEA
-        o.append(T(xb0 - 8, y + 14, (pt + " " + st) if st else pt, "end", 9.5, INK, last or st == "眠り"))
+        o.append(T(xb0 - 8, y + 14, (pt + " " + st) if st else pt, "end", 9.5, INK, last or st in ("眠り", "記録中の表示")))
         o.append(RECT(xb0, y + 4, X(v) - xb0, rh - 8, 2, soft(c), c, 1.1))
         o.append(T(X(v) + 4, y + 14, ("%.4f" % v if v < 0.01 else ("%.3f" % v if v < 1 else "%.2f" % v)) + " µA", "start", 9.5, c, True, halo=True))
-    o.append(W(X(lim), y0 - 2, X(lim), y0 + rh * 11, c=SIG, lw=1.6))
+    o.append(W(X(lim), y0 - 2, X(lim), y0 + rh * n, c=SIG, lw=1.6))
     o.append(T(X(lim) - 30, y0 - 6, "上限 20.5 µA（1 年）", "start", 9.5, SIG, True, halo=True))
     # (b) 設計の違いと電池寿命
     xl = 470
     o.append(T(xl - 10, 16, "(b) 電池寿命（Q = 180 mAh）", "start", 11.5, INK, True))
-    cases = [("本文の設計", 7.329), ("記録の間隔を 1 分にする", 6.986), ("受付を常に 1 秒ごとにする", 1.623), ("フラッシュを眠らせ忘れる", 0.753)]
     L0, L1 = xl, 676
-    XL = lambda v: L0 + v / 8.0 * (L1 - L0)
+    XL = lambda v: L0 + v / 6.0 * (L1 - L0)
     yb = 50
-    for k, (s, L) in enumerate(cases):
+    for k, (s, L) in enumerate(_F02_CASES):
         y = yb + k * 50
         ok = L >= 1
-        o.append(T(L0, y, s, "start", 9.5, INK, k == 0, halo=True))
-        o.append(RECT(L0, y + 6, XL(L) - L0, 16, 2, soft(GRN if ok else ALI), GRN if ok else ALI, 1.1))
-        lab = ("%.1f 年" % L) if L >= 1 else ("%.2f 年" % L)
-        if L > 4:
-            o.append(T(XL(L) - 4, y + 18, lab, "end", 9.5, GRN if ok else ALI, True))
-        else:
-            o.append(T(XL(L) + 4, y + 18, lab, "start", 9.5, GRN if ok else ALI, True, halo=True))
-    ya = yb + 4 * 50 - 14
-    for v in (0, 2, 4, 6, 8):
+        c = GRN if ok else ALI
+        o.append(T(L0, y, s, "start", 9.5, INK, k == 0))
+        o.append(T(L1, y, ("%.1f 年" % L) if L >= 1 else ("%.2f 年" % L), "end", 9.5, c, True))
+        o.append(RECT(L0, y + 6, XL(L) - L0, 16, 2, soft(c), c, 1.1))
+        # 要求の 1 年と目標の 2 年の線は、棒の帯の中だけに引く（題と値の文字に掛けない）
+        o.append(W(XL(1), y + 3, XL(1), y + 25, c=SIG, lw=1.6))
+        o.append(W(XL(2), y + 3, XL(2), y + 25, c=PUR, lw=1.3, dash="4 3"))
+    ya = yb + len(_F02_CASES) * 50 - 14
+    for v in range(7):
         o.append(W(XL(v), ya, XL(v), ya + 4, c=MUT, lw=1))
         o.append(T(XL(v), ya + 16, "%d" % v, "middle", 9.5, MUT))
     o.append(W(L0, ya, L1, ya, c=MUT, lw=1))
     o.append(T((L0 + L1) / 2, ya + 32, "電池寿命 [年]", "middle", 10, MUT))
-    o.append(W(XL(1), yb - 12, XL(1), ya, c=SIG, lw=1.6))
-    o.append(W(XL(2), yb - 12, XL(2), ya, c=PUR, lw=1.3, dash="5 3"))
-    o.append(LEGL(L0 - 6, ya + 50, [(SIG, None, "要求 1 年"), (PUR, "5 3", "目標 2 年")], 9.5, 12))
-    return SVG(700, 300, o, "ロガーの電力の予算（SR-W02 の使い方の条件、例の値。(b) の 3 つの変更は、本文の設計から 1 か所だけを変えたもの。眠らせ忘れたフラッシュのスタンバイの電流は 25 µA とした）。")
+    o.append(LEGL(L0 - 6, ya + 50, [(SIG, None, "要求 1 年"), (PUR, "4 3", "目標 2 年")], 9.5, 12))
+    H = max(y0 + rh * n + 44, ya + 62)
+    return SVG(700, H, o, "ロガーの電力の予算（SR-W02 の使い方の条件、例の値。(b) の 4 つの変更は、本文の設計から 1 か所だけを変えたもの。眠らせ忘れたフラッシュのスタンバイの電流は 25 µA、続く警報の表示は記録中の表示に代わって 30 秒ごとに 2 回点くとした）。")
 F["e02_power"] = _f02_power()
 
 
@@ -1066,7 +1068,7 @@ def _f02_contract():
     o.append(T(26, y0 + 160, "なぜ読み返すのか、いつ消去するのかが無い", "start", 9.5, ALI))
     o.append(_f02_page(360, y0 + 26, 326, 150, GRN))
     o.append(T(372, y0 + 46, "良い例: 約束と理由を書く", "start", 10, GRN, True))
-    good = [("書いた後に読み返し、同じときだけ REC_OK を返す", INK), ("（理由: 電池を外しても失わない。SR-R01）", MUT),
+    good = [("書いた後に読み返し、同じときだけ REC_OK を返す", INK), ("（理由: 書けなかったら書き直し、記録を失わない。SR-F03）", MUT),
             ("セクタの最後の件を書いたら、次のセクタを先に消す", INK), ("（理由: 書く前に消去が要る。45 ms は 5 節の予算に入れた）", MUT),
             ("書き込みの位置は RAM に持ち、起動のときに求め直す", INK)]
     for i, (s, c) in enumerate(good):
