@@ -103,7 +103,7 @@
       var isBad={},isGap={};A.bad.forEach(function(b){isBad[b[0]+","+b[1]]=b[2];});A.gaps.forEach(function(g){isGap[g[0]+","+g[1]]=1;});
       var P=nar?[[78,80],[322,80],[200,250]]:[[120,122],[400,122],[610,122]],bw=nar?92:100,bh=34,GX=(P[0][0]+P[1][0]+P[2][0])/3,GY=(P[0][1]+P[1][1]+P[2][1])/3;
       /* 遷移を（始まり, 終わり）ごとにまとめる */
-      var E={},loops=[[],[],[]];
+      var E={},loops=[[],[],[]],ymax=0;   /* ymax: いちばん下の文字の位置（図の高さを決める） */
       t.forEach(function(row,i){row.forEach(function(c,j){
         if(c.k==="go"){var k=i+">"+c.to;(E[k]=E[k]||[]).push({j:j,txt:m.ev[j]});}
         if(c.k==="cond"){(E[i+">0"]=E[i+">0"]||[]).push({j:j,txt:m.ev[j]+" [止める]"});loops[i].push({j:j,txt:m.ev[j]+" [上書き]"});}
@@ -128,7 +128,7 @@
         if(Math.abs(bend*ny)<1e-6)side=-1;
         var bx=bend*nx,by=bend*ny,horiz=Math.abs(bx)>Math.abs(by)*1.2;
         evs.forEach(function(e,q){var yy=horiz?my+(q-(evs.length-1)/2)*(sz+3)+3:my+(side<0?-8-(evs.length-1-q)*(sz+3):14+q*(sz+3));
-          var xx=horiz?mx+(bx<0?-6:6):mx,an=horiz?(bx<0?"end":"start"):"middle";
+          var xx=horiz?mx+(bx<0?-6:6):mx,an=horiz?(bx<0?"end":"start"):"middle";ymax=Math.max(ymax,yy+5);
           o.push(S.T(xx,yy,e.txt+((m.act(a,e.j,b)&&!nar)?" / "+m.act(a,e.j,b):""),an,sz,e.j===sj&&si===a?"gold":(hot&&e.j===last.ev?"signal":"ink"),true,false,null,true));});});
       /* 自分への遷移 */
       loops.forEach(function(ls,i){if(!ls.length)return;var x=P[i][0],y=P[i][1]-bh/2;
@@ -144,7 +144,7 @@
         var tags=[];if(ng)tags.push(["未定 "+ng,"alias"]);if(nb)tags.push(["矛盾 "+nb,"alias"]);
         tags.forEach(function(tg,q){o.push(S.CHIP(p[0]-bw/2+U.tw(tg[0],9)/2+5+q*(U.tw(tags[0][0],9)+16),p[1]+bh/2+15,tg[0],tg[1],9));});});
       if(!nar){o.push(S.D(P[0][0]-bw/2-30,P[0][1],"ink",4.5));o.push(S.ARR(P[0][0]-bw/2-25,P[0][1],P[0][0]-bw/2-2,P[0][1],"ink",1.4,6));}
-      box.set(S.svg(Wd,nar?306:262,o));
+      box.set(S.svg(Wd,Math.max(nar?306:262,Math.ceil(ymax)+8),o));
       /* 状態遷移表（HTML。マスを押すと選べる） */
       var h='<div style="margin:.2rem 0 .3rem">状態遷移表（マスを押して選び、上の「マスの中身」で書き換える）</div><div class="wtable"><table><thead><tr><th>状態 ＼ 出来事</th>'+
         m.ev.map(function(e){return '<th style="text-align:center">'+U.esc(e)+'</th>';}).join("")+'</tr></thead><tbody>';
@@ -159,7 +159,7 @@
       var r="今の状態: <b>"+m.st[cur]+"</b>"+(log.length?"　直前: "+log[0]:"（上の出来事のボタンで、今の状態から遷移させる）")+"<br>";
       r+=(A.gaps.length?'<span class="warn">抜け（未定） '+A.gaps.length+' マス</span>: '+A.gaps.map(function(g){return m.st[g[0]]+" × "+m.ev[g[1]];}).join("、"):'<span class="ok">抜けは無い</span>')+"<br>";
       r+=(A.bad.length?'<span class="warn">矛盾 '+A.bad.length+' マス</span>: '+A.bad.map(function(b){return m.st[b[0]]+" × "+m.ev[b[1]]+"（"+b[2]+"）";}).join("、"):'<span class="ok">要求と矛盾するマスは無い</span>');
-      ro.innerHTML=_w01_nw(r+(log.length>1?'<div class="wnote">'+log.slice(1).join("<br>")+'</div>':"")+'<div class="wnote">矛盾は、ロガーの要求（SR-F01・SR-F05・SR-F06・SR-F14・SR-F18・SR-U04・SR-U06・SR-U07。03 章の最終の要求）に照らして判定する。未定のマスは、どれを選んでも要求とは矛盾しない（どれにするかを仕様書で決める。03 章の表 3-3・3-4 が決めた答え）。</div>';
+      ro.innerHTML=_w01_nw(r+(log.length>1?'<div class="wnote">'+log.slice(1).join("<br>")+'</div>':"")+'<div class="wnote">矛盾は、ロガーの要求（SR-F01・SR-F05・SR-F06・SR-F14・SR-F18・SR-U04・SR-U06・SR-U07。03 章の最終の要求）に照らして判定する。未定のマスは、どれを選んでも要求とは矛盾しない（どれにするかを仕様書で決める。03 章の表 3-3・3-4 が決めた答え）。</div>');
     }
     tdiv.addEventListener("click",function(e){var td=e.target.closest?e.target.closest("[data-c]"):null;if(!td)return;var q=td.getAttribute("data-c").split(",");si=+q[0];sj=+q[1];sync();draw();});
     build();sync();draw();
@@ -245,7 +245,7 @@
       if(q&&cur>=0){h+="直した例: "+q.fix.map(function(f){return "<b>"+f[0]+"</b> "+U.esc(f[1]);}).join("<br>")+'<br><span style="color:var(--muted)">'+U.esc(q.why)+"</span>";}
       else if(cur===-2)h+="直した例（"+q.fix[0][0]+"）を点検した結果を表示している。";
       else h+="直し方の目安: 曖昧な言葉は数値と条件に、つないだ文は ID を分けて、否定だけの文は「どの条件で何をするか」に、文末は「〜すること」に直す。";
-      ro.innerHTML=h+'<div class="wnote">色: <span style="color:var(--alias);font-weight:700">赤</span> 曖昧な言葉・直す文末、<span style="color:var(--signal);font-weight:700">青</span> 数値と単位、<span style="color:var(--gold);font-weight:700">金</span> 要求をつなぐ言葉、<span style="color:var(--green);font-weight:700">緑</span> よい文末。言葉の並びだけを見る簡単な点検なので、最後は人が読んで判断する。</div>';
+      ro.innerHTML=_w01_nw(h+'<div class="wnote">色: <span style="color:var(--alias);font-weight:700">赤</span> 曖昧な言葉・直す文末、<span style="color:var(--signal);font-weight:700">青</span> 数値と単位、<span style="color:var(--gold);font-weight:700">金</span> 要求をつなぐ言葉、<span style="color:var(--green);font-weight:700">緑</span> よい文末。言葉の並びだけを見る簡単な点検なので、最後は人が読んで判断する。</div>');
     }
     draw();
   };
@@ -314,7 +314,7 @@
       var h="電流の合計 <b>"+_w01_f(L.tot,2)+" µA</b>（眠り "+_w01_f(L.parts[0],2)+"・記録 "+_w01_f(L.parts[1],3)+"・受付 "+_w01_f(L.parts[2],3)+"・読み出し "+_w01_f(L.parts[3],3)+"・LED の表示 "+_w01_f(L.parts[4],2)+" µA）→ 電池寿命 = 180 mAh ÷ "+_w01_f(L.tot,2)+" µA = "+Math.round(L.h).toLocaleString("en-US").replace(/,/g," ")+" 時間 = <b>"+_w01_f(L.y,2)+" 年</b><br>";
       if(m===0)h+="要求「電池で 1 年以上動くこと」: この使い方なら "+(L.y>=1?'<span class="ok">合格</span>':'<span class="warn">不合格</span>')+"。しかし要求に使い方が書いていないので、試す使い方しだいで "+_w01_f(LO.y,2)+"〜"+_w01_f(HI.y,2)+' 年になり、<span class="warn">合否が決まらない</span><br>';
       else h+="SR-W02: 要求の条件（記録の間隔 10 分・25 °C・読み出し 週 1 回 1 分・短押し 1 日 1 回・警報の表示なし・電池少の表示は電池切れの前だけ）で "+_w01_f(W2.y,2)+' 年 → <span class="ok">合格</span>。'+(Math.abs(L.y-W2.y)>1e-9?"今の使い方（"+_w01_f(L.y,2)+" 年）は要求の条件と違うので、合否の判定には使わない（取扱説明書で知らせる）":"今の使い方は、要求の条件そのもの")+"<br>";
-      ro.innerHTML=h+'<div class="wnote">この章の簡単な模型（どれも例の値）: 電池の容量 180 mAh（低温とパルスの負荷と自己放電を見込んだ値）。眠りの電流 2.55 µA（25 °C。マイコン 2.0・センサの待機 0.05・フラッシュの待機 0.5 µA の和。25 °C より 10 °C 高いごとに 1.5 倍とした）。記録 1 回 30 µC（大まかに置いた値）。短押し 1 回で、100 ms ごとのアドバタイズ（1 回 10 µC）を 2 分。読み出し 1 回は、接続までのアドバタイズ 5 秒と、接続中の平均 1.0 mA。LED は 1 回の点灯を 2 mA × 20 ms = 40 µC とし、記録中の表示（30 秒ごとに緑 1 回）で 1.33 µA、警報の表示が続く間は、それに代わる赤 2 回で 2.67 µA。押したときと通信の間だけの表示（状態の応答・通信中の表示など）と、電池切れの前の短い間だけの電池少の表示は、寿命への影響が小さいので省いた。部品ごとに積み上げる詳しい見積もり（02 章 5 節）では、SR-W02 の条件で約 5.0 年になる。ロガーの見積もりは 04 章 5 節で扱う。</div>';
+      ro.innerHTML=_w01_nw(h+'<div class="wnote">この章の簡単な模型（どれも例の値）: 電池の容量 180 mAh（低温とパルスの負荷と自己放電を見込んだ値）。眠りの電流 2.55 µA（25 °C。マイコン 2.0・センサの待機 0.05・フラッシュの待機 0.5 µA の和。25 °C より 10 °C 高いごとに 1.5 倍とした）。記録 1 回 30 µC（大まかに置いた値）。短押し 1 回で、100 ms ごとのアドバタイズ（1 回 10 µC）を 2 分。読み出し 1 回は、接続までのアドバタイズ 5 秒と、接続中の平均 1.0 mA。LED は 1 回の点灯を 2 mA × 20 ms = 40 µC とし、記録中の表示（30 秒ごとに緑 1 回）で 1.33 µA、警報の表示が続く間は、それに代わる赤 2 回で 2.67 µA。押したときと通信の間だけの表示（状態の応答・通信中の表示など）と、電池切れの前の短い間だけの電池少の表示は、寿命への影響が小さいので省いた。部品ごとに積み上げる詳しい見積もり（02 章 5 節）では、SR-W02 の条件で約 5.0 年になる。ロガーの見積もりは 04 章 5 節で扱う。</div>');
     }
     draw();
   };
@@ -402,7 +402,7 @@
       r+=(A.noT.length?'<span class="warn">試験の無い要求: '+nm(A.noT,_W01_TS)+"</span>":'<span class="ok">試験の無い要求は無い</span>')+"、"+
         (A.noR.length?'<span class="warn">要求の無い設計の要素: '+nm(A.noR,_W01_TD)+"</span>":'<span class="ok">要求の無い設計の要素は無い</span>')+
         (A.noRT.length?'、<span class="warn">要求の無い試験: '+nm(A.noRT,_W01_TT)+"</span>":"");
-      ro.innerHTML=r+'<div class="wnote">要求と ST の番号は 03 章の表 6-1 と同じ（SR-R01 の試験 ST-043 は、抜けの例として初めは外してある）。要求仕様書の項目、DS の ID と対応は、この節の説明のための例（ロガーの設計の要素は 04 章 6 節）。網の要求の箱を押すと、その要求を選ぶ。網の設計の要素・試験の箱を押すと、つなぐ相手に選ぶ。</div>';
+      ro.innerHTML=_w01_nw(r+'<div class="wnote">要求と ST の番号は 03 章の表 6-1 と同じ（SR-R01 の試験 ST-043 は、抜けの例として初めは外してある）。要求仕様書の項目、DS の ID と対応は、この節の説明のための例（ロガーの設計の要素は 04 章 6 節）。網の要求の箱を押すと、その要求を選ぶ。網の設計の要素・試験の箱を押すと、つなぐ相手に選ぶ。</div>');
     }
     U.ctl.drag(box,function(type,x,y){if(type!=="down")return false;var hit=null;hits.forEach(function(q){if(x>=q.x&&x<=q.x+q.w&&y>=q.y&&y<=q.y+q.h)hit=q;});if(!hit)return false;
       if(hit.k==="s"){sel=hit.j;sSel.set(sel);draw();return false;}
