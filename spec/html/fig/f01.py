@@ -163,7 +163,7 @@ def _f01_vmodel():
     ys = [30, 96, 162, 228]
     xl = [36 + SH * k for k in range(4)]
     xr = [700 - 36 - BW - SH * k for k in range(4)]
-    labs = ["妥当性確認: 利用者の目的に合うか", "検証: この文書のとおりにできているか", "検証", "検証"]
+    labs = ["利用者の目的に合うか", "この文書のとおりにできているか", "文書のとおりか", "文書のとおりか"]
     for k, (nm, did, c, tn, sub) in enumerate(lv):
         y = ys[k]
         o.append(_f01_box(xl[k], y, BW, BH, c))
@@ -624,7 +624,7 @@ def _f01_badgood():
          [("SR-P06", SIG, True), (" 短押しから ", INK, False), ("10 秒以内に", GRN, True), ("、アプリが接続を始められること", INK, False)]),
         ("条件の抜け", [("温度の誤差は ±0.5 °C 以内であること", INK, False)],
          "どの温度で測るかが無い。−20 °C で 0.8 °C ずれたら合格かが決まらない",
-         [("SR-P01", SIG, True), (" 温度の誤差は ", INK, False), ("0〜40 °C で", GRN, True), (" ±0.5 °C 以内、", INK, False), ("−20〜0 °C と 40〜60 °C で", GRN, True), (" ±1.0 °C 以内", INK, False)]),
+         [("SR-P01", SIG, True), (" 温度の誤差は ", INK, False), ("0〜40 °C で", GRN, True), (" ±0.5 °C 以内、", INK, False), ("−20〜0 °C と 40〜60 °C で", GRN, True), (" ±1.0 °C 以内であること", INK, False)]),
         ("1 文に 2 つ", [("温度と湿度を 10 分ごとに測定して記録し、", INK, False), ("また", ALI, True), ("上限を超えたら LED で知らせること", INK, False)],
          "測定は合格で LED が不合格のとき、この要求の合否が決まらない。1 つの試験に結べない",
          [("SR-F01", SIG, True), (" 測定する・", INK, False), ("SR-F03", SIG, True), (" 記録する・", INK, False), ("SR-F10", SIG, True), (" 警報を知らせる、の 3 つに分け、それぞれに試験を結ぶ", INK, False)]),
