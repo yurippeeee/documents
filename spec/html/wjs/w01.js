@@ -2,6 +2,8 @@
   /* 狭い画面（表示枠が 520 px 未満）では、図を幅 400 に組み替える */
   function _w01_nar(box){var w=box.el.clientWidth;return w>0&&w<520;}
   function _w01_f(v,d){v=+v;if(Math.abs(v)<0.5*Math.pow(10,-d))v=0;return v.toFixed(d).replace("-","−");}
+  /* 読み出しの HTML の中の ID（SR-F02・ST-036・LG-ICD-001 など）を、狭い画面でも途中で折り返さないようにする（タグの中は変えない） */
+  function _w01_nw(h){return h.replace(/(<[^>]*>)|((?:SR|ST|DS|CR)-[A-Z]?\d{2,3}|LG-[A-Z]{3}-\d{3})/g,function(m,tag,id){return tag?tag:'<span style="white-space:nowrap">'+id+'</span>';});}
   /* 箱（中心 cx, cy、幅 w、高さ h）の縁の点のうち、(tx, ty) の向きにあるもの */
   function _w01_edge(cx,cy,w,h,tx,ty){var dx=tx-cx,dy=ty-cy;if(dx===0&&dy===0)return [cx,cy];var t=Math.min(dx?Math.abs(w/2/dx):1e9,dy?Math.abs(h/2/dy):1e9);return [cx+dx*t,cy+dy*t];}
 
@@ -157,7 +159,7 @@
       var r="今の状態: <b>"+m.st[cur]+"</b>"+(log.length?"　直前: "+log[0]:"（上の出来事のボタンで、今の状態から遷移させる）")+"<br>";
       r+=(A.gaps.length?'<span class="warn">抜け（未定） '+A.gaps.length+' マス</span>: '+A.gaps.map(function(g){return m.st[g[0]]+" × "+m.ev[g[1]];}).join("、"):'<span class="ok">抜けは無い</span>')+"<br>";
       r+=(A.bad.length?'<span class="warn">矛盾 '+A.bad.length+' マス</span>: '+A.bad.map(function(b){return m.st[b[0]]+" × "+m.ev[b[1]]+"（"+b[2]+"）";}).join("、"):'<span class="ok">要求と矛盾するマスは無い</span>');
-      ro.innerHTML=r+(log.length>1?'<div class="wnote">'+log.slice(1).join("<br>")+'</div>':"")+'<div class="wnote">矛盾は、ロガーの要求（SR-F01・SR-F05・SR-F06・SR-F14・SR-F18・SR-U04・SR-U06・SR-U07。03 章の最終の要求）に照らして判定する。未定のマスは、どれを選んでも要求とは矛盾しない（どれにするかを仕様書で決める。03 章の表 3-3・3-4 が決めた答え）。</div>';
+      ro.innerHTML=_w01_nw(r+(log.length>1?'<div class="wnote">'+log.slice(1).join("<br>")+'</div>':"")+'<div class="wnote">矛盾は、ロガーの要求（SR-F01・SR-F05・SR-F06・SR-F14・SR-F18・SR-U04・SR-U06・SR-U07。03 章の最終の要求）に照らして判定する。未定のマスは、どれを選んでも要求とは矛盾しない（どれにするかを仕様書で決める。03 章の表 3-3・3-4 が決めた答え）。</div>';
     }
     tdiv.addEventListener("click",function(e){var td=e.target.closest?e.target.closest("[data-c]"):null;if(!td)return;var q=td.getAttribute("data-c").split(",");si=+q[0];sj=+q[1];sync();draw();});
     build();sync();draw();
@@ -249,11 +251,12 @@
   };
 
   /* ---- 5 節: 使い方の条件と電池寿命（この章の簡単な模型。f01.py の _f01_life と同じ計算） ---- */
-  var _W01_Q=180,_W01_ISL=2.55,_W01_QREC=3.0*8+0.3*5+5*0.7+10*45/512,_W01_QADV=10,_W01_WIN=120,_W01_ICON=1.0,_W01_TCON=5;
-  function _w01_life(iv,press,reads,conn,temp){
+  var _W01_Q=180,_W01_ISL=2.55,_W01_QREC=3.0*8+0.3*5+5*0.7+10*45/512,_W01_QADV=10,_W01_WIN=120,_W01_ICON=1.0,_W01_TCON=5,_W01_QLED=2.0*20;
+  /* al: 警報の表示が続く（30 秒ごとの表示が、記録中の表示の緑 1 回から、警報の表示の赤 2 回に代わる） */
+  function _w01_life(iv,press,reads,conn,temp,al){
     var k=temp>25?Math.pow(1.5,(temp-25)/10):1,isl=_W01_ISL*k,irec=_W01_QREC/(iv*60),iadv=press*(_W01_QADV/0.1*_W01_WIN)/86400,
-      ird=reads*(_W01_QADV/0.1*_W01_TCON+_W01_ICON*1000*conn*60)/(7*86400),tot=isl+irec+iadv+ird;
-    return {parts:[isl,irec,iadv,ird],tot:tot,h:_W01_Q*1000/tot,y:_W01_Q*1000/tot/8760};}
+      ird=reads*(_W01_QADV/0.1*_W01_TCON+_W01_ICON*1000*conn*60)/(7*86400),iled=(al?2:1)*_W01_QLED/30,tot=isl+irec+iadv+ird+iled;
+    return {parts:[isl,irec,iadv,ird,iled],tot:tot,h:_W01_Q*1000/tot,y:_W01_Q*1000/tot/8760};}
   var _W01_RD=[0,1,2,4,7,14,28,70];
   function _w01_rdname(v){return v===0?"しない":(v<7?"週 "+v+" 回":(v===7?"毎日 1 回":"1 日 "+(v/7)+" 回"));}
   REG.w01_profile=function(el,U){
@@ -268,16 +271,18 @@
     var rd=U.slider(r2,"読み出し",{values:_W01_RD,value:1,fmt:function(v){return _w01_rdname(v);},onInput:function(){draw();}});
     var cn=U.slider(r2,"1 回の接続の長さ",{values:[0.5,1,2,3,5],value:1,fmt:function(v){return v+" 分";},onInput:function(){draw();}});
     var tp=U.slider(r2,"周囲の温度",{min:-20,max:60,step:5,value:25,fmt:function(v){return _w01_f(v,0)+" °C";},onInput:function(){draw();}});
+    var r3=U.ctrls(el);
+    var al=U.checkbox(r3,"警報の表示が続く（30 秒ごとの表示が、緑 1 回から赤 2 回に代わる）",false,function(){draw();});
     var br=U.btnrow(el);
-    function setU(a,b,c,d,e){iv.set(a);pr.set(b);rd.set(c);cn.set(d);tp.set(e);draw();}
-    U.button(br,"本文の例（SR-W02 の条件）",function(){setU(10,1,1,1,25);});
-    U.button(br,"使い方が最も軽い",function(){setU(60,0,0,0.5,25);});
-    U.button(br,"全部が重い",function(){setU(1,20,70,5,60);});
+    function setU(a,b,c,d,e,f){iv.set(a);pr.set(b);rd.set(c);cn.set(d);tp.set(e);al.set(f);draw();}
+    U.button(br,"本文の例（SR-W02 の条件）",function(){setU(10,1,1,1,25,false);});
+    U.button(br,"使い方が最も軽い",function(){setU(60,0,0,0.5,25,false);});
+    U.button(br,"全部が重い",function(){setU(1,20,70,5,60,true);});
     var box=U.svgbox(el),ro=U.readout(el);
-    var W2=_w01_life(10,1,1,1,25),LO=_w01_life(1,20,70,5,60),HI=_w01_life(60,0,0,0.5,25);
-    var NM=["眠り","記録","受付（アドバタイズ）","読み出し（接続）"],CL=["muted","green","gold","purple"];
+    var W2=_w01_life(10,1,1,1,25,false),LO=_w01_life(1,20,70,5,60,true),HI=_w01_life(60,0,0,0.5,25,false),YM=6;
+    var NM=["眠り","記録","受付（アドバタイズ）","読み出し（接続）","LED の表示"],CL=["muted","green","gold","purple","teal"];
     function draw(){
-      var L=_w01_life(iv.get(),pr.get(),rd.get(),cn.get(),tp.get()),m=mode.get(),nar=_w01_nar(box),Wd=nar?400:700,o=[];
+      var L=_w01_life(iv.get(),pr.get(),rd.get(),cn.get(),tp.get(),al.get()),m=mode.get(),nar=_w01_nar(box),Wd=nar?400:700,o=[];
       var x0=nar?14:120,x1=nar?386:680;
       /* (a) 電流の内訳 */
       o.push(S.T(nar?8:14,16,"(a) 電流の内訳（1 週間にならした値）","start",10,"ink",true));
@@ -286,41 +291,43 @@
       U.nice(0,xm,5).forEach(function(v){o.push(S.L(P.X(v),50,P.X(v),54,"muted",1));o.push(S.T(P.X(v),66,v+"","middle",9.5,"muted"));});
       o.push(S.T(x1,80,"電流 [µA]","end",9.5,"muted"));
       if(!nar)o.push(S.T(x0-8,44,"合計 "+_w01_f(L.tot,2)+" µA","end",10,"ink",true));
-      var lx=nar?8:14,ly=nar?96:96;
+      var lx=nar?8:14,ly=96;
       L.parts.forEach(function(v,i){var t=NM[i]+" "+_w01_f(v,v<0.1?3:2);var w=U.tw(t+" µA",9.5)+26;if(lx+w>Wd-6){lx=nar?8:14;ly+=16;}
         o.push(S.RECT(lx,ly-9,11,11,2,U.soft(CL[i]),CL[i],1.1));o.push(S.T(lx+16,ly,t+" µA","start",9.5,"muted"));lx+=w;});
       /* (b) 電池寿命の軸 */
       var yb=ly+34;
       o.push(S.T(nar?8:14,yb,"(b) 電池寿命（電池の容量 180 mAh ÷ 電流の合計）","start",10,"ink",true));
-      var Q=U.plot(x0,yb+20,x1-x0,40,[0,10],[0,1]),ya=yb+70;
+      var Q=U.plot(x0,yb+20,x1-x0,40,[0,YM],[0,1]),ya=yb+70;
       o.push(S.L(x0,ya,x1,ya,"muted",1.2));
-      for(var v=0;v<=10;v++){o.push(S.L(Q.X(v),ya,Q.X(v),ya+4,"muted",1));o.push(S.T(Q.X(v),ya+16,v+"","middle",9.5,"muted"));}
+      for(var v=0;v<=YM;v++){o.push(S.L(Q.X(v),ya,Q.X(v),ya+4,"muted",1));o.push(S.T(Q.X(v),ya+16,v+"","middle",9.5,"muted"));}
       o.push(S.T(x1,ya+30,"電池寿命 [年]","end",9.5,"muted"));
       if(m===0){o.push(S.RECT(Q.X(LO.y),yb+24,Q.X(HI.y)-Q.X(LO.y),11,3,"var(--gold-soft)","gold",1));
         o.push(S.T((Q.X(LO.y)+Q.X(HI.y))/2+20,yb+19,"使い方しだいで "+_w01_f(LO.y,1)+"〜"+_w01_f(HI.y,1)+" 年","middle",9.5,"gold",true,false,null,true));}
       o.push(S.L(Q.X(1),yb+8,Q.X(1),ya,"alias",1.6,"5 3"));o.push(S.T(Q.X(1)-4,yb+12,"要求の 1 年","end",9.5,"alias",true,false,null,true));
       var xw=Q.X(W2.y);o.push(S.PL([[xw,ya-12],[xw+6,ya-6],[xw,ya],[xw-6,ya-6]],"signal",1.4,m===1?"signal":"var(--signal-soft)"));
-      var xc=Q.X(Math.min(10,L.y)),cc=L.y>=1?"green":"alias",near=Math.abs(xc-xw)<90;
-      if(m===1)o.push(S.T(xw,ya-(near?32:16),"SR-W02 の条件 "+_w01_f(W2.y,1)+" 年","middle",9.5,"signal",true,false,null,true));
+      var xc=Q.X(Math.min(YM,L.y)),cc=L.y>=1?"green":"alias",near=Math.abs(xc-xw)<90;
+      if(m===1)o.push(S.T(Math.min(x1-50,xw),ya-(near?32:16),"SR-W02 の条件 "+_w01_f(W2.y,1)+" 年","middle",9.5,"signal",true,false,null,true));
       o.push(S.CIRC(xc,ya,6,cc,2.2,"var(--screen)"));o.push(S.D(xc,ya,cc,3));
       o.push(S.T(Math.max(x0+40,Math.min(x1-40,xc)),ya-16,"この使い方 "+_w01_f(L.y,1)+" 年","middle",9.5,cc,true,false,null,true));
       box.set(S.svg(Wd,ya+40,o));
       /* 読み出しと判定 */
-      var h="電流の合計 <b>"+_w01_f(L.tot,2)+" µA</b>（眠り "+_w01_f(L.parts[0],2)+"・記録 "+_w01_f(L.parts[1],3)+"・受付 "+_w01_f(L.parts[2],3)+"・読み出し "+_w01_f(L.parts[3],3)+" µA）→ 電池寿命 = 180 mAh ÷ "+_w01_f(L.tot,2)+" µA = "+Math.round(L.h).toLocaleString("en-US").replace(/,/g," ")+" 時間 = <b>"+_w01_f(L.y,2)+" 年</b><br>";
+      var h="電流の合計 <b>"+_w01_f(L.tot,2)+" µA</b>（眠り "+_w01_f(L.parts[0],2)+"・記録 "+_w01_f(L.parts[1],3)+"・受付 "+_w01_f(L.parts[2],3)+"・読み出し "+_w01_f(L.parts[3],3)+"・LED の表示 "+_w01_f(L.parts[4],2)+" µA）→ 電池寿命 = 180 mAh ÷ "+_w01_f(L.tot,2)+" µA = "+Math.round(L.h).toLocaleString("en-US").replace(/,/g," ")+" 時間 = <b>"+_w01_f(L.y,2)+" 年</b><br>";
       if(m===0)h+="要求「電池で 1 年以上動くこと」: この使い方なら "+(L.y>=1?'<span class="ok">合格</span>':'<span class="warn">不合格</span>')+"。しかし要求に使い方が書いていないので、試す使い方しだいで "+_w01_f(LO.y,2)+"〜"+_w01_f(HI.y,2)+' 年になり、<span class="warn">合否が決まらない</span><br>';
-      else h+="SR-W02: 要求の条件（記録の間隔 10 分・25 °C・読み出し 週 1 回 1 分・短押し 1 日 1 回）で "+_w01_f(W2.y,2)+' 年 → <span class="ok">合格</span>。'+(Math.abs(L.y-W2.y)>1e-9?"今の使い方（"+_w01_f(L.y,2)+" 年）は要求の条件と違うので、合否の判定には使わない（取扱説明書で知らせる）":"今の使い方は、要求の条件そのもの")+"<br>";
-      ro.innerHTML=h+'<div class="wnote">この章の簡単な模型（どれも例の値）: 電池の容量 180 mAh（低温とパルスの負荷と自己放電を見込んだ値）。眠りの電流 2.55 µA（25 °C。マイコン 2.0・センサの待機 0.05・フラッシュの待機 0.5 µA の和。25 °C より 10 °C 高いごとに 1.5 倍とした）。記録 1 回 30 µC。短押し 1 回で、100 ms ごとのアドバタイズ（1 回 10 µC）を 2 分。読み出し 1 回は、接続までのアドバタイズ 5 秒と、接続中の平均 1.0 mA。LED は小さいので省いた。予算の立て方は 02 章 5 節、ロガーの見積もりは 04 章 5 節で扱う。</div>';
+      else h+="SR-W02: 要求の条件（記録の間隔 10 分・25 °C・読み出し 週 1 回 1 分・短押し 1 日 1 回・警報の表示なし・電池少の表示は電池切れの前だけ）で "+_w01_f(W2.y,2)+' 年 → <span class="ok">合格</span>。'+(Math.abs(L.y-W2.y)>1e-9?"今の使い方（"+_w01_f(L.y,2)+" 年）は要求の条件と違うので、合否の判定には使わない（取扱説明書で知らせる）":"今の使い方は、要求の条件そのもの")+"<br>";
+      ro.innerHTML=h+'<div class="wnote">この章の簡単な模型（どれも例の値）: 電池の容量 180 mAh（低温とパルスの負荷と自己放電を見込んだ値）。眠りの電流 2.55 µA（25 °C。マイコン 2.0・センサの待機 0.05・フラッシュの待機 0.5 µA の和。25 °C より 10 °C 高いごとに 1.5 倍とした）。記録 1 回 30 µC（大まかに置いた値）。短押し 1 回で、100 ms ごとのアドバタイズ（1 回 10 µC）を 2 分。読み出し 1 回は、接続までのアドバタイズ 5 秒と、接続中の平均 1.0 mA。LED は 1 回の点灯を 2 mA × 20 ms = 40 µC とし、記録中の表示（30 秒ごとに緑 1 回）で 1.33 µA、警報の表示が続く間は、それに代わる赤 2 回で 2.67 µA。押したときと通信の間だけの表示（状態の応答・通信中の表示など）と、電池切れの前の短い間だけの電池少の表示は、寿命への影響が小さいので省いた。部品ごとに積み上げる詳しい見積もり（02 章 5 節）では、SR-W02 の条件で約 5.0 年になる。ロガーの見積もりは 04 章 5 節で扱う。</div>';
     }
     draw();
   };
 
   /* ---- 6 節: トレーサビリティの網とマトリクス（f01.py の _F01_T* と同じデータ。ID はこの節の例） ---- */
   var _W01_TU=["1 温湿度を後で確かめる","2 逸脱にすぐ気づく","3 電池の交換は年 1 回","4 5 年使い 10 年残す"];
-  var _W01_TS=[["SR-F01","測定"],["SR-F02","記録の間隔"],["SR-F04","記録の容量"],["SR-F10","警報"],["SR-P01","温度の誤差"],["SR-W02","電池寿命"],["SR-R01","記録の保持"],["SR-R04","5 年の使用"]];
+  var _W01_TS=[["SR-F01","測定"],["SR-F02","記録の間隔"],["SR-F04","記録の容量"],["SR-F10","警報の印"],["SR-P01","温度の誤差"],["SR-W02","電池寿命"],["SR-R01","記録の保持"],["SR-R04","5 年の使用"]];
   var _W01_TD=[["DS-H01","マイコン"],["DS-H02","温湿度センサ"],["DS-H03","記録用フラッシュ"],["DS-S01","測定と記録の処理"],["DS-S02","警報と LED の処理"],["DS-D01","記録 1 件の形式"],["DS-B01","電力の予算"],["DS-S09","デバッグ用の命令"]];
-  var _W01_TT=[["ST-001","測定と間隔"],["ST-002","記録の容量"],["ST-003","警報"],["ST-004","温度の誤差"],["ST-005","電池寿命（解析）"],["ST-006","書き換え回数（解析）"],["ST-007","記録の保持（解析）"]];
+  /* 試験の番号は 03 章の表 6-1 と同じ。最後の ST-043（SR-R01 の試験）は、抜けの例として初めは外してある */
+  var _W01_TT=[["ST-001","測定"],["ST-002","記録の間隔"],["ST-004","記録の容量"],["ST-010","警報の印"],["ST-029","温度の誤差"],["ST-036","電池寿命（解析）"],["ST-046","書き換え回数（解析）"],["ST-043","記録の保持（解析）"]];
   var _W01_TUS=[[0,1,2,4],[3],[5],[6,7]];
-  function _w01_trInit(){return {sd:[[1,3],[3,6],[2,5],[4],[1],[0,6],[2],[2,3]],st:[[0],[0],[1],[2],[3],[4],[],[5]],nT:6,ds9:true};}
+  function _w01_stCmp(a,b){return _W01_TT[a][0]<_W01_TT[b][0]?-1:(_W01_TT[a][0]>_W01_TT[b][0]?1:0);}   /* 試験は番号の順に並べて示す */
+  function _w01_trInit(){return {sd:[[1,3],[3,6],[2,5],[4],[1],[0,6],[2],[2,3]],st:[[0],[1],[2],[3],[4],[5],[],[6]],nT:7,ds9:true};}
   REG.w01_trace=function(el,U){
     var S=U.S;
     U.head(el,"TRACEABILITY","要求・設計・試験の網とマトリクス — 変更の影響と、試験の無い要求・要求の無い設計");
@@ -329,7 +336,7 @@
     var tSel=U.select(r1,"つなぐ相手（設計の要素・試験）",["—"],0,null);
     var br=U.btnrow(el);
     U.button(br,"選んだ要求と相手をつなぐ／外す",function(){toggle(sel,tSel.get());});
-    U.button(br,"抜けを直した例",function(){D.nT=7;if(D.st[6].indexOf(6)<0)D.st[6].push(6);D.ds9=false;fill();draw();});
+    U.button(br,"抜けを直した例",function(){D.nT=8;if(D.st[6].indexOf(7)<0)D.st[6].push(7);D.ds9=false;fill();draw();});
     U.button(br,"本文の例に戻す",function(){D=_w01_trInit();sel=1;sSel.set(1);fill();draw();});
     var box=U.svgbox(el),mdiv=U.mk("div","readout");el.appendChild(mdiv);var ro=U.readout(el);
     var D=_w01_trInit(),sel=1,hits=[];
@@ -338,7 +345,7 @@
     function toggle(i,ti){var x=targets()[ti];if(!x)return;var arr=x.k==="d"?D.sd[i]:D.st[i],p=arr.indexOf(x.j);if(p>=0)arr.splice(p,1);else arr.push(x.j);draw();}
     function analyze(){
       var dsd=D.sd[sel].slice(),ind=[];D.sd.forEach(function(js,i){if(i!==sel&&js.some(function(j){return dsd.indexOf(j)>=0;}))ind.push(i);});
-      var st=D.st[sel].slice();ind.forEach(function(i){D.st[i].forEach(function(k){if(st.indexOf(k)<0)st.push(k);});});
+      var st=D.st[sel].slice();ind.forEach(function(i){D.st[i].forEach(function(k){if(st.indexOf(k)<0)st.push(k);});});st.sort(_w01_stCmp);
       var noT=[],noR=[],noRT=[];D.st.forEach(function(ks,i){if(!ks.length)noT.push(i);});
       _W01_TD.forEach(function(d,j){if(j===7&&!D.ds9)return;if(!D.sd.some(function(js){return js.indexOf(j)>=0;}))noR.push(j);});
       for(var k=0;k<D.nT;k++)if(!D.st.some(function(ks){return ks.indexOf(k)>=0;}))noRT.push(k);
@@ -390,12 +397,12 @@
       var nm=function(arr,L){return arr.length?arr.map(function(x){return L[x][0];}).join("・"):"なし";};
       var up=[];_W01_TUS.forEach(function(js,u){if(js.indexOf(sel)>=0)up.push(_W01_TU[u]);});
       var r="<b>"+_W01_TS[sel][0]+"</b>（"+_W01_TS[sel][1]+"）の出典: 要求仕様書の項目「"+(up.join("」「")||"なし")+"」<br>";
-      r+="変えると、直接: 設計の要素 "+nm(A.dsd,_W01_TD)+"、試験 "+nm(D.st[sel],_W01_TT)+"<br>";
+      r+="変えると、直接: 設計の要素 "+nm(A.dsd,_W01_TD)+"、試験 "+nm(D.st[sel].slice().sort(_w01_stCmp),_W01_TT)+"<br>";
       r+="同じ設計の要素を使う要求 "+(A.ind.length?'<span style="color:var(--gold);font-weight:700">'+nm(A.ind,_W01_TS)+"</span>":"なし")+" にも広がる → 確かめ直す試験は全部で <b>"+nm(A.st,_W01_TT)+"</b><br>";
       r+=(A.noT.length?'<span class="warn">試験の無い要求: '+nm(A.noT,_W01_TS)+"</span>":'<span class="ok">試験の無い要求は無い</span>')+"、"+
         (A.noR.length?'<span class="warn">要求の無い設計の要素: '+nm(A.noR,_W01_TD)+"</span>":'<span class="ok">要求の無い設計の要素は無い</span>')+
         (A.noRT.length?'、<span class="warn">要求の無い試験: '+nm(A.noRT,_W01_TT)+"</span>":"");
-      ro.innerHTML=r+'<div class="wnote">ID と対応は、この節の説明のための例（ロガーの実際の対応は 03 章 6 節と 04 章 6 節）。網の要求の箱を押すと、その要求を選ぶ。網の設計の要素・試験の箱を押すと、つなぐ相手に選ぶ。</div>';
+      ro.innerHTML=r+'<div class="wnote">要求と ST の番号は 03 章の表 6-1 と同じ（SR-R01 の試験 ST-043 は、抜けの例として初めは外してある）。要求仕様書の項目、DS の ID と対応は、この節の説明のための例（ロガーの設計の要素は 04 章 6 節）。網の要求の箱を押すと、その要求を選ぶ。網の設計の要素・試験の箱を押すと、つなぐ相手に選ぶ。</div>';
     }
     U.ctl.drag(box,function(type,x,y){if(type!=="down")return false;var hit=null;hits.forEach(function(q){if(x>=q.x&&x<=q.x+q.w&&y>=q.y&&y<=q.y+q.h)hit=q;});if(!hit)return false;
       if(hit.k==="s"){sel=hit.j;sSel.set(sel);draw();return false;}
