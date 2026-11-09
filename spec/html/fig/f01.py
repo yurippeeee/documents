@@ -392,3 +392,538 @@ def _f01_context():
     o.append(T(14, 326, "矢印はやり取りするものの向き。実線は情報と電力、破線は人の作業と環境からの負荷。", "start", 9.5, MUT))
     return SVG(700, 336, o, "ロガーのコンテキスト図（箱の中の作りは描かない）。")
 F["e01_context"] = _f01_context()
+
+
+# =====================================================================
+# 3 節: シナリオのシーケンス図（記録を読み出す: 正常の流れと、例外の流れ 2 つ）
+# =====================================================================
+def _f01_seqfig():
+    o = []
+    o.append(T(14, 18, "正常の流れ: 記録を読み出す", "start", 11.5, GRN, True))
+    lanes = [("作業者", GLD), ("ロガー", SIG), ("アプリ", GLD)]
+    msgs = [
+        (0, 1, "短押し", {"dy": 26}),
+        (1, 0, "LED で状態を示す", {"c": SIG, "dy": 26}),
+        (1, 1, "受付を始める（2 分）", {"c": SIG, "dy": 26}),
+        (2, 1, "接続する", {"sub": "短押しから 10 秒以内（SR-P06）", "dy": 26}),
+        (2, 1, "時刻を送る", {"sub": "SR-F08", "dy": 26}),
+        (2, 1, "前回より後の記録を求める", {"sub": "SR-F07", "dy": 26}),
+        (1, 2, "記録（LG-ICD-001 の形式）", {"c": SIG, "sub": "SR-I03", "dy": 26}),
+        (2, 2, "誤りを調べる（SR-R02）", {"dy": 26}),
+        (2, 1, "切断する", {"dy": 26}),
+        (1, 1, "通信なしに戻る", {"c": SIG, "dy": 26}),
+    ]
+    s, h = seq(lanes, msgs, x=10, y=30, w=440, dy=30)
+    o.append(s)
+    # 例外の流れ
+    X1, W1 = 470, 220
+    o.append(W(X1 - 8, 12, X1 - 8, 30 + h, c=LIN, lw=0.8))
+    o.append(T(X1, 18, "例外の流れ 1: 接続されない", "start", 11, GLD, True))
+    s1, h1 = seq([("ロガー", SIG), ("アプリ", GLD)], [
+        ("note", 0, "受付中", {"c": SIG}),
+        ("gap", "2 分たつ", {"lane": 0}),
+        (0, 0, "通信なしに戻る", {"c": SIG, "dy": 22}),
+    ], x=X1, y=30, w=W1, dy=28, tail=10)
+    o.append(s1)
+    y2 = 30 + h1 + 26
+    o.append(T(X1, y2 - 8, "例外の流れ 2: 送る途中で切れる", "start", 11, ALI, True))
+    s2, h2 = seq([("ロガー", SIG), ("アプリ", GLD)], [
+        (1, 0, "前回より後を求める", {"dy": 26}),
+        (0, 1, "記録を送る", {"c": SIG, "lost": True, "dy": 26}),
+        ("note", 0, "接続が切れる", {"c": ALI}),
+        ("gap", "次の短押し", {"lane": 0}),
+        (1, 0, "前回より後を求める", {"dy": 26}),
+    ], x=X1, y=y2, w=W1, dy=28, tail=10)
+    o.append(s2)
+    yq = y2 + h2 + 4
+    o.append(_f01_box(X1, yq, W1, 66, ALI, 1.3, 6))
+    o.append(T(X1 + 10, yq + 18, "決まっていない:", "start", 10, ALI, True))
+    o.append(_f01_text(X1 + 10, yq + 34, "途中で切れた読み出しを「前回の読み出し」に含めるか（どこから送り直すか）", W1 - 20, 9.5, INK)[0])
+    H = max(30 + h, yq + 66) + 10
+    return SVG(700, H, o, "「記録を読み出す」のシナリオのシーケンス図（時間は上から下へ進む）。")
+F["e01_seq"] = _f01_seqfig()
+
+
+# =====================================================================
+# 3 節: 主のモードの状態遷移図と状態遷移表（本文の例。電池の入れ直しなどが決まっていない）
+# =====================================================================
+_F01_EV = [("長押し",), ("アプリから", "開始"), ("アプリから", "停止"), ("記録の時刻",), ("容量に", "達した"), ("電池が", "尽きる"), ("電池を", "入れ直す")]
+_F01_ST = ["停止中", "記録中", "電池切れ"]
+# マスの中身: (行の文字, 種類)。種類 t=遷移, s=とどまる（すること）, n=起きない, u=未定
+_F01_TBL = [
+    [(["緑 3 回", "→ 記録中"], "t"), (["→ 記録中"], "t"), (["何もしない"], "s"), (["起きない"], "n"), (["起きない"], "n"), (["→ 電池切れ"], "t"), (["未定"], "u")],
+    [(["赤 3 回", "→ 停止中"], "t"), (["何もしない"], "s"), (["→ 停止中"], "t"), (["測定して", "記録"], "s"), (["上書き: 上書き", "止める: → 停止中"], "t"), (["→ 電池切れ"], "t"), (["未定"], "u")],
+    [(["未定"], "u"), (["起きない"], "n"), (["起きない"], "n"), (["起きない"], "n"), (["起きない"], "n"), (["起きない"], "n"), (["未定"], "u")],
+]
+
+
+def _f01_stt():
+    o = []
+    o.append(T(14, 18, "(a) 状態遷移図", "start", 11.5, INK, True))
+    y = 116
+    P = {"停止中": (150, 104), "記録中": (420, 104), "電池切れ": (620, 104)}
+    h = 40
+    for nm, (x, w) in P.items():
+        o.append(STATE(x, y, w, h, nm, SIG, start=(nm == "停止中")))
+    o.append(T(P["停止中"][0] - 52 - 34, y + 20, "初めて電池", "middle", 9.5, MUT))
+    o.append(T(P["停止中"][0] - 52 - 34, y + 33, "を入れる", "middle", 9.5, MUT))
+    xs, xr, xb = P["停止中"][0], P["記録中"][0], P["電池切れ"][0]
+    # 停止中 → 記録中（上の弧）
+    o.append(CARR(xs + 30, y - h / 2 - 2, xr - 40, y - h / 2 - 2, 0.22, GRN, 1.6))
+    o.append(T((xs + xr) / 2 - 6, y - 64, "長押し・アプリから開始 / 緑を 3 回点滅", "middle", 9.5, GRN, True, halo=True))
+    # 記録中 → 停止中（下の弧）
+    o.append(CARR(xr - 40, y + h / 2 + 2, xs + 30, y + h / 2 + 2, 0.22, MUT, 1.6))
+    o.append(T((xs + xr) / 2 - 6, y + 62, "長押し・アプリから停止 / 赤を 3 回点滅", "middle", 9.5, INK, True, halo=True))
+    o.append(T((xs + xr) / 2 - 6, y + 76, "容量に達した [止める設定]", "middle", 9.5, INK, True, halo=True))
+    # 記録中 の自分への遷移
+    o.append(SELF(xr, y - h / 2, None, SIG, 16))
+    o.append(T(xr + 18, y - 46, "記録の時刻 / 測定して記録", "start", 9.5, SIG, True, halo=True))
+    o.append(T(xr + 18, y - 32, "容量に達した [上書きの設定] / 上書き", "start", 9.5, SIG, True, halo=True))
+    # → 電池切れ
+    o.append(ARR(xr + 52 + 2, y + 4, xb - 52 - 2, y + 4, c=MUT, lw=1.5, head=6))
+    o.append(T((xr + 52 + xb - 52) / 2, y - 2, "電池が尽きる", "middle", 9.5, INK, True, halo=True))
+    o.append(PATH("M%g,%g C%g,%g %g,%g %g,%g" % (xs, y + h / 2, xs + 20, y + 118, xb - 20, y + 118, xb, y + h / 2 + 8), c=MUT, lw=1.5))
+    o.append(_head(xb - 2, y + h / 2 + 30, xb, y + h / 2 + 2, MUT, 7))
+    o.append(T((xs + xb) / 2 + 60, y + 100, "電池が尽きる", "middle", 9.5, INK, True, halo=True))
+    # (b) 状態遷移表
+    y0 = 262
+    o.append(T(14, y0 - 10, "(b) 状態遷移表（行が状態、列が出来事。マスに、すること → 次の状態）", "start", 11.5, INK, True))
+    x0, cw0, cw, rh, hh = 14, 72, 87.7, 36, 34
+    o.append(RECT(x0, y0, cw0, hh, 0, MSOFT, LIN, 1))
+    o.append(T(x0 + cw0 / 2, y0 + 21, "状態 ＼ 出来事", "middle", 9, MUT, True))
+    for j, ev in enumerate(_F01_EV):
+        xx = x0 + cw0 + j * cw
+        o.append(RECT(xx, y0, cw, hh, 0, MSOFT, LIN, 1))
+        for k, l in enumerate(ev):
+            o.append(T(xx + cw / 2, y0 + (21 if len(ev) == 1 else 15 + k * 12), l, "middle", 9.5, INK, True))
+    for i, st in enumerate(_F01_ST):
+        yy = y0 + hh + i * rh
+        o.append(RECT(x0, yy, cw0, rh, 0, SSOFT, LIN, 1))
+        o.append(T(x0 + cw0 / 2, yy + rh / 2 + 4, st, "middle", 10.5, SIG, True))
+        for j, (ls, kind) in enumerate(_F01_TBL[i]):
+            xx = x0 + cw0 + j * cw
+            fill = {"u": ASOFT, "n": MSOFT}.get(kind, SCR)
+            o.append(RECT(xx, yy, cw, rh, 0, fill, LIN, 1))
+            col = {"u": ALI, "n": MUT}.get(kind, INK)
+            for k, l in enumerate(ls):
+                o.append(T(xx + cw / 2, yy + (rh / 2 + 4 if len(ls) == 1 else 15 + k * 13), l, "middle", 9 if len(l) > 7 else 9.5, col, kind == "u"))
+    ye = y0 + hh + 3 * rh
+    o.append(LEGEND(14, ye + 22, [(ALI, "未定（決めていない組み合わせ）"), (MUT, "起きない組み合わせ")], 9.5, 18))
+    o.append(T(686, ye + 22, "仕様に書かない状態: 眠っている・測っている・書き込んでいる（設計書に書く）", "end", 9.5, PUR))
+    return SVG(700, ye + 32, o, "ロガーの主のモードの状態遷移図と状態遷移表（説明のための書きかけの例。(a) と (b) は同じ内容で、赤いマスは (a) に表れない抜け）。")
+F["e01_stt"] = _f01_stt()
+
+
+# =====================================================================
+# 3 節: 互いにほぼ独立な 2 つの状態を、1 つの表にまとめた場合と、分けた場合
+# =====================================================================
+def _f01_grid(x, y, nr, nc, c, cell=12, gap=2, bad=()):
+    o = []
+    for i in range(nr):
+        for j in range(nc):
+            k = (i, j) in bad
+            o.append(RECT(x + j * (cell + gap), y + i * (cell + gap), cell, cell, 2, ASOFT if k else soft(c), ALI if k else c, 0.9))
+    return "".join(o)
+
+
+def _f01_split():
+    o = []
+    # (a) まとめた場合
+    o.append(T(14, 18, "(a) 1 つの表にまとめる", "start", 11.5, ALI, True))
+    main = ["停止中", "記録中", "電池切れ"]
+    com = ["通信なし", "受付中", "接続中"]
+    gx, gy, bw, bh = 86, 46, 80, 24
+    for j, cn in enumerate(com):
+        o.append(T(gx + j * (bw + 6) + bw / 2, gy - 8, cn, "middle", 9.5, TEA, True))
+    for i, mn in enumerate(main):
+        o.append(T(gx - 8, gy + i * (bh + 6) + 16, mn, "end", 9.5, SIG, True))
+        for j in range(3):
+            bx, by = gx + j * (bw + 6), gy + i * (bh + 6)
+            imp = (i == 2 and j > 0)
+            o.append(RECT(bx, by, bw, bh, 5, MSOFT if imp else PSOFT, MUT if imp else PUR, 1.1, "3 3" if imp else None))
+            if imp:
+                o.append(W(bx + 6, by + 5, bx + bw - 6, by + bh - 5, c=MUT, lw=1.2))
+                o.append(W(bx + 6, by + bh - 5, bx + bw - 6, by + 5, c=MUT, lw=1.2))
+            else:
+                o.append(T(bx + bw / 2, by + 16, "%s・%s" % (mn[:2], com[j][:2]), "middle", 9, PUR))
+    o.append(T(gx, gy + 3 * (bh + 6) + 10, "組み合わせ 9 − 起きない 2 = 7 状態", "start", 9.5, INK, True))
+    yg = 176
+    o.append(_f01_grid(gx, yg, 7, 11, PUR))
+    o.append(T(gx + 11 * 14 + 10, yg + 30, "7 状態", "start", 10, INK))
+    o.append(T(gx + 11 * 14 + 10, yg + 46, "× 11 出来事", "start", 10, INK))
+    o.append(T(gx + 11 * 14 + 10, yg + 72, "77 マス", "start", 13, ALI, True))
+    o.append(W(352, 10, 352, 290, c=LIN, lw=0.8))
+    # (b) 分けた場合
+    X = 370
+    o.append(T(X, 18, "(b) 2 つの表に分ける", "start", 11.5, GRN, True))
+    o.append(T(X, 44, "主のモード", "start", 10, SIG, True))
+    o.append(T(X + 76, 44, "停止中・記録中・電池切れ", "start", 9.5, MUT))
+    o.append(_f01_grid(X, 54, 3, 7, SIG))
+    o.append(T(X + 7 * 14 + 10, 78, "3 × 7 = 21 マス", "start", 10.5, INK, True))
+    o.append(T(X, 122, "通信の状態", "start", 10, TEA, True))
+    o.append(T(X + 76, 122, "通信なし・受付中・接続中", "start", 9.5, MUT))
+    o.append(_f01_grid(X, 132, 3, 5, TEA))
+    o.append(T(X + 5 * 14 + 10, 156, "3 × 5 = 15 マス", "start", 10.5, INK, True))
+    o.append(T(X, 210, "合わせて 36 マス", "start", 13, GRN, True))
+    o.append(T(X, 234, "2 つの表のつながりは出来事で書く:", "start", 9.5, INK, True))
+    o.append(T(X, 250, "・アプリから開始・停止は、接続中にだけ起きる", "start", 9.5, MUT))
+    o.append(T(X, 266, "・電池が尽きると、通信の状態も通信なしへ", "start", 9.5, MUT))
+    o.append(LEGEND(gx, 290, [(PUR, "まとめた状態"), (MUT, "起きない組み合わせ")], 9.5, 16))
+    return SVG(700, 300, o, "主のモード（出来事 7 つ）と通信の状態（出来事 5 つ。電池が尽きるは両方に共通）を、1 つの表にまとめた場合と分けた場合のマスの数。")
+F["e01_split"] = _f01_split()
+
+
+# =====================================================================
+# 4 節: 要求文の部品（色で分ける）
+# =====================================================================
+_F01_ROLE = {"ID": (MUT, "ID"), "subj": (TEA, "主語"), "cond": (GLD, "条件"), "num": (SIG, "数値・単位・許容差"),
+             "act": (PUR, "動作"), "end": (GRN, "文末"), "subj0": (TEA, "主語（省略）")}
+
+
+def _f01_sentence(x, y, parts, sz=11.5):
+    """要求文を部品ごとに色の箱で囲み、下に部品の名前を書く。返り値 (svg, 右端の x)。"""
+    o, xx = [], x
+    for text, role in parts:
+        c, lab = _F01_ROLE[role]
+        w = max(tw(text, sz), tw(lab, 9)) + 10
+        o.append(RECT(xx, y - sz - 5, w, sz + 12, 5, soft(c), c, 1.1, "4 3" if role == "subj0" else None))
+        o.append(T(xx + w / 2, y + 1, text, "middle", sz, MUT if role == "subj0" else INK, role in ("ID",), role == "ID"))
+        o.append(T(xx + w / 2, y + 20, lab, "middle", 9, c, True))
+        xx += w + 4
+    return "".join(o), xx
+
+
+def _f01_anatomy():
+    o = []
+    rows = [
+        [("SR-P03", "ID"), ("各記録の時刻は、", "subj"), ("予定の測定時刻から", "cond"), ("±2 秒以内", "num"), ("であること", "end")],
+        [("SR-P06", "ID"), ("短押しから", "cond"), ("10 秒以内に、", "num"), ("アプリが", "subj"), ("接続を始められる", "act"), ("こと", "end")],
+        [("SR-F09", "ID"), ("電池を入れてから最初に時刻を合わせるまでの記録には、", "cond"), ("（ロガーは）", "subj0"), ("時刻未設定の印を付ける", "act"), ("こと", "end")],
+    ]
+    y = 34
+    for r in rows:
+        s, _ = _f01_sentence(14, y, r)
+        o.append(s)
+        y += 58
+    return SVG(700, y - 20, o, "要求文の部品（ロガーの要求の例。主語を省いた文の主語はシステム）。")
+F["e01_anatomy"] = _f01_anatomy()
+
+
+# =====================================================================
+# 4 節: 悪い例と直した例（曖昧な言葉・条件の抜け・1 文に 2 つ・否定だけ）
+# =====================================================================
+def _f01_badgood():
+    o = []
+    C = [(14, 66), (86, 206), (298, 178), (482, 204)]
+    heads = [("問題", INK), ("悪い例", ALI), ("何が困るか", MUT), ("直した例", GRN)]
+    for (x, w), (t, c) in zip(C, heads):
+        o.append(T(x + 4, 20, t, "start", 11, c, True))
+    rows = [
+        ("曖昧な言葉", [("ボタンを押したら、", INK, False), ("速やかに", ALI, True), ("アプリとつながること", INK, False)],
+         "「速やか」が何秒かは人によって違い、試験の合否が決まらない",
+         [("SR-P06", SIG, True), (" 短押しから ", INK, False), ("10 秒以内に", GRN, True), ("、アプリが接続を始められること", INK, False)]),
+        ("条件の抜け", [("温度の誤差は ±0.5 °C 以内であること", INK, False)],
+         "どの温度で測るかが無い。−20 °C で 0.8 °C ずれたら合格かが決まらない",
+         [("SR-P01", SIG, True), (" 温度の誤差は ", INK, False), ("0〜40 °C で", GRN, True), (" ±0.5 °C 以内、", INK, False), ("−20〜0 °C と 40〜60 °C で", GRN, True), (" ±1.0 °C 以内", INK, False)]),
+        ("1 文に 2 つ", [("温度と湿度を 10 分ごとに測定して記録し、", INK, False), ("また", ALI, True), ("上限を超えたら LED で知らせること", INK, False)],
+         "測定は合格で LED が不合格のとき、この要求の合否が決まらない。1 つの試験に結べない",
+         [("SR-F01", SIG, True), (" 測定する・", INK, False), ("SR-F03", SIG, True), (" 記録する・", INK, False), ("SR-F10", SIG, True), (" 警報を知らせる、の 3 つに分け、それぞれに試験を結ぶ", INK, False)]),
+        ("否定だけ", [("誤った時刻で記録", INK, False), ("しないこと", ALI, True)],
+         "電池を入れた直後は正しい時刻を知らないので満たせない。何を試せば合格かも決まらない",
+         [("SR-F09", SIG, True), (" 電池を入れてから最初に時刻を合わせるまでの記録には、", INK, False), ("時刻未設定の印を付ける", GRN, True), ("こと", INK, False)]),
+    ]
+    y, RH = 30, 74
+    for name, bad, why, good in rows:
+        o.append(RECT(C[0][0], y, C[0][1], RH - 6, 5, MSOFT, LIN, 1))
+        o.append(_f01_text(C[0][0] + C[0][1] / 2, y + 22, name, C[0][1] - 8, 10, INK, True, "middle")[0])
+        o.append(_f01_box(C[1][0], y, C[1][1], RH - 6, ALI, 1.1, 5))
+        o.append(_f01_rich(C[1][0] + 8, y + 18, bad, C[1][1] - 20, 10.5)[0])
+        o.append(_f01_text(C[2][0] + 6, y + 17, why, C[2][1] - 14, 9.5, MUT)[0])
+        o.append(_f01_box(C[3][0], y, C[3][1], RH - 6, GRN, 1.1, 5))
+        o.append(_f01_rich(C[3][0] + 8, y + 18, good, C[3][1] - 20, 10)[0])
+        o.append(ARR(C[2][0] + C[2][1] - 4, y + RH / 2 - 3, C[3][0] - 2, y + RH / 2 - 3, c=MUT, lw=1.2, head=5))
+        y += RH
+    return SVG(700, y + 2, o, "要求文の悪い例と直した例（ロガーの例。赤は問題の言葉、緑は直して足した条件と数値）。")
+F["e01_badgood"] = _f01_badgood()
+
+
+# =====================================================================
+# 4 節: 検証の方法の選び方
+# =====================================================================
+def _f01_methods():
+    o = []
+    qx, qw = 22, 322
+    rx, rw = 390, 298
+    qs = [
+        ("見る、寸法や重さを測る、図面や部品表を調べる、で分かるか", "検査（I）", "SR-C01 大きさと重さ・SR-W01 電池の種類・SR-C02 費用", GLD),
+        ("操作して、できることを見せれば足りるか（数値の合否の基準が無い）", "実演（D）", "工具を使わずに電池を交換できる（SR-W03）", PUR),
+        ("決めた条件で動かして測り、合否の基準と比べられるか（時間と費用の範囲で）", "試験（T）", "SR-P06 接続までの時間・SR-P01 温度の誤差・SR-F10 警報", GRN),
+    ]
+    o.append(_f01_box(qx, 10, 120, 28, SIG))
+    o.append(T(qx + 60, 29, "要求", "middle", 11.5, SIG, True))
+    y = 56
+    for i, (q, m, ex, c) in enumerate(qs):
+        o.append(ARR(qx + 60, y - 18 if i == 0 else y - 20, qx + 60, y - 2, c=MUT, lw=1.4, head=6))
+        o.append(RECT(qx, y, qw, 48, 8, PAN, MUT, 1.2))
+        o.append(_f01_text(qx + 12, y + 20, q, qw - 24, 10, INK)[0])
+        o.append(ARR(qx + qw + 2, y + 24, rx - 2, y + 24, c=c, lw=1.6, head=6))
+        o.append(T((qx + qw + rx) / 2, y + 18, "はい", "middle", 9.5, c, True, halo=True))
+        o.append(_f01_box(rx, y + 2, rw, 44, c))
+        o.append(T(rx + 10, y + 19, m, "start", 11.5, c, True))
+        o.append(_f01_text(rx + 10, y + 36, ex, rw - 20, 9.5, INK)[0])
+        o.append(T(qx + 68, y + 64, "いいえ", "start", 9.5, MUT))
+        y += 78
+    o.append(ARR(qx + 60, y - 20, qx + 60, y - 2, c=MUT, lw=1.4, head=6))
+    o.append(_f01_box(qx, y, qw + 2 + (rx - qx - qw - 2) + rw, 46, SIG))
+    o.append(T(qx + 12, y + 19, "解析（A）", "start", 11.5, SIG, True))
+    o.append(T(qx + 90, y + 19, "計算・模擬・部品のデータで示す。短い試験で測った値を使ってよい", "start", 10, INK))
+    o.append(T(qx + 12, y + 37, "SR-R01 10 年の保持・SR-R04 5 年の使用・SR-W02 1 年の電池寿命（試験では年単位かかる）", "start", 9.5, INK))
+    return SVG(700, y + 54, o, "検証の方法の選び方（上から順に問う。例はロガーの要求）。")
+F["e01_methods"] = _f01_methods()
+
+
+# =====================================================================
+# 5 節: 機能以外の要求が設計を縛る
+# =====================================================================
+def _f01_nfr():
+    o = []
+    L = [("SR-F01", "温度と湿度を測る", "機能", MUT), ("SR-W02", "電池で 1 年（条件付き）", "電源", SIG), ("SR-C01", "60 × 40 × 15 mm・30 g", "制約", SIG),
+         ("SR-E03", "防塵・防水 IP54 相当", "環境", SIG), ("SR-P01", "温度の誤差 ±0.5 °C", "性能", SIG), ("SR-R01", "記録を 10 年保持", "信頼性", SIG),
+         ("SR-C02", "部品の費用 1 500 円", "制約", SIG)]
+    R = ["温湿度センサをマイコンにつなぐ", "眠っている間の電流が数 µA のマイコン", "接続の受付中だけアドバタイズする", "CR2032 1 個が入る小さな基板と筐体",
+         "ボタンとケースの合わせ目の防水", "誤差の小さいセンサを、熱を出す部品から離す", "データを 20 年保持するフラッシュ", "BLE を内蔵したマイコンで部品を減らす"]
+    links = {0: [0], 1: [1, 2], 2: [3, 7], 3: [4, 3], 4: [5], 5: [6], 6: [7, 1]}
+    lx, lw, rx, rw = 14, 236, 430, 256
+    o.append(T(lx, 18, "要求", "start", 11.5, SIG, True))
+    o.append(T(rx, 18, "縛られて決まる設計（例）", "start", 11.5, PUR, True))
+    ly = [32 + i * 42 for i in range(len(L))]
+    ry = [30 + i * 37 for i in range(len(R))]
+    for i, js in links.items():
+        for j in js:
+            y1, y2 = ly[i] + 16, ry[j] + 14
+            c = MUT if i == 0 else SIG
+            o.append(PATH("M%g,%g C%g,%g %g,%g %g,%g" % (lx + lw, y1, lx + lw + 90, y1, rx - 90, y2, rx - 2, y2), c=c, lw=1.4 if i else 1.2, dash="4 3" if i == 0 else None))
+            o.append(_head(rx - 12, y2, rx - 1, y2, c, 6))
+    for i, (sid, txt, kind, c) in enumerate(L):
+        y = ly[i]
+        o.append(RECT(lx, y, lw, 32, 6, MSOFT if i == 0 else SSOFT, c, 1.2, "4 3" if i == 0 else None))
+        o.append(T(lx + 8, y + 21, sid, "start", 10, c, True, True))
+        o.append(T(lx + 60, y + 21, txt, "start", 10, INK))
+        o.append(_f01_chip(lx + lw - 6, y + 21, kind, MUT if i == 0 else SIG, 9))
+    for j, t in enumerate(R):
+        y = ry[j]
+        o.append(_f01_box(rx, y, rw, 28, PUR, 1.1, 6))
+        o.append(T(rx + 8, y + 18, t, "start", 10, INK))
+    yb = max(ly[-1] + 32, ry[-1] + 28) + 22
+    o.append(T(lx, yb, "機能の要求（破線）は、多くの部品と作り方で満たせる。機能以外の要求（実線）が、部品と作り方を決めていく。", "start", 9.5, MUT))
+    return SVG(700, yb + 10, o, "ロガーの要求と、それに縛られて決まる設計（線は「この要求があるから、この設計にした」の関係。設計は例）。")
+F["e01_nfr"] = _f01_nfr()
+
+
+# =====================================================================
+# 5 節: 使い方の条件で、同じロガーの電池寿命が何倍も変わる（この章の簡単な模型。w01.js の _w01_life と同じ計算）
+# =====================================================================
+_F01_Q = 180.0          # 設計で使う電池の容量 [mAh]
+_F01_ISL = 2.55         # 眠りの電流 [µA]（25 °C。マイコン 2.0 + センサ 0.05 + フラッシュ 0.5）
+_F01_QREC = 3.0 * 8 + 0.3 * 5 + 5 * 0.7 + 10 * 45 / 512   # 記録 1 回 [µC]
+_F01_QADV = 5.0 * 2.0   # アドバタイズ 1 回 [µC]（100 ms ごと）
+_F01_WIN = 120.0        # 接続の受付の窓 [s]
+_F01_ICON = 1.0         # 接続中の平均の電流 [mA]
+_F01_TCON = 5.0         # 読み出しのとき、接続までのアドバタイズの時間 [s]
+
+
+def _f01_life(interval=10, press=1, reads=1, conn=1.0, temp=25):
+    """返り値 (眠り, 記録, 受付, 読み出し の電流 [µA], 合計 [µA], 電池寿命 [年])。
+    interval: 記録の間隔 [分]、press: 短押し [回/日]、reads: 読み出し [回/週]、conn: 接続の長さ [分]、temp: 周囲の温度 [°C]。"""
+    k = 1.5 ** ((temp - 25) / 10.0) if temp > 25 else 1.0
+    i_sl = _F01_ISL * k
+    i_rec = _F01_QREC / (interval * 60.0)
+    i_adv = press * (_F01_QADV / 0.1 * _F01_WIN) / 86400.0
+    i_rd = reads * (_F01_QADV / 0.1 * _F01_TCON + _F01_ICON * 1000 * conn * 60) / (7 * 86400.0)
+    tot = i_sl + i_rec + i_adv + i_rd
+    return i_sl, i_rec, i_adv, i_rd, tot, _F01_Q * 1000 / tot / 8760.0
+
+
+_F01_CASES = [
+    ("SR-W02 の条件", "10 分・25 °C・週 1 回 1 分の読み出し・短押し 1 日 1 回", dict()),
+    ("使い方が最も軽い", "60 分・25 °C・読み出しも短押しもしない", dict(interval=60, press=0, reads=0)),
+    ("記録の間隔 1 分", "ほかは SR-W02 の条件と同じ", dict(interval=1)),
+    ("毎日 5 分ずつ読み出す", "ほかは SR-W02 の条件と同じ", dict(reads=7, conn=5)),
+    ("周囲 60 °C", "ほかは SR-W02 の条件と同じ", dict(temp=60)),
+    ("1 日 10 回、5 分ずつ読み出す", "短押しも 1 日 10 回", dict(press=10, reads=70, conn=5)),
+    ("全部が重い", "1 分・60 °C・1 日 10 回 5 分の読み出し・短押し 1 日 20 回", dict(interval=1, press=20, reads=70, conn=5, temp=60)),
+]
+
+
+def _f01_profile():
+    o = []
+    p = Plot(318, 30, 350, 7 * 38, (0, 9), (0, 7))
+    for v in range(0, 10):
+        o.append(W(p.X(v), p.y, p.X(v), p.y + p.h, c=GRD, lw=1))
+        o.append(T(p.X(v), p.y + p.h + 15, "%d" % v, "middle", 9.5, MUT))
+    o.append(W(p.x, p.y, p.x, p.y + p.h, p.x + p.w, p.y + p.h, c=MUT, lw=1.2))
+    o.append(T(p.x + p.w / 2, p.y + p.h + 32, "電池寿命 [年]", "middle", 10, MUT))
+    for i, (name, cond, kw) in enumerate(_F01_CASES):
+        L = _f01_life(**kw)[-1]
+        y = p.y + 5 + i * 38
+        c = GRN if L >= 1 else ALI
+        o.append(T(14, y + 12, name, "start", 10.5, SIG if i == 0 else INK, True))
+        o.append(T(14, y + 26, cond, "start", 9, MUT))
+        o.append(RECT(p.x, y + 4, p.X(L) - p.x, 20, 3, soft(c), SIG if i == 0 else c, 2.2 if i == 0 else 1.2))
+        o.append(T(max(p.X(L), p.X(1)) + 6, y + 18, "%.1f 年" % L, "start", 10, c, True, halo=True))
+    o.append(W(p.X(1), p.y - 6, p.X(1), p.y + p.h, c=ALI, lw=1.6, dash="5 3"))
+    o.append(T(p.X(1) + 4, p.y - 10, "要求の 1 年", "start", 9.5, ALI, True))
+    return SVG(700, p.y + p.h + 42, o, "使い方の条件を変えたときの、同じロガーの電池寿命（この章の簡単な模型。容量 180 mAh、眠りの電流 2.55 µA（25 °C）、記録 1 回 30 µC、受付 1 回 12 mC、接続 1 分 60 mC。どれも例の値）。")
+F["e01_profile"] = _f01_profile()
+
+
+# =====================================================================
+# 6 節: トレーサビリティの網とマトリクス（この節の例。w01.js の _W01_TR と同じデータ）
+# =====================================================================
+_F01_TU = ["1 温湿度を後で確かめる", "2 逸脱にすぐ気づく", "3 電池の交換は年 1 回", "4 5 年使い 10 年残す"]
+_F01_TS = [("SR-F01", "測定"), ("SR-F02", "記録の間隔"), ("SR-F04", "記録の容量"), ("SR-F10", "警報"), ("SR-P01", "温度の誤差"),
+           ("SR-W02", "電池寿命"), ("SR-R01", "記録の保持"), ("SR-R04", "5 年の使用")]
+_F01_TD = [("DS-H01", "マイコン"), ("DS-H02", "温湿度センサ"), ("DS-H03", "記録用フラッシュ"), ("DS-S01", "測定と記録の処理"),
+           ("DS-S02", "警報と LED の処理"), ("DS-D01", "記録 1 件の形式"), ("DS-B01", "電力の予算"), ("DS-S09", "デバッグ用の命令")]
+_F01_TT = [("ST-001", "測定と間隔"), ("ST-002", "記録の容量"), ("ST-003", "警報"), ("ST-004", "温度の誤差"), ("ST-005", "電池寿命（解析）"), ("ST-006", "書き換え回数（解析）")]
+_F01_TUS = {0: [0, 1, 2, 4], 1: [3], 2: [5], 3: [6, 7]}
+_F01_TSD = {0: [1, 3], 1: [3, 6], 2: [2, 5], 3: [4], 4: [1], 5: [0, 6], 6: [2], 7: [2, 3]}
+_F01_TST = {0: [0], 1: [0], 2: [1], 3: [2], 4: [3], 5: [4], 6: [], 7: [5]}
+
+
+def _f01_trace():
+    o = []
+    CH = 1      # 変える要求（SR-F02）
+    dsd = set(_F01_TSD[CH])                                                    # 直接の設計
+    ind = set(i for i, js in _F01_TSD.items() if i != CH and dsd & set(js))   # 同じ設計を使うほかの要求
+    stt = set(_F01_TST[CH]) | set(j for i in ind for j in _F01_TST[i])
+    o.append(T(14, 18, "(a) 網: SR-F02 を変えるとき、影響の広がり", "start", 11.5, INK, True))
+    xu, wu, xs, ws, xr, wr = 14, 132, 184, 140, 406, 178
+    nh = 20
+    ys = [52 + i * 40 for i in range(8)]
+    yu = [ys[0] + 30, ys[3], ys[5], ys[6] + 20]
+    yd = [48 + i * 24 for i in range(8)]
+    yt = [yd[-1] + 46 + i * 24 for i in range(6)]
+    def link(x1, y1, x2, y2, c, lw, dash=None):
+        return PATH("M%g,%g C%g,%g %g,%g %g,%g" % (x1, y1, (x1 + x2) / 2, y1, (x1 + x2) / 2, y2, x2, y2), c=c, lw=lw, dash=dash)
+    for u, js in _F01_TUS.items():
+        for j in js:
+            o.append(link(xu + wu, yu[u] + nh / 2, xs, ys[j] + nh / 2, FNT, 1.0))
+    for i, js in _F01_TSD.items():
+        for j in js:
+            hot = i == CH
+            o.append(link(xs + ws, ys[i] + nh / 2, xr, yd[j] + nh / 2, SIG if hot else (GLD if i in ind and j in dsd else PSOFT if False else FNT), 2.2 if hot else (1.6 if i in ind and j in dsd else 1.0), None if hot else ("4 3" if i in ind and j in dsd else None)))
+    for i, js in _F01_TST.items():
+        for j in js:
+            hot = i == CH or i in ind
+            o.append(link(xs + ws, ys[i] + nh / 2, xr, yt[j] + nh / 2, (SIG if i == CH else GLD) if hot else FNT, 2.2 if i == CH else (1.6 if hot else 1.0), "4 3" if (hot and i != CH) else None))
+    for u, t in enumerate(_F01_TU):
+        o.append(RECT(xu, yu[u], wu, nh, 4, GOSOFT, GLD, 1))
+        o.append(T(xu + 6, yu[u] + 14, t, "start", 9.5, INK))
+    for i, (sid, t) in enumerate(_F01_TS):
+        notest = not _F01_TST[i]
+        c = SIG if i == CH else (GLD if i in ind else (ALI if notest else SIG))
+        o.append(RECT(xs, ys[i], ws, nh, 4, ASOFT if notest else (SSOFT if i != CH else SIG), c, 2.0 if (i == CH or i in ind) else 1.1, "4 2" if i in ind else None))
+        o.append(T(xs + 6, ys[i] + 14, sid, "start", 9.5, SCR if i == CH else c, True, True))
+        o.append(T(xs + 52, ys[i] + 14, t, "start", 9.5, SCR if i == CH else INK))
+    for j, (did, t) in enumerate(_F01_TD):
+        noreq = not any(j in js for js in _F01_TSD.values())
+        c = ALI if noreq else PUR
+        o.append(RECT(xr, yd[j], wr, nh, 4, ASOFT if noreq else PSOFT, SIG if j in dsd else c, 2.0 if j in dsd else 1.0))
+        o.append(T(xr + 6, yd[j] + 14, did, "start", 9.5, c, True, True))
+        o.append(T(xr + 54, yd[j] + 14, t, "start", 9.5, INK))
+    for j, (tid, t) in enumerate(_F01_TT):
+        o.append(RECT(xr, yt[j], wr, nh, 4, GSOFT, SIG if j in stt else GRN, 2.0 if j in stt else 1.0))
+        o.append(T(xr + 6, yt[j] + 14, tid, "start", 9.5, GRN, True, True))
+        o.append(T(xr + 54, yt[j] + 14, t, "start", 9.5, INK))
+    o.append(T(xu, ys[0] - 8, "要求仕様書の項目", "start", 9.5, GLD, True))
+    o.append(T(xs, ys[0] - 8, "システムの要求", "start", 9.5, SIG, True))
+    o.append(T(xr, yd[0] - 8, "設計の要素", "start", 9.5, PUR, True))
+    o.append(T(xr, yt[0] - 8, "システム試験", "start", 9.5, GRN, True))
+    xn = xr + wr + 10
+    o.append(T(xn, yd[3] + 4, "← 変える", "start", 9.5, SIG, True))
+    o.append(T(xn, yd[3] + 17, "要求が使う", "start", 9.5, SIG, True))
+    o.append(T(xn, yd[7] + 14, "← 要求が無い", "start", 9.5, ALI, True))
+    o.append(T(xn, yt[0] + 14, "← 確かめ直す", "start", 9.5, SIG, True))
+    o.append(T(xn, yt[5] + 14, "← 確かめ直す", "start", 9.5, GLD, True))
+    o.append(T(xs + ws, ys[6] - 4, "試験が無い", "end", 9.5, ALI, True, halo=True))
+    o.append(LEGL(14, yt[-1] + 44, [(SIG, None, "SR-F02 に直接つながる"), (GLD, "4 3", "同じ設計の要素を通して広がる")], 9.5, 18))
+    # (b) マトリクス
+    y0 = yt[-1] + 76
+    o.append(T(14, y0, "(b) トレーサビリティマトリクス（行がシステムの要求、列が設計の要素とシステム試験）", "start", 11.5, INK, True))
+    mx, cw, rh = 146, 22, 18
+    hy = y0 + 64
+    cols = [(d, PUR) for d, _ in _F01_TD] + [(t, GRN) for t, _ in _F01_TT]
+    for k, (cid, c) in enumerate(cols):
+        x = mx + k * cw + (12 if k >= 8 else 0)
+        o.append(T(x + cw / 2 + 3, hy - 6, cid, "start", 9, c, True, True, rot=-90))
+    for i, (sid, t) in enumerate(_F01_TS):
+        y = hy + i * rh
+        o.append(T(mx - 6, y + 13, "%s %s" % (sid, t), "end", 9.5, INK, i == CH))
+        for k in range(len(cols)):
+            x = mx + k * cw + (12 if k >= 8 else 0)
+            if k < 8:
+                on = k in _F01_TSD[i]; bad = (k == 7)
+            else:
+                on = (k - 8) in _F01_TST[i]; bad = not _F01_TST[i]
+            fill = ASOFT if bad else (SSOFT if i == CH else SCR)
+            o.append(RECT(x, y, cw, rh, 0, fill, LIN, 0.8))
+            if on:
+                o.append(D(x + cw / 2, y + rh / 2, SIG if i == CH else INK, 4))
+    ye = hy + 8 * rh
+    xe = mx + 14 * cw + 12
+    o.append(T(xe + 10, hy + 6 * rh + 13, "← 空の行: 試験の無い要求", "start", 9.5, ALI, True))
+    o.append(T(mx + 7 * cw + cw / 2, ye + 14, "↑ 空の列: 要求の無い設計", "middle", 9.5, ALI, True))
+    return SVG(700, ye + 24, o, "要求・設計・試験のトレーサビリティ（ID は、この節の説明のための例。ロガーの実際の対応は 03 章 6 節と 04 章 6 節）。")
+F["e01_trace"] = _f01_trace()
+
+
+# =====================================================================
+# 6 節: 版の管理 — ベースラインと変更要求
+# =====================================================================
+def _f01_baseline():
+    o = []
+    X = lambda t: 92 + t * 5.8     # t: 週
+    y1, y2, y3 = 66, 196, 236
+    o.append(T(14, y1 + 4, "LG-SYS-001", "start", 10, SIG, True, True))
+    o.append(T(14, y1 + 17, "仕様書", "start", 9.5, MUT))
+    o.append(W(X(0), y1, X(100), y1, c=SIG, lw=2))
+    o.append(RECT(X(0), y1 - 40, X(30) - X(0), 18, 3, MSOFT, "none", 0))
+    o.append(T((X(0) + X(30)) / 2, y1 - 27, "下書き: 書く人が直す", "middle", 9.5, MUT, True))
+    o.append(RECT(X(36), y1 - 40, X(100) - X(36), 18, 3, SSOFT, "none", 0))
+    o.append(T((X(36) + X(100)) / 2, y1 - 27, "ベースライン: 変更要求を通してだけ変える", "middle", 9.5, SIG, True))
+    for t, lab in ((2, "0.1"), (14, "0.2")):
+        o.append(CIRC(X(t), y1, 7, c=MUT, lw=1.6, fill=SCR))
+        o.append(T(X(t), y1 + 24, "版 " + lab, "middle", 9.5, MUT, True))
+    for t0, t1, lab in ((21, 32, "レビュー"), (56, 84, "変更要求 CR-001")):
+        o.append(RECT(X(t0), y1 - 12, X(t1) - X(t0), 24, 5, SCR, "none", 0))
+        o.append(RECT(X(t0), y1 - 12, X(t1) - X(t0), 24, 5, GOSOFT, GLD, 1.2))
+        o.append(T((X(t0) + X(t1)) / 2, y1 + 4, lab, "middle", 9.5, GLD, True))
+    o.append(CIRC(X(36), y1, 9, c=SIG, lw=2.6, fill=SCR))
+    o.append(CIRC(X(36), y1, 9, c=SIG, lw=2.6, fill=SSOFT))
+    o.append(T(X(36), y1 + 26, "版 1.0（承認）", "middle", 10, SIG, True))
+    o.append(CIRC(X(90), y1, 9, c=SIG, lw=2.6, fill=SCR))
+    o.append(CIRC(X(90), y1, 9, c=SIG, lw=2.6, fill=SSOFT))
+    o.append(T(X(90), y1 + 26, "版 1.1", "middle", 10, SIG, True))
+    # 変更要求の中身
+    bx, by, bw = X(41), y1 + 40, 690 - X(41)
+    o.append(W(X(70), y1 + 12, X(70), by, c=GLD, lw=1.1, dash="3 3"))
+    o.append(_f01_box(bx, by, bw, 62, GLD, 1.1, 6))
+    o.append(T(bx + 8, by + 17, "CR-001: SR-F02 の記録の間隔の下限を 1 分から 30 秒に（例）", "start", 9.5, INK, True))
+    o.append(T(bx + 8, by + 33, "影響: 設計の要素 DS-S01・DS-B01 → 要求 SR-R04・SR-W02（網をたどる）", "start", 9.5, INK))
+    o.append(T(bx + 8, by + 49, "確かめ直す試験: ST-001・ST-005・ST-006", "start", 9.5, INK))
+    # 設計書と試験仕様書
+    for y, nm, sub, c in ((y2, "LG-DES-001", "設計書", PUR), (y3, "LG-TST-001", "試験仕様書", GRN)):
+        o.append(T(14, y + 4, nm, "start", 10, c, True, True))
+        o.append(T(14, y + 17, sub, "start", 9.5, MUT))
+        o.append(RECT(X(38), y - 9, X(90) - X(38), 18, 4, soft(c), c, 1.1))
+        o.append(T(X(39.5), y + 4, "入力: LG-SYS-001 版 1.0", "start", 9.5, INK))
+        o.append(RECT(X(91), y - 9, X(100) - X(91), 18, 4, soft(c), SIG, 1.8))
+        o.append(T(X(95.5), y + 4, "版 1.1", "middle", 9.5, INK, True))
+    o.append(ARR(X(35), y1 + 32, X(37), y2 - 11, c=FNT, lw=1.1, head=5))
+    o.append(ARR(X(91), y1 + 32, X(92.5), by - 2, c=SIG, lw=1.4, head=6))
+    o.append(T(X(92.5) - 4, y2 - 16, "改訂", "end", 9.5, SIG, True, halo=True))
+    o.append(ARR(X(10), y3 + 30, X(100), y3 + 30, c=FNT, lw=1.2, head=6))
+    o.append(T(X(100) + 4, y3 + 34, "時間", "start", 9.5, MUT))
+    return SVG(700, y3 + 42, o, "仕様書の版と、設計書・試験仕様書が入力にする版（版と変更要求の番号は、この節の説明のための例）。")
+F["e01_baseline"] = _f01_baseline()
