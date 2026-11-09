@@ -489,10 +489,9 @@ def _f02_i2c():
     o.append(DIM(xc0, 170, xc1, 170, None, c=MUT))
     o.append(T((xc0 + xc1) / 2, 185, "162.5 µs（7 バイト）", "middle", 9.5, MUT))
     o.append(T(14, 205, "S: 始め　W: 書く　R: 読む　A: 受け取りの合図（ACK）　NA: もう要らないという合図　P: 終わり", "start", 9.5, MUT))
-    o.append(T(14, 219, "待つ 5 ms は、センサが測るのにかかる時間から決めた。A が返らないときの扱いは、6 節の異常の表に書く", "start", 9.5, MUT))
-    o.append(W(14, 230, 686, 230, c=LIN, lw=0.8))
+    o.append(W(14, 216, 686, 216, c=LIN, lw=0.8))
     # (b) 最初の 1 バイトの拡大
-    y0 = 236
+    y0 = 222
     o.append(T(14, y0 + 16, "(b) 最初の 1 バイトの拡大", "start", 11.5, INK, True))
     bw, x0 = 50.0, 130
     ys, yd, hh = y0 + 50, y0 + 98, 24     # SCL・SDA の H の高さ
@@ -607,20 +606,22 @@ def _f02_refine():
     o.append(T(133, 176, "電池の電圧が下がる", "middle", 9.5, SIG, False))
     # (a) 通信の状態
     o.append(T(14, 214, "通信の状態", "start", 10, MUT, True))
-    o.append(STATE(52, 250, 72, 28, "通信なし", SIG))
-    o.append(STATE(136, 250, 64, 28, "受付中", SIG))
-    o.append(STATE(216, 250, 64, 28, "接続中", SIG))
-    o.append(ARR(88, 244, 104, 244, c=SIG, lw=1.3, head=6))
-    o.append(ARR(168, 244, 184, 244, c=SIG, lw=1.3, head=6))
-    o.append(T(96, 232, "短押し", "middle", 9.5, SIG, False, halo=True))
-    o.append(T(176, 232, "接続", "middle", 9.5, SIG, False, halo=True))
-    o.append(CARR(216, 264, 52, 264, -0.22, SIG, 1.3))
-    o.append(T(134, 314, "切れる・2 分たつ", "middle", 9.5, SIG, False))
+    o.append(STATE(56, 244, 74, 28, "通信なし", SIG))
+    o.append(STATE(204, 244, 68, 28, "受付中", SIG))
+    o.append(STATE(130, 304, 68, 28, "接続中", SIG))
+    o.append(ARR(94, 238, 169, 238, c=SIG, lw=1.3, head=6))
+    o.append(T(132, 232, "短押し", "middle", 9.5, SIG, False, halo=True))
+    o.append(ARR(169, 251, 94, 251, c=SIG, lw=1.3, head=6))
+    o.append(T(132, 265, "2 分たつ", "middle", 9.5, SIG, False, halo=True))
+    o.append(ARR(196, 259, 160, 289, c=SIG, lw=1.3, head=6))
+    o.append(T(196, 288, "接続", "start", 9.5, SIG, False, halo=True))
+    o.append(ARR(100, 289, 64, 259, c=SIG, lw=1.3, head=6))
+    o.append(T(66, 290, "切れる", "end", 9.5, SIG, False, halo=True))
     o.append(W(254, 28, 254, 330, c=LIN, lw=0.8))
     # (b) 測定タスク
     o.append(RECT(270, 28, 416, 156, 10, "none", PUR, 1.3, dash="6 4"))
     o.append(T(280, 44, "測定タスク", "start", 10.5, PUR, True))
-    o.append(STATE(326, 112, 80, 30, "停止中", PUR))
+    o.append(STATE(320, 140, 76, 30, "停止中", PUR))
     o.append(RECT(390, 36, 288, 140, 10, soft(SIG), SIG, 1.0))
     o.append(T(398, 52, "仕様の「記録中」", "start", 9.5, SIG, True))
     o.append(STATE(440, 140, 70, 30, "待ち", PUR))
@@ -632,28 +633,30 @@ def _f02_refine():
     o.append(T(598, 98, "測定の完了", "start", 9.5, PUR, False, halo=True))
     o.append(ARR(584, 146, 476, 146, c=PUR, lw=1.4, head=6))
     o.append(T(530, 166, "書き込みの完了", "middle", 9.5, PUR, False, halo=True))
-    o.append(CARR(366, 106, 405, 134, -0.3, PUR, 1.3))
-    o.append(CARR(405, 148, 366, 120, -0.3, PUR, 1.3))
-    o.append(T(380, 166, "長押し", "middle", 9.5, PUR, False, halo=True))
+    o.append(ARR(358, 134, 404, 134, c=PUR, lw=1.4, head=6))
+    o.append(ARR(404, 147, 358, 147, c=PUR, lw=1.4, head=6))
+    o.append(T(366, 122, "長押し", "middle", 9.5, PUR, False, halo=True))
     # (b) 通信タスク
     o.append(RECT(270, 196, 416, 134, 10, "none", PUR, 1.3, dash="6 4"))
     o.append(T(280, 212, "通信タスク", "start", 10.5, PUR, True))
-    o.append(STATE(320, 268, 72, 28, "通信なし", PUR))
-    o.append(STATE(420, 268, 64, 28, "受付中", PUR))
+    o.append(STATE(318, 262, 72, 28, "通信なし", PUR))
+    o.append(STATE(428, 262, 64, 28, "受付中", PUR))
     o.append(RECT(486, 204, 192, 118, 10, soft(SIG), SIG, 1.0))
     o.append(T(494, 220, "仕様の「接続中」", "start", 9.5, SIG, True))
     o.append(STATE(582, 244, 132, 28, "やり取りを待つ", PUR))
     o.append(STATE(582, 300, 132, 28, "読み出し中", PUR))
-    o.append(ARR(356, 262, 388, 262, c=PUR, lw=1.3, head=6))
-    o.append(ARR(452, 262, 516, 252, c=PUR, lw=1.3, head=6))
-    o.append(T(372, 250, "短押し", "middle", 9.5, PUR, False, halo=True))
-    o.append(T(470, 248, "接続", "middle", 9.5, PUR, False, halo=True))
+    o.append(ARR(355, 256, 395, 256, c=PUR, lw=1.3, head=6))
+    o.append(T(375, 248, "短押し", "middle", 9.5, PUR, False, halo=True))
+    o.append(ARR(395, 269, 355, 269, c=PUR, lw=1.3, head=6))
+    o.append(T(375, 284, "2 分たつ", "middle", 9.5, PUR, False, halo=True))
+    o.append(ARR(460, 256, 515, 247, c=PUR, lw=1.3, head=6))
+    o.append(T(486, 240, "接続", "end", 9.5, PUR, False, halo=True))
     o.append(CARR(556, 258, 556, 286, 0.35, PUR, 1.3))
     o.append(CARR(608, 286, 608, 258, 0.35, PUR, 1.3))
     o.append(T(530, 276, "要求", "end", 9.5, PUR, False, halo=True))
     o.append(T(634, 276, "送り終わり", "start", 9.5, PUR, False, halo=True))
-    o.append(CARR(486, 316, 320, 284, -0.18, PUR, 1.3))
-    o.append(T(398, 322, "切れる・2 分たつ", "middle", 9.5, PUR, False, halo=True))
+    o.append(CARR(516, 314, 318, 277, -0.2, PUR, 1.3))
+    o.append(T(420, 324, "切れる", "middle", 9.5, PUR, False, halo=True))
     return SVG(700, 338, o, "仕様の状態（左）を、設計で中の状態に分け、タスクに受け持たせる（右）。電池切れの扱いは 04 章。")
 F["e02_refine"] = _f02_refine()
 
@@ -675,8 +678,8 @@ F["e02_seq"] = SEQFIG(
         (1, 3, "起こして 1 件を送る（SPI）"),
         ("note", 3, "書き込み（0.7 ms・5 mA）", {"c": TEA}),
         (1, 3, "状態を読む"),
+        ("span", 1, 2, "眠って\n待つ", {"c": MUT, "side": -1}),
         (3, 1, "書き終わった", {"dash": True, "c": TEA}),
-        ("span", 1, 3, "眠って\n待つ", {"c": MUT, "side": -1}),
         (1, 3, "眠らせる"),
         (1, 0, "次の記録の時刻を設定する"),
         ("note", 1, "眠る（次の記録の時刻まで）", {"c": PUR}),
@@ -717,14 +720,15 @@ def _f02_timeline():
             if s and tw(s, 9.5) + 4 < X(b) - X(a):
                 o.append(T((X(a) + X(b)) / 2, y + 14, s, "middle", 9.5, c if on else MUT, on))
     # マイコンの動作の長さ
-    for a, b, s, dy in ((0, 0.3, "0.3", -6), (5.3, 6.0, "0.4 + 0.3", -6), (6.7, 6.8, "0.1", -6)):
+    for a, b, s, dy in ((0, 0.3, "0.3 ms", -6), (5.3, 6.0, "0.4 + 0.3 ms", -6), (6.7, 6.8, "0.1 ms", -6)):
         o.append(T((X(a) + X(b)) / 2, 84 + dy, s, "middle", 9.5, PUR, True, halo=True))
     o.append(T(14, 196, "フラッシュ: 受 = 1 件を受け取る（0.3 ms）、書く = 書き込み 0.7 ms・5 mA", "start", 9.5, MUT))
     # 電流
     p = Plot(x0, 232, x1 - x0, 92, (t0, t1), (1e-3, 10.0), ylog=True)
     o.append(p.axes(xl="時間 [ms]（記録の時刻を 0 とする）", yl=None, xt=[0, 1, 2, 3, 4, 5, 6, 7], yt=[1e-3, 1e-2, 1e-1, 1, 10],
                     yfmt=lambda v: {1e-3: "1 µA", 1e-2: "10 µA", 1e-1: "0.1 mA", 1: "1 mA", 10: "10 mA"}[v]))
-    o.append(T(14, 282, "電流の合計", "start", 10, INK, True))
+    o.append(T(14, 276, "電流の合計", "start", 10, INK, True))
+    o.append(T(14, 290, "（対数の目盛）", "start", 9.5, MUT))
     seg = [(-0.5, 0.00255), (0, 3.00055), (0.3, 0.3025), (5.3, 3.00055), (5.7, 3.02505), (6.0, 5.00205), (6.7, 3.02505), (6.8, 0.00255), (7.5, 0.00255)]
     o.append(p.steps(seg, c=SIG, lw=2))
     o.append(T(X(2.8), p.Y(0.3025) - 6, "0.30 mA（センサが測る）", "middle", 9.5, SIG, True, halo=True))
@@ -777,7 +781,7 @@ def _f02_power():
     for k, (s, L) in enumerate(cases):
         y = yb + k * 50
         ok = L >= 1
-        o.append(T(L0, y, s, "start", 9.5, INK, k == 0))
+        o.append(T(L0, y, s, "start", 9.5, INK, k == 0, halo=True))
         o.append(RECT(L0, y + 6, XL(L) - L0, 16, 2, soft(GRN if ok else ALI), GRN if ok else ALI, 1.1))
         lab = ("%.1f 年" % L) if L >= 1 else ("%.2f 年" % L)
         if L > 4:
@@ -804,8 +808,8 @@ def _f02_mem():
     o = []
     x0, x1 = 156, 596
     bars = [
-        ("マイコンのフラッシュ", "（プログラム）512 KB", 512.0, [("BLE のスタック", 152), ("RTOS と ドライバ", 24), ("アプリ", 48), ("定数", 8)], 0.5, "KB"),
-        ("マイコンの RAM", "64 KB", 64.0, [("BLE のスタック", 18), ("タスクの スタック", 10), ("ヒープ", 6), ("読み出しの バッファ", 8), ("変数", 2)], 0.7, "KB"),
+        ("マイコンのフラッシュ", "（プログラム）512 KB", 512.0, [("BLE のスタック", 152), ("RTOS と|ドライバ", 24), ("アプリ", 48), ("定数", 8)], 0.5, "KB"),
+        ("マイコンの RAM", "64 KB", 64.0, [("BLE のスタック", 18), ("タスクの|スタック", 10), ("ヒープ", 6), ("読み出しの|バッファ", 8), ("変数", 2)], 0.7, "KB"),
         ("記録用フラッシュ", "512 KiB", 512.0, [("設定", 8), ("記録 52 560 件", 410.625)], None, "KiB"),
     ]
     y = 30
@@ -819,7 +823,7 @@ def _f02_mem():
         for k, (s, v) in enumerate(segs):
             xa, xb = X(acc), X(acc + v)
             o.append(RECT(xa, y, xb - xa, 32, 0, soft(PUR) if k % 2 == 0 else PSOFT, PUR, 1.0))
-            lines = s.split(" ") if " " in s and tw(s + " %g" % v, 9.5) + 6 > xb - xa else [s]
+            lines = s.split("|") if "|" in s else [s]
             lab = lines + ["%g" % round(v, 1)]
             if max(tw(l, 9.5) for l in lab) + 6 < xb - xa and len(lab) <= 2:
                 for i, l in enumerate(lab):
@@ -828,7 +832,7 @@ def _f02_mem():
                 for i, l in enumerate(lab):
                     o.append(T((xa + xb) / 2, y + 11 + i * 10, l, "middle", 9, PUR, i < 2))
             else:
-                below.append(((xa + xb) / 2, s.replace(" ", "") + " %g" % round(v, 1)))
+                below.append(((xa + xb) / 2, s.replace("|", "") + " %g" % round(v, 1)))
             acc += v
         used = acc
         xf = X(used)
@@ -845,24 +849,24 @@ def _f02_mem():
             o.append(T(xt + 3, y - 8, "目標 %d %%" % (tgt * 100), "start", 9.5, GRN, True, halo=True))
         y += 78 + (13 * max(0, len(below) - 1))
     o.append(T(14, y - 4, "記録用フラッシュの記録の領域は SR-F04 の派生要求で決まる。空きの使い方（消去を先に済ませる分など）は 04 章で決める", "start", 9.5, MUT))
-    return SVG(700, y + 4, o, "メモリの地図と目標（大きさは例の値。マイコンの記憶は 1 KB = 1024 B で数える）。")
+    return SVG(700, y + 4, o, "メモリの地図と目標（大きさは例の値。数字の単位は、マイコンの記憶が KB（1 KB = 1024 B）、記録用フラッシュが KiB）。")
 F["e02_mem"] = _f02_mem()
 
 
 # =====================================================================
 # 5 節: 処理時間の予算（最も混む場面の時間割）
 # =====================================================================
-_F02_CPU = [  # (処理, 受け持つタスク, 起こすもの, 周期 [ms], 最悪実行時間 [ms])。優先度の高い順
-    ("無線の処理", "BLE のスタック", "接続イベント", 15.0, 2.0),
-    ("ボタンを読む", "操作タスク", "5 ms のタイマ", 5.0, 0.1),
-    ("読み出しの用意", "通信タスク", "接続イベントの後", 15.0, 6.0),
-    ("測定と記録", "測定タスク", "RTC（1 分ごと）", 60000.0, 1.1),
+_F02_CPU = [  # (処理, 受け持つタスク, 起こすもの, 周期 [ms], 最悪実行時間 [ms], 締め切り [ms])。優先度の高い順
+    ("無線の処理", "BLE のスタック", "接続イベント", 15.0, 2.0, 15.0),
+    ("ボタンを読む", "操作タスク", "5 ms のタイマ", 5.0, 0.1, 5.0),
+    ("読み出しの用意", "通信タスク", "接続イベントの後", 15.0, 6.0, 15.0),
+    ("測定と記録", "測定タスク", "RTC（1 分ごと）", 60000.0, 1.1, 2000.0),
 ]
 
 
 def _f02_sched(tasks, tmax):
     """優先度の固定した、割り込んで動く時間割（全部の処理が時刻 0 に起きる場合）。tasks = [(周期, 最悪実行時間), …]（優先度の高い順）。
-    返り値 (runs = [(番号, 始め, 終わり)], jobs = [(番号, 起きた時刻, 終わった時刻 or None)])。w02.js の _w02_sched と同じ計算。"""
+    返り値 (runs = [(番号, 始め, 終わり, その仕事が起きた時刻)], jobs = [(番号, 起きた時刻, 終わった時刻 or None)])。w02.js の _w02_sched と同じ計算。"""
     n = len(tasks)
     q = [[] for _ in range(n)]
     nxt = [0.0] * n
@@ -878,10 +882,11 @@ def _f02_sched(tasks, tmax):
             t = tn
             continue
         te = min(t + q[k][0][1], tn)
-        if runs and runs[-1][0] == k and abs(runs[-1][2] - t) < 1e-9:
-            runs[-1] = (k, runs[-1][1], te)
+        rl = q[k][0][0]
+        if runs and runs[-1][0] == k and runs[-1][3] == rl and abs(runs[-1][2] - t) < 1e-9:
+            runs[-1] = (k, runs[-1][1], te, rl)
         else:
-            runs.append((k, t, te))
+            runs.append((k, t, te, rl))
         q[k][0][1] -= te - t
         if q[k][0][1] <= 1e-9:
             jobs.append((k, q[k][0][0], te))
@@ -895,7 +900,7 @@ def _f02_sched(tasks, tmax):
 
 def _f02_cpu():
     o = []
-    tasks = [(T_, C_) for _, _, _, T_, C_ in _F02_CPU]
+    tasks = [(T_, C_) for _, _, _, T_, C_, _ in _F02_CPU]
     runs, jobs = _f02_sched(tasks, 30.0)
     U = sum(C_ / T_ for T_, C_ in tasks)
     # 最悪応答時間（最初の仕事 = 全部が同時に起きた場合）
@@ -904,30 +909,31 @@ def _f02_cpu():
         if r == 0 and k not in R:
             R[k] = f
     o.append(T(14, 16, "(a) 処理時間の予算（例の値。上の行ほど優先度が高い）", "start", 11.5, INK, True))
-    cw = [190, 120, 66, 92, 64, 92, 56]
-    hd = ["処理（受け持つもの）", "起こすもの", "周期 T_i", "最悪実行時間 C_i", "C_i / T_i", "最悪応答時間", "締め切り"]
+    cw = [182, 112, 58, 88, 60, 78, 58, 36]
+    hd = ["処理（受け持つもの）", "起こすもの", "周期 T_i", "最悪実行時間 C_i", "C_i / T_i", "最悪応答時間", "締め切り", "判定"]
     x = 14
     for w, h in zip(cw, hd):
         o.append(RECT(x, 24, w, 22, 0, SCR, LIN, 1.0))
         o.append(TX(x + w / 2, 39, h, "middle", 9.5, INK, True))
         x += w
-    for k, (nm, who, why, T_, C_) in enumerate(_F02_CPU):
+    for k, (nm, who, why, T_, C_, D_) in enumerate(_F02_CPU):
         y = 46 + k * 22
+        ok = R[k] <= D_ + 1e-9
         vals = [nm + "（" + who + "）", why, ("%g ms" % T_) if T_ < 1000 else "60 s", "%g ms" % C_, "%.3f" % (C_ / T_) if C_ / T_ >= 0.001 else "0.00002",
-                "%.1f ms" % R[k], "間に合う" if R[k] <= T_ + 1e-9 else "遅れる"]
+                "%.1f ms" % R[k], ("%g ms" % D_) if D_ < 1000 else "2 s", "○" if ok else "×"]
         x = 14
         for j, (w, v) in enumerate(zip(cw, vals)):
-            c = GRN if (j == 6 and R[k] <= T_) else (ALI if j == 6 else INK)
-            o.append(_f02_cell(x, y, w, 22, v, c, "none", LIN, 9.5, j == 6, "start" if j == 0 else "middle"))
+            c = (GRN if ok else ALI) if j == 7 else INK
+            o.append(_f02_cell(x, y, w, 22, v, c, "none", LIN, 9.5, j == 7, "start" if j == 0 else "middle"))
             x += w
-    o.append(T(14, 46 + 4 * 22 + 16, "利用率 U = Σ C_i / T_i = 0.553（55 %）。締め切りは次に起きる時刻（周期と同じ）", "start", 9.5, INK, True))
+    o.append(TX(14, 46 + 4 * 22 + 16, "利用率 U = Σ C_i / T_i = 0.553（55 %）。締め切りは次に同じ処理が起きる時刻。測定だけは SR-P03（±2 秒）から 2 s", "start", 9.5, INK, True))
     # (b) 時間割
     yb = 160
     o.append(T(14, yb + 12, "(b) 全部が同時に起きた場合の時間割（0〜30 ms）", "start", 11.5, INK, True))
     x0, x1 = 130, 680
     X = lambda t: x0 + t / 30.0 * (x1 - x0)
     cols = [SIG, GLD, PUR, TEA]
-    for k, (nm, who, why, T_, C_) in enumerate(_F02_CPU):
+    for k, (nm, who, why, T_, C_, _) in enumerate(_F02_CPU):
         y = yb + 24 + k * 30
         o.append(T(x0 - 8, y + 15, nm, "end", 9.5, INK, True))
         o.append(RECT(x0, y, x1 - x0, 22, 0, "none", LIN, 0.6))
@@ -937,7 +943,7 @@ def _f02_cpu():
             t += T_
         if T_ >= 1000:
             o.append(ARR(X(0), y + 30, X(0), y + 22, c=MUT, lw=1, head=4))
-    for k, a, b in runs:
+    for k, a, b, _ in runs:
         y = yb + 24 + k * 30
         o.append(RECT(X(a), y + 2, max(X(b) - X(a), 1.2), 18, 1, soft(cols[k]), cols[k], 1.0))
     for k in R:
@@ -992,7 +998,7 @@ def _f02_trade():
         for j, (sc, fact) in enumerate(cells):
             x = xc[2 + j]
             o.append(_f02_cell(x, y, xc[3 + j] - x, h, "", INK, "none", LIN))
-            c = GRN if sc >= 4 else (ALI if sc <= 2 else GLD)
+            c = GRN if sc >= 4 else (ALI if sc <= 2 else MUT)
             for m in range(5):
                 o.append(RECT(x + 8 + m * 11, y + 7, 9, 9, 1.5, c if m < sc else "none", c, 1.0))
             o.append(T(x + 66, y + 15, "%d" % sc, "start", 9.5, c, True))
@@ -1018,7 +1024,7 @@ def _f02_trade():
     o.append(RECT(xc[2] + 1, 7, xc[3] - xc[2] - 2, y + 40 - 8, 4, "none", GRN, 2.2))
     o.append(RECT(xc[4], 44 + 32, xc[5] - xc[4], y - 44 - 32, 0, MSOFT, "none", 0, op=0.9))
     yend = y + 40
-    o.append(T(14, yend + 16, "評点は 1〜5（5 が最も良い）。C は必須の条件を満たさないので、点数が最も高くても選ばない", "start", 9.5, MUT))
+    o.append(T(14, yend + 16, "評点は 1〜5（5 が最も良い。緑は 4 以上、赤は 2 以下）", "start", 9.5, MUT))
     return SVG(700, yend + 24, o, "記録を保存する部品の代案の比較（費用・電流・重みは例の値。重みの合計は 100）。")
 F["e02_trade"] = _f02_trade()
 
@@ -1054,7 +1060,7 @@ def _f02_contract():
     o.append(T(26, y0 + 46, "悪い例: 手順をコードのように書く", "start", 10, ALI, True))
     bad = ["1. i に 0 を入れる", "2. buf[i] に r の i バイト目を入れる", "3. i に 1 を足し、8 未満なら 2. へ", "4. spi_write(addr, buf, 8) を呼ぶ", "5. addr に 8 を足す"]
     o.append(_f02_lines(30, y0 + 64, bad, "start", 9.5, INK, lh=14))
-    o.append(T(26, y0 + 146, "コードと同じことを書いている → 直すたびに食い違う", "start", 9.5, ALI))
+    o.append(T(26, y0 + 146, "コードと同じ手順を写している", "start", 9.5, ALI))
     o.append(T(26, y0 + 160, "なぜ読み返すのか、いつ消去するのかが無い", "start", 9.5, ALI))
     o.append(_f02_page(360, y0 + 26, 326, 150, GRN))
     o.append(T(372, y0 + 46, "良い例: 約束と理由を書く", "start", 10, GRN, True))
@@ -1063,7 +1069,7 @@ def _f02_contract():
             ("書き込みの位置は RAM に持ち、起動のときに求め直す", INK)]
     for i, (s, c) in enumerate(good):
         o.append(T(376, y0 + 64 + i * 14, s, "start", 9.5, c))
-    o.append(T(372, y0 + 146, "コードから読み取れない約束と理由だけを書く", "start", 9.5, GRN))
+    o.append(T(372, y0 + 146, "コードから読み取れない約束と理由", "start", 9.5, GRN))
     o.append(T(372, y0 + 160, "手順はコードとそのコメントに任せる", "start", 9.5, GRN))
     return SVG(700, y0 + 184, o, "記録のモジュールの約束（上）と、詳細設計書の書き方の悪い例と良い例（下）。値は例の値。")
 F["e02_contract"] = _f02_contract()
