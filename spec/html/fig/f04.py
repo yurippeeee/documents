@@ -18,8 +18,8 @@ _F04_PB = [
     ("LED", "記録中の表示", 1.333333, False), ("LED", "通信中の表示", 0.029762, False), ("LED", "状態の応答", 0.000463, False)]
 _F04_TOT = sum(v for _, _, v, _ in _F04_PB)    # 4.1714 µA
 # 電池寿命の比べ（図 5-1 の (b)）: (名前, 補足, 寿命 [年], 仕様を変えるか)
-_F04_CASES = [("本文の設計（A）", "SR-W02 の条件", 4.926, False), ("電池少の期間を入れる", "41 日・+1.33 µA", 4.890, False),
-              ("警報の表示が続く", "30 秒ごとに赤 2 回", 3.732, False), ("−20 °C で使い続ける", "使える電荷 121 mAh", 3.309, False),
+_F04_CASES = [("本文の設計（A）", None, 4.926, False), ("電池少の期間（41 日）を入れる", None, 4.890, False),
+              ("警報の表示が続く", None, 3.732, False), ("−20 °C で使い続ける（121 mAh）", None, 3.309, False),
               ("代案 B: 常に 1 秒ごと", "SR-U06 の変更が要る", 1.465, True), ("代案 C: 常に 100 ms ごと", "SR-U06 の変更が要る", 0.198, True)]
 
 # 51 件の要求（仕様書の表 6-1 の順。ST の番号はこの順に 001〜051）と、受け持つ設計の要素
@@ -780,3 +780,330 @@ F["e04_seq_read"] = SEQFIG(
         (1, 1, "通信なしへ", {"c": PUR}),
     ],
     "図 4-3 差分の読み出しのシーケンス図（記録の 30 件は 1 回の通知に入る件数。時間は例のスマートフォンの例の値）。", w=700, dy=28, label_sz=10)
+
+
+# =====================================================================
+# 5 節: 電力の予算の内訳と、設計と使い方の違いによる電池寿命（図 5-1）
+# =====================================================================
+def _f04_power():
+    o = []
+    o.append(T(14, 16, "(a) 平均電流の内訳（表 5-1。＊はこの設計で足した項目）", "start", 11.5, INK, True))
+    xb0, xb1 = 176, 404
+    X = lambda v: xb0 + (math.log10(max(v, 1e-4)) + 4) / 6 * (xb1 - xb0)
+    y0, rh = 30, 17
+    n = len(_F04_PB) + 1
+    for v, s in ((1e-4, "0.0001"), (1e-2, "0.01"), (1.0, "1"), (100.0, "100")):
+        o.append(W(X(v), y0 - 2, X(v), y0 + rh * n + 2, c=GRD, lw=1))
+        o.append(T(X(v), y0 + rh * n + 16, s, "middle", 9.5, MUT))
+    o.append(T((xb0 + xb1) / 2, y0 + rh * n + 32, "平均電流 [µA]（対数の目盛）", "middle", 10, MUT))
+    items = [(p + " " + s + ("＊" if add else ""), v, add) for p, s, v, add in _F04_PB] + [("合計", _F04_TOT, False)]
+    big = max(v for _, v, _ in items[:-1])
+    for k, (lab, v, add) in enumerate(items):
+        y = y0 + k * rh
+        last = k == len(items) - 1
+        c = PUR if last else (GLD if add else TEA)
+        o.append(T(xb0 - 6, y + 12.5, lab, "end", 9.5, INK, last or v >= 0.4))
+        o.append(RECT(xb0, y + 3, X(v) - xb0, rh - 6, 2, soft(c), c, 1.0))
+        txt = ("%.4f" % v) if v < 0.01 else (("%.3f" % v) if v < 1 else ("%.2f" % v))
+        o.append(T(X(v) + 4, y + 12.5, txt + " µA", "start", 9.5, c, True, halo=True))
+    o.append(W(X(_F04_LIM), y0 - 2, X(_F04_LIM), y0 + rh * n, c=SIG, lw=1.6))
+    o.append(T(X(_F04_LIM) - 2, y0 - 5, "上限 20.5 µA", "end", 9.5, SIG, True, halo=True))
+    # (b) 電池寿命
+    xl = 444
+    o.append(T(xl, 16, "(b) 電池寿命（Q = 180 mAh）", "start", 11.5, INK, True))
+    L0, L1 = xl + 4, 680
+    XL = lambda v: L0 + v / 6.0 * (L1 - L0)
+    yb = 48
+    for k, (nm, sub, L, chg) in enumerate(_F04_CASES):
+        y = yb + k * 40 + (8 if k >= 5 else 0)
+        c = GRN if L >= 2 else (GLD if L >= 1 else ALI)
+        o.append(T(L0, y, nm, "start", 9.5, INK, k == 0, halo=True))
+        o.append(RECT(L0, y + 5, max(XL(L) - L0, 1.5), 14, 2, soft(c), c, 1.1))
+        lab = ("%.1f 年" % L) if L >= 1 else ("%.2f 年" % L)
+        if XL(L) - L0 > 60:
+            o.append(T(XL(L) - 4, y + 16, lab, "end", 9.5, c, True))
+        else:
+            o.append(T(XL(L) + 4, y + 16, lab, "start", 9.5, c, True, halo=True))
+        if sub:
+            o.append(T(XL(L) + (52 if L >= 1 else 40), y + 16, sub, "start", 9, ALI, True, halo=True))
+    ya = yb + len(_F04_CASES) * 40 + 4
+    for v in range(0, 7):
+        o.append(W(XL(v), ya, XL(v), ya + 4, c=MUT, lw=1))
+        o.append(T(XL(v), ya + 16, "%d" % v, "middle", 9.5, MUT))
+    o.append(W(L0, ya, L1, ya, c=MUT, lw=1))
+    o.append(T((L0 + L1) / 2, ya + 31, "電池寿命 [年]", "middle", 10, MUT))
+    o.append(W(XL(1), yb - 10, XL(1), ya, c=SIG, lw=1.6))
+    o.append(W(XL(2), yb - 10, XL(2), ya, c=PUR, lw=1.3, dash="5 3"))
+    o.append(LEGL(L0, ya + 50, [(SIG, None, "要求 1 年"), (PUR, "5 3", "目標 2 年（余裕 2 倍）")], 9.5, 12))
+    H = max(y0 + rh * n + 42, ya + 60)
+    return SVG(700, H, o, "図 5-1 ロガーの電力の予算（SR-W02 の使い方の条件、25 °C、例の値）。(b) は本文の設計から 1 か所だけを変えた電池寿命で、代案 B・C は 5.2 の設計判断の代案。")
+F["e04_power"] = _f04_power()
+
+
+# =====================================================================
+# 5 節: 電池少と電池切れの判定（図 5-2）。電池の模型は、電源と周辺の制御シリーズ 3 章の CR2032 の例の値
+# =====================================================================
+_F04_CRE = [(0, 3.20), (0.02, 3.05), (0.1, 3.00), (0.3, 2.96), (0.5, 2.92), (0.7, 2.87), (0.8, 2.82), (0.88, 2.74), (0.93, 2.60), (0.97, 2.40), (1.0, 2.00)]
+_F04_CRR = [(0, 15.0), (0.5, 17.0), (0.7, 20.0), (0.8, 25.0), (0.9, 40.0), (0.95, 60.0), (1.0, 120.0)]
+
+
+def _f04_ip(pts, x):
+    if x <= pts[0][0]:
+        return pts[0][1]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        if x <= x1:
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+    return pts[-1][1]
+
+
+def _f04_v(x, T=25.0, I=0.0, tp=0.001):
+    """取り出した割合 x の CR2032 に、電流 I [A] を tp [s] 流したときの端子電圧 [V]。"""
+    r = _f04_ip(_F04_CRR, x) * 1.4 ** ((25.0 - T) / 10.0) * (0.55 + 0.45 * (1 - math.exp(-tp / 0.005)))
+    return _f04_ip(_F04_CRE, x) - I * r
+
+
+def _f04_cross(f):
+    lo, hi = 0.0, 1.0
+    for _ in range(80):
+        m = (lo + hi) / 2
+        if f(m) > 0:
+            lo = m
+        else:
+            hi = m
+    return (lo + hi) / 2
+
+
+def _f04_lowbat():
+    o = []
+    o.append(T(14, 16, "(a) 電池の終わりの近くの電圧（25 °C）", "start", 11.5, INK, True))
+    p = Plot(64, 34, 330, 222, (160.0, 216.0), (1.8, 3.0))
+    o.append(p.axes(xl="電池から取り出した電荷 [mAh]", yl=None, xt=[160, 170, 180, 190, 200, 210], yt=[1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0],
+                    yfmt=lambda v: "%.1f" % v))
+    o.append(T(p.x - 40, p.y + p.h / 2, "電池の電圧 [V]", "middle", 10, MUT, rot=-90))
+    qs = [160 + 0.25 * k for k in range(0, 225)]
+    cur = {"rest": [], "test": [], "er": []}
+    for q in qs:
+        x = q / 220.0
+        cur["rest"].append((q, _f04_v(x)))
+        cur["test"].append((q, _f04_v(x, 25, 0.008, 0.001)))
+        cur["er"].append((q, _f04_v(x, 25, 0.010, 0.045)))
+    o.append(p.clip(cur["rest"], c=MUT, lw=1.6))
+    o.append(p.clip(cur["er"], c=TEA, lw=1.6))
+    o.append(p.clip(cur["test"], c=PUR, lw=2.2))
+    for v, c, lab, dy in ((2.57, PUR, "電池少", -2), (2.50, PUR, "電池切れ", 9), (2.0, ALI, "下限 2.0 V", 3)):
+        o.append(W(p.x, p.Y(v), p.x + p.w, p.Y(v), c=c, lw=1.0, dash="4 3"))
+        o.append(T(p.x + p.w + 4, p.Y(v) + dy, lab, "start", 9, c, True))
+    xl = _f04_cross(lambda x: _f04_v(x, 25, 0.008, 0.001) - 2.57)
+    xe = _f04_cross(lambda x: _f04_v(x, 25, 0.008, 0.001) - 2.50)
+    xf = _f04_cross(lambda x: _f04_v(x, 25, 0.010, 0.045) - 2.0)
+    xr = _f04_cross(lambda x: _f04_v(x) - 2.40)
+    o.append(D(p.X(xl * 220), p.Y(2.57), PUR, 4))
+    o.append(D(p.X(xe * 220), p.Y(2.50), PUR, 4))
+    # 41 日の括弧
+    yb = p.Y(2.92)
+    o.append(W(p.X(xl * 220), p.Y(2.57) - 6, p.X(xl * 220), yb, c=GRN, lw=1, dash="2 2"))
+    o.append(W(p.X(xe * 220), p.Y(2.50) - 6, p.X(xe * 220), yb, c=GRN, lw=1, dash="2 2"))
+    o.append(DARR(p.X(xl * 220), yb, p.X(xe * 220), yb, c=GRN, lw=1.2, head=5))
+    o.append(T(p.X(xl * 220) - 4, yb - 6, "電池少から電池切れまで 5.4 mAh = 41 日", "end", 9.5, GRN, True, halo=True))
+    # 点の番号（説明は図の下）
+    def _mark(q, v, k, c, dx, dy):
+        x, y = p.X(q), p.Y(v)
+        o.append(CIRC(x + dx, y + dy, 7, c=c, lw=1.2, fill=SCR))
+        o.append(T(x + dx, y + dy + 3.4, str(k), "middle", 9, c, True))
+    _mark(xl * 220, 2.57, 1, PUR, -12, -10)
+    _mark(xe * 220, 2.50, 2, PUR, -10, 14)
+    o.append(W(p.X(xf * 220) - 4, p.Y(2.0) - 4, p.X(xf * 220) + 4, p.Y(2.0) + 4, c=ALI, lw=2))
+    o.append(W(p.X(xf * 220) - 4, p.Y(2.0) + 4, p.X(xf * 220) + 4, p.Y(2.0) - 4, c=ALI, lw=2))
+    _mark(xf * 220, 2.0, 3, ALI, -14, 12)
+    o.append(CIRC(p.X(xr * 220), p.Y(2.40), 4, c=ALI, lw=1.6, fill=SCR))
+    _mark(xr * 220, 2.40, 4, ALI, -12, -12)
+    o.append(LEGL(14, p.y + p.h + 52, [(PUR, None, "試しの負荷 8 mA・1 ms をかけた電圧（測る値）")], 9.5, 14))
+    o.append(LEGL(14, p.y + p.h + 70, [(TEA, None, "セクタの消去 10 mA・45 ms の底"), (MUT, None, "休んでいるときの電圧")], 9.5, 14))
+    notes = ["1 電池少（2.57 V を下回る）  2 電池切れ（2.50 V を下回る）", "3 消去の底が 2.0 V を割る（リセットが起きる）",
+             "4 休んでいるときの電圧で決めた電池切れ（2.40 V。3 より遅い）"]
+    o.append(_f04_lines(14, p.y + p.h + 90, notes, "start", 9.5, MUT, lh=14))
+    # (b) 温度ごとの、電池切れの判定までに使える電荷
+    xb = 448
+    o.append(T(xb, 16, "(b) 電池切れの判定までに使える電荷", "start", 11.5, INK, True))
+    q0, q1 = xb + 8, 676
+    XQ = lambda v: q0 + v / 220.0 * (q1 - q0)
+    rows = []
+    for T_ in (25.0, 0.0, -20.0):
+        xe_ = _f04_cross(lambda x: _f04_v(x, T_, 0.008, 0.001) - 2.50)
+        rows.append((T_, xe_ * 220, _f04_v(xe_, T_, 0.010, 0.045)))
+    for k, (T_, q, vb) in enumerate(rows):
+        y = 40 + k * 56
+        lab = ("%d °C" % T_).replace("-", "−")
+        o.append(T(q0, y + 10, lab, "start", 10, INK, True))
+        c = GRN if q >= _F04_Q else GLD
+        o.append(RECT(q0, y + 16, XQ(q) - q0, 16, 2, soft(c), c, 1.1))
+        o.append(T(XQ(q) - 4, y + 28, "%.0f mAh" % q, "end", 9.5, c, True))
+        o.append(T(q0, y + 46, "そのときの消去の底 %.2f V（下限 2.0 V）" % vb, "start", 9, MUT))
+    o.append(W(XQ(_F04_Q), 30, XQ(_F04_Q), 40 + 3 * 56 - 4, c=PUR, lw=1.4, dash="5 3"))
+    o.append(T(XQ(_F04_Q) - 3, 216, "設計で使う容量 Q", "end", 9.5, PUR, True, halo=True))
+    o.append(T(XQ(_F04_Q) - 3, 229, "180 mAh", "end", 9.5, PUR, True, halo=True))
+    for v in (0, 50, 100, 150, 200):
+        o.append(W(XQ(v), 240, XQ(v), 244, c=MUT, lw=1))
+        o.append(T(XQ(v), 256, "%d" % v, "middle", 9.5, MUT))
+    o.append(W(q0, 240, q1, 240, c=MUT, lw=1))
+    o.append(T((q0 + q1) / 2, 272, "電荷 [mAh]", "middle", 10, MUT))
+    o.append(_f04_lines(xb, 296, ["寒いほど内部抵抗が大きく、測る値が早く下がる。", "電池切れは早く来るが、消去の底は 2.0 V を割らない"], "start", 9.5, MUT, lh=14))
+    return SVG(700, max(p.y + p.h + 124, 316), o, "図 5-2 試しの負荷をかけた電圧で決める電池少と電池切れ（電池は電源と周辺の制御シリーズ 3 章の CR2032 の例の模型、220 mAh で放電した割合を電荷に直した。日数は電池少の間の平均電流 5.51 µA で数えた）。")
+F["e04_lowbat"] = _f04_lowbat()
+
+
+# =====================================================================
+# 5 節: 余裕の一覧（見積もりと実測）（図 5-3）
+# =====================================================================
+_F04_BUD = [  # (項目, 要求の限り, 見積もり, 割合, 目標の割合 or None, 試験)
+    ("平均電流（DS-B01）", "20.5 µA 以下（SR-W02）", "4.17 µA", 4.1714 / 20.548, 0.5, "ST-036"),
+    ("電池少から電池切れまで", "14 日以上（SR-F13）", "41 日（誤差込み 27 日）", 14 / 26.7, None, "ST-013"),
+    ("記録の容量（DS-D02）", "52 560 件以上（SR-F04）", "63 240 件以上", 52560 / 63240, None, "ST-004"),
+    ("記録の保持", "10 年以上（SR-R01）", "20 年（部品の資料）", 10 / 20, None, "ST-043"),
+    ("書き換え（設定の面）", "10 万回以下（SR-R04）", "9 125 回（5 年）", 9125 / 1e5, None, "ST-046"),
+    ("読み出しの時間", "60 s 以下（SR-P05）", "23.4 s", 23.37 / 60, None, "ST-033"),
+    ("時計のずれ（30 日）", "±60 s 以下（SR-P04）", "±51.8 s", 51.84 / 60, None, "ST-032"),
+    ("止まってから戻るまで", "10 s 以下（SR-R03）", "8.2 s", 8.2 / 10, None, "ST-045"),
+    ("部品の費用（DS-B04）", "1 500 円以下（SR-C02）", "1 170 円", 1170 / 1500, None, "ST-051"),
+    ("プログラムの記憶（DS-B02）", "512 KB", "232 KB", 232 / 512, 0.5, "検査"),
+    ("RAM（DS-B02）", "64 KB", "44 KB", 44 / 64, 0.7, "試験"),
+    ("利用率（DS-B03）", "100 %", "55 %", 0.5534, 0.7, "試験"),
+]
+
+
+def _f04_budget():
+    o = []
+    cw = [150, 146, 134, 150, 50, 42]
+    hd = ["項目", "要求の限り", "見積もり", "上限に対する割合", "確かめ方", "実測"]
+    x = 14
+    for w, h in zip(cw, hd):
+        o.append(_f04_cell(x, 6, w, 24, h, INK, SCR, LIN, 9.5, True))
+        x += w
+    rh = 24
+    for k, (nm, lim, est, r, tg, st) in enumerate(_F04_BUD):
+        y = 30 + k * rh
+        x = 14
+        o.append(_f04_cell(x, y, cw[0], rh, nm, INK, "none", LIN, 9.5, False, "start"))
+        x += cw[0]
+        o.append(_f04_cell(x, y, cw[1], rh, lim, SIG, "none", LIN, 9.5, False, "start"))
+        x += cw[1]
+        o.append(_f04_cell(x, y, cw[2], rh, est, PUR, "none", LIN, 9.5, True, "start"))
+        x += cw[2]
+        o.append(_f04_cell(x, y, cw[3], rh, "", INK, "none", LIN))
+        bw = cw[3] - 44
+        c = GRN if r <= (tg if tg else 0.7) else (GLD if r <= 1.0 else ALI)
+        o.append(RECT(x + 4, y + 6, bw * min(r, 1.0), 12, 2, soft(c), c, 1.0))
+        o.append(T(x + cw[3] - 4, y + 16, "%d %%" % round(r * 100), "end", 9.5, c, True))
+        if tg:
+            o.append(W(x + 4 + bw * tg, y + 3, x + 4 + bw * tg, y + rh - 3, c=PUR, lw=1.4, dash="3 2"))
+        x += cw[3]
+        o.append(_f04_cell(x, y, cw[4], rh, st, GRN if st.startswith("ST") else MUT, "none", LIN, 9, False, "middle", mono=st.startswith("ST")))
+        x += cw[4]
+        o.append(_f04_cell(x, y, cw[5], rh, "（後）", FNT, "none", LIN, 9))
+    yb = 30 + len(_F04_BUD) * rh + 16
+    o.append(T(14, yb, "割合は、上限のある項目は 見積もり ÷ 上限、下限のある項目は 下限 ÷ 見積もり（どちらも 100 % 以下なら満たす）", "start", 9.5, MUT))
+    o.append(T(14, yb + 15, "緑: 70 % 以下（目標のある行は目標以下）　金: 100 % 以下　紫の破線: 目標", "start", 9.5, MUT))
+    return SVG(700, yb + 24, o, "図 5-3 資源と要求の数値の余裕の一覧（例の値。実測の欄は試作と試験の後に書く。メモリと利用率は 02 章 5 節の見積もり）。")
+F["e04_budget"] = _f04_budget()
+
+
+# =====================================================================
+# 6 節: 起動の手順（図 6-1）
+# =====================================================================
+def _f04_boot():
+    o = []
+    cx = 350
+    o.append(RECT(cx - 70, 8, 140, 28, 14, soft(MUT), MUT, 1.2))
+    o.append(T(cx, 27, "リセット", "middle", 10.5, INK, True))
+    o.append(ARR(cx, 36, cx, 52, c=MUT, lw=1.3, head=6))
+    o.append(RECT(cx - 150, 52, 300, 30, 6, soft(PUR), PUR, 1.2))
+    o.append(T(cx, 72, "リセットの理由を読み、残しておく", "middle", 10, PUR, True))
+    o.append(ARR(cx, 82, cx, 98, c=MUT, lw=1.3, head=6))
+    o.append(RECT(cx - 200, 98, 400, 44, 6, soft(PUR), PUR, 1.2))
+    o.append(T(cx, 116, "起動時の走査（3.5。約 11 ms）", "middle", 10, PUR, True))
+    o.append(T(cx, 132, "書き込みの位置・最も古い記録・書きかけの記録・設定", "middle", 9.5, INK))
+    # 分かれる
+    o.append(W(cx, 142, cx, 154, c=MUT, lw=1.3))
+    o.append(W(170, 154, 530, 154, c=MUT, lw=1.3))
+    o.append(ARR(170, 154, 170, 168, c=MUT, lw=1.3, head=6))
+    o.append(ARR(530, 154, 530, 168, c=MUT, lw=1.3, head=6))
+    brs = [(30, "電源の投入（電池を入れた）", SIG, ["主のモードを停止中にする（表 3-3）", "時計を 2000-01-01 00:00:00 から数え始める", "（時刻未設定。SR-F09）", "設定と確認していない警報は設定の面から戻す"]),
+           (390, "ウォッチドッグ（ソフトウェアが止まった）", ALI, ["主のモードを設定の面の値に戻す（SR-R03）", "時計は RTC の値のまま使う", "記録中なら次の記録の時刻を設定する", "電池少は 1 時間ごとの測定で決め直す"])]
+    for x, t, c, ls in brs:
+        o.append(RECT(x, 168, 280, 100, 6, soft(c), c, 1.2))
+        o.append(T(x + 140, 186, t, "middle", 10, c, True))
+        o.append(_f04_lines(x + 12, 206, ls, "start", 9.5, INK, lh=15))
+    o.append(W(170, 268, 170, 282, 530, 282, 530, 268, c=MUT, lw=1.3))
+    o.append(ARR(cx, 282, cx, 296, c=MUT, lw=1.3, head=6))
+    o.append(RECT(cx - 150, 296, 300, 30, 6, soft(PUR), PUR, 1.2))
+    o.append(T(cx, 316, "タスクを始め、イベントを待って眠る", "middle", 10, PUR, True))
+    # 時間
+    yt = 352
+    o.append(W(14, yt - 10, 686, yt - 10, c=LIN, lw=0.8))
+    o.append(T(14, yt + 6, "ソフトウェアが止まってから戻るまで（最悪の場合）", "start", 10.5, INK, True))
+    x0, x1 = 60, 660
+    X = lambda t: x0 + t / 11.0 * (x1 - x0)
+    yb = yt + 22
+    o.append(RECT(X(0), yb, X(8) - X(0), 20, 2, soft(ALI), ALI, 1.0))
+    o.append(T((X(0) + X(8)) / 2, yb + 14, "ウォッチドッグが数える 8 s（合図が途絶える）", "middle", 9.5, ALI, True))
+    o.append(RECT(X(8), yb, X(8.2) - X(8), 20, 2, soft(PUR), PUR, 1.0))
+    o.append(T(X(8.2) + 4, yb + 14, "起動 0.2 s", "start", 9.5, PUR, True))
+    o.append(W(X(10), yb - 6, X(10), yb + 28, c=SIG, lw=1.8))
+    o.append(T(X(10) + 4, yb - 2, "SR-R03 の 10 s", "start", 9.5, SIG, True, halo=True))
+    ya = yb + 32
+    o.append(W(X(0), ya, X(11), ya, c=MUT, lw=1))
+    for t in range(0, 12, 2):
+        o.append(W(X(t), ya, X(t), ya + 4, c=MUT, lw=1))
+        o.append(T(X(t), ya + 15, "%d" % t, "middle", 9.5, MUT))
+    o.append(T((x0 + x1) / 2, ya + 30, "止まってからの時間 [s]", "middle", 10, MUT))
+    return SVG(700, ya + 38, o, "図 6-1 リセットの理由で分けた起動の手順と、止まってから戻るまでの時間（ウォッチドッグの時間と起動の時間は例の値）。")
+F["e04_boot"] = _f04_boot()
+
+
+# =====================================================================
+# 6 節: トレーサビリティマトリクス（図 6-2）
+# =====================================================================
+def _f04_trace():
+    o = []
+    cw, rh = 11.6, 13.2
+    halves = [_F04_REQ[:25], _F04_REQ[25:]]
+    groups = [("H", 8, TEA, "ハードウェア"), ("S", 7, PUR, "ソフトウェア"), ("D", 3, PUR, "形式"), ("B", 4, GLD, "予算")]
+    y0 = 64
+    for hi, rows in enumerate(halves):
+        x0 = 14 + hi * 346
+        xm = x0 + 46
+        # 群の見出し
+        xx = xm
+        for g, n, c, nm in groups:
+            o.append(RECT(xx, 8, n * cw, 14, 2, soft(c), c, 0.8))
+            o.append(T(xx + n * cw / 2, 19, g, "middle", 9, c, True))
+            xx += n * cw
+        # 列の番号
+        for j, d in enumerate(_F04_DS):
+            c = TEA if d[0] == "H" else (GLD if d[0] == "B" else PUR)
+            o.append(T(xm + j * cw + cw / 2 + 3, y0 - 6, d[1:], "start", 8.5, c, False, True, rot=-90))
+        o.append(T(xm + 22 * cw + 6, y0 - 6, "試験", "start", 9, GRN, True))
+        for r, (rid, nm, ds) in enumerate(rows):
+            y = y0 + r * rh
+            if r % 2 == 0:
+                o.append(RECT(x0, y, 46 + 22 * cw + 44, rh, 0, soft(SIG), "none", 0, op=0.45))
+            o.append(T(x0 + 2, y + rh - 3.5, "SR-" + rid, "start", 8.5, SIG, True, True))
+            got = ds.split()
+            for j, d in enumerate(_F04_DS):
+                if d in got:
+                    c = TEA if d[0] == "H" else (GLD if d[0] == "B" else PUR)
+                    o.append(D(xm + j * cw + cw / 2, y + rh / 2, c, 3.2))
+            st = 1 + _F04_REQ.index((rid, nm, ds))
+            o.append(T(xm + 22 * cw + 6, y + rh - 3.5, "ST-%03d" % st, "start", 8.5, GRN, True, True))
+        for j in range(23):
+            o.append(W(xm + j * cw, y0, xm + j * cw, y0 + len(rows) * rh, c=LIN, lw=0.4))
+        o.append(RECT(x0, y0, 46 + 22 * cw + 44, len(rows) * rh, 0, "none", LIN, 0.8))
+    # 列ごとの数（全部の要求で）
+    yc = y0 + 26 * rh + 18
+    cnt = [sum(1 for _, _, ds in _F04_REQ if d in ds.split()) for d in _F04_DS]
+    o.append(T(14, yc, "列ごとの要求の数（51 件の合計）:", "start", 9.5, INK, True))
+    o.append(T(14, yc + 16, "  ".join("%s %d" % (d, c) for d, c in zip(_F04_DS[:11], cnt[:11])), "start", 9, MUT, False, True))
+    o.append(T(14, yc + 30, "  ".join("%s %d" % (d, c) for d, c in zip(_F04_DS[11:], cnt[11:])), "start", 9, MUT, False, True))
+    o.append(T(14, yc + 48, "空の行も空の列も無い: どの要求にも設計の要素と試験があり、どの要素にも要求がある", "start", 9.5, GRN, True))
+    return SVG(700, yc + 56, o, "図 6-2 要求・設計の要素・システム試験のトレーサビリティマトリクス（列の番号は DS- の後ろ。試験の番号は仕様書の表 6-1）。")
+F["e04_trace"] = _f04_trace()
