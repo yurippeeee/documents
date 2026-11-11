@@ -104,7 +104,7 @@
       var nar=_w17_nar(box),W=nar?400:700,o=[],ph=phi(),k=Math.floor(ph),fr=ph-k,ct=ctrue();
       /* (a) ものさし */
       o.push(S.T(10,16,"(a) 受信機のまわりの目盛（受信機を真ん中に置いて描く）","start",nar?9.5:10.5,"ink",true));
-      var cx=nar?250:380,sc=nar?34:52,ytk=64,half=nar?4.2:5.6,base=Math.floor(ct);
+      var cx=nar?250:420,sc=nar?34:52,ytk=64,half=nar?4.2:5.2,base=Math.floor(ct);
       o.push(S.L(cx-half*sc,ytk,cx+half*sc,ytk,"muted",1.2));
       for(var q=-6;q<=7;q++){var cn=base+q,x=cx+(cn-ct)*sc;if(x<cx-half*sc-1||x>cx+half*sc+1)continue;
         o.push(S.L(x,ytk-6,x,ytk+6,"ink",1.2));
@@ -128,8 +128,8 @@
       var p0=pts.length?pts[0]:h[h.length-1];
       var dv=pts.map(function(p){return [p[0],p[1]-p0[1],p[2]-p0[2],p[3]-p0[3]];}),lo=0,hi=0;
       dv.forEach(function(p){lo=Math.min(lo,p[1],p[2]);hi=Math.max(hi,p[1],p[2]);});lo-=0.6;hi+=0.6;
-      var px=nar?60:330,py=nar?yb+130:yb+24,pw=nar?320:350,ph2=nar?120:120;
-      o.push(S.T(nar?10:px-40,nar?yb+116:yb,"(c) 追尾の間の、距離の変化（最近の 10 s）","start",nar?9.5:10.5,"ink",true));
+      var px=nar?60:330,py=nar?yb+152:yb+24,pw=nar?320:350,ph2=nar?120:120;
+      o.push(S.T(nar?10:px-40,nar?yb+138:yb,"(c) 追尾の間の、距離の変化（最近の 10 s）","start",nar?9.5:10.5,"ink",true));
       var P=U.plot(px,py,pw,ph2,[t0,t1],[lo,hi]);
       o.push(P.axes({xl:"時間 t [s]",yl:"変化 [m]",sz:9}));
       o.push(P.line(dv.map(function(p){return [p[0],p[2]];}),"signal",1.1));
@@ -137,7 +137,7 @@
       o.push(P.line(dv.map(function(p){return [p[0],p[3]];}),"green",1.6));
       o.push(S.LEGL(nar?10:px-40,py+ph2+46,[["ink",null,"本当の距離"],["green",null,"Φ（重なる）"],["signal",null,"擬似距離"]],9,10));
       /* (d) 候補 */
-      var yd=nar?py+ph2+80:yb+190,rho=h[h.length-1][2],r=R0+st.s,Phi=LAM*ph,sg=ss.get();
+      var yd=nar?py+ph2+80:yb+214,rho=h[h.length-1][2],r=R0+st.s,Phi=LAM*ph,sg=ss.get();
       o.push(S.T(10,yd,"(d) 擬似距離 ± 3σ の中に入る、19.03 cm ごとの候補（本当の距離からの差）","start",nar?9.5:10.5,"ink",true));
       var Q=U.plot(nar?30:60,yd+16,nar?340:600,40,[-3.2,3.2],[0,1]);
       o.push(S.RECT(Q.X(Math.max(-3.2,rho-r-3*sg)),Q.y,Q.X(Math.min(3.2,rho-r+3*sg))-Q.X(Math.max(-3.2,rho-r-3*sg)),Q.h,2,U.soft("signal"),"none",0));
@@ -204,7 +204,7 @@
       o.push(S.T(10,16,"(a) 東京の空の衛星 i・j と、2 つの受信機","start",nar?9.5:10.5,"ink",true));
       var cx=nar?80:84,cy=96,R=58,sats=vis(t).map(function(v){var hl=v.nm===X.nmI||v.nm===X.nmJ;return {el:v.el,az:v.az,name:hl?(v.nm===X.nmI?"i "+v.nm:"j "+v.nm):null,col:hl?"signal":"faint",hl:hl};});
       o.push(G.sky(U,cx,cy,R,sats,{sz:9,dot:3.4}));
-      var x0=nar?200:200,x1=nar?380:400,gy=150,sc=(x1-x0-20)/30;
+      var x0=nar?206:240,x1=nar?386:440,gy=150,sc=(x1-x0-20)/30;
       o.push(S.L(x0-10,gy+6,x1,gy+6,"muted",1.2));
       [0,10,20,30].forEach(function(v){o.push(S.L(x0+v*sc,gy+6,x0+v*sc,gy+10,"muted",1));o.push(S.T(x0+v*sc,gy+22,v+" km","middle",9,"muted"));});
       var xr=x0+sD.get()*sc;geo={x0:x0,sc:sc,xr:xr,yr:gy-6};
@@ -212,27 +212,28 @@
       [["i",X.refi],["j",X.refj]].forEach(function(q){var e=q[1].el*_W17_D,a=q[1].az*_W17_D,le=Math.cos(e)*Math.sin(a),lu=Math.sin(e),ln=Math.hypot(le,lu),dx=le/ln,dy=-lu/ln,Lx=80;
         [x0,xr].forEach(function(xx){o.push(S.L(xx,gy-8,xx+dx*Lx,gy-8+dy*Lx,"signal",1,"3 3"));});
         o.push(S.T(xr+dx*Lx+(dx<0?-4:4),gy-8+dy*Lx-2,q[0],(dx<0?"end":"start"),10,"signal",true,false,null,true));});
-      o.push(S.CIRC(x0,gy-6,5,"purple",2,"var(--screen)"));o.push(S.T(x0,gy+36,"基準局","middle",9.5,"purple",true));
+      o.push(S.CIRC(x0,gy-6,5,"purple",2,"var(--screen)"));o.push(S.T(x0-9,gy-2,"基準局","end",9.5,"purple",true,false,null,true));
       o.push(S.D(xr,gy-6,"green",5.5));o.push(S.T(xr,gy-18,"移動局（ドラッグ）","middle",9.5,"green",true,false,null,true));
-      /* (b) 表 */
+      /* (b)・(c) 表 */
       var keys=["r","b","s","I","T","N"],names=["距離 r","受信機の時計 b","衛星の時計 −cδt^s","電離層 −I","対流圏 T","整数値バイアス λN"];
       var sd={i:{},j:{}},dd={};keys.forEach(function(k){sd.i[k]=X.rovi[k]-X.refi[k];sd.j[k]=X.rovj[k]-X.refj[k];dd[k]=sd.j[k]-sd.i[k];});
-      var yt=nar?236:200,cols,xs,vals;
-      if(nar){cols=["一重差 i","一重差 j","二重差"];xs=[230,312,394];vals=function(k){return [sd.i[k],sd.j[k],dd[k]];};}
-      else{cols=["基準局・i","移動局・i","基準局・j","移動局・j","一重差 i","一重差 j","二重差"];xs=[208,288,368,448,532,612,692];vals=function(k){return [X.refi[k],X.rovi[k],X.refj[k],X.rovj[k],sd.i[k],sd.j[k],dd[k]];};}
-      o.push(S.T(10,yt-8,nar?"(b) 差をとった後の各項 [m]":"(b) 4 つの観測と、差をとった後の各項 [m]","start",nar?9.5:10.5,"ink",true));
-      cols.forEach(function(c,k){o.push(S.T(xs[k],yt+10,c,"end",nar?8.5:9,(nar||k>=4)?"teal":"ink",true));});
-      if(!nar)o.push(S.L(470,yt,470,yt+16+7*20,"line",1));
       function num(v){var a=Math.abs(v);return a>=1e4?_w17_g(v,3):_w17_f(v,3);}
-      keys.forEach(function(k,r){var yy=yt+18+r*20;if(r%2===0)o.push(S.RECT(6,yy,W-12,20,0,U.soft("muted"),"none",0,null,' fill-opacity="0.5"'));
-        o.push(S.TX(10,yy+14,names[r],"start",nar?8.5:9,"ink",true));
-        vals(k).forEach(function(v,c){var isD=nar||c>=4,gone=isD&&Math.abs(v)<5e-4,small=isD&&!gone&&Math.abs(v)<0.01;
-          var txt=gone?((k==="b"||k==="s")?"0（消える）":"0.000"):num(v);
-          o.push(S.T(xs[c],yy+14,txt,"end",nar?8.5:9,gone?"green":(small?"teal":"ink"),gone||small,true));});});
-      var yy=yt+18+6*20;o.push(S.L(6,yy+2,W-6,yy+2,"muted",1));
-      o.push(S.T(10,yy+16,"合計（測った値）","start",nar?8.5:9,"ink",true));
-      vals("r").forEach(function(_,c){var tot=0;keys.forEach(function(k){tot+=vals(k)[c];});o.push(S.T(xs[c],yy+16,num(tot),"end",nar?8.5:9,"ink",true,true));});
-      box.set(S.svg(W,yy+28,o));
+      function table(yt,title,cols,xs,vals,diff){
+        o.push(S.T(10,yt,title,"start",nar?9.5:10.5,"ink",true));
+        cols.forEach(function(c,k){o.push(S.T(xs[k],yt+18,c,"end",nar?8.5:9,diff?"teal":"ink",true));});
+        keys.forEach(function(k,r){var yy=yt+24+r*20;if(r%2===0)o.push(S.RECT(6,yy,W-12,20,0,U.soft("muted"),"none",0,null,' fill-opacity="0.5"'));
+          o.push(S.TX(10,yy+14,names[r],"start",nar?8.5:9,"ink",true));
+          vals(k).forEach(function(v,c){var gone=diff&&Math.abs(v)<5e-4,small=diff&&!gone&&Math.abs(v)<0.01;
+            var txt=gone?((k==="b"||k==="s")?"0（消える）":"0.000"):num(v);
+            o.push(S.T(xs[c],yy+14,txt,"end",nar?8.5:9,gone?"green":(small?"teal":"ink"),gone||small,true));});});
+        var yy=yt+24+6*20;o.push(S.L(6,yy+2,W-6,yy+2,"muted",1));
+        o.push(S.T(10,yy+16,"合計（測った値）","start",nar?8.5:9,"ink",true));
+        vals("r").forEach(function(_,c){var tot=0;keys.forEach(function(k){tot+=vals(k)[c];});o.push(S.T(xs[c],yy+16,num(tot),"end",nar?8.5:9,"ink",true,true));});
+        return yy+24;}
+      var yt=nar?242:206;
+      if(!nar)yt=table(yt,"(b) 4 つの観測の各項 [m]",["基準局・i","移動局・i","基準局・j","移動局・j"],[300,430,560,690],function(k){return [X.refi[k],X.rovi[k],X.refj[k],X.rovj[k]];},false)+20;
+      var yend=table(yt,nar?"(b) 差をとった後 [m]":"(c) 差をとった後 [m]",["一重差 i","一重差 j","二重差"],nar?[232,314,394]:[400,545,690],function(k){return [sd.i[k],sd.j[k],dd[k]];},true);
+      box.set(S.svg(W,yend+6,o));
       var nN=Math.round(dd.N/LAM);
       ro.innerHTML="二重差 ∇ΔΦ<sub>ij</sub> = 距離の差 <b>"+_w17_f(dd.r,3)+" m</b> + 整数値バイアス <b>"+nN+" 周期</b>（"+_w17_f(dd.N,3)+" m） + 電離層の差 <b>"+_w17_f(dd.I*1000,1)+" mm</b>"+
         "（対流圏の差 "+_w17_f(dd.T*1000,1)+" mm）<br>時計の項は、一重差で衛星の分（"+_w17_f(X.refi.s/1000,3)+" km など）が、二重差で受信機の分（一重差に残った "+_w17_f(sd.i.b/1000,3)+" km）が、どの値でも <span class=\"ok\">0</span> になる。"+
@@ -246,8 +247,8 @@
     var S=U.S,M=U.ctl.mat,LAM=_W17_LAM;
     U.head(el,"AMBIGUITY RESOLUTION","実数の解の散らばりと整数の格子（線路の上の例）: 雑音とエポックの数で、正しい整数に決まる割合が変わる");
     var r1=U.ctrls(el);
-    var sR=U.slider(r1,"擬似距離の誤差 σ_ρ（1 つの観測）",{min:0.1,max:1.0,step:0.05,value:0.3,fmt:function(v){return _w17_f(v,2)+" m";},onInput:function(){run();}});
-    var sP=U.slider(r1,"搬送波位相の誤差 σ_Φ",{min:1,max:10,step:0.5,value:3,fmt:function(v){return _w17_f(v,1)+" mm";},onInput:function(){run();}});
+    var sR=U.slider(r1,"擬似距離の誤差 σ<sub>ρ</sub>",{min:0.1,max:1.0,step:0.05,value:0.3,fmt:function(v){return _w17_f(v,2)+" m";},onInput:function(){run();}});
+    var sP=U.slider(r1,"搬送波位相の誤差 σ<sub>Φ</sub>",{min:1,max:10,step:0.5,value:3,fmt:function(v){return _w17_f(v,1)+" mm";},onInput:function(){run();}});
     var sK=U.slider(r1,"平均するエポックの数",{values:[1,2,3,5,10,20,30],value:1,fmt:function(v){return v+" エポック";},onInput:function(){run();}});
     var sTh=U.slider(r1,"比の検定のしきい値",{min:1,max:6,step:0.5,value:3,fmt:function(v){return _w17_f(v,1);},onInput:function(){draw();}});
     var r2=U.ctrls(el);
@@ -293,13 +294,13 @@
       res.smp.slice(0,300).forEach(function(s,k){var yj=(k%9)/9*0.5;if(Math.abs(s.e)<1.5)o.push(S.D(Q.X(s.e),Q.Y(1.95+yj),"gold",1.6));
         var acc=s.ratio>=th;if(acc&&Math.abs(s.efix)<1.5)o.push(S.D(Q.X(s.efix),Q.Y(0.65+yj),s.ok?"green":"alias",1.8));});
       /* (c) 割合 */
-      var cy=nar?qy+130:qy+128,cw=nar?300:240,cx=nar?70:430;
+      var cy=nar?qy+130:qy+128,cw=nar?280:240,cx=nar?96:430;
       o.push(S.T(nar?10:qx-50,cy-16,"(c) 正しい整数に決まる割合","start",nar?9.5:10.5,"ink",true));
-      [["丸め（式）",R.pr,"signal"],["整数の最小二乗（式）",R.pi,"green"]].forEach(function(q,k){var yy=cy+k*26;
+      [[nar?(z?"組み替え・丸め":"丸め（式）"):(z?"組み替えた後の丸め（式）":"丸め（式）"),R.pr,"signal"],[nar?"最小二乗（式）":"整数の最小二乗（式）",R.pi,"green"]].forEach(function(q,k){var yy=cy+k*26;
         o.push(S.T(cx-6,yy+12,q[0],"end",9,"ink",true));o.push(S.RECT(cx,yy,cw,16,2,"var(--screen)","line",1));
         o.push(S.RECT(cx,yy,cw*q[1],16,2,U.soft(q[2]),q[2],1));o.push(S.T(cx+cw*q[1]+4>cx+cw-40?cx+cw-4:cx+cw*q[1]+4,yy+12,_w17_f(100*q[1],1)+" %",cx+cw*q[1]+4>cx+cw-40?"end":"start",9.5,q[2],true));});
       var yy=cy+56,xg=cx;
-      o.push(S.T(cx-6,yy+12,"比の検定（シミュレーション）","end",9,"ink",true));
+      o.push(S.T(cx-6,yy+12,nar?"比の検定":"比の検定（シミュレーション）","end",9,"ink",true));
       [[nOK/n,"green"],[nW/n,"alias"],[nN/n,"muted"]].forEach(function(q){if(q[0]>0)o.push(S.RECT(xg,yy,cw*q[0],16,0,U.soft(q[1]),q[1],1));xg+=cw*q[0];});
       o.push(S.T(cx,yy+30,"正 "+_w17_f(100*nOK/n,1)+" %・誤 "+_w17_f(100*nW/n,1)+" %・決めない "+_w17_f(100*nN/n,1)+" %","start",9,"ink"));
       if(!nar)o.push(S.LEGL(56,P.y+P.h+50,[["green",null,"正しい整数に決めた"],["alias",null,"誤った整数に決めた"],["muted",null,"比の検定で決めない（○）"]],9,10));
