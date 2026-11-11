@@ -584,7 +584,7 @@ def _f11_zw_fig():
     o.append(T(p.X(0.40), p.Y(85), "50 Ω になる幅 [mm]", "start", 9.5, INK, True, halo=True))
     o.append(T(p.X(0.40), p.Y(85) + 14, "マイクロストリップ: 0.35（式 0.33）", "start", 9, SIG, True, halo=True))
     o.append(T(p.X(0.40), p.Y(85) + 27, "コプレーナ: 0.31（式 0.36）", "start", 9, PUR, True, halo=True))
-    o.append(T(p.X(0.125), p.Y(84), "マイクロストリップ", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(0.16), p.Y(87), "マイクロストリップ", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(0.105), p.Y(31), "コプレーナ（s = 0.2 mm）", "start", 9.5, PUR, True, halo=True))
     # (b) 2 層の基板
     xb = 372
@@ -947,13 +947,13 @@ def _f11_zone_fig():
     _f11_part(o, x0 + 66, y0 + 70, 22, 22, c=ALI, lab="", sz=9); o.append(CIRC(x0 + 100, y0 + 70, 11, c=ALI, lw=1.3, fill=ASOFT))
     o.append(T(x0 + 118, y0 + 66, "DC-DC とコイルが", "start", 9, ALI, True, halo=True)); o.append(T(x0 + 118, y0 + 79, "LNA のそば", "start", 9, ALI, True, halo=True))
     # USB の線が RF の線に沿って走る
-    o.append(PL([(x0 + 324, y0 + 122), (x0 + 110, y0 + 122), (x0 + 110, y0 + 190)], c=PUR, lw=1.4))
-    o.append(PL([(x0 + 324, y0 + 126), (x0 + 114, y0 + 126), (x0 + 114, y0 + 190)], c=PUR, lw=1.4))
-    o.append(T(x0 + 210, y0 + 140, "USB の線が RF の線に沿う", "middle", 9, PUR, True, halo=True))
+    o.append(PL([(x0 + 324, y0 + 122), (x0 + 150, y0 + 122), (x0 + 150, y0 + 190)], c=PUR, lw=1.4))
+    o.append(PL([(x0 + 324, y0 + 126), (x0 + 154, y0 + 126), (x0 + 154, y0 + 190)], c=PUR, lw=1.4))
+    o.append(T(x0 + 170, y0 + 142, "USB の線が RF に沿う", "start", 9, PUR, True, halo=True))
     o.append(RECT(x0 + 40, y0 + 160, 16, 10, 2, PSOFT, PUR, 1.0)); o.append(T(x0 + 62, y0 + 169, "クロックがアンテナの近く", "start", 9, PUR, True))
     # グラウンドの面の切れ目
-    o.append(W(x0 + 160, y0 + 4, x0 + 160, y0 + 218, c=ALI, lw=1.8, dash="6 4"))
-    o.append(T(x0 + 164, y0 + 204, "面の切れ目をまたぐ", "start", 9, ALI, True, halo=True))
+    o.append(W(x0 + 226, y0 + 4, x0 + 226, y0 + 218, c=ALI, lw=1.8, dash="6 4"))
+    o.append(T(x0 + 222, y0 + 204, "面の切れ目をまたぐ", "end", 9, ALI, True, halo=True))
     o.append(T(x0 + 8, 266, "RF の線が長く、雑音の源と区画が重なっている", "start", 9.5, ALI, True))
     return SVG(700, 276, o, "区分けの良い例と悪い例（上から見た基板の配置の例。大きさは 80 × 55 mm 程度）。")
 
