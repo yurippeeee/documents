@@ -179,8 +179,8 @@ def _f14_week_fig():
         o.append(W(x, q.y, x, q.y + q.h + 4, c=MUT, lw=1))
         o.append(T(x, q.y + q.h + 16, _f14_g(d * 86400), "middle", 9, MUT, False, True))
         if d < 7:
-            o.append(T(x + q.w / 14, q.y + 13, days[d], "middle", 10, INK, True))
-            o.append(T(x + q.w / 14, q.y + 25, dates[d], "middle", 9, MUT))
+            o.append(T(x + 8, q.y + 13, days[d], "start", 10, INK, True))
+            o.append(T(x + 8, q.y + 25, dates[d], "start", 9, MUT))
     tw0 = 293288
     o.append(W(q.X(tw0), q.y - 6, q.X(tw0), q.y + q.h, c=GLD, lw=2.2))
     o.append(T(q.X(tw0), q.y - 10, "水曜日 09:28:08（GPS 時刻）= 293 288 s", "middle", 10, GLD, True, halo=True))
@@ -227,9 +227,9 @@ def _f14_meaning_fig():
         o.append(W(p.X(s), p.y + 8, p.X(s), p.y + p.h, c=SIG, lw=1, dash="4 3"))
     o.append(DIM(p.X(0), p.y + 14, p.X(sg), p.y + 14, None, c=SIG))
     o.append(TX(p.X(sg) + 4, p.y + 18, "σ_t = %.1f ns" % sg, "start", 9.5, SIG, True, halo=True))
-    o.append(TX(390, 192, "σ_t = TDOP × σ_{UERE}/c = 0.79 × 3.99 m ÷ c = 10.5 ns", "start", 10, INK, True))
-    o.append(T(390, 207, "（7 章の東京の 8 機。誤差が衛星ごとに独立とした見積もり）", "start", 9.5, MUT))
-    return SVG(700, 216, o, "1PPS の立ち上がり（例: 2026 年 11 月 11 日）と、受信機が求めた秒の頭の誤差（正規分布の乱数 3000 回。標準偏差は TDOP × UERE ÷ 光の速さ）。")
+    o.append(TX(390, 200, "σ_t = TDOP × σ_{UERE}/c = 0.79 × 3.99 m ÷ c = 10.5 ns", "start", 10, INK, True))
+    o.append(T(390, 216, "（7 章の東京の 8 機。誤差が衛星ごとに独立とした見積もり）", "start", 9.5, MUT))
+    return SVG(700, 226, o, "1PPS の立ち上がり（例: 2026 年 11 月 11 日）と、受信機が求めた秒の頭の誤差（正規分布の乱数 3000 回。標準偏差は TDOP × UERE ÷ 光の速さ）。")
 
 
 F["e14_meaning"] = _f14_meaning_fig()
@@ -320,3 +320,528 @@ def _f14_label_fig():
 
 
 F["e14_label"] = _f14_label_fig()
+
+
+# =====================================================================
+# 3 節: インプットキャプチャと、割り込みの中でカウンタを読む方法
+# =====================================================================
+def _f14_capture_fig():
+    o = []
+    X = lambda t: 132 + (t + 0.6) * 80          # t [µs]
+    c0 = 9992904
+    te = 0.04                                    # 立ち上がりの時刻 [µs]（刻み 0 の 40 ns 後）
+    def counter(y, tmax=6.3):
+        o.append(W(X(-0.6), y, X(tmax), y, c=MUT, lw=1))
+        for i in range(-6, int(tmax * 10) + 1):
+            t = i / 10
+            o.append(W(X(t), y - (4 if i % 10 else 7), X(t), y, c=MUT, lw=1 if i % 10 else 1.3))
+            if i % 10 == 0 and i >= 0:
+                o.append(T(X(t) + 2, y - 10, "…%03d" % ((c0 + i) % 1000), "start", 9, MUT, False, True))
+    o.append(T(14, 18, "(a) インプットキャプチャ: 立ち上がりの瞬間のカウントを、回路が写して残す", "start", 11.5, INK, True))
+    y1 = 46
+    o.append(T(120, y1 - 2, "1PPS", "end", 10, GRN, True))
+    o.append(PL([(X(-0.6), y1 + 8), (X(te), y1 + 8), (X(te), y1 - 10), (X(6.3), y1 - 10)], c=GRN, lw=2))
+    yc = y1 + 40
+    o.append(T(120, yc - 3, "カウンタ", "end", 10, MUT, True))
+    o.append(T(120, yc + 10, "10 MHz（例）", "end", 9, MUT))
+    counter(yc)
+    o.append(W(X(te), y1 + 8, X(te), yc + 14, c=SIG, lw=1.2, dash="3 2"))
+    yk = yc + 30
+    o.append(T(120, yk + 13, "捕獲の値", "end", 10, SIG, True))
+    o.append(RECT(X(te) - 4, yk, 96, 20, 3, SSOFT, SIG, 1.2))
+    o.append(T(X(te) + 44, yk + 14.5, _f14_g(c0), "middle", 10.5, SIG, True, True))
+    o.append(T(X(te) + 100, yk + 14, "立ち上がりの瞬間の値（誤差は 1 カウント = 100 ns 未満）", "start", 9.5, SIG))
+    yi = yk + 30
+    o.append(T(120, yi + 13, "割り込み", "end", 10, GRN, True))
+    o.append(RECT(X(1.8), yi, X(3.6) - X(1.8), 20, 3, GSOFT, GRN, 1.1))
+    o.append(T(X(2.7), yi + 14, "捕獲の値を読む", "middle", 9.5, GRN, True))
+    o.append(T(X(3.6) + 6, yi + 14, "→ " + _f14_g(c0) + "（いつ読んでも同じ）", "start", 9.5, GRN, True))
+    # (b)
+    yb = yi + 52
+    o.append(T(14, yb, "(b) 割り込みの処理の中でカウンタを読む（遅れは、ほかの割り込みや処理で毎回違う。例）", "start", 11.5, INK, True))
+    yc2 = yb + 30
+    counter(yc2)
+    o.append(T(120, yc2 - 3, "カウンタ", "end", 10, MUT, True))
+    for r, L in enumerate((0.9, 4.3, 2.1)):
+        y = yc2 + 12 + r * 24
+        o.append(T(120, y + 13, "%d 秒目" % (r + 1), "end", 10, INK, True))
+        o.append(D(X(te), y + 9, GRN, 3))
+        o.append(W(X(te), y + 9, X(te + L), y + 9, c=ALI, lw=1.4, dash="3 2"))
+        o.append(RECT(X(te + L), y, 78, 18, 3, ASOFT, ALI, 1.1))
+        o.append(T(X(te + L) + 39, y + 13, "…%03d" % ((c0 + int((te + L) * 10)) % 1000), "middle", 9.5, ALI, True, True))
+        o.append(T(X(te + L) - 4, y + 4, "+%.1f µs" % L, "end", 9, ALI, True, halo=True))
+    yz = yc2 + 12 + 3 * 24 + 16
+    o.append(T(X(0) + 4, yz, "立ち上がり（緑の点）から読むまでの遅れ（赤）が、そのまま時刻の誤差になる", "start", 9.5, ALI))
+    return SVG(700, yz + 10, o, "インプットキャプチャと、割り込みの処理の中でカウンタを読む方法（10 MHz のタイマ、例の値。カウンタの値は下 3 桁だけを書いた）。")
+
+
+F["e14_capture"] = _f14_capture_fig()
+
+
+# =====================================================================
+# 3 節: 捕獲値の差（一周をまたぐ）と、周波数の誤差
+# =====================================================================
+def _f14_count_fig():
+    o = []
+    o.append(T(14, 18, "(a) カウンタの一周と、2 つの捕獲値（縦は模式）", "start", 11.5, INK, True))
+    p = Plot(56, 36, 250, 130, (-0.3, 1.3), (0, 1))
+    o.append(W(p.x, p.y, p.x, p.y + p.h, p.x + p.w, p.y + p.h, c=MUT, lw=1.2))
+    o.append(T(p.x - 6, p.Y(1) + 4, "2³²", "end", 9.5, MUT))
+    o.append(T(p.x - 6, p.Y(0) + 4, "0", "end", 9.5, MUT))
+    o.append(W(p.x, p.Y(1), p.x + p.w, p.Y(1), c=FNT, lw=1, dash="3 3"))
+    tw_ = 0.12   # 一周する時刻（模式）
+    o.append(p.line([(-0.3, 0.55), (tw_, 1.0)], c=MUT, lw=2))
+    o.append(p.line([(tw_, 1.0), (tw_, 0.0)], c=MUT, lw=1.2, dash="3 2"))
+    o.append(p.line([(tw_, 0.0), (1.3, 1.18 * 1.3 / 1.3 * 0.0 + (1.3 - tw_) * 0.38)], c=MUT, lw=2))
+    y0v = 0.55 + (0 + 0.3) / (tw_ + 0.3) * 0.45
+    o.append(D(p.X(0), p.Y(y0v), SIG, 4.5))
+    o.append(TX(p.X(0) + 6, p.Y(y0v) + 16, "C_{k−1} = 4 294 960 000", "start", 9.5, SIG, True, halo=True))
+    y1v = (1.0 - tw_) * 0.38
+    o.append(D(p.X(1), p.Y(y1v), SIG, 4.5))
+    o.append(TX(p.X(1) - 4, p.Y(y1v) - 10, "C_k = 9 992 904", "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(tw_) + 4, p.Y(0.5), "一周（0.73 ms 後）", "start", 9.5, MUT, False, halo=True))
+    for t, lab in ((0, "パルス k−1"), (1, "パルス k")):
+        o.append(W(p.X(t), p.y + p.h, p.X(t), p.y + p.h + 5, c=GRN, lw=1.6))
+        o.append(T(p.X(t), p.y + p.h + 17, lab, "middle", 9.5, GRN, True))
+    o.append(T(p.x + p.w / 2, p.y + p.h + 33, "時間（パルスの間は 1 s）", "middle", 9.5, MUT))
+    # (b) 筆算
+    xb = 352
+    o.append(T(xb, 18, "(b) 差を符号なしの 32 bit で計算する", "start", 11.5, INK, True))
+    xr = 548
+    rows = [("", "9 992 904", "C_k", SIG), ("−", "4 294 960 000", "C_{k−1}", SIG), (None,),
+            ("", "10 000 200", "1 秒に数えた数", INK),
+            ("−", "10 000 000", "f_{tim} T_p（名目の数）", MUT), (None,),
+            ("", "200", "多く数えた", ALI)]
+    y = 48
+    for r in rows:
+        if r[0] is None:
+            o.append(W(xr - 104, y - 10, xr + 2, y - 10, c=INK, lw=1.2))
+            y += 4
+            continue
+        sgn, num, lab, c = r
+        if sgn:
+            o.append(T(xr - 108, y, sgn, "end", 11, INK, True, True))
+        o.append(T(xr, y, num, "end", 11, c if c != MUT else INK, True, True))
+        o.append(TX(xr + 10, y, lab, "start", 9.5, c))
+        y += 21
+    o.append(T(xb, y + 4, "一周の分の 2³² は、符号なしの引き算で自然に足される", "start", 9.5, MUT))
+    o.append(TX(xb, y + 26, "r_m = 200 ÷ 10 000 000 = 20 × 10^{−6} = 20 ppm", "start", 10.5, GLD, True))
+    o.append(T(xb, y + 44, "1 日では 20 × 10⁻⁶ × 86 400 s = 1.728 s（10 章の RTC と同じ）", "start", 9.5, MUT))
+    # (c) N 秒の差
+    yc = 246
+    o.append(T(14, yc, "(c) N 秒離れた 2 つの捕獲値の差: 途中の誤差は打ち消し合う", "start", 11.5, INK, True))
+    xs = [60 + i * 70 for i in range(5)] + [60 + 7 * 70]
+    labs = ["C_0", "C_1", "C_2", "C_3", "C_4", "C_N"]
+    yy = yc + 50
+    o.append(W(40, yy, 572, yy, c=MUT, lw=1))
+    o.append(T(60 + 5.5 * 70, yy + 4, "…", "middle", 12, MUT, True))
+    for x, lab in zip(xs, labs):
+        o.append(W(x - 7, yy - 9, x + 7, yy - 9, c=ALI, lw=1))
+        o.append(W(x - 7, yy + 9, x + 7, yy + 9, c=ALI, lw=1))
+        o.append(W(x, yy - 9, x, yy + 9, c=ALI, lw=1))
+        o.append(D(x, yy, SIG, 3.5))
+        o.append(TX(x, yy + 24, lab, "middle", 10, SIG, True))
+    for i in range(4):
+        o.append(CARR(xs[i] + 4, yy - 12, xs[i + 1] - 4, yy - 12, bend=0.25, c=MUT, lw=1, head=5))
+    o.append(T(xs[2] + 35, yy - 24, "1 秒ずつの差を足すと、途中の C は消える", "middle", 9.5, MUT, False, halo=True))
+    o.append(TX(592, yy - 2, "(C_N − C_0)/N", "start", 10, GLD, True))
+    o.append(T(592, yy + 14, "誤差 ±0.1 ppm/N", "start", 9.5, GLD, True))
+    o.append(T(592, yy + 28, "N = 100: ±0.001", "start", 9.5, MUT))
+    o.append(T(40, yy + 46, "赤い縦の線は、捕獲値の 1 カウントまでの誤差。差の誤差を決めるのは両端の 2 つだけである", "start", 9.5, MUT))
+    return SVG(700, yy + 56, o, "捕獲値の差から、マイコンの水晶の周波数の誤差を求める（例: 10 MHz のタイマで +20 ppm。カウンタは 32 bit）。")
+
+
+F["e14_count"] = _f14_count_fig()
+
+
+# =====================================================================
+# 3 節: PI で時計を合わせるループ
+# =====================================================================
+def _f14_loop_fig():
+    o = []
+    yc = 64
+    s, pos, xe = CHAIN(20, yc, [("a", 96, "r_m", ALI), ("s", {"l": "+", "b": "−"}, "s1"), ("a", 34, None, INK),
+                                ("b", "1 秒ごとにためる", "acc", INK, PAN), ("a", 104, "δt_m[k]", SIG),
+                                ("s", {"l": "+", "t": "+"}, "s2"), ("a", 60, None, SIG), ("t", "out", SIG), ("w", 30, SIG)])
+    o.append(s)
+    o.append(TOPIN(pos["s2"], yc, 48, "パルスと捕獲の誤差", TEA))
+    o.append(T(xe + 6, yc + 4, "測ったずれ", "start", 10, SIG, True))
+    o.append(FBPATH(pos["out"], pos["s1"], yc, 74, c=GLD, box="PI: K_P + K_I T_p Σ", lab=None))
+    o.append(TX((pos["out"] + pos["s1"]) / 2 - 110, yc + 68, "r̂[k]（周波数の補正）", "end", 10, GLD, True, halo=True))
+    o.append(T(20 + 48, yc - 36, "マイコンの水晶の", "middle", 9.5, ALI))
+    o.append(T(20 + 48, yc - 24, "周波数の誤差", "middle", 9.5, ALI))
+    ye = yc + 112
+    o.append(TX(20, ye, "δt_m[k+1] = δt_m[k] + (r_m − r̂[k]) T_p", "start", 11, INK, True))
+    o.append(T(330, ye, "1 秒の間に、補正しきれない分だけ時計がずれる", "start", 9.5, MUT))
+    o.append(TX(20, ye + 22, "r̂[k] = K_P δt_m[k] + K_I T_p Σ_{j≤k} δt_m[j]", "start", 11, GLD, True))
+    o.append(T(330, ye + 22, "P の分は今のずれ、I の分はずれの和に比例する", "start", 9.5, MUT))
+    o.append(TX(20, ye + 44, "I の分は、ずれが残っている間は増え続け、r̂ が r_m に届いてずれが 0 になったところで止まる（P だけでは、ずれが r_m/K_P 残る）", "start", 9.5, MUT))
+    return SVG(700, ye + 54, o, "PI で時計を合わせるループ（パルスごと、1 秒ごとに更新する。ずれは、マイコンの時計の読みから GNSS の時刻を引いた値）。")
+
+
+F["e14_loop"] = _f14_loop_fig()
+
+
+# =====================================================================
+# 3 節: 安定なゲインの範囲と、20 ppm の段差への応答
+# =====================================================================
+def _f14_gains_fig():
+    o = []
+    o.append(T(14, 18, "(a) ループが安定なゲインの範囲", "start", 11.5, INK, True))
+    p = Plot(70, 34, 250, 200, (0, 2.2), (0, math.sqrt(4.6)))
+    yt = [0, 1 / 32, 0.25, 1, 2, 4]
+    ylab = {0: "0", 1 / 32: "1/32", 0.25: "0.25", 1: "1", 2: "2", 4: "4"}
+    o.append(p.axes(xl="K_P T_p", xt=[0, 0.5, 1, 1.5, 2], yt=[math.sqrt(v) for v in yt], xfmt=lambda v: ("%g" % v), yfmt=lambda v: ylab[min(ylab, key=lambda q: abs(math.sqrt(q) - v))]))
+    o.append(TX(p.x - 44, p.y + p.h / 2, "K_I T_p^2（平方根の目盛）", "middle", 10, MUT, rot=-90))
+    xs = _f14_np.linspace(0, 2, 81)
+    poly = [(p.X(x), p.Y(math.sqrt(max(0.0, 4 - 2 * x)))) for x in xs] + [(p.X(2), p.Y(0)), (p.X(0), p.Y(0))]
+    o.append(PL(poly, c=GRN, lw=1.4, fill=GSOFT))
+    xc = _f14_np.linspace(0, 1, 61)
+    lo = [(p.X(x), p.Y(1 - math.sqrt(1 - x))) for x in xc]
+    hi = [(p.X(x), p.Y(1 + math.sqrt(1 - x))) for x in xc]
+    o.append(PL(lo + hi[::-1], c=GRN, lw=1, dash="4 3", fill=SCR, op=0.55))
+    o.append(T(p.X(0.62), p.Y(1.05), "根が複素数", "middle", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(0.62), p.Y(0.92), "（振れながら収まる）", "middle", 9, GRN, False, halo=True))
+    o.append(T(p.X(1.45), p.Y(0.42), "根が実数", "middle", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(1.55), p.Y(1.75), "不安定", "middle", 10, ALI, True, halo=True))
+    o.append(W(p.X(0.25), p.Y(1 - math.sqrt(0.75)), p.X(0.25), p.Y(1 + math.sqrt(0.75)), c=SIG, lw=1, dash="2 2"))
+    pts = [("本文の例", 0.25, 1 / 32, GLD), ("P だけ", 0.25, 0.0, MUT), ("I を強く", 0.25, 0.25, PUR), ("不安定", 0.25, 4.2, ALI)]
+    for nm, a, b, c in pts:
+        o.append(D(p.X(a), p.Y(math.sqrt(b)), c, 4.5))
+        o.append(T(p.X(a) + 7, p.Y(math.sqrt(b)) + 4, nm, "start", 9.5, c, True, halo=True))
+    o.append(TX(p.X(0.25) + 6, p.Y(1.45), "|z| = 0.866", "start", 9.5, SIG, True, halo=True))
+    # (b) 応答
+    o.append(T(370, 18, "(b) 補正 0 から始めたずれ（20 ppm の段差）", "start", 11.5, INK, True))
+    q = Plot(410, 34, 270, 200, (0, 60), (-40, 100))
+    o.append(q.axes(xl="パルスの番号 k（秒）", yl="δt_m [µs]", xt=[0, 10, 20, 30, 40, 50, 60], yt=[-40, -20, 0, 20, 40, 60, 80, 100], xfmt=lambda v: "%d" % v, yfmt=lambda v: _f14_f(v, 0)))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
+    # 本文の例の包絡線: δt[k] = 2 Re(A z^k)
+    d = _f14_pi(_F14_KP, _F14_KI, n=61)
+    z = complex(_f14_np.roots([1, -(2 - _F14_KP - _F14_KI), 1 - _F14_KP])[0])
+    A = (d[2] - z.conjugate() * d[1]) / (z - z.conjugate()) / z ** 1
+    env = [(k, 2 * abs(A) * abs(z) ** k * 1e6) for k in range(0, 61)]
+    o.append(q.clip(env, c=GLD, lw=1, dash="4 3"))
+    o.append(q.clip([(k, -v) for k, v in env], c=GLD, lw=1, dash="4 3"))
+    for KP, KI, c, lw in ((0.25, 0.0, MUT, 1.8), (0.25, 0.25, PUR, 1.6), (0.25, 4.2, ALI, 1.6), (_F14_KP, _F14_KI, GLD, 2.4)):
+        dd = _f14_pi(KP, KI, n=61)
+        pts = []
+        for k, v in enumerate(dd):           # 枠の外へ出たら、そこで描くのをやめる（発散する応答）
+            pts.append((k, v * 1e6))
+            if abs(v) * 1e6 > 150:
+                break
+        o.append(q.clip(pts, c=c, lw=lw))
+    o.append(T(q.X(60) - 4, q.Y(80) - 6, "P だけ: 80 µs で止まる", "end", 9.5, MUT, True, halo=True))
+    o.append(T(q.X(6) + 6, q.Y(53.35) - 6, "最大 53 µs（6 s）", "start", 9.5, GLD, True, halo=True))
+    o.append(T(q.X(14), q.Y(-30), "I を強く: 同じ包絡線で振れる", "start", 9.5, PUR, True, halo=True))
+    o.append(T(q.X(2.6), q.Y(-36), "不安定", "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(32) + 4, q.Y(18), "包絡線 0.866^k（破線）", "start", 9.5, GLD, False, halo=True))
+    return SVG(700, 280, o, "PI のゲインの範囲と、周波数の補正 0・ずれ 0 から始めたときのずれ（水晶の誤差 20 ppm、パルスの周期 1 s。4 つとも比例ゲインは 1/4 s⁻¹ で、積分ゲインだけを変えた）。")
+
+
+F["e14_gains"] = _f14_gains_fig()
+
+
+# =====================================================================
+# 4 節: 秒の頭とクロックの刻み — 量子化誤差が鋸の歯になる仕組み
+# =====================================================================
+def _f14_quant_fig():
+    o = []
+    x0, nu = 0.15, 0.2
+    o.append(T(14, 18, "(a) 秒の頭（緑）と、受信機のクロックの刻み（例: ν = 0.2）", "start", 11.5, INK, True))
+    cx, sc = 236, 4.2                       # 秒の頭の x、1 ns あたりの px
+    for k in range(5):
+        y = 58 + k * 40
+        f = (x0 + k * nu) % 1.0
+        o.append(T(14, y + 4, "k = %d" % k, "start", 10, INK, True))
+        o.append(W(cx - 36 * sc, y, cx + 36 * sc, y, c=MUT, lw=1))
+        for m in range(-2, 4):
+            t = (m - f) * _F14_TQ
+            if abs(t) > 36:
+                continue
+            o.append(W(cx + t * sc, y - 7, cx + t * sc, y + 7, c=MUT, lw=1.2))
+        q = _f14_q(x0, nu, k)
+        o.append(W(cx + q * sc, y - 12, cx + q * sc, y + 10, c=SIG, lw=2.6))
+        o.append(W(cx, y - 14, cx, y + 12, c=GRN, lw=1.8))
+        o.append(DIM(cx, y + 16, cx + q * sc, y + 16, None, c=ALI))
+        o.append(TX(cx + 38 * sc, y + 4, "q_%d = %s ns" % (k, _f14_f(q, 1)), "start", 10, ALI, True))
+    o.append(T(cx, 36, "秒の頭", "middle", 9.5, GRN, True))
+    o.append(T(cx + _f14_q(x0, nu, 0) * sc - 4, 36, "パルス（いちばん近い刻み）", "end", 9.5, SIG, True))
+    o.append(TX(14, 58 + 5 * 40 - 4, "灰色の縦の線は刻み（20.8 ns ごと）。1 秒ごとに、秒の頭は刻みに対して νT_q = 4.2 ns ずつ後ろへずれる", "start", 9.5, MUT))
+    # (b) q_k の並び
+    o.append(T(470, 18, "(b) 1 秒ごとの量子化誤差", "start", 11.5, INK, True))
+    p = Plot(500, 40, 180, 170, (0, 14), (-12, 12))
+    o.append(p.axes(xl="パルスの番号 k", yl="q_k [ns]", xt=[0, 5, 10], yt=[-10.4, 0, 10.4], xfmt=lambda v: "%d" % v, yfmt=lambda v: _f14_f(v, 1)))
+    qs = [(k, _f14_q(x0, nu, k)) for k in range(15)]
+    for i in range(len(qs) - 1):
+        a, b = qs[i], qs[i + 1]
+        o.append(p.line([a, b], c=ALI if b[1] < a[1] else FNT, lw=1.4 if b[1] < a[1] else 1, dash=None if b[1] < a[1] else "2 2"))
+    for k, q in qs:
+        o.append(D(p.X(k), p.Y(q), SIG if k < 5 else ALI, 3.4))
+    o.append(T(p.X(7), p.y + p.h + 44, "5 s ごとに跳ぶ（1/ν = 5）", "middle", 9.5, ALI, True))
+    return SVG(700, 58 + 5 * 40 + 10, o, "量子化誤差の仕組み（例: クロック 48 MHz、1 秒の刻みの数の端数 ν = 0.2。受信機は秒の頭にいちばん近い刻みでパルスを出すとした）。")
+
+
+F["e14_quant"] = _f14_quant_fig()
+
+
+# =====================================================================
+# 4 節: 鋸歯状の誤差の 3 つの形（ν で決まる）
+# =====================================================================
+def _f14_saw_fig():
+    o = []
+    cases = [(0.501, "ν = 0.048（発振器の誤差 0.501 ppm）", "21 s ごとに跳ぶ鋸の歯"),
+             (0.5104, "ν = 0.499（0.5104 ppm）", "1 秒ごとに正と負を行き来する"),
+             (0.50002, "ν = 0.001（0.500 02 ppm）", "ほぼ同じ値にとどまる（平均しても消えない）")]
+    o.append(T(14, 18, "1 秒ごとの量子化誤差（点）と、60 秒の平均（破線）。クロック 48 MHz（±10.4 ns）", "start", 11.5, INK, True))
+    y0 = 34
+    for r, (rr, lab, note) in enumerate(cases):
+        nu = (48.0 * rr) % 1.0
+        p = Plot(70, y0 + r * 92, 610, 62, (0, 120), (-12, 12))
+        o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 0.8))
+        o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=0.8))
+        for v in (-10.4, 10.4):
+            o.append(W(p.x, p.Y(v), p.x + p.w, p.Y(v), c=FNT, lw=0.8, dash="3 3"))
+        for v in (-10, 0, 10):
+            o.append(T(p.x - 6, p.Y(v) + 3.5, "%d" % v, "end", 9, MUT))
+        qs = [_f14_q(0.3, nu, k) for k in range(121)]
+        for k, q in enumerate(qs):
+            o.append(D(p.X(k), p.Y(q), ALI, 1.9))
+        avg = [(k, sum(qs[k - 59:k + 1]) / 60) for k in range(59, 121)]
+        o.append(p.line(avg, c=GLD, lw=1.8, dash="5 3"))
+        o.append(T(p.x + 6, p.y + 12, lab, "start", 9.5, INK, True, halo=True))
+        o.append(T(p.x + p.w - 6, p.y + 12, note, "end", 9.5, ALI, True, halo=True))
+        if r == 2:
+            o.append(T(p.X(90), p.Y(avg[-1][1]) - 8, "60 秒の平均 %s ns" % _f14_f(avg[-1][1], 1), "middle", 9.5, GLD, True, halo=True))
+    yx = y0 + 2 * 92 + 62
+    for v in (0, 20, 40, 60, 80, 100, 120):
+        o.append(T(70 + 610 * v / 120, yx + 14, "%d" % v, "middle", 9, MUT))
+    o.append(TX(70 + 305, yx + 30, "時間 [s]（縦軸は量子化誤差 q_k [ns]）", "middle", 10, MUT))
+    o.append(TX(30, y0 + 92 + 31, "q_k [ns]", "middle", 10, MUT, rot=-90))
+    return SVG(700, yx + 38, o, "受信機の発振器の周波数の誤差（例: 0.5 ppm の近く）で決まる、鋸歯状の誤差の 3 つの形（クロック 48 MHz。ν は 1 秒の刻みの数 48 000 000 × (1 + 誤差) の端数）。")
+
+
+F["e14_saw"] = _f14_saw_fig()
+
+
+# =====================================================================
+# 4 節: パルスの時刻の誤差の積み上げ
+# =====================================================================
+def _f14_budget_fig():
+    o = []
+    o.append(T(14, 18, "(a) 源ごとの大きさ（対数の目盛）", "start", 11.5, INK, True))
+    p = Plot(250, 34, 330, 204, (1, 10000), (0, 1), xlog=True)
+    for v in (1, 10, 100, 1000, 10000):
+        o.append(W(p.X(v), p.y, p.X(v), p.y + p.h, c=GRD, lw=1))
+        o.append(T(p.X(v), p.y + p.h + 14, {1: "1 ns", 10: "10 ns", 100: "100 ns", 1000: "1 µs", 10000: "10 µs"}[v], "middle", 9.5, MUT))
+    sq = _F14_TQ / math.sqrt(12)
+    sc = 100 / math.sqrt(12)
+    rows = [("解の誤差（TDOP × UERE）", None, _F14_SIGT, SIG, "σ %.1f ns・ばらつき" % _F14_SIGT),
+            ("鋸歯状の誤差（48 MHz）", None, _F14_TQ / 2, ALI, "±10.4 ns・補正値で消せる"),
+            ("ケーブルの遅れ（3 m）", None, 15.2, PUR, "一定 15.2 ns・測って引く"),
+            ("捕獲の半カウント（10 MHz）", None, 50, PUR, "一定 50 ns・引ける"),
+            ("捕獲の刻み（10 MHz）", None, 50, GLD, "±50 ns（σ 28.9 ns）・残る"),
+            ("割り込みの中で読む（例）", 900, 4300, ALI, "0.9〜4.3 µs・使わない")]
+    for i, (nm, a, b, c, note) in enumerate(rows):
+        y = p.y + 8 + i * 33
+        o.append(T(p.x - 8, y + 12, nm, "end", 10, INK, True))
+        xa = p.X(a) if a else p.x
+        o.append(RECT(xa, y, p.X(b) - xa, 17, 2, soft(c), c, 1.2))
+        o.append(T(p.X(b) + 6 if p.X(b) < p.x + p.w - 100 else xa - 6, y + 12.5, note, "start" if p.X(b) < p.x + p.w - 100 else "end", 9.5, c, True, halo=True))
+    # (b) 合わせた誤差
+    yb = p.y + p.h + 40
+    o.append(T(14, yb, "(b) 一定の分を引いた後の、合わせた誤差（1σ）", "start", 11.5, INK, True))
+    st = _F14_SIGT
+    vals = [("捕獲の刻み 100 ns（10 MHz）", math.sqrt(st ** 2 + sq ** 2 + sc ** 2), math.sqrt(st ** 2 + sc ** 2)),
+            ("捕獲の刻み 1 ns", math.sqrt(st ** 2 + sq ** 2 + (1 / math.sqrt(12)) ** 2), math.sqrt(st ** 2 + (1 / math.sqrt(12)) ** 2))]
+    o.append(T(330, yb + 22, "補正値なし", "middle", 10, ALI, True))
+    o.append(T(450, yb + 22, "補正値あり", "middle", 10, GRN, True))
+    for i, (nm, a, b) in enumerate(vals):
+        y = yb + 44 + i * 22
+        o.append(T(244, y, nm, "end", 10, INK, True))
+        o.append(T(330, y, "%.1f ns" % a, "middle", 10.5, ALI, True, True))
+        o.append(T(450, y, "%.1f ns" % b, "middle", 10.5, GRN, True, True))
+    o.append(T(520, yb + 44, "← ほとんど変わらない", "start", 9.5, MUT))
+    o.append(T(520, yb + 66, "← 補正値が生きる", "start", 9.5, GRN, True))
+    return SVG(700, yb + 80, o, "1PPS をマイコンのタイマで捕獲したときの、時刻の誤差の源（例の値。合わせた誤差は、独立とみなして 2 乗の和の平方根。一様な誤差の標準偏差は幅 ÷ √12）。")
+
+
+F["e14_budget"] = _f14_budget_fig()
+
+
+# =====================================================================
+# 5 節: ホールドオーバー — 残った周波数の誤差 × 時間
+# =====================================================================
+def _f14_hold_fig():
+    o = []
+    p = Plot(80, 26, 460, 230, (1, 1e6), (1e-7, 10), xlog=True, ylog=True)
+    xt = [1, 60, 3600, 86400, 864000]
+    xl = {1: "1 s", 60: "1 分", 3600: "1 時間", 86400: "1 日", 864000: "10 日"}
+    for v in xt:
+        o.append(W(p.X(v), p.y, p.X(v), p.y + p.h, c=GRD, lw=1))
+        o.append(T(p.X(v), p.y + p.h + 15, xl[v], "middle", 9.5, MUT))
+    for v, lab in ((1e-7, "100 ns"), (1e-6, "1 µs"), (1e-3, "1 ms"), (1.0, "1 s"), (10.0, "10 s")):
+        o.append(W(p.x, p.Y(v), p.x + p.w, p.Y(v), c=GRD, lw=1))
+        o.append(T(p.x - 6, p.Y(v) + 3.5, lab, "end", 9.5, MUT))
+    o.append(W(p.x, p.y, p.x, p.y + p.h, p.x + p.w, p.y + p.h, c=MUT, lw=1.2))
+    o.append(T(p.x + p.w / 2, p.y + p.h + 32, "最後のパルスからの時間 t（対数の目盛）", "middle", 10, MUT))
+    o.append(TX(p.x - 52, p.y + p.h / 2, "たまったずれ |δt_m|", "middle", 10, MUT, rot=-90))
+    for v in (1e-6, 1e-3, 1.0):
+        o.append(W(p.x, p.Y(v), p.x + p.w, p.Y(v), c=INK, lw=1, dash="5 3"))
+    lines = [(20e-6, ALI, ["補正しない 20 ppm"]), (0.5e-6, GLD, ["TCXO で 10 °C", "変わった 0.5 ppm"]),
+             (0.05e-6, PUR, ["TCXO で 1 °C", "変わった 0.05 ppm"]), (1.42e-9, GRN, ["覚えた周波数の誤差", "0.0014 ppm", "（温度が一定）"])]
+    for r, c, lab in lines:
+        o.append(p.clip([(1, r * 1), (1e6, r * 1e6)], c=c, lw=2.2))
+    def mark(r, E, c, txt, dx=6, dy=-6, a="start"):
+        t = E / r
+        o.append(D(p.X(t), p.Y(E), c, 4))
+        o.append(T(p.X(t) + dx, p.Y(E) + dy, txt, a, 9.5, c, True, halo=True))
+    mark(20e-6, 1e-3, ALI, "50 s", -6, -6, "end")
+    mark(20e-6, 1.0, ALI, "13.9 時間", -6, -6, "end")
+    mark(0.5e-6, 1e-6, GLD, "2 s", 6, 14)
+    mark(0.5e-6, 1e-3, GLD, "33 分", 6, 14)
+    mark(1.42e-9, 1e-6, GRN, "12 分", 6, 14)
+    mark(1.42e-9, 1e-3, GRN, "8.2 日", -6, -6, "end")
+    # 凡例（右）
+    for i, (r, c, lab) in enumerate(lines):
+        y = 44 + i * 40
+        o.append(W(556, y - 4, 580, y - 4, c=c, lw=2.2))
+        for j, part in enumerate(lab):
+            o.append(T(586, y + j * 13, part, "start", 9.5, c, True))
+    o.append(T(556, 216, "破線: 許せるずれ", "start", 9.5, INK))
+    o.append(T(556, 230, "の例（1 µs・1 ms・1 s）", "start", 9.5, INK))
+    return SVG(700, p.y + p.h + 42, o, "ホールドオーバーの間にたまるずれ（たまったずれ = 残った周波数の誤差 × 時間。点は許せるずれに届く時間。0.0014 ppm は、3 節の例のゲインでパルスの誤差が 30 ns のときの、I の分の標準偏差）。")
+
+
+def _f14_wrap(s, n):
+    """凡例の文字を、だいたい n 文字ずつに分ける（空白か読点で切る）。"""
+    out, cur = [], ""
+    for w in s.split(" "):
+        if cur and len(cur) + len(w) > n + 4:
+            out.append(cur); cur = w
+        else:
+            cur = (cur + " " + w) if cur else w
+    if cur:
+        out.append(cur)
+    return out
+
+
+F["e14_hold"] = _f14_hold_fig()
+
+
+# =====================================================================
+# 5 節: 温度が変わるときのホールドオーバー
+# =====================================================================
+def _f14_temp_fig():
+    o = []
+    tau, dT, sT = 10.0, 10.0, 0.05      # 時定数 [分]、温度の変化 [°C]、TCXO [ppm/°C]
+    ts = _f14_np.linspace(0, 120, 241)
+    temp = [dT * (1 - math.exp(-t / tau)) for t in ts]
+    fr = [sT * v for v in temp]
+    err = [sT * dT * 1e-6 * (t * 60 - tau * 60 * (1 - math.exp(-t / tau))) * 1e3 for t in ts]   # ms
+    panels = [("(a) TCXO の温度の変化 [°C]", (0, 12), [0, 5, 10], temp, GLD, lambda v: "%d" % v),
+              ("(b) 周波数の誤差 [ppm]（0.05 ppm/°C）", (0, 0.6), [0, 0.25, 0.5], fr, GLD, lambda v: "%g" % v),
+              ("(c) たまったずれ [ms]", (0, 3.6), [0, 1, 2, 3], err, GLD, lambda v: "%g" % v)]
+    y = 26
+    for r, (tt, yr, ytk, vals, c, fm) in enumerate(panels):
+        hh = 62 if r < 2 else 92
+        p = Plot(80, y + 8, 560, hh, (0, 120), yr)
+        o.append(T(14, y, tt, "start", 11, INK, True))
+        o.append(p.axes(xt=[0, 20, 40, 60, 80, 100, 120], yt=ytk, xfmt=(lambda v: "%d" % v) if r == 2 else (lambda v: ""), yfmt=fm))
+        o.append(p.line(list(zip(ts, vals)), c=c, lw=2.2))
+        if r == 2:
+            o.append(p.line([(t, 1.42e-9 * t * 60 * 1e3) for t in ts], c=GRN, lw=2))
+            o.append(p.line([(t, 0.5 * (sT * dT / tau) * 1e-6 * (t * 60) ** 2 / 60 * 1e3) for t in ts if t <= 26], c=MUT, lw=1.2, dash="3 3"))
+            for tm in (60, 120):
+                v = sT * dT * 1e-6 * (tm * 60 - tau * 60 * (1 - math.exp(-tm / tau))) * 1e3
+                o.append(D(p.X(tm), p.Y(v), GLD, 4))
+                o.append(T(p.X(tm) - 6, p.Y(v) - 7, "%.2f ms" % v, "end", 9.5, GLD, True, halo=True))
+            o.append(T(p.X(22), p.Y(0.5), "初めは 2 乗に近い（点線: ṙt²/2）", "start", 9.5, MUT, False, halo=True))
+            o.append(T(p.X(116), p.Y(0.25), "温度が一定なら 0.01 ms（緑）", "end", 9.5, GRN, True, halo=True))
+            o.append(T(p.x + p.w / 2, p.y + p.h + 30, "衛星が見えなくなってからの時間 [分]", "middle", 10, MUT))
+        y += hh + 30
+    return SVG(700, y + 14, o, "衛星が見えなくなると同時に、TCXO の温度が時定数 10 分で 10 °C 上がった例（0.05 ppm/°C。初めのずれと覚えた周波数の誤差は 0 とした。緑の線は温度が一定のとき）。")
+
+
+F["e14_temp"] = _f14_temp_fig()
+
+
+# =====================================================================
+# 6 節: 2 つのパルスの間を比例で割り振る
+# =====================================================================
+def _f14_interp_fig():
+    o = []
+    ck, cs, ck1 = 9992904, 13543120, 19993104
+    fs = (cs - ck) / (ck1 - ck)
+    X = lambda s: 100 + s * 500
+    y = 52
+    o.append(T(14, 18, "(a) 同じタイマで、1PPS とセンサの「測り終えた」信号を捕獲する", "start", 11.5, INK, True))
+    _f14_pulse(o, X, y + 20, y, [0, 1], x_from=X(-0.12), x_to=X(1.16))
+    o.append(T(90, y + 14, "1PPS", "end", 10, GRN, True))
+    ys = y + 42
+    o.append(PL([(X(-0.12), ys + 16), (X(fs), ys + 16), (X(fs), ys), (X(fs + 0.02), ys), (X(fs + 0.02), ys + 16), (X(1.16), ys + 16)], c=TEA, lw=2))
+    o.append(T(90, ys + 12, "センサ", "end", 10, TEA, True))
+    yc = ys + 40
+    for s, c, val, lab in ((0, SIG, ck, "C_k"), (fs, TEA, cs, "C_s"), (1, SIG, ck1, "C_{k+1}")):
+        o.append(W(X(s), y + 20 if c == SIG else ys + 16, X(s), yc - 14, c=c, lw=1, dash="3 2"))
+        o.append(TX(X(s), yc, lab + " = " + _f14_g(val), "middle", 10, c, True, halo=True))
+    o.append(TX(X(0), yc + 18, "t_k = 293 289 s（UTC 09:27:51）", "middle", 9.5, MUT))
+    o.append(TX(X(1), yc + 18, "t_{k+1} = 293 290 s", "middle", 9.5, MUT))
+    o.append(TX(X(fs), yc + 18, "t_s = ?", "middle", 9.5, TEA, True))
+    # (b) 筆算
+    yb = yc + 48
+    o.append(T(14, yb, "(b) 2 つのパルスの間の、本当に数えた数で割る", "start", 11.5, INK, True))
+    rows = [("C_s − C_k = 13 543 120 − 9 992 904 = 3 550 216", INK),
+            ("C_{k+1} − C_k = 19 993 104 − 9 992 904 = 10 000 200", INK),
+            ("3 550 216 ÷ 10 000 200 = 0.355 014 5（s）", GLD),
+            ("t_s = 293 289 + 0.355 014 5 = 293 289.355 014 5 s（週 2444。UTC 09:27:51.355 014 5）", GLD)]
+    for i, (s, c) in enumerate(rows):
+        o.append(TX(30, yb + 24 + i * 22, s, "start", 10.5, c, True))
+    o.append(T(30, yb + 24 + 4 * 22 + 2, "名目の 10 000 000 で割ると 0.355 021 6 s で、7.1 µs ずれる（20 ppm × 0.355 s）", "start", 9.5, ALI, True))
+    return SVG(700, yb + 24 + 4 * 22 + 12, o, "センサの値を測った時刻を、前後のパルスの捕獲値の比で求める（例の値。タイマ 10 MHz、水晶の誤差 +20 ppm。週の中の秒は 1 節の例の時刻の 1 秒後）。")
+
+
+F["e14_interp"] = _f14_interp_fig()
+
+
+# =====================================================================
+# 6 節: 記録の形と、時刻の状態
+# =====================================================================
+def _f14_record_fig():
+    o = []
+    o.append(T(14, 18, "(a) 1 件の記録の形（例: 24 B）", "start", 11.5, INK, True))
+    fields = [("通し番号", 4, MUT, "1042"), ("GPS 時刻 [ns]", 8, SIG, "1 478 424 489 355 014 500"), ("うるう秒", 1, PUR, "18"),
+              ("状態", 1, GRN, "1"), ("ずれの見積もり", 2, GLD, "0.03 µs"), ("センサの値", 6, TEA, "…"), ("CRC", 2, MUT, "…")]
+    x, u, y = 20, 27.5, 60
+    for nm, nb, c, val in fields:
+        w = nb * u
+        o.append(RECT(x, y, w, 26, 3, soft(c), c, 1.2))
+        o.append(T(x + w / 2, y + 17, val, "middle", 9.5 if nb > 2 else 9, INK, True, True))
+        if nm == "状態":
+            o.append(W(x + w / 2, y - 2, x + w / 2, y - 14, c=c, lw=1))
+            o.append(T(x + w / 2, y - 18, nm, "middle", 9.5, c, True))
+        else:
+            o.append(T(x + w / 2, y - 6, nm, "middle", 9.5, c, True))
+        o.append(T(x + w / 2, y + 39, "%d B" % nb, "middle", 9, MUT))
+        x += w
+    o.append(T(20, y + 58, "GPS 時刻は 1980 年 1 月 6 日 0 時からの ns（64 bit。3 節の mclock と同じ）。うるう秒の数を残すと、後で UTC に直せる", "start", 9.5, MUT))
+    # (b) 時刻の状態とずれの見積もり
+    yb = y + 86
+    o.append(T(14, yb, "(b) 時刻の状態と、ずれの見積もり（例）", "start", 11.5, INK, True))
+    p = Plot(150, yb + 28, 530, 24, (0, 6), (0, 1))
+    segs = [(0, 0.1, "0", ALI), (0.1, 2.0, "1: 1PPS に合わせている", GRN), (2.0, 3.0, "2: ホールドオーバー", GLD), (3.0, 6.0, "1: 1PPS に合わせている", GRN)]
+    for a, b, lab, c in segs:
+        o.append(RECT(p.X(a), p.y, p.X(b) - p.X(a), p.h, 2, soft(c), c, 1.1))
+        if p.X(b) - p.X(a) > 60:
+            o.append(T((p.X(a) + p.X(b)) / 2, p.y + 16, lab, "middle", 9.5, c, True))
+    o.append(T(130, p.y + 16, "状態", "end", 10, INK, True))
+    o.append(T(p.X(0.05), p.y - 6, "0: まだ合わせていない", "start", 9, ALI, True))
+    q = Plot(150, p.y + 40, 530, 60, (0, 6), (0, 2.2))
+    o.append(q.axes(xl="時間 [時間]", yt=[0, 1, 2], xt=[0, 1, 2, 3, 4, 5, 6], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%d" % v))
+    o.append(T(124, q.y + 24, "ずれの", "end", 10, INK, True))
+    o.append(T(124, q.y + 37, "見積もり [ms]", "end", 10, INK, True))
+    o.append(q.line([(0.1, 0.0), (2.0, 0.0), (3.0, 1.8), (3.0, 0.0), (6.0, 0.0)], c=GLD, lw=2.2))
+    o.append(T(q.X(3.0) + 6, q.Y(1.8) + 4, "0.5 ppm を見込むと 1 時間で 1.8 ms", "start", 9.5, GLD, True, halo=True))
+    return SVG(700, q.y + q.h + 40, o, "記録の 1 件の形と、時刻の状態の印（例。ずれの見積もりは、ホールドオーバーの間、見込んだ周波数の誤差 × 時間で増やす）。")
+
+
+F["e14_record"] = _f14_record_fig()
