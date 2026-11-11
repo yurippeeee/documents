@@ -734,13 +734,16 @@ def _f16_mono(x, y, text, spans, sz=10.5):
         _BOXES.append((x, y - sz * 0.82, x + len(text) * cw, y + sz * 0.22, text))
     xs = " ".join("%g" % round(x + i * cw, 2) for i in range(len(text)))
     o = ['<text y="%g" font-size="%g" font-family="var(--mono)" fill="%s"><tspan x="%s">%s</tspan></text>' % (round(y, 2), sz, INK, xs, E(text))]
-    for k, (a, b, c, lab) in enumerate(spans):
+    xl = x + len(text) * cw + 14
+    order = sorted(range(len(spans)), key=lambda k: -spans[k][0])     # 右の欄ほど上の行（引き出し線が交わらない）
+    for r, k in enumerate(order):
+        a, b, c, lab = spans[k]
         xa, xb = x + a * cw, x + b * cw
         o.append(RECT(xa - 1, y - sz - 2, xb - xa + 2, sz + 7, 2, soft(c), c, 1.0))
-        yb = y + 16 + k * 16
+        yb = y + 18 + r * 16
         xc = (xa + xb) / 2
-        o.append(W(xc, y + 6, xc, yb - 4, c=c, lw=1))
-        o.append(T(xc + 4, yb, lab, "start", 9.5, c, True))
+        o.append(W(xc, y + 6, xc, yb - 4, xl - 4, yb - 4, c=c, lw=1))
+        o.append(T(xl, yb, lab, "start", 9.5, c, True))
     return "".join(o)
 
 
@@ -781,8 +784,8 @@ def _f16_age_fig():
     sp = [(cm[5] + 1, cm[6], GRN, "6 番: 測位の品質 2（補正を使った）"),
           (cm[12] + 1, cm[13], PUR, "13 番: 補正の年齢 5.0 s"),
           (cm[13] + 1, s.index("*"), PUR, "14 番: 基準局の番号 0123"),
-          (s.index("*"), len(s), MUT, "チェックサム（12 章 3 節）")]
-    o.append(_f16_mono(14, yg + 6, s, sp, 10.5))
+          (s.index("*"), len(s), MUT, "チェックサム")]
+    o.append(_f16_mono(14, yg + 6, s, sp, 10))
     return SVG(700, yg + 84, o, "補正の年齢と、DGNSS の後に残る誤差（例の値のモデル）と、DGNSS の解を書いた GGA の文（年齢と番号は例の値）。")
 
 
@@ -813,7 +816,7 @@ def _f16_sbas_fig():
         o.append(_f16_base(sx, gy - 22, PUR))
     o.append(T(132, gy + 18, "基準局（MSAS では監視局という。多くの地点）", "middle", 9.5, PUR, True))
     o.append(RECT(282, gy - 52, 112, 46, 6, PSOFT, PUR, 1.3))
-    o.append(T(338, gy - 33, "主局", "middle", 10.5, PUR, True))
+    o.append(T(338, gy - 33, "航法統制局", "middle", 10.5, PUR, True))
     o.append(T(338, gy - 17, "補正と誤差の上限を計算", "middle", 9, PUR))
     o.append(ARR(250, gy - 14, 280, gy - 22, c=PUR, lw=1.6))
     o.append(W(452, gy - 6, 446, gy - 34, 458, gy - 34, 452, gy - 6, c=PUR, lw=1.4))
@@ -1071,7 +1074,7 @@ def _f16_rtcm_fig():
         if nm:
             o.append(T(xx + nb * bs / 2, ys + 18, nm, "middle", 9, c, True))
         xx += nb * bs
-    o.append(T(xd - 10, ys + 42, "P はパリティ（6 bit）。灰は通し番号・状態・尺度・UDRE", "start", 9, MUT))
+    o.append(T(xd - 10, ys + 42, "P はパリティ（6 bit）。灰は通し番号・状態など", "start", 9, MUT))
     o.append(T(xd - 10, ys + 58, "8 衛星: 2 + 14 ワード = 480 bit", "start", 9.5, INK, True))
     return SVG(700, ys + 70, o, "RTCM の形（版 3 のフレームと 1005、版 2 の型 1。欄は二次資料で確かめた範囲。細部は版による）。")
 

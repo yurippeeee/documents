@@ -144,6 +144,14 @@
       if(type==="up")drag=false;});
     function truth(B,L){var x=(L-137.5)*111.32*Math.cos(35*_W16_D),y=(B-35)*110.6,v=_w16_klob(B,L,90,0)+_w16_field(md,1.2,1000,x,y);
       if(cSm.get())v+=_w16_field(ms,0.4,150,x,y);return v;}
+    /* 日本の周りの 500 点（緯度 25.5〜44.5°・経度 125.5〜149.5° の 1° ごと）で、補間とクロブッチャー・モデルの誤差（天頂）の RMS。本文と同じ点 */
+    var rmsKey="",rmsVal=null;
+    function gridRMS(){var key=seed+"|"+cSm.get();if(key===rmsKey)return rmsVal;var se=0,sk=0,n=0,cache={};
+      function igp(B,L){var k=B+","+L;if(cache[k]==null)cache[k]=truth(B,L);return cache[k];}
+      for(var j=0;j<20;j++)for(var i=0;i<25;i++){var B=25.5+j,L=125.5+i,B1=Math.floor(B/5)*5,L1=Math.floor(L/5)*5,xi=(L-L1)/5,ze=(B-B1)/5;
+        var iv=(1-xi)*(1-ze)*igp(B1,L1)+xi*(1-ze)*igp(B1,L1+5)+xi*ze*igp(B1+5,L1+5)+(1-xi)*ze*igp(B1+5,L1),t=truth(B,L),kk=_w16_klob(B,L,90,0)-t;
+        se+=(iv-t)*(iv-t);sk+=kk*kk;n++;}
+      rmsKey=key;rmsVal=[Math.sqrt(se/n),Math.sqrt(sk/n)];return rmsVal;}
     function draw(){
       if(!md){md=_w16_modes(U,seed,120);ms=_w16_modes(U,seed+100,120);}
       /* 見える衛星（受信機の位置で変わる） */
@@ -202,6 +210,8 @@
         h+="クロブッチャー・モデルは "+_w16_f(kl,2)+" m（差 "+_w16_s(kl-m*tv,2)+" m）";}
       else if(inside)h+='<span class="warn">電波が通る点が、使える 3 つの格子の点の三角形の外にあるので、この衛星の電離層の補正は使えない</span>';
       else h+='<span class="warn">この図の格子の外（補正は SBAS の格子の範囲による）</span>';
+      var rr=gridRMS();
+      h+="<br>この場で、日本の周りの 500 点（1° ごと）を調べた天頂の遅れの誤差の RMS: 補間 <b>"+_w16_f(rr[0],2)+" m</b>・クロブッチャー・モデル "+_w16_f(rr[1],2)+" m";
       ro.innerHTML=h;
     }
     draw();
