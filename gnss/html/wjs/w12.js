@@ -119,7 +119,7 @@ REG.w12_gsv=function(el,U){
       else{o.push(S.RECT(xa,P.Y(q.cn0),xb-xa,P.Y(30)-P.Y(q.cn0),2,q.used?U.soft(col):"var(--screen)",on?"alias":col,on?2.2:1,q.used?null:"3 2"));
         if(xb-xa>12)o.push(S.T((xa+xb)/2,P.Y(q.cn0)-4,String(q.cn0),"middle",nar?8:9,col,true));}
       o.push(S.T((xa+xb)/2,P.Y(30)+13,String(q.id),"middle",nar?7.5:9,on?"alias":"ink",true));});
-    var hgt=Math.max(cy+R+24,by+bh+30);
+    var hgt=Math.max(cy+R+38,by+bh+30);
     o.push(S.LEGL(nar?x0:14,hgt,[["signal",null,"GPS（番号は PRN 番号）"]].concat(sy.get()===1?[["purple",null,"GLONASS（番号は 64 + 衛星の番号）"]]:[]),nar?9:10));
     box.set(S.svg(Wd,hgt+12,o));
     /* 読み出し */

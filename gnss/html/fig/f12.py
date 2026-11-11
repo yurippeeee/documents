@@ -543,7 +543,7 @@ def _f12_xor_fig():
         for i, ch in enumerate(s):
             o.append(T(x + i * cwb + (6 if i >= 4 else 0), y, ch, "middle", 12, c, b, True))
     for i in range(8):
-        o.append(T(xb + i * cwb + (6 if i >= 4 else 0), 40, "b%d" % (7 - i), "middle", 9, MUT))
+        o.append(T(xb + i * cwb + (6 if i >= 4 else 0), 40, "b%d" % (7 - i), "middle", 9.5, MUT))
     rows = []
     acc = 0
     y = 58
@@ -924,7 +924,8 @@ def _f12_float_fig():
         o.append(W(p.X(t), p.y + p.h, p.X(t), p.y + p.h + 4, c=MUT, lw=1))
         o.append(T(p.X(t), p.y + p.h + 16, lab, "middle", 9.5, MUT))
     o.append(W(p.x, p.y + p.h, p.x + p.w, p.y + p.h, c=MUT, lw=1.2))
-    return SVG(700, p.y + p.h + 26, o, "緯度・経度を数として持つときの刻み（東京の例の点 35.681°, 139.767°。1 度の長さは WGS 84 の楕円体で計算した）。")
+    o.append(T(p.x + p.w / 2, p.y + p.h + 32, "刻み（隣の点との距離）[m]", "middle", 10, MUT))
+    return SVG(700, p.y + p.h + 40, o, "緯度・経度を数として持つときの刻み（東京の例の点 35.681°, 139.767°。1 度の長さは WGS 84 の楕円体で計算した）。")
 
 
 F["e12_float"] = _f12_float_fig()
@@ -1088,7 +1089,7 @@ F["e12_versions"] = _f12_versions_fig()
 # =====================================================================
 def _f12_nofix_fig():
     o = []
-    o.append(T(14, 18, "(a) 電源を入れてから位置が出るまでの文（例。時間と中身は製品による）", "start", 11.5, INK, True))
+    o.append(T(14, 18, "(a) 電源を入れてから位置が出るまでの文（例。時間と文の値は製品による）", "start", 11.5, INK, True))
     stages = [("電源を入れた直後", "GPGGA,,,,,,0,00,99.99,,,,,,", "GPRMC,,V,,,,,,,,,,N", "0", "V", False),
               ("時刻が分かった（位置はまだ）", "GPGGA,092720.00,,,,,0,00,99.99,,,,,,", "GPRMC,092720.00,V,,,,,,,111126,,,N", "0", "V", False),
               ("位置が出た（TTFF）", _F12_GGA, _F12_RMC, "1", "A", True)]
@@ -1116,7 +1117,7 @@ def _f12_nofix_fig():
             x = p.X(hh)
             o.append(W(x, yy - 3, x, yy + 3, c=c, lw=1))
             t = (hh + off) % 24
-            o.append(T(x, yy + 15, "%d 時" % t, "middle", 9, MUT))
+            o.append(T(x, yy + 15, "%d 時" % t, "middle", 9.5, MUT))
         for d in (0, 24):
             x = p.X(d - off) if 0 <= d - off <= 48 else None
             if x is not None:
@@ -1133,9 +1134,9 @@ def _f12_nofix_fig():
         o.append(W(x, yu, x, yj, c=PUR, lw=1.2, dash="3 2"))
         o.append(D(x, yu, PUR, 3.5)); o.append(D(x, yj, PUR, 3.5))
     o.append(W(p.X(9.46), yj, p.X(9.46), yj + 28, c=PUR, lw=1.0, dash="3 2"))
-    o.append(T(p.X(9.46) - 4, yj + 40, "092750.00 → 日本の 18:27:50（11 月 11 日）", "start", 10, PUR, True))
+    o.append(T(p.X(9.46) - 4, yj + 40, "092750.00 → 日本の 18:27:50（11 月 11 日）", "start", 10, PUR, True, halo=True))
     o.append(W(p.X(15.5), yj, p.X(15.5), yj + 44, c=PUR, lw=1.0, dash="3 2"))
-    o.append(T(p.X(15.5) - 4, yj + 56, "153000.00 → 日本の 0:30:00（11 月 12 日。日付が進む）", "start", 10, PUR, True))
+    o.append(T(p.X(15.5) - 4, yj + 56, "153000.00 → 日本の 0:30:00（11 月 12 日。日付が進む）", "start", 10, PUR, True, halo=True))
     o.append(T(14, yj + 78, "GGA には日付が無いので、同じ時刻の RMC の日付と組み合わせる（同じ時刻の文をまとめる処理は 15 章）", "start", 10, MUT))
     return SVG(700, yj + 88, o, "位置が出ていない間の文と、UTC の時刻（例の値）。")
 
@@ -1166,7 +1167,7 @@ def _f12_gga2c_fig():
         o.append(RECT(x, yb, bw, 58, 5, soft(c), c, 1.2))
         o.append(T(x + bw / 2, yb + 16, nm, "middle", 10.5, c, True, True))
         o.append(T(x + bw / 2, yb + 33, v, "middle", 10.5, INK, True, True))
-        o.append(T(x + bw / 2, yb + 49, fn, "middle", 9, MUT))
+        o.append(T(x + bw / 2, yb + 49, fn, "middle", 9.5, MUT))
         xs = sum(cen[i] for i in src) / len(src)
         for i in src:
             o.append(W(cen[i], 82, xs, 98, c=c, lw=1.0))
