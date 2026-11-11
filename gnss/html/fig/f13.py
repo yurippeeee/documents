@@ -275,7 +275,7 @@ def _f13_fletcher_fig():
         o.append(T(330, yy, a, "middle", 10.5, INK, True, True))
         o.append(T(450, yy, b, "middle", 10.5, ALI if a != b else INK, True, True))
         o.append(TX(540, yy, r, "start", 10, c, True))
-    return SVG(700, yt + 22 + 3 * 19 + 2, o, "例の 5 Hz の設定のチェックサムの筆算（右の 2 列は、導出の式の重みで CK_B を計算し直したもの）と、2 バイトの入れ替わりに対する 3 つの検査の結果。")
+    return SVG(700, yt + 22 + 3 * 19 + 2, o, "例の 5 Hz の設定のチェックサムの筆算（右の 2 列は、導出の式の重みで 2 つ目の和を計算し直したもの）と、2 バイトの入れ替わりに対する 3 つの検査の結果。")
 
 
 F["e13_fletcher"] = _f13_fletcher_fig()
