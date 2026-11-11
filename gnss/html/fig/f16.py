@@ -718,6 +718,9 @@ def _f16_baseline_fig():
         o.append(T(x0 + 190, yy, "%.2f" % u, "end", 10, INK, True))
     o.append(T(x0, 186, "単独: 電離層 3.50・対流圏 0.40・", "start", 9.5, MUT))
     o.append(T(x0, 200, "UERE 3.99", "start", 9.5, MUT))
+    o.append(T(x0, 226, "受信機ごとの誤差（マルチパス・雑音）:", "start", 9.5, MUT))
+    o.append(T(x0, 240, "移動局 1.0・0.5、基準局 0.3・0.3", "start", 9.5, MUT))
+    o.append(T(x0, 254, "（基準局の値は例。6 節）", "start", 9.5, MUT))
     return SVG(700, 328, o, "基線長と、DGNSS の後に残る誤差（相関の距離は電離層 1000 km・対流圏 100 km、補正の年齢 5 s のモデル。例の値）。")
 
 
