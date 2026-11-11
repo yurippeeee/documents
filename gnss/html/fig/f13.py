@@ -145,7 +145,7 @@ def _f13_values_fig():
         o.append(T(442 + 4 * 36 + 6, y + 31, "4 B", "start", 10, SIG, True))
         y += 58
     o.append(T(442, y + 2, "下位のバイト（0x%s）から先に送る" % ("%08X" % rows[0][2])[6:8], "start", 9.5, SIG, False))
-    o.append(T(14, y + 24, "合わせて: 文字 %d バイト（区切りのカンマと N・E・M を含む）→ 2 進 12 バイト。2 進なら、文字を数に直す計算（12 章 5 節）が要らない" % tot_t, "start", 10, INK, True))
+    o.append(T(14, y + 24, "合わせて: 文字 %d バイト（区切りのカンマと N・E・M を含む）→ 2 進 12 バイト" % tot_t, "start", 10, INK, True))
     return SVG(700, y + 36, o, "同じ値の、文字と 2 進の数の表し方。2 進の側は 12 章 5 節で文字から求めた整数そのもの（バイトの並べ方は 1 節の例の形式）。")
 
 
@@ -206,7 +206,7 @@ def _f13_fletcher_fig():
     n = len(bs)
     names = ["クラス", "ID", "長さ", "長さ", "本体", "本体", "本体", "本体", "本体", "本体"]
     roles = ["cls", "id", "len", "len", "body", "body", "body", "body", "body", "body"]
-    o.append(T(14, 18, "(a) 筆算: 1 バイトずつ足して CK_A を、CK_A の途中の値を足して CK_B を求める（8 bit の足し算）", "start", 11.5, INK, True))
+    o.append(TX(14, 18, "(a) 筆算: 1 バイトずつ足して CK_A を、CK_A の途中の値を足して CK_B を求める（8 bit の足し算）", "start", 11.5, INK, True))
     cols = [(28, "i", "middle"), (74, "欄", "middle"), (130, "a_i", "middle"), (238, "CK_A（途中の和 A_i）", "middle"), (378, "CK_B（A_1 + … + A_i）", "middle"),
             (520, "重み n − i + 1", "middle"), (628, "重み × a_i", "middle")]
     yh = 44
@@ -243,7 +243,7 @@ def _f13_fletcher_fig():
     o.append(TX(384, y + 6, "CK_B =", "end", 10.5, GRN, True))
     o.append(_f13_cell(390, y - 8, 34, 20, "%02X" % B, GRN, 11))
     o.append(T(680, y + 6, "和 %d = %d × 256 + %d" % (S, S // 256, S % 256), "end", 10, INK, True, True))
-    o.append(T(680, y + 21, "→ %d = 0x%02X（CK_B と同じ）" % (S % 256, S % 256), "end", 10, GRN, True))
+    o.append(TX(680, y + 21, "→ %d = 0x%02X（CK_B と同じ）" % (S % 256, S % 256), "end", 10, GRN, True))
     o.append(T(14, y + 21, "−100: 16 進の 100（= 256）を超えた分を捨てた", "start", 9, FNT, False))
     # (b) 入れ替わり
     yb = y + 52
@@ -274,7 +274,7 @@ def _f13_fletcher_fig():
         o.append(TX(14, yy, m, "start", 10, INK, j == 2))
         o.append(T(330, yy, a, "middle", 10.5, INK, True, True))
         o.append(T(450, yy, b, "middle", 10.5, ALI if a != b else INK, True, True))
-        o.append(T(540, yy, r, "start", 10, c, True))
+        o.append(TX(540, yy, r, "start", 10, c, True))
     return SVG(700, yt + 22 + 3 * 19 + 2, o, "例の 5 Hz の設定のチェックサムの筆算（右の 2 列は、導出の式の重みで CK_B を計算し直したもの）と、2 バイトの入れ替わりに対する 3 つの検査の結果。")
 
 
@@ -703,7 +703,7 @@ def _f13_baud_fig():
             ("note", 0, "どちらも通じない", {"c": ALI}),
         ]),
         ("(c) 保存せずに入れ直した", [
-            ("note", 1, "電源を入れ直す\n→ 初めの 9600 に戻る", {"c": ALI}),
+            ("note", 1, "電源を入れ直す\n→ 9600 に戻る", {"c": ALI}),
             (1, 0, "文（9600）", {"lost": True, "sub": "115 200 で読むので化ける"}),
             ("note", 0, "2 s 届かない\n→ 9600 を試す"),
             (1, 0, "文（9600）", {"c": GRN}),
@@ -931,9 +931,6 @@ def _f13_dyn_fig():
         o.append(T(xr + 28, yy, "%sのモデル" % nm, "start", 10, c, True))
         o.append(T(xr + 150, yy, "%.1f m" % mx, "end", 10, ALI if mx > 8 else INK, True))
         o.append(T(xr + 260, yy, "%.1f m" % rs, "end", 10, ALI if rs > 2 else INK, True))
-    o.append(T(xr, yb + 170, "歩くモデルは、曲がり角で外へふくらんで遅れる。", "start", 9.5, PUR, True))
-    o.append(T(xr, yb + 186, "空のモデルは、遅れないが、まっすぐの所でふらつく。", "start", 9.5, TEA, True))
-    o.append(T(xr, yb + 202, "車のモデルが、両方の釣り合いをとる。", "start", 9.5, GLD, True))
     return SVG(700, yb + 290, o, "動きのモデルの働き（例のモデル: 受信機の中のフィルタを、見込む加速度の大きさ（止まっている 0・歩く 0.3・車 3・空 30 m/s²）だけを変えた簡単なもので計算した。毎回の位置の誤差は回ごとに独立とした。中身は 19 章）。")
 
 
