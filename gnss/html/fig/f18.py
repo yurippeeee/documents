@@ -116,8 +116,8 @@ def _f18_two_fig():
     o.append(W(x0, yb + 44, 694, yb + 44, c=LIN, lw=1))
     o.append(row(yb + 54, "ρ_{IF,i}", 0.0, kk * _F18_SX, c_lab=GRN))
     o.append(T(xa + 4, yb + 67, "電離層 %.2f − %.2f = 0" % (I1 * a1, I2 * a2), "start", 10, GRN, True))
-    o.append(T(xd, yb + 92, "係数の和 %.3f − %.3f = 1 なので D はそのまま残る" % (a1, a2), "start", 9.5, INK))
-    return SVG(700, 266, o, "2 つの周波数の電離層遅延と、電離層フリー結合（電離層は 7 章 2 節の例。マルチパスと雑音は 7 章の予算の値）。")
+    o.append(T(xd, yb + 98, "係数の和 %.3f − %.3f = 1 なので、D はそのまま残る" % (a1, a2), "start", 9.5, INK))
+    return SVG(700, 272, o, "2 つの周波数の電離層遅延と、電離層フリー結合（電離層は 7 章 2 節の例。マルチパスと雑音は 7 章の予算の値）。")
 
 
 F["e18_two"] = _f18_two_fig()
@@ -163,7 +163,7 @@ def _f18_noise_fig():
     o.append(T(p.x, p.y + p.h + 44, "10 万回の σ の比: L1/L2 %.3f（式 %.3f）・L1/L5 %.3f（式 %.3f）" % (
         _F18_NFAC[0], _f18_k(_F18_F1, _F18_F2), _F18_NFAC[1], _f18_k(_F18_F1, _F18_F5)), "start", 9.5, MUT))
     # (b) 2 つ目の周波数と倍率
-    o.append(T(430, 18, "(b) 雑音の倍率と 2 つ目の周波数（f_1 = L1）", "start", 11.5, INK, True))
+    o.append(TX(430, 18, "(b) 雑音の倍率と 2 つ目の周波数（f_1 = L1）", "start", 11.5, INK, True))
     q = Plot(478, 32, 206, 150, (1150, 1310), (2.0, 4.0))
     o.append(q.axes(xl="f_2 [MHz]", yl="倍率", xt=[1150, 1200, 1250, 1300], yt=[2.0, 2.5, 3.0, 3.5, 4.0], yfmt=lambda v: "%.1f" % v))
     fs = _f18_np.linspace(1150, 1310, 100)
@@ -423,7 +423,7 @@ def _f18_slip_fig():
     ph1 = (rr - rr[0] + l1 * step1 + n1) / 1000.0
     o.append(p.line([(t / 60, v) for t, v in zip(ts[::5], ph1[::5])], c=SIG, lw=2))
     o.append(W(p.X(6), p.y, p.X(6), p.y + p.h, c=ALI, lw=1, dash="3 3"))
-    o.append(TX(p.X(6) + 4, p.Y(-30), "6 分で N_1 が 1 ずれた", "start", 9.5, ALI, True, halo=True))
+    o.append(TX(p.X(6) + 4, p.Y(-30), "6 分で N_1 が 1 跳んだ", "start", 9.5, ALI, True, halo=True))
     o.append(T(p.X(6) + 4, p.Y(-60), "（19 cm。見えない）", "start", 9.5, ALI, halo=True))
     o.append(T(p.X(0.3), p.Y(-280), "1 秒に約 %d m 変わる" % round(abs(rr[-1] - rr[0]) / 600), "start", 9.5, SIG, True, halo=True))
     # (b) 幾何によらない結合
@@ -438,8 +438,8 @@ def _f18_slip_fig():
     o.append(q.clip([(t / 60, 100 * v) for t, v in zip(ts[::2], gf_b[::2])], c=MUT, lw=1.3))
     o.append(q.clip([(t / 60, 100 * v) for t, v in zip(ts[::2], gf_a[::2])], c=ALI, lw=1.6))
     o.append(W(q.X(6), q.y, q.X(6), q.y + q.h, c=ALI, lw=1, dash="3 3"))
-    o.append(TX(q.X(6) - 4, q.Y(28), "N_1 が 1 ずれた: +%.1f cm" % (100 * l1), "end", 9.5, ALI, True, halo=True))
-    o.append(TX(q.X(9.9), q.Y(-3.5), "N_1 が 9、N_2 が 7 ずれた: +%.1f cm" % (100 * (9 * l1 - 7 * l2)), "end", 9.5, MUT, True, halo=True))
+    o.append(TX(q.X(6) - 4, q.Y(28), "N_1 が 1 跳んだ: +%.1f cm" % (100 * l1), "end", 9.5, ALI, True, halo=True))
+    o.append(TX(q.X(9.9), q.Y(-3.5), "N_1 が 9、N_2 が 7 跳んだ: +%.1f cm" % (100 * (9 * l1 - 7 * l2)), "end", 9.5, MUT, True, halo=True))
     o.append(T(q.X(0.2), q.Y(16), "電離層の変化（1 分に 0.1 TECU）", "start", 9.5, GLD, halo=True))
     o.append(q.line([(t / 60, 100 * g * v) for t, v in zip(ts[::30], dI1[::30])], c=GLD, lw=1.2, dash="4 3"))
     return SVG(700, 236, o, "1 つの周波数の位相と、幾何によらない結合に現れるサイクルスリップ（位相の雑音は 1 つの周波数で 7 mm、電離層の変化は例の値）。")
@@ -704,7 +704,7 @@ def _f18_why_fig():
         l = le[:n] - le[0]
         y = -l * de_true + beta + noise[:n]
         p = Plot(x0, 40, 150, 140, (-0.01, 0.21), (-0.10, 0.08))
-        o.append(p.axes(xl="l_k − l_0", yl="ΔΦ_k [cm]" if j == 0 else None, xt=[0, 0.1, 0.2], yt=[-0.08, -0.04, 0, 0.04, 0.08],
+        o.append(p.axes(xl="l_k − l_0", yl="Φ̃_k [cm]" if j == 0 else None, xt=[0, 0.1, 0.2], yt=[-0.08, -0.04, 0, 0.04, 0.08],
                         xfmt=lambda v: "%g" % v, yfmt=lambda v: _f18_m(100 * v, 0)))
         lb = float(_f18_np.mean(l))
         sxx = float(_f18_np.sum((l - lb) ** 2))
@@ -741,7 +741,7 @@ def _f18_why_fig():
         o.append(T(q.X(mins) + 5, q.Y(v) - 6, "%d cm" % round(v), "start", 9.5, ALI, True, halo=True))
     o.append(T(q.X(58), q.Y(300), "2 つの時刻", "end", 9.5, ALI, True, halo=True))
     o.append(T(q.X(58), q.Y(1.6), "30 s ごとの全部", "end", 9.5, GLD, True, halo=True))
-    return SVG(700, 250, o, "1 つの衛星の位相から、受信機の東の位置を求める簡単な場合（位相の雑音 σ_Φ = 2.1 cm、30 s ごと、β は実数の未知数）。")
+    return SVG(700, 250, o, "1 つの衛星の位相から、受信機の東の位置を求める簡単な場合（位相の雑音 2.1 cm、30 s ごと、β は実数の未知数）。")
 
 
 F["e18_why"] = _f18_why_fig()
@@ -790,7 +790,7 @@ def _f18_conv_fig():
         yy = y + 20 + k * 18
         o.append(W(lx, yy - 4, lx + 22, yy - 4, c=c, lw=2.2, dash="7 3"))
         o.append(T(lx + 28, yy, lab, "start", 9.5, INK, True))
-    return SVG(700, 300, o, "PPP の水平の誤差が縮む様子（東京で 30 s ごと、擬似距離 3.33 m・位相 2.1 cm、誤差は観測ごとに独立としたモデル）と、RTK・PPP-RTK の代表値。")
+    return SVG(700, 300, o, "PPP の水平の誤差が縮む様子（東京で 30 s ごとのエポック、擬似距離 3.33 m・位相 2.1 cm、誤差はエポックごとに独立としたモデル）と、RTK・PPP-RTK の代表値。")
 
 
 F["e18_conv"] = _f18_conv_fig()
@@ -961,7 +961,7 @@ _F18_METH = [("単独（L1）", (1, 35), (3.6, 8.2), SIG, "5・7 章"),
              ("SBAS", (40, 300), (1.5, 3.0), SIG, "16 章"),
              ("SLAS", (40, 300), (0.6, 1.0), SIG, "5 節"),
              ("DGNSS", (3, 30), (1.5, 3.0), SIG, "16 章"),
-             ("RTK", (5, 60), (0.01, 0.03), GRN, "17 章"),
+             ("RTK", (2, 60), (0.01, 0.04), GRN, "17 章"),
              ("CLAS", (20, 60), (0.04, 0.12), PUR, "5 節"),
              ("PPP", (600, 1800), (0.05, 0.3), GLD, "4・5 節")]
 
