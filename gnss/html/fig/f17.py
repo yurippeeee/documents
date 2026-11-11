@@ -276,7 +276,7 @@ def _f17_ruler_fig():
     o.append(T(bx + 60, yb + 68, "1 247", "middle", 12, INK, True, True))
     o.append(T(bx, yb + 96, "端数が 1 を超えて 0 に戻るたびに +1", "start", 9.5, MUT))
     o.append(TX(bx, yb + 116, "φ = 1 247 + 0.37 = 1 247.37 周期", "start", 10, INK, True))
-    o.append(TX(bx, yb + 134, "Φ = λφ = 237.38 m", "start", 10, INK, True))
+    o.append(TX(bx, yb + 134, "Φ = λφ = 237.37 m", "start", 10, INK, True))
     # (c) 距離が延びると φ が増える
     p = Plot(388, yb + 26, 284, 110, (0, 1.0), (0, 1.1))
     o.append(T(330, yb, "(c) 衛星から 1 m/s で遠ざかるとき", "start", 11.5, INK, True))
@@ -539,7 +539,7 @@ def _f17_iono_fig():
     o.append(T(X(t0), 240, "真空なら届く時刻", "middle", 9.5, MUT, False, halo=True))
     yc = 176
     o.append(ARR(X(t0), yc - 40, X(t0 - A / f1 ** 2) - 2, yc - 40, c=SIG, lw=1.6, head=6))
-    o.append(T(X(t0 - A / f1 ** 2) - 4, yc - 44, "山は早く届く（位相が進む）", "end", 9.5, SIG, True, halo=True))
+    o.append(T(X(t0) + 6, yc - 36, "山は早く届く（位相が進む）", "start", 9.5, SIG, True, halo=True))
     o.append(ARR(X(t0), yc + 38, X(t0 + tg) + 2, yc + 38, c=GLD, lw=1.6, head=6))
     o.append(T(X(t0 + tg) + 6, yc + 42, "包絡線の山は遅れる（符号が遅れる）", "start", 9.5, GLD, True, halo=True))
     o.append(T(x1, 240, "受信機に届く時刻 →", "end", 9.5, MUT))
@@ -1227,7 +1227,7 @@ def _f17_init_fig():
         for K, v in pts:
             o.append(D(p.X(K), p.Y(v), c, 2.6))
     lab_y = {"GPS": 0.0, "GPSc": 0.0}
-    o.append(T(p.X(18), p.Y(97) - 6, "19 機（1 エポックから）", "end", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(18), p.Y(100) - 5, "19 機（1 エポックから）", "end", 9.5, GRN, True, halo=True))
     o.append(T(p.X(5), p.Y(80) + 14, "10 機", "start", 9.5, TEA, True, halo=True))
     o.append(T(p.X(4.6), p.Y(42) - 4, "6 機・誤差が独立（破線）", "end", 9.5, SIG, True, halo=True))
     o.append(T(p.X(60), p.Y(20) + 16, "6 機（マルチパスが続く）", "middle", 9.5, SIG, True, halo=True))
@@ -1254,8 +1254,8 @@ def _f17_slip_fig():
     o.append(p.line([(t, v) for t, v in zip(ts, cn)], c=SIG, lw=1.4))
     o.append(W(p.x, p.Y(26), p.x + p.w, p.Y(26), c=ALI, lw=1, dash="4 3"))
     o.append(T(p.x + p.w - 2, p.Y(26) - 4, "PLL の目安（5 章 4 節）", "end", 9, ALI, True, halo=True))
-    o.append(T(p.X(41.5), p.Y(14) + 4, "木で 1 s さえぎる", "start", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(81), p.Y(18) + 4, "0.5 s さえぎる", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(43), p.Y(14) + 4, "木で 1 s さえぎる", "start", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(82.5), p.Y(18) + 4, "0.5 s さえぎる", "start", 9.5, ALI, True, halo=True))
     # (b) Φ − ρ
     o.append(T(14, 140, "(b) 搬送波位相 − 擬似距離（追尾を始めたときの値を引いた）", "start", 11.5, INK, True))
     q = Plot(70, 158, 600, 150, (0, 120), (-1.0, 2.2))
