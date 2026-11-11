@@ -114,7 +114,7 @@ REG.w09_imd=function(el,U){
   var r3=U.ctrls(el);
   var pre=U.checkbox(r3,"LNA の前に SAW フィルタを置く（3 節 (b)。例の通過特性）",false,function(){draw();});
   var br=U.btnrow(el);
-  U.button(br,"本文の例（1712.71 MHz・1850.00 MHz・−40 dBm）",function(){f1.set(1712.71);f2.set(1850.00);p1.set(-40);p2.set(-40);ip.set(0);pre.set(false);draw();});
+  U.button(br,"本文の例（4 節: −40 dBm ずつ）",function(){f1.set(1712.71);f2.set(1850.00);p1.set(-40);p2.set(-40);ip.set(0);pre.set(false);draw();});
   U.button(br,"2f₁ − f₂ が L1 に落ちる f₂ にする",function(){var v=2*f1.get()-_W09_L1;if(v>=1500&&v<=2100){f2.set(+v.toFixed(2));}draw();});
   U.button(br,"電力を 10 dB 下げる",function(){p1.set(Math.max(-70,p1.get()-10));p2.set(Math.max(-70,p2.get()-10));draw();});
   var box=U.svgbox(el),ro=U.readout(el);

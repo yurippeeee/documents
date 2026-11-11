@@ -205,6 +205,7 @@ def _f09_lna_nfg_fig():
     xb = p.X(18) - 9
     o.append(DIM(xb, p.Y(v18[1.0]) + 3, xb, p.Y(v18[2.0]) - 3, None, c=INK))
     o.append(T(xb - 5, (p.Y(v18[1.0]) + p.Y(v18[2.0])) / 2 - 12, "%.1f dB" % (v18[1.0] - v18[2.0]), "end", 10, INK, True, halo=True))
+    o.append(W(p.X(18), p.y, p.X(18), p.y + p.h, c=FNT, lw=1, dash="2 3"))
     o.append(T(p.X(18), p.y - 6, "例: 18 dB", "middle", 9.5, MUT))
     # (b) 後の段の寄与
     o.append(T(486, 18, "(b) 後の段の寄与（入力換算）", "start", 11.5, INK, True))
@@ -404,7 +405,11 @@ def _f09_mismatch_fig():
                        (2.0, SIG, "2 dB → %.1f dB"), (3.0, SIG, "3 dB → %.1f dB")]:
         d = _f09_drop(Ld)
         o.append(D(p.X(Ld), p.Y(d), c, 4.2))
-        o.append(T(p.X(Ld) - 7, p.Y(d) - 7, txt % d, "end", 10 if c == ALI else 9.5, c, True, halo=True))
+        if c == ALI:
+            o.append(W(p.X(Ld), p.Y(d) - 5, p.X(0.3), p.Y(2.2) + 4, c=ALI, lw=1))
+            o.append(T(p.X(0.05), p.Y(2.2), txt % d, "start", 10, c, True, halo=True))
+        else:
+            o.append(T(p.X(Ld) - 7, p.Y(d) - 7, txt % d, "end", 9.5, c, True, halo=True))
     return SVG(700, 306, o, "LNA の前の損失と C/N0 の減り（損失は 290 K で熱に変わるとした。後に 1 節の例の段が続く）。")
 
 
@@ -445,7 +450,7 @@ def _f09_iip3_fig():
     xa = -40
     o.append(DIM(p.X(xa), p.Y(xa + G) + 4, p.X(xa), p.Y(3 * xa + G) - 4, None, c=GLD))
     o.append(T(p.X(xa) + 6, p.Y(xa + G - 40), "80 dB の差", "start", 9.5, GLD, True, halo=True))
-    o.append(T(p.X(xa) - 6, p.Y(xa + G) - 8, "%s dBm" % _f09_f(xa + G, 0), "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(xa) + 6, p.Y(xa + G) + 14, "%s dBm" % _f09_f(xa + G, 0), "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(xa) + 6, p.Y(3 * xa + G) + 16, "%s dBm（入力換算 %s dBm）" % (_f09_f(3 * xa + G, 0), _f09_f(3 * xa, 0)), "start", 9.5, ALI, True, halo=True))
     # 傾き 3: 入力 10 dB で 30 dB
     x1, x2 = -30, -20
@@ -537,7 +542,7 @@ def _f09_active_fig():
     o.append(T(89, y + 66, "18 − 1.5 + 11.5 = 28 dB", "middle", 9.5, SIG, True))
     o.append(W(156, y + 38, 300, y + 38, c=TEA, lw=3))
     o.append(TX(228, y + 30, "ケーブル（損失 L_c）", "middle", 10, TEA, True, halo=True))
-    o.append(T(230, y + 56, "直流も同じ芯線で送る（5 節の後半）", "middle", 9.5, PUR, True, halo=True))
+    o.append(T(230, y + 56, "直流も同じ芯線で送る", "middle", 9.5, PUR, True, halo=True))
     o.append(BOX(300, y + 20, 110, 36, "受信機", None, c=SIG, sz=10.5))
     o.append(T(440, y + 32, "ケーブルの損失は増幅の後", "start", 10, GRN, True))
     o.append(T(440, y + 46, "→ 631 倍（28 dB）で割られて効く", "start", 10, GRN, False))
@@ -565,17 +570,21 @@ def _f09_cable_fig():
     pa = [(i * 0.5, _f09_cable_cn(i * 0.5, True)) for i in range(61)]
     o.append(p.clip(pa, c=GRN, lw=2.4))
     o.append(p.clip(pp, c=ALI, lw=2.4))
-    o.append(T(p.X(30) + 6, p.Y(pa[-1][1]) + 4, "アクティブ", "start", 10, GRN, True))
-    o.append(T(p.X(30) + 6, p.Y(pp[-1][1]) + 4, "パッシブ", "start", 10, ALI, True))
-    base = _f09_last(_F09_ST)
-    for m, dx, dy, a in [(1, 8, 4, "start"), (3, 8, 4, "start"), (10, 8, 4, "start"), (30, -8, -8, "end")]:
+    base = _f09_cable_cn(0, False)      # ケーブルが無いとき（パッシブ = 1 節の例）
+    base_a = _f09_cable_cn(0, True)     # ケーブルが無いとき（アクティブ）
+    dfmt = lambda d: ("−%.2f" % d) if d < 0.095 else ("−%.1f" % d)
+    # 右端（30 m）は線の名前と一緒に書く
+    for v, b, c, nm in [(pa[-1][1], base_a, GRN, "アクティブ"), (pp[-1][1], base, ALI, "パッシブ")]:
+        o.append(D(p.X(30), p.Y(v), c, 4))
+        o.append(T(p.X(30) + 7, p.Y(v) - 2, nm, "start", 10, c, True))
+        o.append(T(p.X(30) + 7, p.Y(v) + 12, "30 m: %.1f（%s）" % (v, dfmt(b - v)), "start", 9.5, c, True))
+    for m in (3, 10):
         v = _f09_cable_cn(m, False)
         o.append(D(p.X(m), p.Y(v), ALI, 4))
-        o.append(T(p.X(m) + dx, p.Y(v) + dy, "%d m: %.1f（−%.1f）" % (m, v, base - v), a, 9.5, ALI, True, halo=True))
-    for m, dx, dy, a in [(3, 6, -8, "start"), (30, -6, -10, "end")]:
-        v = _f09_cable_cn(m, True)
-        o.append(D(p.X(m), p.Y(v), GRN, 4))
-        o.append(T(p.X(m) + dx, p.Y(v) + dy, "%d m: %.1f" % (m, v) + ("（−%.1f）" % (base - v) if m == 30 else ""), a, 9.5, GRN, True, halo=True))
+        o.append(T(p.X(m) + 7, p.Y(v) - 6, "%d m: %.1f（%s）" % (m, v, dfmt(base - v)), "start", 9.5, ALI, True, halo=True))
+    v = _f09_cable_cn(3, True)
+    o.append(D(p.X(3), p.Y(v), GRN, 4))
+    o.append(T(p.X(3) + 6, p.Y(v) - 8, "3 m: %.1f（%s）" % (v, dfmt(base_a - v)), "start", 9.5, GRN, True, halo=True))
     Lc = _f09_u(1.5)
     te = (Lc - 1) * _F09_T0
     o.append(T(p.X(0.6), p.Y(33.4), "3 m（1.5 dB）のケーブルの雑音温度 %.1f K は、" % te, "start", 9.5, INK))
@@ -618,12 +627,12 @@ def _f09_biast_fig():
     _f09_cap_h(o, 190, yc)
     o.append(W(184, yc, 60, yc, c=INK, lw=1.4))
     o.append(BOX(14, yc - 18, 46, 36, "受信", None, c=SIG, sz=10))
-    o.append(T(190, yc + 28, "C 33 pF", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(190, yc + 28, "コンデンサ 33 pF", "middle", 9.5, SIG, True, halo=True))
     o.append(D(220, yc, INK, 3))
     o.append(W(220, yc, 220, 94, c=INK, lw=1.4))
     _f09_ind(o, 220, 54, 94)
     o.append(W(220, 54, 220, 44, c=INK, lw=1.4))
-    o.append(T(232, 78, "L 100 nH", "start", 9.5, PUR, True, halo=True))
+    o.append(T(232, 78, "コイル 100 nH", "start", 9.5, PUR, True, halo=True))
     o.append(BOX(170, 20, 100, 24, "電源 3.3 V", None, c=PUR, sz=10))
     # アンテナの側（右）
     o.append(T(580, 18, "アンテナの側", "middle", 11.5, INK, True))
@@ -631,19 +640,19 @@ def _f09_biast_fig():
     _f09_cap_h(o, 510, yc)
     o.append(W(516, yc, 560, yc, c=INK, lw=1.4))
     o.append(BOX(560, yc - 18, 60, 36, "LNA", "出力", c=SIG, sz=10))
-    o.append(T(510, yc + 28, "C 33 pF", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(510, yc + 28, "コンデンサ 33 pF", "middle", 9.5, SIG, True, halo=True))
     o.append(D(480, yc, INK, 3))
     o.append(W(480, yc, 480, 94, c=INK, lw=1.4))
     _f09_ind(o, 480, 54, 94)
     o.append(W(480, 54, 480, 44, c=INK, lw=1.4))
     o.append(W(480, 44, 590, 44, 590, yc - 18, c=PUR, lw=1.4))
     o.append(T(536, 38, "LNA の電源", "middle", 9.5, PUR, True, halo=True))
-    o.append(T(470, 78, "L 100 nH", "end", 9.5, PUR, True, halo=True))
+    o.append(T(470, 78, "コイル 100 nH", "end", 9.5, PUR, True, halo=True))
     # 流れ
     o.append(ARR(290, 164, 410, 164, c=PUR, lw=1.6))
-    o.append(T(420, 168, "直流: 受信機 → アンテナ（L を通る）", "start", 10, PUR, True))
+    o.append(T(420, 168, "直流: 受信機 → アンテナ（コイルを通る）", "start", 10, PUR, True))
     o.append(ARR(410, 184, 290, 184, c=SIG, lw=1.6))
-    o.append(T(280, 188, "RF: アンテナ → 受信機（C を通る）", "end", 10, SIG, True))
+    o.append(T(280, 188, "RF: アンテナ → 受信機（コンデンサを通る）", "end", 10, SIG, True))
     # 部品のインピーダンス
     yt = 222
     o.append(W(14, yt - 18, 686, yt - 18, c=LIN, lw=0.8))
@@ -704,7 +713,7 @@ def _f09_monitor_fig():
     o.append(TX(230, y - 14, "R_s = 22 Ω", "middle", 10, INK, True, halo=True))
     o.append(W(260, y, 380, y, c=INK, lw=1.4))
     o.append(D(200, y, INK, 3)); o.append(D(260, y, INK, 3))
-    o.append(BOX(380, y - 18, 110, 36, "バイアス T の L", None, c=PUR, sz=10))
+    o.append(BOX(380, y - 18, 110, 36, "バイアス T のコイル", None, c=PUR, sz=10))
     o.append(W(490, y, 540, y, c=TEA, lw=3))
     o.append(T(515, y - 8, "ケーブル", "middle", 9.5, TEA, True, halo=True))
     o.append(BOX(540, y - 18, 140, 36, "アクティブアンテナ", "15 mA（例）", c=SIG, sz=10))
@@ -757,7 +766,7 @@ def _f09_monitor_v_fig():
     o.append(TX(p.X(15) + 8, p.y + p.h / 2 + 4, "正常 15 mA（V_{Rs} = %.2f V）" % (Ia * Rs), "start", 9.5, GRN, True, halo=True))
     o.append(D(p.X(ish * 1000), p.y + p.h / 2, ALI, 4.5))
     o.append(TX(p.X(ish * 1000) - 8, p.y + p.h / 2 + 4, "短絡 %.0f mA（V_{Rs} = %.2f V）" % (ish * 1000, ish * Rs), "end", 9.5, ALI, True, halo=True))
-    o.append(T(14, p.y + p.h + 50, "開放（アンテナが外れた）: 電流 ≈ 0 mA、V_Rs ≈ 0 V（左端の金の範囲）", "start", 9.5, GLD))
+    o.append(TX(14, p.y + p.h + 50, "開放（アンテナが外れた）: 電流 ≈ 0 mA、V_{Rs} ≈ 0 V（左端の金の範囲）", "start", 9.5, GLD))
     # (b) R_s とアンテナの電圧・短絡の電流
     yb = 178
     o.append(TX(14, yb, "(b) R_s の選び方（3.3 V、15 mA、ケーブル 0.5 Ω、最低 2.7 V。例の値）", "start", 11.5, INK, True))
@@ -777,7 +786,7 @@ def _f09_monitor_v_fig():
     o.append(r.clip([(x, Vs * 1000 / (x + Rc)) for x in [0.5 + i * 0.5 for i in range(0, 120)]], c=ALI, lw=2.2))
     o.append(D(r.X(Rs), r.Y(ish * 1000), GRN, 4.5))
     o.append(T(r.X(Rs) + 6, r.Y(ish * 1000) - 8, "22 Ω: %.0f mA" % (ish * 1000), "start", 9.5, GRN, True, halo=True))
-    return SVG(700, 378, o, "給電の電流と判定、R_s の選び方（例の値）。".replace("R_s", "Rₛ"))
+    return SVG(700, 388, o, "給電の電流と判定、Rₛ の選び方（例の値）。")
 
 
 F["e09_monitor_v"] = _f09_monitor_v_fig()
