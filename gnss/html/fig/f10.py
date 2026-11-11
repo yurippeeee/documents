@@ -349,8 +349,8 @@ def _f10_noisepath_fig():
     o.append(BOX(344, y1 - 18, 96, 36, "中の電源の", "回路", c=PUR, sz=9.5, ssz=9.5, sc=PUR))
     o.append(ARR(440, y1, 458, y1, c=ALI, lw=1.6))
     o.append(BOX(458, y1 - 18, 124, 36, "局部発振器・", "A/D 変換", c=SIG, sz=9.5, ssz=9.5, sc=SIG))
-    o.append(T(170, y1 + 32, "PSRR で小さくする", "middle", 9, PUR, True))
-    o.append(T(392, y1 + 32, "PSRR（製品による）", "middle", 9, PUR, True))
+    o.append(T(170, y1 + 32, "揺れを小さくする", "middle", 9, PUR, True))
+    o.append(T(392, y1 + 32, "小さくする（製品による）", "middle", 9, PUR, True))
     o.append(T(520, y1 + 32, "位相と標本が揺れる", "middle", 9, SIG))
     o.append(ARR(582, y1, 604, y1, c=ALI, lw=1.6))
     o.append(T(608, y1 - 4, "帯域の中に", "start", 9.5, ALI, True))
@@ -970,10 +970,10 @@ def _f10_pps_fig():
     o.append(T(X(1.5), yt + 34, "どの文の時刻がどのパルスの秒かは、製品による（14 章 2 節）", "middle", 9, MUT, halo=True))
     # (b) 立ち上がりの拡大
     yb = 196
-    o.append(T(14, yb, "(b) 立ち上がりの拡大（例: 3 ns）", "start", 11.5, INK, True))
+    o.append(T(14, yb, "(b) 立ち上がりの拡大（例: 2 ns）", "start", 11.5, INK, True))
     q = Plot(70, yb + 16, 250, 92, (-5, 20), (0, 4))
     o.append(q.axes(xl="時間 [ns]", yl="電圧 [V]", xt=[0, 5, 10, 15, 20], yt=[0, 1, 2, 3, 4]))
-    o.append(q.line([(-5, 0), (0, 0), (3, 3.3), (20, 3.3)], c=GRN, lw=2.2))
+    o.append(q.line([(-5, 0), (0, 0), (2, 3.3), (20, 3.3)], c=GRN, lw=2.2))
     o.append(W(q.x, q.Y(2.31), q.x + q.w, q.Y(2.31), c=MUT, lw=1, dash="4 3"))
     o.append(TX(q.x + q.w - 4, q.Y(2.31) + 13, "V_IH 2.31 V", "end", 9, MUT, True, halo=True))
     # (c) 位置が出る前
