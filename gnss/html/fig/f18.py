@@ -525,10 +525,10 @@ def _f18_src_fig():
         o.append(TX(484 + w_ + 6, yy + 13, note, "start", 9, MUT))
     yl = p.y + p.h + 54
     o.append(RECT(214, yl - 8, 18, 8, 1, "none", MUT, 1, "3 2"))
-    o.append(T(238, yl, "直す前（L1 だけの単独。7 章 6 節）", "start", 9.5, MUT))
+    o.append(T(238, yl, "直す前（L1 の 1 つの周波数）", "start", 9.5, MUT))
     o.append(RECT(430, yl - 8, 18, 8, 1, soft(TEA), TEA, 1.1))
-    o.append(T(454, yl, "PPP で残る分（例の値）", "start", 9.5, MUT))
-    return SVG(700, yl + 12, o, "PPP で誤差の源をどう扱うか（直す前は 7 章 6 節の予算と 7 章 2 節の値、残る分は代表値と例の値）。")
+    o.append(T(454, yl, "PPP で残る分", "start", 9.5, MUT))
+    return SVG(700, yl + 12, o, "PPP で誤差の源をどう扱うか（直す前は 7 章 6 節の予算・7 章 2 節の値と代表値、残る分は代表値と例の値）。")
 
 
 F["e18_src"] = _f18_src_fig()
@@ -748,7 +748,7 @@ F["e18_why"] = _f18_why_fig()
 
 
 # =====================================================================
-# 4 節: PPP の水平の誤差が縮む様子（モデル）と、RTK・PPP-RTK の代表値
+# 4 節: PPP の水平の誤差が縮む様子（モデル）と、RTK の代表値（PPP-RTK はこの図の後で定義するので、デモでだけ重ねる）
 # =====================================================================
 def _f18_conv_fig():
     o = []
@@ -770,10 +770,9 @@ def _f18_conv_fig():
             o.append(W(p.X(tc / 60), p.Y(0.1), p.X(tc / 60), p.y + p.h, c=c, lw=1, dash="2 2"))
             o.append(T(p.X(tc / 60) + 3, p.y + p.h - 6, "%.1f 分" % (tc / 60), "start", 9.5, c, True, halo=True))
     # 代表値（モデルではない）
-    for (tf, a, b), c, lab in ((_F18_RTKREP, GRN, "RTK（17 章。代表値）"), (_F18_CLASREP, PUR, "PPP-RTK（CLAS の基準）")):
-        o.append(p.clip([(0, a), (tf / 60, a), (tf / 60, b), (60, b)], c=c, lw=2.2, dash="7 3"))
+    tf, a, b = _F18_RTKREP
+    o.append(p.clip([(0, a), (tf / 60, a), (tf / 60, b), (60, b)], c=GRN, lw=2.2, dash="7 3"))
     o.append(T(p.X(2.5), p.Y(0.02) - 5, "RTK 2 cm（10 s で決まる）", "start", 9.5, GRN, True, halo=True))
-    o.append(T(p.X(2.5), p.Y(0.06) - 5, "CLAS 6 cm（1 分以内）", "start", 9.5, PUR, True, halo=True))
     o.append(W(p.x, p.Y(6.6), p.x + p.w, p.Y(6.6), c=MUT, lw=1.2, dash="2 3"))
     o.append(T(p.x + p.w - 4, p.Y(6.6) - 5, "単独（L1）6.6 m", "end", 9.5, MUT, True, halo=True))
     # 凡例と読み
@@ -786,11 +785,9 @@ def _f18_conv_fig():
         o.append(T(lx + 28, y + 14, "10 cm まで %.1f 分" % (tc / 60), "start", 9.5, c, True))
     y = 64 + 3 * 34 + 6
     o.append(T(lx, y, "代表値（モデルではない）", "start", 10.5, INK, True))
-    for k, (c, lab) in enumerate(((GRN, "RTK（17 章 6 節）"), (PUR, "PPP-RTK（5 節の CLAS）"))):
-        yy = y + 20 + k * 18
-        o.append(W(lx, yy - 4, lx + 22, yy - 4, c=c, lw=2.2, dash="7 3"))
-        o.append(T(lx + 28, yy, lab, "start", 9.5, INK, True))
-    return SVG(700, 300, o, "PPP の水平の誤差が縮む様子（東京で 30 s ごとのエポック、擬似距離 3.33 m・位相 2.1 cm、誤差はエポックごとに独立としたモデル）と、RTK・PPP-RTK の代表値。")
+    o.append(W(lx, y + 16, lx + 22, y + 16, c=GRN, lw=2.2, dash="7 3"))
+    o.append(T(lx + 28, y + 20, "RTK（17 章 6 節）", "start", 9.5, INK, True))
+    return SVG(700, 300, o, "PPP の水平の誤差が縮む様子（東京で 30 s ごとのエポック、擬似距離 3.33 m・位相 2.1 cm、誤差はエポックごとに独立としたモデル）と、RTK の代表値。")
 
 
 F["e18_conv"] = _f18_conv_fig()

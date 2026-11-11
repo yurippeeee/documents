@@ -110,7 +110,7 @@
       out.push({t:e.t,n:e.v.length,r95:_w18_r95(Cv[0][0],Cv[0][1],Cv[1][1]),su:Math.sqrt(Cv[2][2]),e:xe,nn:xn});});
     return out;}
   function _w18_tconv(res,th){for(var i=0;i<res.length;i++){var ok=true;for(var j=i;j<res.length;j++)if(res[j].r95>=th){ok=false;break;}if(ok)return res[i].t;}return null;}
-  var _W18_RTK=[10,0.8,0.02],_W18_CLAS=[60,1.5,0.06];   /* 比べる代表値（モデルではない）: 整数が決まる時刻 [s]・それまでと後の R95 [m] */
+  var _W18_RTK=[10,0.8,0.02],_W18_CLAS=[60,1.5,0.06];   /* 比べる代表値（モデルではない）: 整数が決まる時刻 [s]・それまでと後の R95 [m]。PPP-RTK は 5 節の CLAS の基準の値 */
 
   REG.w18_converge=function(el,U){
     var S=U.S;
@@ -141,7 +141,7 @@
       o.push(S.L(P.x,P.Y(6.6),P.x+P.w,P.Y(6.6),"muted",1.1,"2 3"));o.push(S.T(P.x+P.w-3,P.Y(6.6)-4,"単独 6.6 m","end",9,"muted",true,false,null,true));
       [[_W18_RTK,"green"],[_W18_CLAS,"purple"]].forEach(function(r){var q=r[0];o.push(P.clip([[0,q[1]],[q[0]/60,q[1]],[q[0]/60,q[2]],[60,q[2]]],r[1],1.8,"7 3"));});
       o.push(S.T(P.X(2.5),P.Y(0.02)-4,"RTK（代表値）","start",9,"green",true,false,null,true));
-      o.push(S.T(P.X(2.5),P.Y(0.06)-4,"PPP-RTK（CLAS の基準）","start",9,"purple",true,false,null,true));
+      o.push(S.T(P.X(2.5),P.Y(0.06)-4,"PPP-RTK（代表値。5 節）","start",9,"purple",true,false,null,true));
       o.push(P.clip(res.map(function(r){return [r.t/60,r.r95];}),"gold",1.2,"3 3"));
       o.push(P.clip(res.slice(0,k+1).map(function(r){return [r.t/60,r.r95];}),"gold",2.4));
       res.slice(0,k+1).forEach(function(r){var hv=Math.hypot(r.e,r.nn);if(hv>0.01&&hv<10)o.push(S.D(P.X(r.t/60),P.Y(hv),"teal",1.8));});
@@ -163,7 +163,7 @@
       box.set(S.svg(Wd,nar?cy+cw+56:Math.max(P.y+P.h+60,cy+cw+56),o));
       var hv=Math.hypot(rk.e,rk.nn);
       var h="時刻 <b>"+_w18_f(rk.t/60,1)+" 分</b>（"+(k+1)+" 回目のエポック）・見えている衛星 "+rk.n+"・R95（モデル）<b>"+_w18_f(100*rk.r95,1)+" cm</b>・上の標準偏差 "+_w18_f(100*rk.su,1)+" cm・この回の水平の誤差 "+_w18_f(100*hv,1)+" cm<br>";
-      h+="R95 が 10 cm を下回って保つまで: "+(tc===null?'<span class="warn">60 分では届かない</span>':"<b>"+_w18_f(tc/60,1)+" 分</b>")+"（RTK は数秒〜数十秒、CLAS は 1 分以内。どちらも代表値・基準）";
+      h+="R95 が 10 cm を下回って保つまで: "+(tc===null?'<span class="warn">60 分では届かない</span>':"<b>"+_w18_f(tc/60,1)+" 分</b>")+"（RTK は数秒〜数十秒、PPP-RTK は 1 分ほど。どちらも代表値）";
       h+='<div class="wnote">東京の止まった受信機、1 章の配置、仰角 10° 以上、30 s ごとのエポック。未知数は位置・受信機の時計（エポックごと）・'+(sTr.get()===0?"対流圏の湿潤の部分・":"")+'衛星ごとの実数の整数値バイアス。誤差はエポックごとに独立な正規分布（実際の誤差はゆっくり変わるので、収束はこれより遅く、数 cm で止まる）。</div>';
       ro.innerHTML=h;
     }
