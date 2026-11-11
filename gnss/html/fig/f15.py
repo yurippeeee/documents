@@ -68,7 +68,7 @@ def _f15_record(on=None):
         for kind, body in _f15_epoch_sents(k, on):
             s = "$%s*%02X" % (body, _f15_ck(body))
             cum += len(s) + 2
-            tt = t0 + _F15_TC + int(round(cum * 10.0 / _F15_BAUD * 1000))
+            tt = t0 + _F15_TC + int(_f15_m.floor(cum * 10.0 / _F15_BAUD * 1000 + 0.5))
             if "bad" in on and k == 5 and kind == "GGA":
                 s = s.replace("3540.86000", "3540.85000")
             if "normc" in on and k == 8 and kind == "RMC":
