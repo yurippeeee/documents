@@ -148,7 +148,7 @@ REG.w10_backup=function(el,U){
     o.push(S.T(nar?6:14,16,c?"(a) キャパシタの電圧":"(a) 電池の残り","start",11,"ink",true));
     o.push(P.axes({xl:"主の電源を切ってからの時間 ["+un+"]",yl:c?"電圧 v [V]":"残り [%]",yt:c?[0,1,2,3]:[0,25,50,75,100],sz:9}));
     if(c){o.push(S.L(P.x,P.Y(vm.get()),P.x+P.w,P.Y(vm.get()),"alias",1,"5 3"));
-      o.push(S.TX(P.x+P.w-4,P.Y(vm.get())+13,"V_{min} "+_w10_f(vm.get(),2)+" V","end",9,"alias",true,true));
+      o.push(S.TX(P.x+4,P.Y(vm.get())+13,"V_{min} "+_w10_f(vm.get(),2)+" V","start",9,"alias",true,true));
       var te=Math.min(th,tmax);o.push(P.line([[0,v0.get()],[te/uh,v0.get()-hd.I*te/cap.get()]],"green",2.4));
       if(th<tmax)o.push(P.line([[th/uh,vm.get()],[tmax/uh,Math.max(0,vm.get()-hd.I*(tmax-th)/cap.get())]],"faint",1.6,"4 3"));}
     else{o.push(P.line([[0,100],[Math.min(th,tmax)/uh,100*(1-Math.min(th,tmax)/th)]],"signal",2.4));}
@@ -167,7 +167,7 @@ REG.w10_backup=function(el,U){
     o.push(S.RECT(X(30),rows[1][1],X(7200)-X(30),16,3,U.soft("green"),"green",1));o.push(S.RECT(X(7200),rows[1][1],X(14400)-X(7200),16,3,"none","green",1,"3 2"));
     o.push(S.RECT(X(30),rows[2][1],X(1209600)-X(30),16,3,U.soft("gold"),"gold",1));o.push(S.RECT(X(1209600),rows[2][1],X(5184000)-X(1209600),16,3,"none","gold",1,"3 2"));
     [[30,7200,"ホット","green"],[14400,1209600,"ウォーム","gold"],[5184000,4e7,"コールド","alias"]].forEach(function(sg){var a=X(sg[0]),b=X(sg[1]);
-      o.push(S.RECT(a,rows[3][1],b-a,16,3,U.soft(sg[3]),sg[3],1));if(b-a>34)o.push(S.T((a+b)/2,rows[3][1]+12,sg[2],"middle",9,sg[3],true));});
+      o.push(S.RECT(a,rows[3][1],b-a,16,3,U.soft(sg[3]),sg[3],1));if(b-a>U.tw(sg[2],8.5)+4)o.push(S.T((a+b)/2,rows[3][1]+12,sg[2],"middle",8.5,sg[3],true));});
     o.push(S.L(X(Math.max(30,t)),by+20,X(Math.max(30,t)),by+124,st[1],2));
     [[60,"1 分"],[3600,"1 時間"],[86400,"1 日"],[2592000,"1 か月"],[31536000,"1 年"]].forEach(function(tk){o.push(S.L(X(tk[0]),by+122,X(tk[0]),by+126,"muted",1));o.push(S.T(X(tk[0]),by+137,tk[1],"middle",9,"muted"));});
     o.push(S.T(bx,by+160,"→ "+st[0],"start",11,st[1],true));
@@ -212,7 +212,7 @@ REG.w10_uart=function(el,U){
   _W10_KINDS.forEach(function(k){ck[k[0]]=U.checkbox(r1,k[0]+"（"+k[1]+"）",true,function(){draw();});});
   var r2=U.ctrls(el);
   var sys=U.select(r2,"衛星系",["GPS","GPS + GLONASS","GPS + GLONASS + Galileo","GPS + GLONASS + Galileo + BeiDou"],1,function(){draw();});
-  var rate=U.slider(r2,"更新レート（1 秒に出す回数。13 章で設定する）",{values:[1,2,4,5,10],value:1,fmt:function(v){return v+" 回/s";},onInput:function(){draw();}});
+  var rate=U.slider(r2,"更新レート（13 章）",{values:[1,2,4,5,10],value:1,fmt:function(v){return v+" 回/s";},onInput:function(){draw();}});
   var bauds=[4800,9600,19200,38400,57600,115200,230400,460800,921600];
   var baud=U.select(r2,"ボーレート",bauds.map(function(b){return {v:String(b),t:_w10_g(b)+" bit/s"};}),"9600",function(){draw();});
   var br=U.btnrow(el),show=false;
@@ -228,14 +228,15 @@ REG.w10_uart=function(el,U){
     var bad=load>1;
     /* (a) 1 回に出す文のバイト数 */
     o.push(S.T(nar?6:14,16,"(a) 1 回に出す文: "+ss.length+" 文・"+tot+" バイト","start",11,"ink",true));
-    var x0=nar?6:14,ww=nar?388:672,sc=ww/Math.max(1200,tot),xx=x0;
+    var x0=nar?6:14,ww=nar?388:672,sc=ww/Math.max(1000,tot),xx=x0,lx=x0,ly=64;
     _W10_KINDS.forEach(function(k){var ls=ss.filter(function(s){return s[0]===k[0];}).map(function(s){return s[1].length;});if(!ls.length)return;
       var sum=0;ls.forEach(function(l){sum+=l;});
       ls.forEach(function(l){o.push(S.RECT(xx,26,l*sc,22,2,U.soft(k[2]),k[2],1));xx+=l*sc;});
-      var mid=xx-sum*sc/2;if(sum*sc>34)o.push(S.T(mid,41,k[0],"middle",9,k[2],true));
-      if(sum*sc>44)o.push(S.T(mid,62,sum+" B","middle",8.5,k[2],true));});
+      var mid=xx-sum*sc/2;if(sum*sc>22)o.push(S.T(mid,41,k[0],"middle",8.5,k[2],true));
+      var lab=k[0]+(ls.length>1?" ×"+ls.length:"")+" "+sum+" B",lw=U.tw(lab,9)+12;if(lx+lw>x0+ww){lx=x0;ly+=14;}
+      o.push(S.T(lx,ly,lab,"start",9,k[2],true));lx+=lw;});
     /* (b) 線の上の時間（2 s） */
-    var yb=86,P=U.plot(nar?6:14,yb+18,nar?388:672,26,[0,2],[0,1]);
+    var yb=ly+24,P=U.plot(nar?6:14,yb+18,nar?388:672,26,[0,2],[0,1]);
     o.push(S.T(nar?6:14,yb+6,"(b) 線の上の時間（8N1。濃い所が送っている時間、縦の線は位置を出す時刻）","start",nar?9.5:11,"ink",true));
     o.push(S.RECT(P.x,P.y,P.w,P.h,2,"var(--screen)","line",0.8));
     var rb=B/10,q=0,tprev=0,maxq=0,busy=[],ep=[];
@@ -244,8 +245,7 @@ REG.w10_uart=function(el,U){
     var cl=bad?"alias":"gold";
     busy.forEach(function(b){o.push(S.RECT(P.X(b[0]),P.y,Math.max(1,P.X(b[1])-P.X(b[0])),P.h,0,U.soft(cl),cl,1));});
     ep.forEach(function(te){if(te<2)o.push(S.L(P.X(te),P.y-4,P.X(te),P.y+P.h+4,"ink",1.4));});
-    [0,0.5,1,1.5,2].forEach(function(v){o.push(S.T(P.X(v),P.y+P.h+15,String(v),"middle",9,"muted"));});
-    o.push(S.T(P.x+P.w,P.y+P.h+15,"時間 [s]","end",9,"muted"));
+    [0,0.5,1,1.5,2].forEach(function(v){o.push(S.T(P.X(v)-(v===2?2:0),P.y+P.h+15,v===2?"2 s":String(v),v===2?"end":"middle",9,"muted"));});
     var back=tot*ep.filter(function(e){return e<2;}).length-2*rb;
     if(bad)o.push(S.T(P.x+P.w,P.y-6,"2 s までに "+_w10_g(back)+" B がたまる","end",9.5,"alias",true,false,null,true));
     /* (c) 負荷率 */

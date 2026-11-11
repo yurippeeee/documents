@@ -744,8 +744,6 @@ def _f10_hold_fig():
                     xfmt=lambda v: "%g" % v, yfmt=lambda v: ylab.get(v, "")))
     o.append(RECT(q.x, q.Y(4), q.w, q.Y(2) - q.Y(4), 0, GSOFT, "none", 0))
     o.append(RECT(q.x, q.Y(1440), q.w, q.Y(336) - q.Y(1440), 0, GOSOFT, "none", 0))
-    o.append(T(q.x + 4, q.Y(4) - 3, "ホットに要る 2〜4 時間", "start", 9, GRN, True, halo=True))
-    o.append(T(q.x + 4, q.Y(1440) - 3, "ウォームに要る数週間", "start", 9, GLD, True, halo=True))
     Is = _f10_np.logspace(0, 2, 60)
     lines = [("CR2032", SIG, lambda i: 220e3 / (i + 0.25)),
              ("1 F", PUR, lambda i: 1.0 * 1.35 / ((i + 1) * 1e-6) / 3600),
@@ -758,8 +756,12 @@ def _f10_hold_fig():
         o.append(q.clip([(i, fn(i)) for i in Is], c=c, lw=2.2))
         v = fn(15)
         o.append(D(q.X(15), q.Y(v), c, 3.6))
-        o.append(T(q.X(15) + 6, q.Y(v) - 4, "%s: %s" % (nm, vals[nm]), "start", 9, c, True, halo=True))
-    return SVG(700, 256, o, "保持時間（例の値: キャパシタ 3.0 V から 1.65 V まで、漏れ電流 1 µA。CR2032 は 220 mAh・自己放電 1 年に 1 %）。")
+        if nm == "0.1 F":
+            o.append(T(q.X(15) - 6, q.Y(v) + 12, "%s: %s" % (nm, vals[nm]), "end", 9, c, True, halo=True))
+        else:
+            o.append(T(q.X(15) + 6, q.Y(v) - 4, "%s: %s" % (nm, vals[nm]), "start", 9, c, True, halo=True))
+    o.append(LEGEND(372, 270, [(GRN, "ホットに要る 2〜4 時間"), (GLD, "ウォームに要る数週間")], sz=9.5, gap=14))
+    return SVG(700, 280, o, "保持時間（例の値: キャパシタ 3.0 V から 1.65 V まで、漏れ電流 1 µA。CR2032 は 220 mAh・自己放電 1 年に 1 %）。")
 
 
 F["e10_hold"] = _f10_hold_fig()
