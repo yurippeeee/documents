@@ -161,7 +161,7 @@ def _f10_pins_fig():
     mx, my, mw, mh = 268, 34, 164, 300
     o.append(RECT(mx, my, mw, mh, 10, PAN, INK, 1.6))
     o.append(T(mx + mw / 2, my + 22, "GNSS モジュール", "middle", 12, INK, True))
-    o.append(T(mx + mw / 2, my + 38, "（例: L1・多衛星系）", "middle", 9.5, MUT))
+    o.append(T(mx + mw / 2, my + 38, "（例: L1・複数の衛星系）", "middle", 9.5, MUT))
     o.append(T(mx + mw / 2, my + mh - 12, "端子の名前は例", "middle", 9, MUT))
     # 左の端子と右の端子: (y, 名前, 色, 箱の番号)
     left = [(92, "VCC", PUR, 0), (112, "GND", MUT, 0), (164, "V_BCKP", PUR, 1), (210, "GND", MUT, 2), (228, "RF_IN", SIG, 2),
@@ -175,8 +175,8 @@ def _f10_pins_fig():
         (10, 202, 228, 104, "RF の入力とアンテナ（9・11 章）", SIG, ["RF_IN: 50 Ω の線でアンテナへ", "両側の GND: 戻る電流の道",
                                                           "VCC_RF: アクティブアンテナの給電", "ANT_DET: 開放・短絡の判定を入れる",
                                                           "（給電 3.3 V・15 mA、9 章の例）"]),
-        (462, 62, 228, 104, "通信（4 節）", GLD, ["TXD・RXD: UART", "初め 9600 bit/s・8N1・3.3 V", "1 秒に 1 回、文を出す",
-                                                "（例の 11 文で 626 バイト）", "SDA・SCL（I2C）か SPI でも読める"]),
+        (462, 62, 228, 90, "通信（4 節）", GLD, ["TXD・RXD: UART", "初め 9600 bit/s・8N1・3.3 V", "1 秒に 1 回、文を出す",
+                                                "SDA・SCL（I2C）か SPI でも読める"]),
         (462, 172, 228, 50, "時刻（5 節）", GRN, ["1PPS: 立ち上がりが秒の頭", "幅 100 ms・3.3 V"]),
         (462, 236, 228, 76, "制御（6 節）", INK, ["RESET_N: 10 ms 以上 L でリセット", "BOOT: 起動の選択（ふだんは開ける）",
                                                  "WAKEUP: 省電力の動作から起こす"]),
@@ -881,7 +881,7 @@ def _f10_bytes_fig():
         o.append(W(p.X(v), p.y + p.h, p.X(v), p.y + p.h + 4, c=MUT, lw=1))
         o.append(T(p.X(v), p.y + p.h + 15, "%g" % v, "middle", 9.5, MUT))
     o.append(T(p.x + p.w / 2, p.y + p.h + 30, "時間 t [s]（縦の線は、位置を出す時刻）", "middle", 10, MUT))
-    return SVG(700, yb + 14 + 132 + 40, o, "例の文のバイト数と、ボーレート・更新レートを変えたときの線の上の時間（文は例。12 章の形で作り、長さを数えた）。")
+    return SVG(700, yb + 14 + 132 + 40, o, "例の文のバイト数と、ボーレートと 1 秒に出す回数を変えたときの線の上の時間（文は例。12 章の形で作り、長さを数えた）。")
 
 
 F["e10_bytes"] = _f10_bytes_fig()

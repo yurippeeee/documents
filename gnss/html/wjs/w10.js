@@ -51,7 +51,7 @@ REG.w10_supply=function(el,U){
     var ya=y0+(nar?2*(bh+16):bh+16)+6;
     /* (b) PSRR と (c) C/N0 */
     var P,Q,yb=ya+8;
-    if(nar){P=U.plot(48,yb+16,330,140,[1e3,1e7],[0,100],{xlog:true});Q=U.plot(48,yb+16+140+68,330,140,[1,300],[15,50],{xlog:true});}
+    if(nar){P=U.plot(48,yb+16,330,140,[1e3,1e7],[0,100],{xlog:true});Q=U.plot(48,yb+16+140+84,330,140,[1,300],[15,50],{xlog:true});}
     else{P=U.plot(60,yb+16,260,160,[1e3,1e7],[0,100],{xlog:true});Q=U.plot(420,yb+16,256,160,[1,300],[15,50],{xlog:true});}
     o.push(S.T(nar?6:14,yb+4,"(b) PSRR（例のモデル）","start",11,"ink",true));
     o.push(P.axes({xl:"雑音の周波数 f [Hz]",yl:"PSRR [dB]",xt:[1e3,1e4,1e5,1e6,1e7],yt:[0,20,40,60,80,100],xfmt:function(v){return {1000:"1 k",10000:"10 k",100000:"100 k",1000000:"1 M",10000000:"10 M"}[v]||"";},sz:9}));
@@ -108,7 +108,7 @@ REG.w10_supply=function(el,U){
 /* ---- 3 節: バックアップ電源の保持時間と、次のスタート ---- */
 var _W10_TOFF=[60,300,600,1800,3600,7200,10800,14400,21600,43200,86400,172800,345600,604800,1209600,2592000,5184000,15552000,31536000];
 function _w10_tstr(s){if(s<120)return _w10_f(s,0)+" s";if(s<3600)return _w10_f(s/60,0)+" 分";if(s<172800)return _w10_f(s/3600,s<36000?1:0).replace(/\.0$/,"")+" 時間";
-  if(s<60*86400)return _w10_f(s/86400,s<864000?1:0).replace(/\.0$/,"")+" 日";if(s<2*365*86400)return _w10_f(s/2592000,1).replace(/\.0$/,"")+" か月";return _w10_f(s/31536000,1)+" 年";}
+  if(s<60*86400)return _w10_f(s/86400,s<864000?1:0).replace(/\.0$/,"")+" 日";if(s<31536000)return _w10_f(s/2592000,1).replace(/\.0$/,"")+" か月";return _w10_f(s/31536000,1)+" 年";}
 /* 電源を切っていた時間 t [s]・保持時間 th [s] → 次のスタート [名前, 色, 説明] */
 function _w10_start(t,th){if(t>=th)return ["コールドスタート","alias","バックアップ電源が保てなくなり、時刻も軌道の情報も消えた"];
   if(t<7200)return ["ホットスタート","green","エフェメリスが有効（2〜4 時間。代表値）"];
@@ -178,7 +178,7 @@ REG.w10_backup=function(el,U){
     var h=c?"保持時間 t<sub>h</sub> = C<sub>b</sub>(V<sub>0</sub> − V<sub>min</sub>)/I = "+_w10_f(cap.get(),3).replace(/0+$/,"").replace(/\.$/,"")+" F × "+_w10_f(v0.get()-vm.get(),2)+" V ÷ "+_w10_f(hd.I*1e6,1)+" µA = <b>"+_w10_g(th)+" s（"+_w10_tstr(th)+"）</b><br>"
       :"保持時間 t<sub>h</sub> = Q<sub>b</sub>/I = "+qb.get()+" mAh ÷ （"+_w10_f(ib.get(),1)+" + 自己放電 "+_w10_f(hd.Isd*1e6,2)+"）µA = <b>"+_w10_g(th/3600)+" 時間（"+_w10_tstr(th)+"）</b><br>";
     var er=20e-6*t;h+="電源を切っていた時間 "+_w10_tstr(t)+"・そのときの"+(c?"電圧 "+_w10_f(vt,2)+" V":"残り "+_w10_f(vt,1)+" %")+"・RTC の誤差（20 ppm）"+(er<1?_w10_f(er*1000,er<0.01?2:0)+" ms":_w10_f(er,er<10?1:0)+" s")+"<br>";
-    h+="次に電源を入れたとき: <b><span class=\""+(st[1]==="alias"?"warn":"ok")+"\">"+st[0]+"</span></b>（"+st[2]+"）";
+    h+="次に電源を入れたとき: <b><span class=\""+(st[1]==="alias"?"warn":"ok")+"\">"+st[0]+"</span></b>。"+st[2];
     ro.innerHTML=h+'<div class="wnote">'+(c?"キャパシタは一定の電流で電圧が直線に下がる（漏れ電流を足した電流で計算）。V<sub>min</sub> を割ると、RTC とメモリが止まる。":"電池は自己放電を電流に直して足した（電源と周辺の制御シリーズ 3 章 5 節）。電圧は終わり近くまでほぼ一定なので、(a) は残りの割合で描いた。")+
       "スタートの境目（エフェメリス 2〜4 時間、アルマナック 2 週間〜2 か月）は代表値で、受信機によって違う。</div>";
   }
