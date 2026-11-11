@@ -249,7 +249,7 @@ def _f12_anatomy_fig():
     o.append(T((x0 + xend) / 2, yt + 80, "$ から LF まで %d 文字（規格では 82 文字以下とされる）" % (len(line) + 2), "middle", 10, INK, True))
     # (b) 話者 ID
     yb = 182
-    o.append(T(14, yb, "(b) 話者 ID の例（書き方は規格の版とモジュールによる）", "start", 11.5, INK, True))
+    o.append(T(14, yb, "(b) $ の直後の 2 文字（話者 ID）の例（書き方は規格の版とモジュールによる）", "start", 11.5, INK, True))
     tl = [("GP", "GPS", SIG), ("GL", "GLONASS", PUR), ("GA", "Galileo", GRN), ("GB・BD", "BeiDou", GLD), ("GQ", "みちびき", TEA), ("GN", "複数の衛星系", INK)]
     for k, (t, nm, c) in enumerate(tl):
         xx = 14 + k * 113
@@ -939,7 +939,7 @@ def _f12_g(v):
 
 def _f12_dm_fig():
     o = []
-    o.append(T(14, 18, "(a) 度分形式から 10⁻⁷ 度の整数へ（5 節の nmea_dm_e7 の手順）", "start", 11.5, INK, True))
+    o.append(T(14, 18, "度分形式から 10⁻⁷ 度の整数へ（nmea_dm_e7 の手順）", "start", 11.5, INK, True))
     cols = [("緯度", _F12_LAT, 2, "N"), ("経度", _F12_LON, 3, "E")]
     for k, (nm, s, nd, hemi) in enumerate(cols):
         x0 = 14 + k * 346
@@ -975,20 +975,7 @@ def _f12_dm_fig():
             o.append(T(x0 + 24 + tw(b, 11, True) + 8, yy, u, "start", 9.5, MUT))
             yy += 21
         o.append(T(x0 + 8, yy + 2, "→ %d.%07d°（%s）" % (v // 10000000, v % 10000000, "北緯" if hemi == "N" else "東経"), "start", 10.5, GLD, True))
-    # (b) GGA を数値にした結果
-    yb = 316
-    o.append(T(14, yb, "(b) 例の GGA を nmea_gga に通した結果（struct gga。ホストで動かした値）", "start", 11.5, INK, True))
-    items = [("t_ms", "34 070 000", "09:27:50.000（UTC）", SIG), ("quality", "1", "単独で求めた", GRN), ("nsat", "8", "使った衛星の数", TEA),
-             ("hdop_c", "95", "HDOP 0.95 の 100 倍", TEA), ("lat", _f12_g(356810000), "35.6810000°", GLD), ("lon", _f12_g(1397670000), "139.7670000°", GLD),
-             ("alt_mm", "3 300", "標高 3.3 m", PUR), ("sep_mm", "36 700", "ジオイド高 36.7 m", PUR)]
-    for k, (nm, v, d, c) in enumerate(items):
-        col, row = divmod(k, 4)
-        x0, yy = 14 + col * 330, yb + 24 + row * 20
-        o.append(T(x0, yy, nm, "start", 10.5, c, True, True))
-        o.append(T(x0 + 120, yy, v, "end", 10.5, INK, True, True))
-        o.append(T(x0 + 130, yy, d, "start", 10, MUT))
-    o.append(T(14, yb + 24 + 4 * 20 + 4, "alt_mm + sep_mm = 40 000 mm（楕円体高 40.0 m。2 節）", "start", 10, PUR, True))
-    return SVG(700, yb + 24 + 4 * 20 + 14, o, "度分形式の緯度・経度を、浮動小数点を使わずに 10⁻⁷ 度の整数に直す手順と、例の GGA を数値に直した結果。")
+    return SVG(700, 300, o, "度分形式の緯度・経度を、浮動小数点を使わずに 10⁻⁷ 度の整数に直す手順（例の GGA の値）。")
 
 
 F["e12_dm"] = _f12_dm_fig()
@@ -1154,3 +1141,35 @@ def _f12_nofix_fig():
 
 
 F["e12_nofix"] = _f12_nofix_fig()
+
+
+
+# =====================================================================
+# 5 節: GGA の欄から struct gga へ（nmea_gga。ホストで動かした値）
+# =====================================================================
+def _f12_gga2c_fig():
+    o = []
+    o.append(T(14, 18, "例の GGA の欄（上）を、nmea_gga で struct gga（下）に直した値（ホストで動かした結果）", "start", 11.5, INK, True))
+    fl = _F12_GGA.split(",")
+    use = {1: SIG, 2: GLD, 3: GLD, 4: GLD, 5: GLD, 6: GRN, 7: TEA, 8: TEA, 9: PUR, 11: PUR}
+    cen = _f12_boxes(o, 14, 52, fl, 10.5, hl=use)
+    mem = [("t_ms", "34 070 000", "nmea_time_ms", [1], SIG), ("lat", "356 810 000", "nmea_dm_e7", [2, 3], GLD),
+           ("lon", "1 397 670 000", "nmea_dm_e7", [4, 5], GLD), ("quality", "1", "nmea_fix", [6], GRN), ("nsat", "8", "nmea_fix", [7], TEA),
+           ("hdop_c", "95", "nmea_fix（×100）", [8], TEA), ("alt_mm", "3 300", "nmea_fix（×1000）", [9], PUR), ("sep_mm", "36 700", "nmea_fix（×1000）", [11], PUR)]
+    yb, bw, gap = 142, 80, 4
+    for k, (nm, v, fn, src, c) in enumerate(mem):
+        x = 14 + k * (bw + gap)
+        o.append(RECT(x, yb, bw, 58, 5, soft(c), c, 1.2))
+        o.append(T(x + bw / 2, yb + 16, nm, "middle", 10.5, c, True, True))
+        o.append(T(x + bw / 2, yb + 33, v, "middle", 10.5, INK, True, True))
+        o.append(T(x + bw / 2, yb + 49, fn, "middle", 9, MUT))
+        xs = sum(cen[i] for i in src) / len(src)
+        for i in src:
+            o.append(W(cen[i], 82, xs, 98, c=c, lw=1.0))
+        o.append(ARR(xs, 98, x + bw / 2, yb - 2, c=c, lw=1.3, head=6))
+    o.append(T(14, yb + 80, "has_pos = 1（[2]〜[5] が読めた）、has_alt = 1（[9]・[11] が読めた）。[10]・[12] の単位と、[13]・[14] の補正の欄は使わない", "start", 10, MUT))
+    o.append(T(14, yb + 98, "alt_mm + sep_mm = 40 000 mm（楕円体高 40.0 m。2 節）、t_ms = 34 070 000 ms は 9 時 27 分 50 秒（UTC）", "start", 10, MUT))
+    return SVG(700, yb + 108, o, "GGA の欄と、構造体の値の対応（[k] は欄の番号 f[k]。下の箱の小さい文字は、変換に使う関数）。")
+
+
+F["e12_gga2c"] = _f12_gga2c_fig()
