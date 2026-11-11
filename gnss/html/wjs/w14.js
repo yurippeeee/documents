@@ -168,7 +168,7 @@ REG.w14_discipline=function(el,U){
     else if(R.div)h+="<span class=\"warn\">シミュレーション: ずれが発散した</span>";
     if(L&&!L.div&&stable){var a1=0,a2=0,b1=0,b2=0,n=0;for(var k8=500;k8<L.d.length;k8++){a1+=L.d[k8];a2+=L.d[k8]*L.d[k8];var e=L.ri[k8]-o.rm;b1+=e;b2+=e*e;n++;}
       var sd=Math.sqrt(Math.max(0,a2/n-(a1/n)*(a1/n))),sr=Math.sqrt(Math.max(0,b2/n-(b1/n)*(b1/n)));
-      h+="<br>雑音 σ = "+sg.get()+" ns のとき（3000 回、500 回目から）: 本当のずれの標準偏差 <b>"+_w14_t(sd)+"</b>、I の分で覚えた周波数の誤差の標準偏差 <b>"+_w14_f(sr*1e6,4)+" ppm</b>（ホールドオーバーで使う。5 節）";}
+      h+="<br>雑音 σ = "+sg.get()+" ns のとき（3000 回、500 回目から）: 本当のずれの標準偏差 <b>"+_w14_t(sd)+"</b>、I の分で覚えた周波数の誤差の標準偏差 <b>"+_w14_f(sr*1e6,4)+" ppm</b>（衛星が見えない間の時計に使う。5 節）";}
     ro.innerHTML=h+'<div class="wnote">本文 3 節の式（T<sub>p</sub> = 1 s）を 1 秒ずつ計算した。初めは時刻を合わせた直後で、ずれ 0・周波数の補正 0 とし、「2 つ目のパルスで周波数を測る」では、1 秒の数で測った r<sub>m</sub>（パルスの誤差を含む）を初めの補正にした。(b) の金色の破線は、根が複素数のときの振れ幅 C|z|<sup>k</sup>、青緑の点は雑音を含む測ったずれ。積分のつまみは、縦軸と同じ平方根の目盛で動く。</div>';
   }
   run();
@@ -189,9 +189,9 @@ REG.w14_sawtooth=function(el,U){
   var br=U.btnrow(el),seed=1,cur=null,Dt=null,N=121;
   var tk=U.ticker(function(){cur+=1;if(cur>=N-1){cur=null;tk.stop();}draw();},300);
   function setAll(f,r){fq.set(f);rr.set(r);run();}
-  U.button(br,"本文の例（ν = 0.048）",function(){fq.set(48);rr.set(0.501);sg.set(0);cp.set(0);cor.set(false);run();});
-  U.button(br,"ν ≈ 0.5",function(){setAll(48,0.5104);});
-  U.button(br,"ν ≈ 0（とどまる）",function(){setAll(48,0.50002);});
+  U.button(br,"本文の例（<i>ν</i> = 0.048）",function(){fq.set(48);rr.set(0.501);sg.set(0);cp.set(0);cor.set(false);run();});
+  U.button(br,"<i>ν</i> ≈ 0.5",function(){setAll(48,0.5104);});
+  U.button(br,"<i>ν</i> ≈ 0（とどまる）",function(){setAll(48,0.50002);});
   U.button(br,"再生",function(){cur=0;tk.start();});
   U.button(br,"止める",function(){tk.stop();cur=null;draw();});
   U.button(br,"もう一度（別の乱数で）",function(){seed++;run();});
@@ -238,6 +238,7 @@ REG.w14_sawtooth=function(el,U){
     if(o.cor&&o.dc>=100)h+="。<span class=\"warn\">捕獲の刻み 100 ns が鋸歯状の誤差より大きいので、補正値を引いても、ほとんど小さくならない</span>";
     else if(o.cor&&o.sig<=3)h+="。<span class=\"ok\">鋸歯状の誤差が消えた</span>";
     if(!o.cor&&per>200)h+="。<span class=\"warn\">ν が 0 に近く、平均しても誤差が消えない</span>";
+    h=h.replace(/ν/g,"<i>ν</i>");
     ro.innerHTML=h+'<div class="wnote">本文 4 節の式で計算した（受信機は秒の頭にいちばん近い刻みでパルスを出し、初めの端数は 0.3 とした）。解の誤差は正規分布、捕獲の刻みの誤差は ±刻み/2 の一様分布の乱数（半カウントの一定のずれは引いた後）。補正値の形式・単位・符号は製品による。</div>';
   }
   run();

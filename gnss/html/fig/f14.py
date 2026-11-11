@@ -41,6 +41,14 @@ def _f14_pi(KP, KI, rm=_F14_RM, n=200, r0=0.0, s0=0.0):
     return out
 
 
+_F14_NUSPAN = '<tspan font-family="serif" font-style="italic">ν</tspan>'
+
+
+def _f14_nu(o):
+    """図の文字の ν を斜体のセリフ体にする（サンセリフの ν は v に見えるため）。"""
+    return [x.replace("ν", _F14_NUSPAN) for x in o]
+
+
 def _f14_q(x0, nu, k, tq=_F14_TQ):
     """k 番目の秒の頭の量子化誤差 [ns]（いちばん近い刻みで出す）。x の端数が x0 + k ν。"""
     f = (x0 + k * nu) % 1.0
@@ -274,7 +282,7 @@ def _f14_label_fig():
     o.append(T(X(0.5), ya + 98, "マイコン: パルスを捕まえ（3 節）、次に届いた文の時刻を、そのパルスの名前にする", "start", 9.5, SIG, True))
     # (b)
     yb = ya + 150
-    o.append(T(14, yb, "(b) 1 秒に 2 回出すと（負荷率 130 %）、文がたまり、4 つ目のパルスに 1 秒前の名前を付ける", "start", 11.5, INK, True))
+    o.append(T(14, yb, "(b) 1 秒に 2 回出すと（負荷率 130 %）、文がたまり、09:27:54 のパルスに 1 秒前の名前を付ける", "start", 11.5, INK, True))
     Xb = lambda s: 96 + (s + 0.1) * 114
     q = _f14_queue(2, 5)
     yp = yb + 16
@@ -534,7 +542,7 @@ def _f14_gains_fig():
     o.append(T(q.X(6) + 6, q.Y(53.35) - 6, "最大 53 µs（6 s）", "start", 9.5, GLD, True, halo=True))
     o.append(T(q.X(14), q.Y(-30), "I を強く: 同じ包絡線で振れる", "start", 9.5, PUR, True, halo=True))
     o.append(T(q.X(2.6), q.Y(-36), "不安定", "start", 9.5, ALI, True, halo=True))
-    o.append(T(q.X(32) + 4, q.Y(18), "包絡線 0.866^k（破線）", "start", 9.5, GLD, False, halo=True))
+    o.append(TX(q.X(32) + 4, q.Y(18), "包絡線 0.866^k（破線）", "start", 9.5, GLD, False, halo=True))
     return SVG(700, 280, o, "PI のゲインの範囲と、周波数の補正 0・ずれ 0 から始めたときのずれ（水晶の誤差 20 ppm、パルスの周期 1 s。4 つとも比例ゲインは 1/4 s⁻¹ で、積分ゲインだけを変えた）。")
 
 
@@ -578,7 +586,7 @@ def _f14_quant_fig():
     for k, q in qs:
         o.append(D(p.X(k), p.Y(q), SIG if k < 5 else ALI, 3.4))
     o.append(T(p.X(7), p.y + p.h + 44, "5 s ごとに跳ぶ（1/ν = 5）", "middle", 9.5, ALI, True))
-    return SVG(700, 58 + 5 * 40 + 10, o, "量子化誤差の仕組み（例: クロック 48 MHz、1 秒の刻みの数の端数 ν = 0.2。受信機は秒の頭にいちばん近い刻みでパルスを出すとした）。")
+    return SVG(700, 58 + 5 * 40 + 10, _f14_nu(o), "量子化誤差の仕組み（例: クロック 48 MHz、1 秒の刻みの数の端数 <i>ν</i> = 0.2。受信機は秒の頭にいちばん近い刻みでパルスを出すとした）。")
 
 
 F["e14_quant"] = _f14_quant_fig()
@@ -617,7 +625,7 @@ def _f14_saw_fig():
         o.append(T(70 + 610 * v / 120, yx + 14, "%d" % v, "middle", 9, MUT))
     o.append(TX(70 + 305, yx + 30, "時間 [s]（縦軸は量子化誤差 q_k [ns]）", "middle", 10, MUT))
     o.append(TX(30, y0 + 92 + 31, "q_k [ns]", "middle", 10, MUT, rot=-90))
-    return SVG(700, yx + 38, o, "受信機の発振器の周波数の誤差（例: 0.5 ppm の近く）で決まる、鋸歯状の誤差の 3 つの形（クロック 48 MHz。ν は 1 秒の刻みの数 48 000 000 × (1 + 誤差) の端数）。")
+    return SVG(700, yx + 38, _f14_nu(o), "受信機の発振器の周波数の誤差（例: 0.5 ppm の近く）で決まる、鋸歯状の誤差の 3 つの形（クロック 48 MHz。<i>ν</i> は 1 秒の刻みの数 48 000 000 × (1 + 誤差) の端数）。")
 
 
 F["e14_saw"] = _f14_saw_fig()
@@ -710,19 +718,6 @@ def _f14_hold_fig():
     o.append(T(556, 216, "破線: 許せるずれ", "start", 9.5, INK))
     o.append(T(556, 230, "の例（1 µs・1 ms・1 s）", "start", 9.5, INK))
     return SVG(700, p.y + p.h + 42, o, "ホールドオーバーの間にたまるずれ（たまったずれ = 残った周波数の誤差 × 時間。点は許せるずれに届く時間。0.0014 ppm は、3 節の例のゲインでパルスの誤差が 30 ns のときの、I の分の標準偏差）。")
-
-
-def _f14_wrap(s, n):
-    """凡例の文字を、だいたい n 文字ずつに分ける（空白か読点で切る）。"""
-    out, cur = [], ""
-    for w in s.split(" "):
-        if cur and len(cur) + len(w) > n + 4:
-            out.append(cur); cur = w
-        else:
-            cur = (cur + " " + w) if cur else w
-    if cur:
-        out.append(cur)
-    return out
 
 
 F["e14_hold"] = _f14_hold_fig()
@@ -828,13 +823,14 @@ def _f14_record_fig():
     yb = y + 86
     o.append(T(14, yb, "(b) 時刻の状態と、ずれの見積もり（例）", "start", 11.5, INK, True))
     p = Plot(150, yb + 28, 530, 24, (0, 6), (0, 1))
-    segs = [(0, 0.1, "0", ALI), (0.1, 2.0, "1: 1PPS に合わせている", GRN), (2.0, 3.0, "2: ホールドオーバー", GLD), (3.0, 6.0, "1: 1PPS に合わせている", GRN)]
+    segs = [(0, 0.1, "0", ALI), (0.1, 2.0, "1: 1PPS に合わせている", GRN), (2.0, 3.0, "2", GLD), (3.0, 6.0, "1: 1PPS に合わせている", GRN)]
     for a, b, lab, c in segs:
         o.append(RECT(p.X(a), p.y, p.X(b) - p.X(a), p.h, 2, soft(c), c, 1.1))
-        if p.X(b) - p.X(a) > 60:
+        if p.X(b) - p.X(a) > 20:
             o.append(T((p.X(a) + p.X(b)) / 2, p.y + 16, lab, "middle", 9.5, c, True))
     o.append(T(130, p.y + 16, "状態", "end", 10, INK, True))
     o.append(T(p.X(0.05), p.y - 6, "0: まだ合わせていない", "start", 9, ALI, True))
+    o.append(T(p.X(2.5), p.y - 6, "2: ホールドオーバー", "middle", 9, GLD, True))
     q = Plot(150, p.y + 40, 530, 60, (0, 6), (0, 2.2))
     o.append(q.axes(xl="時間 [時間]", yt=[0, 1, 2], xt=[0, 1, 2, 3, 4, 5, 6], xfmt=lambda v: "%d" % v, yfmt=lambda v: "%d" % v))
     o.append(T(124, q.y + 24, "ずれの", "end", 10, INK, True))
