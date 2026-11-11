@@ -113,10 +113,10 @@ function _w15_run(rec,tail){var S={ring:[],rx:[0,"",0,0],n_bad:0,n_part:0,n_gap:
 
 /* ---- 2 節: リングバッファの埋まり方（図の _f15_fillsim と同じ計算。大きさの上限で捨てる） ---- */
 var _W15_SETS=[{nm:"10 章の例（GPS と GLONASS・11 文・626 B）",nb:626},{nm:"12 章の例（GPS だけ・7 文・426 B）",nb:426},{nm:"GGA と RMC だけ（141 B）",nb:141}];
-function _w15_ntp(tp,nb,tu,rb){var k=Math.floor(tp/tu+1e-12);return k*nb+Math.min(nb,Math.floor((tp-k*tu)*rb/10+1e-9));}
+function _w15_ntp(tp,nb,tu,rb){var tpb=Math.round(tp*rb),tub=Math.round(tu*rb),k=Math.floor(tpb/tub);return k*nb+Math.min(nb,Math.ceil((tpb-k*tub)/10));}
 function _w15_fill(rb,rate,tp,secs,nb,cap){
   var tu=Math.round(rb/rate),tc=Math.round(rb*12/100),tpb=Math.max(1,Math.round(tp*rb)),end=Math.round(secs*rb);
-  var ev=[[0,0,0,0]],q=0,head=0,tail=0,m=0,bi=0,start=tc,busy=0,nxt=tc+10,nread=tc,mx=0,drop=0,first=null,bursts=[],reads=[],drops=[];
+  var ev=[[0,0,0,0]],q=0,head=0,tail=0,m=0,bi=0,start=tc,busy=0,nxt=tc+10,nread=tc+9,mx=0,drop=0,first=null,bursts=[],reads=[],drops=[];
   bursts.push([tc/rb,null]);
   while(true){var t=Math.min(nxt,nread);if(t>end)break;
     if(t===nxt){if(q>=cap){drop++;if(first===null)first=t/rb;if(drops.length<400)drops.push(t/rb);}else{q++;head++;}if(q>mx)mx=q;ev.push([t/rb,q,head,tail]);
@@ -154,21 +154,23 @@ REG.w15_ring=function(el,U){
     var nar=_w15_nar(box),Wd=nar?400:700,o=[],rb=bd.get(),rate=rt.get(),t=tp.get(),cap=cs.get(),nb=_W15_SETS[set.get()].nb;
     var now=cur==null?win:cur,a=_w15_at(R.ev,now),used=a[1],head=a[2],tail=a[3];
     /* (a) 輪 */
-    var cx=nar?200:104,cy=nar?100:128,Ro=nar?66:80,Ri=nar?44:56,nseg=48;
+    var cx=nar?200:124,cy=nar?100:128,Ro=nar?66:80,Ri=nar?44:56,nseg=48;
     o.push(S.T(nar?8:14,16,"(a) リングバッファ（"+nseg+" 区画）","start",10.5,"ink",true));
     for(var i=0;i<nseg;i++){var a0=-Math.PI/2+2*Math.PI*i/nseg,a1=-Math.PI/2+2*Math.PI*(i+1)/nseg,lo=i*cap/nseg,hi=(i+1)*cap/nseg;
       var hp=head%cap,tp0=tail%cap,full=false;
       if(used>=cap)full=true;else if(used>0){var mid=(lo+hi)/2;full=tp0<=hp?(mid>=tp0&&mid<hp):(mid>=tp0||mid<hp);}
       var p=[[cx+Ro*Math.cos(a0),cy+Ro*Math.sin(a0)],[cx+Ro*Math.cos(a1),cy+Ro*Math.sin(a1)],[cx+Ri*Math.cos(a1),cy+Ri*Math.sin(a1)],[cx+Ri*Math.cos(a0),cy+Ri*Math.sin(a0)]];
       o.push(S.PL(p,"teal",0.6,full?U.soft("teal"):"var(--screen)"));}
-    function mark(idx,lab,c,out){var an=-Math.PI/2+2*Math.PI*((idx%cap)/cap),r0=out?Ro+2:Ri-2,r1=out?Ro+16:Ri-16;
+    function mark(idx,lab,c,out){var an=-Math.PI/2+2*Math.PI*((idx%cap)/cap),r0=out?Ro+2:Ri-2,r1=out?Ro+16:Ri-12,rl=out?Ro+26:Ri-22;
       o.push(S.ARR(cx+r1*Math.cos(an),cy+r1*Math.sin(an),cx+r0*Math.cos(an),cy+r0*Math.sin(an),c,1.6,6));
-      o.push(S.T(cx+(out?Ro+26:Ri-26)*Math.cos(an),cy+(out?Ro+26:Ri-26)*Math.sin(an)+4,lab,"middle",9,c,true,true,null,true));}
+      o.push(S.T(cx+rl*Math.cos(an),cy+rl*Math.sin(an)+4,lab,"middle",9,c,true,true,null,true));}
     mark(head,"head","gold",true);mark(tail,"tail","signal",false);
-    o.push(S.T(cx,cy+2,_w15_g(used)+" B","middle",13,used>=cap?"alias":"teal",true));
-    o.push(S.T(cx,cy+17,"入っている","middle",9,"muted"));
+    /* 入っている数: 狭い幅では輪の左に置き、輪の中を tail の名前に空ける */
+    var qx=nar?cx-Ro-58:cx,qy=nar?cy:cy-6;
+    o.push(S.T(qx,qy+2,_w15_g(used)+" B","middle",13,used>=cap?"alias":"teal",true));
+    o.push(S.T(qx,qy+16,"入っている","middle",9,"muted"));
     /* (b) 時間の変化 */
-    var px=nar?56:262,py=nar?232:52,pw=nar?330:420,ph=nar?140:168;
+    var px=nar?56:292,py=nar?248:52,pw=nar?330:392,ph=nar?140:168;
     var ymax=Math.max(cap,R.inf.max)*1.12,P=U.plot(px,py,pw,ph,[0,win],[0,ymax]);
     o.push(S.T(nar?8:px-40,py-30,"(b) 入っているバイトの数の時間の変化","start",10.5,"ink",true));
     R.bursts.forEach(function(b){o.push(S.RECT(P.X(b[0]),py-20,Math.max(1,P.X(Math.min(b[1],win))-P.X(b[0])),9,1,U.soft("gold"),"gold",0.8));});
@@ -183,16 +185,18 @@ REG.w15_ring=function(el,U){
     o.push(S.T(P.x+P.w-2,P.Y(cap)-4,"大きさ "+_w15_g(cap)+" B","end",9,cc,true,false,null,true));
     if(R.first!==null&&R.first<=now){o.push(S.X(P.X(R.first),P.Y(cap),5,"alias",2));o.push(S.T(P.X(R.first)+6,P.Y(cap)+14,"あふれる "+_w15_f(R.first,3)+" s","start",9,"alias",true,false,null,true));}
     if(cur!=null)o.push(S.L(P.X(now),py-20,P.X(now),py+ph,"signal",1.2));
-    o.push(S.T(nar?8:px-40,nar?py+ph+44:py+ph+44,"▼ 主のループが読む（最初は 1 回分の最初のバイトが届く直前）　■ モジュールが文を送っている時間","start",8.5,"muted"));
-    box.set(S.svg(Wd,(nar?py+ph+52:py+ph+52),o));
+    if(nar){o.push(S.T(8,py+ph+44,"▼ 主のループが読む（最初は 1 回分の最初のバイトが入る直前）","start",8.5,"muted"));
+      o.push(S.T(8,py+ph+58,"■ モジュールが文を送っている時間","start",8.5,"muted"));}
+    else o.push(S.T(px-40,py+ph+44,"▼ 主のループが読む（最初は 1 回分の最初のバイトが入る直前）　■ モジュールが文を送っている時間","start",8.5,"muted"));
+    box.set(S.svg(Wd,(nar?py+ph+66:py+ph+52),o));
     /* 読み出し */
     var tu=1/rate,ttx=nb*10/rb,load=ttx/tu,h="";
     h+="1 回分 <b>"+nb+" B</b> を <b>"+_w15_f(ttx,3)+" s</b> で受ける（更新の間隔 "+_w15_f(tu,2)+" s、負荷率 <b>"+_w15_f(load*100,0)+" %</b>）<br>";
-    if(load<=1){var k=Math.floor(t/tu+1e-12),tr=t-k*tu,n=_w15_ntp(t,nb,tu,rb),p2=1;while(p2<n)p2*=2;
+    if(load<=1){var tpb=Math.round(t*rb),tub=Math.round(tu*rb),k=Math.floor(tpb/tub),tr=(tpb-k*tub)/rb,n=_w15_ntp(t,nb,tu,rb),p2=1;while(p2<n)p2*=2;
       h+="2 節の式: k = "+k+"、t<sub>r</sub> = "+_w15_f(tr,3)+" s → <b>n(t<sub>p</sub>) = "+_w15_g(n)+" B</b>、要る大きさ（2 のべき乗）<b>"+_w15_g(p2)+" B</b><br>";}
     else h+="<span class=\"warn\">負荷率が 100 % を超え、モジュールは送り切れない（13 章 3 節）。文は休みなく届くので、2 節の式は使えない</span><br>";
     h+="バイトごとの計算: 最大の埋まり <b>"+_w15_g(R.max)+" B</b>"+(R.drop>0?"、<span class=\"warn\">捨てたバイト "+_w15_g(R.drop)+" B（最初は "+_w15_f(R.first,3)+" s）</span>":"、<span class=\"ok\">捨てたバイト 0（足りる）</span>")+"（"+_w15_f(win,2)+" s の間）";
-    ro.innerHTML=h+'<div class="wnote">主のループは、1 回分の最初のバイトが届く直前に読み、その後 t<sub>p</sub> ごとに読むとした（最も悪い位相）。1 バイトは 10 ビット（8N1）。文はパルスの 0.12 s 後から、前の回を送り終えるまで待って順に送る。満杯のときは新しいバイトを捨てる（赤い点線は、捨てずにためた場合）。</div>';
+    ro.innerHTML=h+'<div class="wnote">主のループは、1 回分の最初のバイトがリングバッファに入る直前に読み、その後 t<sub>p</sub> ごとに読むとした（最も悪い位相）。1 バイトは 10 ビット（8N1）。文はパルスの 0.12 s 後から、前の回を送り終えるまで待って順に送る。満杯のときは新しいバイトを捨てる（赤い点線は、捨てずにためた場合）。</div>';
   }
   run();
   window.addEventListener("resize",function(){draw();});

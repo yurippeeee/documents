@@ -404,19 +404,21 @@ _F15_NB = sum(l for k, l in _F15_S11)                     # 626 B
 
 
 def _f15_ntp(tp, nb, tu, rb):
-    """2 節の式: 長さ tp [s] の間に届くバイトの数の最大（負荷率 100 % 以下）。"""
-    k = int(math.floor(tp / tu + 1e-12))
-    return k * nb + min(nb, int(math.floor((tp - k * tu) * rb / 10.0 + 1e-9)))
+    """2 節の式: 長さ tp [s] の間に入るバイトの数の最大（負荷率 100 % 以下）。時間は 1 ビットの時間を単位に数える。"""
+    tpb, tub = int(round(tp * rb)), int(round(tu * rb))
+    k = tpb // tub
+    return k * nb + min(nb, -(-(tpb - k * tub) // 10))
 
 
 def _f15_fillsim(rb, rate, tp, secs, nb=None):
     """2 節の図とデモと同じ計算: 1 ビットの時間を単位に、届くバイトと読む時刻を進める。
     モジュールは 1/rate s ごとに、パルスから 0.12 s 後に nb バイトを続けて送る（前の回が終わるまで待つ）。
-    主のループは、1 回分の最初のバイトが届く直前（0.12 s）に読み、その後 tp ごとに読む。返り値: [(時刻 [s], 量 [B])]。"""
+    主のループは、1 回分の最初のバイトが入る直前（0.12 s の 9 ビット後。最初のバイトは 10 ビット後に入る）に読み、
+    その後 tp ごとに読む。返り値: [(時刻 [s], 量 [B])]。"""
     nb = nb or _F15_NB
     tu = rb // rate; tc = rb * 12 // 100; tpb = int(round(tp * rb)); end = int(secs * rb)
     pts, q, m, bi, start, busy = [(0.0, 0)], 0, 0, 0, tc, 0
-    nxt, nread = tc + 10, tc
+    nxt, nread = tc + 10, tc + 9
     t = 0
     while t <= end:
         ev = min(nxt, nread)
@@ -578,14 +580,14 @@ def _f15_time_fig():
     # 位置の年齢
     y = rows["age"]
     p = Plot(x0, y, x1 - x0, 50, (0, t1), (0, 1.4))
-    o.append(T(x0 - 8, y + 20, "使う側の位置", "end", 10, GRN, True))
-    o.append(T(x0 - 8, y + 34, "の年齢 [s]", "end", 9.5, GRN))
+    o.append(T(x0 - 8, y + 20, "位置を求めて", "end", 10, GRN, True))
+    o.append(T(x0 - 8, y + 34, "からの時間 [s]", "end", 9.5, GRN))
     for v in (0, 0.5, 1.0):
         o.append(W(x0, p.Y(v), x1, p.Y(v), c=GRD, lw=0.8))
         o.append(T(x0 + 4, p.Y(v) - 2, "%g" % v, "start", 8.5, MUT))
     age = [(0, 1.0), (t_ep, 1.0 + t_ep), (t_ep, t_ep), (1 + t_ep, 1 + t_ep), (1 + t_ep, t_ep), (t1, t1 - 1)]
     o.append(p.line(age, c=GRN, lw=2))
-    o.append(T(X(0.72), p.Y(0.9), "0.27〜1.27 s（4 節）", "middle", 9, GRN, True, halo=True))
+    o.append(T(X(0.72), p.Y(0.9), "0.27〜1.27 s（3 節）", "middle", 9, GRN, True, halo=True))
     # 時間の目盛
     for v in (0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2):
         o.append(W(X(v), 284, X(v), 288, c=MUT, lw=1))
@@ -700,7 +702,7 @@ def _f15_fill_fig():
         tmx = [t for t, v in pts if v == mx][0]
         o.append(T(p.X(tmx) + 6, p.Y(mx) - 4, "最大 %d B = n(0.3 s)" % n, "start", 9.5, TEA, True, halo=True))
         yb += 214
-    return SVG(700, yb + 6, o, "リングバッファの中の量（1 回分の最初のバイトが届く直前に読み、その後 0.3 s ごとに読む、最も悪い場合。1 ビットの時間を単位にバイトごとに計算）。")
+    return SVG(700, yb + 6, o, "リングバッファの中の量（1 回分の最初のバイトが入る直前に読み、その後 0.3 s ごとに読む、最も悪い場合。1 ビットの時間を単位にバイトごとに計算）。")
 
 
 F["e15_fill"] = _f15_fill_fig()
@@ -879,7 +881,7 @@ def _f15_scn_record(sp):
         for b in bodies:
             s = "$%s*%02X" % (b, _f15_ck(b))
             cum += len(s) + 2
-            out.append((t0 + _F15_TC + int(round(cum * 10.0 / _F15_BAUD * 1000)), s))
+            out.append((t0 + _F15_TC + int(_f15_m.floor(cum * 10.0 / _F15_BAUD * 1000 + 0.5)), s))
     return out
 
 
