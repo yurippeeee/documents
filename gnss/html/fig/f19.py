@@ -552,9 +552,9 @@ def _f19_weak_fig():
     o.append(_f19_shade(q, 90, 122, "位置が出ない", ALI))
     for t, n, e in D_:
         if e is not None:
-            o.append(D(q.X(t), q.Y(min(e, 40)), ALI if e > 15 else SIG, 2.2))
+            o.append(D(q.X(t), q.Y(min(e, 40)), ALI if e > 15 else PUR, 2.2))
     o.append(T(q.X(72), q.Y(33), "NLOS で飛ぶ", "middle", 9, ALI, True, halo=True))
-    o.append(T(q.X(30), q.Y(12), "数 m で、時間とともに育たない", "middle", 9, SIG, True, halo=True))
+    o.append(T(q.X(30), q.Y(12), "数 m で、時間とともに育たない", "middle", 9, PUR, True, halo=True))
     return SVG(700, 466, o, "GNSS が苦手な場面（例のモデル）。衛星が 4 つ以上のときだけ位置が出るとし、誤差は開けた空で東・北それぞれ 2 m（1σ）、衛星が少ないほど大きくした。")
 
 
@@ -570,7 +570,7 @@ def _f19_gap_fig():
     o.append(p.line([(40.0, 0.0), (43.0, 60.0)], c=GRN, lw=2.4))
     # 使う位置（最後に届いた値）
     st = [(40.0 + td, 0.0), (41.0 + td, 0.0), (41.0 + td, 20.0), (42.0 + td, 20.0), (42.0 + td, 40.0), (43.0, 40.0)]
-    o.append(p.line(st, c=SIG, lw=2.2))
+    o.append(p.line(st, c=PUR, lw=2.2))
     for tf in (40, 41, 42):
         yf = v * (tf - 40)
         o.append(D(p.X(tf), p.Y(yf), PUR, 4))
@@ -579,7 +579,7 @@ def _f19_gap_fig():
     lx, ly = p.x + 12, p.y + 16
     o.append(D(lx + 12, ly - 4, PUR, 4)); o.append(T(lx + 30, ly, "位置を求めた時刻（1 秒ごと）", "start", 9.5, PUR, True))
     o.append(ARR(lx, ly + 14, lx + 24, ly + 14, c=PUR, lw=1.3, head=6)); o.append(T(lx + 30, ly + 18, "文が届くまでの遅れ 0.27 s", "start", 9.5, PUR, True))
-    o.append(LEGL(lx, ly + 36, [(SIG, None, "使う位置（最後に届いた値）")], 9.5))
+    o.append(LEGL(lx, ly + 36, [(PUR, None, "使う位置（最後に届いた値）")], 9.5))
     o.append(LEGL(lx, ly + 54, [(GRN, None, "本当の位置（20 m/s）")], 9.5))
     # ずれの寸法
     tA = 42.0 + td - 0.01
@@ -590,11 +590,11 @@ def _f19_gap_fig():
     o.append(T(p.X(tB) + 16, p.Y(43.5), "5.4 m", "start", 10, ALI, True, halo=True))
     # IMU の値の刻み
     yb = p.y + p.h + 44
-    o.append(T(14, yb - 12, "動きを測る", "start", 9.5, GLD, True))
-    o.append(T(14, yb + 2, "センサ（2 節）", "start", 9.5, GLD, True))
+    o.append(T(14, yb - 12, "動きを測る", "start", 9.5, SIG, True))
+    o.append(T(14, yb + 2, "センサ（2 節）", "start", 9.5, SIG, True))
     xs = [p.X(40.0 + 0.01 * k) for k in range(301)]
-    o.append(PATH("".join("M%.2f,%.1fv8" % (x, yb - 6) for x in xs), c=GLD, lw=0.6))
-    o.append(T(p.x + p.w, yb + 18, "の値は 10 ms ごと（例の値。20 m/s で 0.2 m ごと）", "end", 9.5, GLD, False))
+    o.append(PATH("".join("M%.2f,%.1fv8" % (x, yb - 6) for x in xs), c=SIG, lw=0.6))
+    o.append(T(p.x + p.w, yb + 18, "の値は 10 ms ごと（例の値。20 m/s で 0.2 m ごと）", "end", 9.5, SIG, False))
     # 右: 速さと遅れの表
     x0 = 516
     o.append(T(x0, 36, "使う位置のずれ", "start", 10.5, INK, True))
@@ -727,7 +727,9 @@ def _f19_ins_fig():
     ar(126, yb + 19, 160, yb + 19)
     ar(126, yb + 83, 160, yb + 83)
     bx(246, yb, 92, 38, "向き ψ", "北から東へ", GLD, soft(GLD), GLD)
-    bx(246, yb + 64, 92, 38, "速さ", "道に沿って", GLD, soft(GLD), GLD)
+    o.append(RECT(246, yb + 64, 92, 38, 8, soft(GLD), GLD, 1.4))
+    o.append(TX(292, yb + 80, "速さ \\dot{p}", "middle", 10.5, GLD, True))
+    o.append(T(292, yb + 94, "道に沿って", "middle", 9, MUT))
     ar(212, yb + 19, 246, yb + 19)
     ar(212, yb + 83, 246, yb + 83)
     o.append(RECT(380, yb + 22, 168, 58, 8, PAN, LIN, 1.4))
@@ -743,3 +745,193 @@ def _f19_ins_fig():
 
 
 F["e19_ins"] = _f19_ins_fig()
+
+
+# =====================================================================
+# 3 節: バイアスが位置の誤差を育てる 3 つの道すじと、時間との関係
+# =====================================================================
+_F19_CA, _F19_CH, _F19_CT, _F19_CN = ALI, PUR, GLD, TEA     # 加速度のバイアス・向き・傾き・雑音の色（図とデモで同じ）
+
+
+def _f19_err3_fig():
+    o = []
+    bg = _F19_BGD * _F19_D
+    cols = [("(a) 加速度センサのバイアス", _F19_CA,
+             ["加速度の誤差 b_a（一定）", "速度の誤差 b_a t", "位置の誤差 b_a t^2/2"], ["積分", "積分"],
+             "進む向きに %s m" % _f19_m(_F19_BA * 900 / 2, 1), "b_a = 0.05 m/s²"),
+            ("(b) ジャイロのバイアス（向き）", _F19_CH,
+             ["角速度の誤差 b_g", "向きの誤差 b_g t", "横の速度の誤差 \\dot{p} b_g t", "横の位置の誤差 \\dot{p} b_g t^2/2"], ["積分", "× 速さ", "積分"],
+             "横に %s m" % _f19_m(_F19_V0 * bg * 900 / 2, 1), "平面のモデル・\\dot{p} = 20 m/s"),
+            ("(c) ジャイロのバイアス（傾き）", _F19_CT,
+             ["角速度の誤差 b_g", "傾きの誤差 b_g t", "加速度の誤差 g b_g t", "速度の誤差 g b_g t^2/2", "位置の誤差 g b_g t^3/6"], ["積分", "× g", "積分", "積分"],
+             "進む向きに %s m" % _f19_m(_F19_G * bg * 27000 / 6, 1), "3 次元・b_g = 0.05 °/s")]
+    for k, (ttl, c, chain, ops, val, cond) in enumerate(cols):
+        x0 = 10 + k * 232
+        o.append(T(x0, 18, ttl, "start", 10.5, INK, True))
+        # 小さな絵
+        yS = 34
+        if k == 0:
+            o.append(W(x0 + 8, yS + 44, x0 + 214, yS + 44, c=MUT, lw=2))
+            o.append(_f19_car(x0 + 60, yS + 44, GRN, 0.8))
+            o.append(_f19_car(x0 + 150, yS + 44, c, 0.8))
+            o.append(DARR(x0 + 62, yS + 58, x0 + 150, yS + 58, c=c, lw=1.4))
+            o.append(T(x0 + 106, yS + 72, "推定が先へ進む（横から見た図）", "middle", 9, c, True))
+            o.append(T(x0 + 60, yS + 18, "本当", "middle", 9, GRN, True))
+            o.append(T(x0 + 150, yS + 18, "推定", "middle", 9, c, True))
+        elif k == 1:
+            o.append(W(x0 + 10, yS + 52, x0 + 214, yS + 52, c=GRN, lw=2))
+            pts = [(x0 + 10 + u, yS + 52 - 30 * (u / 204.0) ** 2) for u in range(0, 205, 6)]
+            o.append(PL(pts, c=c, lw=2, dash="5 3"))
+            o.append(T(x0 + 212, yS + 66, "本当の道", "end", 9, GRN, True))
+            o.append(T(x0 + 150, yS + 22, "推定（向きが少しずつ回る）", "middle", 9, c, True))
+            o.append(T(x0 + 14, yS + 76, "上から見た図", "start", 9, MUT))
+        else:
+            gx, gy = x0 + 34, yS + 70
+            o.append(W(x0 + 10, gy, x0 + 214, gy, c=MUT, lw=2))
+            for j, aa in enumerate((0, 7, 14, 21)):
+                a = aa * _F19_D
+                L = 50
+                xb = gx + 46 * j
+                o.append(W(xb, gy, xb + L * math.sin(a), gy - L * math.cos(a), c=GRN if j == 0 else c, lw=1.2 if j == 0 else 1.8, dash="4 3" if j == 0 else None))
+            o.append(T(gx - 4, gy - 40, "上", "end", 9, GRN, True))
+            o.append(ARR(gx + 40, gy + 10, gx + 150, gy + 10, c=MUT, lw=1.2, head=6))
+            o.append(T(gx + 156, gy + 14, "時間", "start", 9, MUT))
+            o.append(T(x0 + 214, yS + 4, "見込んだ上が少しずつ傾く", "end", 9, c, True))
+            o.append(T(x0 + 14, yS + 92, "横から見た図", "start", 9, MUT))
+        # 誤差の連鎖
+        y = 132
+        for i, txt in enumerate(chain):
+            o.append(RECT(x0 + 6, y, 208, 26, 6, soft(c) if i == len(chain) - 1 else PAN, c if i == len(chain) - 1 else LIN, 1.3))
+            o.append(TX(x0 + 110, y + 17.5, txt, "middle", 10, c if i == len(chain) - 1 else INK, i == len(chain) - 1))
+            if i < len(chain) - 1:
+                o.append(ARR(x0 + 110, y + 26, x0 + 110, y + 42, c=MUT, lw=1.4, head=6))
+                o.append(T(x0 + 118, y + 38, ops[i], "start", 9, MUT, True))
+            y += 42
+        o.append(T(x0 + 110, 360, "30 s で " + val, "middle", 10.5, c, True))
+        o.append(TX(x0 + 110, 376, cond, "middle", 9, MUT))
+    return SVG(700, 388, o, "センサのバイアスが位置の誤差に育つ 3 つの道すじ（例の値。どれも初めの位置・速度・向きは正しく、ほかのバイアスは 0。(c) の角は大きく描いた）。")
+
+
+F["e19_err3"] = _f19_err3_fig()
+
+
+def _f19_grow_fig():
+    o = []
+    bg = _F19_BGD * _F19_D
+    p = Plot(80, 26, 380, 286, (1, 100), (0.01, 1000), xlog=True, ylog=True)
+    o.append(p.axes(xl="慣性航法だけで進めた時間 t [s]", yl="位置の誤差 [m]", xt=[1, 2, 5, 10, 20, 50, 100], yt=[0.01, 0.1, 1, 10, 100, 1000],
+                    xfmt=lambda v: "%g" % v, yfmt=lambda v: "%g" % v))
+    ts = [10 ** (k / 40.0) for k in range(0, 81)]
+    fa = lambda t: _F19_BA * t * t / 2
+    fh = lambda t: _F19_V0 * bg * t * t / 2
+    ft = lambda t: _F19_G * bg * t ** 3 / 6
+    fn = lambda t: _F19_SA * math.sqrt(_F19_TS) * t ** 1.5 / math.sqrt(3)
+    for f, c in ((fa, _F19_CA), (fh, _F19_CH), (ft, _F19_CT), (fn, _F19_CN)):
+        o.append(p.clip([(t, f(t)) for t in ts], c=c, lw=2))
+    # 数値で積分した値（点）。目盛の範囲の外は描かない
+    marks = [1, 2, 5, 10, 20, 50, 100]
+    def mk(tt, val, c):
+        if 0.01 <= val <= 1000:
+            o.append(CIRC(p.X(tt), p.Y(val), 3.6, c=c, lw=1.6, fill=SCR))
+    ra = _f19_dr(noise=0.0, bgd=0.0, Tend=100.0)
+    rh = _f19_dr(noise=0.0, ba=0.0, Tend=100.0)
+    for tt in marks:
+        i = int(round(tt * 10))
+        mk(tt, abs(ra["al"][i]), _F19_CA)
+        mk(tt, abs(rh["cr"][i]), _F19_CH)
+    for tt, x in _f19_tilt_ins():
+        mk(tt, abs(x), _F19_CT)
+    # 雑音: 400 回の 2 乗平均の平方根（数値で）
+    rg = _f19_np.random.default_rng(19)
+    n = rg.standard_normal((400, 10000)) * _F19_SA
+    v = _f19_np.cumsum(n, axis=1) * _F19_TS
+    x = _f19_np.cumsum(v, axis=1) * _F19_TS
+    for tt in marks:
+        i = int(round(tt / _F19_TS)) - 1
+        mk(tt, float(_f19_np.sqrt(_f19_np.mean(x[:, i] ** 2))), _F19_CN)
+    # ラベル
+    o.append(TX(p.X(60), p.Y(fa(60)) - 10, "b_a t^2/2", "end", 10, _F19_CA, True, halo=True))
+    o.append(TX(p.X(55), p.Y(fh(55)) + 20, "\\dot{p} b_g t^2/2", "start", 10, _F19_CH, True, halo=True))
+    o.append(TX(p.X(26), p.Y(ft(26)) - 12, "g b_g t^3/6", "end", 10, _F19_CT, True, halo=True))
+    o.append(TX(p.X(40), p.Y(fn(40)) + 18, "σ_a√T_s t^{1.5}/√3", "start", 10, _F19_CN, True, halo=True))
+    tc = 3 * _F19_BA / (_F19_G * bg)
+    o.append(W(p.X(tc), p.Y(fa(tc)), p.X(tc), p.Y(0.01), c=FNT, lw=1, dash="3 3"))
+    o.append(T(p.X(tc) + 3, p.Y(0.02), "%.1f s" % tc, "start", 9, MUT, True, halo=True))
+    # 右: 値の表
+    x0 = 486
+    o.append(T(x0, 40, "例の値で", "start", 10.5, INK, True))
+    hd = ["", "10 s", "30 s", "60 s"]
+    for j, h in enumerate(hd):
+        o.append(T(x0 + 92 + 38 * j - 38, 62, h, "end", 9.5, MUT, True))
+    rows = [("加速度（b_a）", fa, _F19_CA), ("向き（b_g）", fh, _F19_CH), ("傾き（b_g）", ft, _F19_CT), ("雑音（1σ）", fn, _F19_CN)]
+    for i, (nm, f, c) in enumerate(rows):
+        yy = 84 + i * 22
+        o.append(TX(x0, yy, nm, "start", 9.5, c, True))
+        for j, tt in enumerate((10, 30, 60)):
+            val = f(tt)
+            o.append(T(x0 + 92 + 38 * j, yy, ("%.2f" % val) if val < 1 else ("%.1f" % val if val < 100 else "%.0f" % val), "end", 9.5, INK))
+    o.append(W(x0, 68, x0 + 206, 68, c=LIN, lw=1))
+    o.append(T(x0, 186, "単位は m", "start", 9, MUT))
+    o.append(T(x0, 214, "線: 式の値", "start", 9.5, INK))
+    o.append(T(x0, 232, "○: 数値で積分した値", "start", 9.5, INK))
+    o.append(T(x0, 250, "（雑音は 400 回の 2 乗平均の", "start", 9, MUT))
+    o.append(T(x0, 264, "平方根）", "start", 9, MUT))
+    return SVG(700, 362, o, "慣性航法だけで進めたときの位置の誤差（両対数の目盛）。加速度センサのバイアス 0.05 m/s²、ジャイロのバイアス 0.05 °/s、速さ 20 m/s、加速度センサの雑音 0.02 m/s²（100 Hz の 1 サンプルごと）。")
+
+
+F["e19_grow"] = _f19_grow_fig()
+
+
+# =====================================================================
+# 4 節: 予測は IMU、更新は GNSS
+# =====================================================================
+def _f19_kfmap_fig():
+    o = []
+    o.append(T(14, 18, "(a) 計算の流れ（1 次元の例）", "start", 11, INK, True))
+    # IMU
+    o.append(BOX(14, 40, 104, 44, "IMU", "100 Hz", c=SIG, fill=soft(SIG), tc=SIG, sz=11, ssz=9.5))
+    # 予測
+    o.append(RECT(214, 30, 190, 66, 8, PAN, LIN, 1.4))
+    o.append(T(309, 48, "予測（時間更新）", "middle", 10.5, INK, True))
+    o.append(TX(309, 68, "x̂^{−} = A_d x̂ + B_d u", "middle", 10, INK))
+    o.append(TX(309, 86, "Σ^{−} = A_d Σ A_d^T + W", "middle", 10, INK))
+    o.append(ARR(118, 62, 214, 62, c=SIG, lw=1.8, head=8))
+    o.append(TX(166, 54, "入力 u[k]", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(166, 80, "加速度の読み", "middle", 9, SIG))
+    # 更新
+    o.append(RECT(462, 30, 196, 66, 8, PAN, LIN, 1.4))
+    o.append(T(560, 48, "更新（観測更新）", "middle", 10.5, INK, True))
+    o.append(TX(560, 68, "x̂ = x̂^{−} + H_k(y − Cx̂^{−})", "middle", 10, INK))
+    o.append(TX(560, 86, "Σ = (I − H_kC)Σ^{−}", "middle", 10, INK))
+    o.append(ARR(404, 62, 462, 62, c=GLD, lw=1.8, head=8))
+    o.append(TX(433, 54, "x̂^{−}・Σ^{−}", "middle", 9.5, GLD, True, halo=True))
+    # GNSS
+    o.append(BOX(500, 128, 120, 40, "GNSS", "1 Hz・位置", c=PUR, fill=soft(PUR), tc=PUR, sz=11, ssz=9.5))
+    o.append(ARR(560, 128, 560, 96, c=PUR, lw=1.8, head=8))
+    o.append(TX(566, 116, "観測 y[k]", "start", 9.5, PUR, True, halo=True))
+    # 出力と、次の周期へ
+    o.append(ARR(658, 62, 692, 62, c=GLD, lw=1.8, head=7))
+    o.append(T(684, 48, "x̂", "middle", 10, GLD, True))
+    o.append(W(676, 62, 676, 186, 309, 186, c=GLD, lw=1.3, dash="5 3"))
+    o.append(ARR(309, 186, 309, 98, c=GLD, lw=1.3, head=7, dash="5 3"))
+    o.append(T(318, 150, "次の周期の予測へ", "start", 9.5, GLD, True))
+    o.append(T(318, 166, "（GNSS が来ない周期は x̂ = x̂⁻）", "start", 9, MUT))
+    o.append(T(14, 112, "状態 x = (p, ṗ, b_a)ᵀ", "start", 10, INK, True))
+    o.append(TX(14, 112, "", "start", 10, INK))
+    # (b) 時間の軸
+    yb = 214
+    o.append(T(14, yb, "(b) 時間の軸の上の繰り返し", "start", 11, INK, True))
+    X = lambda t: 70 + t * 290.0
+    ya = yb + 44
+    o.append(W(X(0) - 6, ya, X(2.1) + 6, ya, c=MUT, lw=1.2))
+    o.append(PATH("".join("M%.2f,%gv-8" % (X(0.01 * k), ya) for k in range(211)), c=SIG, lw=0.7))
+    for k, tt in enumerate((0, 1, 2)):
+        o.append(PL([(X(tt), ya - 10), (X(tt) - 6, ya - 22), (X(tt) + 6, ya - 22)], c=PUR, lw=1.2, fill=soft(PUR)))
+        o.append(T(X(tt), ya + 15, "%d s" % tt, "middle", 9.5, MUT))
+    o.append(T(X(0.5), ya - 16, "予測を 100 回（10 ms ごと）", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(X(1.5), ya - 16, "予測を 100 回", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(X(2.06), ya - 28, "更新（1 s ごと）", "end", 9.5, PUR, True))
+    return SVG(700, 284, o, "IMU の値で予測し、GNSS の位置で更新するカルマンフィルタ（制御工学シリーズ 20 章 5 節と同じ式。1 次元の例は本文）。")
+
+
+F["e19_kfmap"] = _f19_kfmap_fig()
