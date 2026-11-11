@@ -291,7 +291,10 @@ def _f18_rx_fig():
         for lab, f in sigs:
             if isinstance(f, tuple):
                 o.append(RECT(X(f[0]), y - 6, X(f[1]) - X(f[0]), 12, 2, soft(c), c, 1.2))
-                o.append(T(X(f[1]) + 4, y + 4, lab, "start", 9, c, True, halo=True))
+                if f[1] > 1590:
+                    o.append(T(X(f[0]) - 4, y + 4, lab, "end", 9, c, True, halo=True))
+                else:
+                    o.append(T(X(f[1]) + 4, y + 4, lab, "start", 9, c, True, halo=True))
             else:
                 o.append(RECT(X(f) - 2.5, y - 7, 5, 14, 1, c, c, 1))
                 o.append(T(X(f) + 6, y + 4, lab, "start", 9, c, True, halo=True))
@@ -443,3 +446,585 @@ def _f18_slip_fig():
 
 
 F["e18_slip"] = _f18_slip_fig()
+
+
+# =====================================================================
+# 3 節: 精密暦の種類（書いた時点の IGS の公表による代表値）
+# =====================================================================
+_F18_EPH = [("航法メッセージ（2 章 5 節）", "実時間", 100.0, 5.0, ALI),
+            ("超速報（予測の部分）", "実時間（前もって）", 5.0, 3.0, GLD),
+            ("実時間の補正（流し続ける）", "実時間", 5.0, 0.3, PUR),
+            ("超速報（観測の部分）", "3〜9 時間後", 3.0, 0.15, SIG),
+            ("速報", "17〜41 時間後", 2.5, 0.075, SIG),
+            ("最終", "12〜18 日後", 2.5, 0.075, GRN)]
+
+
+def _f18_eph_fig():
+    o = []
+    o.append(T(14, 18, "精密暦の種類と、使えるまでの時間・軌道と時計の誤差", "start", 11.5, INK, True))
+    lx = math.log10
+    pa = Plot(330, 46, 160, 6 * 28, (1, 200), (0, 1), xlog=True)
+    pb = Plot(522, 46, 160, 6 * 28, (1, 200), (0, 1), xlog=True)
+    o.append(T(250, 40, "使えるまで", "middle", 10, MUT, True))
+    o.append(T(pa.x + pa.w / 2, 40, "軌道の誤差 [cm]", "middle", 10, MUT, True))
+    o.append(T(pb.x + pb.w / 2, 40, "時計の誤差（距離） [cm]", "middle", 10, MUT, True))
+    for p in (pa, pb):
+        o.append(p.axes(xl=None, yl=None, xt=[1, 10, 100], yt=[], xfmt=lambda v: "%g" % v))
+    for k, (nm, when, orb, clk_ns, c) in enumerate(_F18_EPH):
+        yy = pa.y + 5 + k * 28
+        o.append(T(196, yy + 13, nm, "end", 10, INK, True))
+        cw, _ = CHIP(206, yy + 13, when, c=c, sz=9.5)
+        o.append(cw)
+        for p, v in ((pa, orb), (pb, clk_ns * 1e-9 * _F18_C * 100)):
+            o.append(RECT(p.X(1), yy + 3, p.X(v) - p.X(1), 15, 2, soft(c), c, 1.1))
+            lab = ("%d" % round(v)) if v >= 10 else ("%.1f" % v)
+            if p is pb:
+                lab += "（%s ns）" % ("%g" % clk_ns)
+            if v > 30:
+                o.append(T(p.X(v) - 4, yy + 15, lab, "end", 9, c, True, halo=True))
+            else:
+                o.append(T(p.X(v) + 4, yy + 15, lab, "start", 9, c, True, halo=True))
+    o.append(T(14, pa.y + pa.h + 34, "時計は、ずれ [ns] に光の速さを掛けて距離に直した（1 ns が 30 cm）。値は IGS の公表による代表値（書いた時点）", "start", 9.5, MUT))
+    return SVG(700, pa.y + pa.h + 46, o, "精密暦の種類と、使えるようになるまでの時間・軌道と時計の誤差（GPS。航法メッセージは 7 章 1 節の値）。")
+
+
+F["e18_eph"] = _f18_eph_fig()
+
+
+# =====================================================================
+# 3 節: PPP の誤差の扱い（消す・直す・推定する）
+# =====================================================================
+def _f18_src_fig():
+    o = []
+    o.append(T(14, 18, "PPP の誤差の源ごとの扱い（大きさは 1 つの衛星の擬似距離・位相に入る分の代表値）", "start", 11.5, INK, True))
+    p = Plot(214, 44, 260, 9 * 26, (0.001, 10), (0, 1), xlog=True)
+    o.append(p.axes(xl="大きさ [m]（対数）", yl=None, xt=[0.001, 0.01, 0.1, 1, 10], yt=[], xfmt=lambda v: {0.001: "1 mm", 0.01: "1 cm", 0.1: "10 cm", 1: "1 m", 10: "10 m"}[v]))
+    tags = {"補正": ("補正の情報（精密暦）で消す", PUR), "2周波": ("2 周波の結合で消す", SIG), "モデル": ("モデルで直す", GRN),
+            "推定": ("推定する", GLD), "残る": ("残る（重みで扱う）", TEA)}
+    rows = [("衛星の軌道と時計", 1.5, 0.03, "補正", "1.5 m → 3 cm"),
+            ("電離層", 3.5, 0.01, "2周波", "3.5 m → cm 以下"),
+            ("対流圏の乾燥の部分", 2.3, 0.01, "モデル", "天頂 2.3 m → cm 以下"),
+            ("対流圏の湿潤の部分", 0.1, None, "推定", "天頂 0〜0.4 m → T_zw"),
+            ("受信機の時計のずれ", None, None, "推定", "1 ms で 300 km → b"),
+            ("整数値バイアス", None, None, "推定", "実数 β_i"),
+            ("固体潮汐など小さな項", 0.3, 0.005, "モデル", "最大で数十 cm"),
+            ("擬似距離のマルチパスと雑音", 1.12, 3.33, "残る", "1.12 m → 3.33 m"),
+            ("位相のマルチパスと雑音", 0.007, 0.021, "残る", "7 mm → 2.1 cm")]
+    for k, (nm, a, b, tg, note) in enumerate(rows):
+        yy = p.y + 4 + k * 26
+        o.append(T(p.x - 8, yy + 13, nm, "end", 10, INK, True))
+        tl, c = tags[tg]
+        if a is not None:
+            o.append(RECT(p.X(0.001), yy + 2, p.X(a) - p.X(0.001), 8, 1, "none", MUT, 1, "3 2"))
+        if b is not None:
+            o.append(RECT(p.X(0.001), yy + 10, p.X(b) - p.X(0.001), 8, 1, soft(c), c, 1.1))
+        if a is None and tg == "推定" and nm.startswith("受信機"):
+            o.append(ARR(p.X(0.001), yy + 6, p.X(10) + 2, yy + 6, c=MUT, lw=1.2, head=6, dash="3 2"))
+        cw, w_ = CHIP(484, yy + 13, tl, c=c, sz=9.5)
+        o.append(cw)
+        o.append(TX(484 + w_ + 6, yy + 13, note, "start", 9, MUT))
+    yl = p.y + p.h + 54
+    o.append(RECT(214, yl - 8, 18, 8, 1, "none", MUT, 1, "3 2"))
+    o.append(T(238, yl, "直す前（L1 だけの単独。7 章 6 節）", "start", 9.5, MUT))
+    o.append(RECT(430, yl - 8, 18, 8, 1, soft(TEA), TEA, 1.1))
+    o.append(T(454, yl, "PPP で残る分（例の値）", "start", 9.5, MUT))
+    return SVG(700, yl + 12, o, "PPP で誤差の源をどう扱うか（直す前は 7 章 6 節の予算と 7 章 2 節の値、残る分は代表値と例の値）。")
+
+
+F["e18_src"] = _f18_src_fig()
+
+
+# =====================================================================
+# 3 節: RTK・DGNSS と PPP の情報の流れ
+# =====================================================================
+def _f18_flow_fig():
+    o = []
+    o.append(T(14, 18, "(a) DGNSS・RTK（16・17 章）: 近くの基準局の観測を使う", "start", 11.5, INK, True))
+    o.append(BOX(14, 32, 150, 52, "基準局", "位置が分かった点。近く（数 km〜数十 km）", c=PUR, fill=soft(PUR), sz=11.5, ssz=9.5))
+    o.append(ARR(166, 58, 262, 58, c=PUR, lw=1.8))
+    o.append(T(214, 50, "観測・補正値", "middle", 9.5, PUR, True, halo=True))
+    o.append(T(214, 72, "無線・インターネット", "middle", 9, MUT, halo=True))
+    o.append(BOX(264, 32, 200, 52, "移動局", "差をとって共通の誤差を消す", c=SIG, fill=soft(SIG), sz=11.5, ssz=9.5))
+    o.append(ARR(466, 58, 520, 58, c=GLD, lw=1.8))
+    o.append(BOX(522, 36, 160, 44, "位置", "基準局から離れると落ちる", c=GLD, fill=soft(GLD), sz=11.5, ssz=9.5))
+    y0 = 112
+    o.append(T(14, y0, "(b) PPP: 世界の観測から計算した精密暦を使う", "start", 11.5, INK, True))
+    o.append(BOX(14, y0 + 14, 150, 52, "世界の観測局", "数百の点。互いに数千 km", c=PUR, fill=soft(PUR), sz=11.5, ssz=9.5))
+    o.append(ARR(90, y0 + 68, 90, y0 + 92, c=PUR, lw=1.8))
+    o.append(BOX(14, y0 + 94, 150, 52, "解析の機関", "衛星の軌道と時計を計算", c=PUR, fill=soft(PUR), sz=11.5, ssz=9.5))
+    o.append(ARR(166, y0 + 120, 262, y0 + 120, c=PUR, lw=1.8))
+    o.append(T(214, y0 + 112, "精密暦", "middle", 9.5, PUR, True, halo=True))
+    o.append(T(214, y0 + 134, "インターネット・衛星", "middle", 9, MUT, halo=True))
+    # 受信機の中
+    o.append(RECT(264, y0 + 14, 422, 206, 10, "none", SIG, 1.4, "5 3"))
+    o.append(T(276, y0 + 32, "受信機（1 台）", "start", 10.5, SIG, True))
+    o.append(BOX(276, y0 + 42, 190, 46, "2 周波の擬似距離と位相", "電離層フリー結合（1 節）", c=SIG, fill=soft(SIG), sz=10.5, ssz=9.5))
+    o.append(BOX(276, y0 + 98, 190, 46, "精密暦で直す", "衛星の軌道と時計の誤差を数 cm に", c=PUR, fill=soft(PUR), sz=10.5, ssz=9.5))
+    o.append(BOX(276, y0 + 154, 190, 46, "モデルで直す", "対流圏の乾燥の部分・固体潮汐など", c=GRN, fill=soft(GRN), sz=10.5, ssz=9.5))
+    for yy in (y0 + 65, y0 + 121, y0 + 177):
+        o.append(ARR(468, yy, 500, y0 + 121, c=MUT, lw=1.3))
+    o.append(BOX(502, y0 + 58, 172, 124, None, None, c=GLD, fill=soft(GLD)))
+    o.append(T(588, y0 + 78, "カルマンフィルタ", "middle", 11, GLD, True))
+    o.append(T(588, y0 + 98, "予測: 前の推定を進める", "middle", 9.5, INK))
+    o.append(T(588, y0 + 116, "更新: 観測で直す", "middle", 9.5, INK))
+    o.append(CARR(632, y0 + 128, 544, y0 + 128, bend=0.3, c=GLD, lw=1.4))
+    o.append(T(588, y0 + 172, "観測ごとに繰り返す", "middle", 9, GLD, halo=True))
+    o.append(ARR(588, y0 + 184, 588, y0 + 202, c=GLD, lw=1.6))
+    o.append(TX(588, y0 + 214, "位置・b・T_zw・β_i", "middle", 10, GLD, True, halo=True))
+    return SVG(700, y0 + 226, o, "DGNSS・RTK と PPP で、補正の情報がどこから来るか（PPP の受信機の中の計算の流れも示した）。")
+
+
+F["e18_flow"] = _f18_flow_fig()
+
+
+# =====================================================================
+# 4 節: 収束のモデル（w18_converge と同じ計算）
+#   東京の止まった受信機。観測は dt ごと、仰角マスク以上の衛星の擬似距離と位相（どちらも電離層フリー結合）。
+#   未知数: 東・北・上の位置、対流圏の天頂の遅れの湿潤の部分（tropo=True のとき）、衛星ごとの実数の β_i、
+#   観測ごとの受信機の時計（観測ごとに消去する）。誤差は観測ごとに独立で、重みは 1/σ²。
+#   推定の分散は、情報行列（正規方程式の行列）を足し上げて、それまでに見えた衛星の未知数だけで逆行列をとる。
+# =====================================================================
+_F18_SYSS = {"GPS": ("GPS",), "ALL": ("GPS", "Galileo", "BeiDou", "QZSS")}
+_F18_SP, _F18_SL = 3.33, 0.021          # 本文の例: 擬似距離 3.33 m・位相 2.1 cm（1 つの周波数の 1.12 m・7 mm の 2.98 倍）
+
+
+def _f18_mT(el):
+    return 1.001 / math.sqrt(0.002001 + math.sin(el * _F18_D2R) ** 2)
+
+
+def _f18_vis(t, systems, mask):
+    out = []
+    for s in gnss_const():
+        if s["sys"] not in systems:
+            continue
+        el, az, d = elaz(*_F18_TOK, sat_ecef(s, t))
+        if el >= mask:
+            out.append((s["nm"], el, az))
+    return out
+
+
+def _f18_r95(C2):
+    """2 次元の正規分布で 95 % が入る円の半径（7 章 5 節の方法。誤差の楕円の 2 つの半径から数値で求める）。"""
+    a, b, c = C2[0][0], C2[0][1], C2[1][1]
+    m = (a + c) / 2
+    r = math.sqrt(((a - c) / 2) ** 2 + b * b)
+    s1, s2 = math.sqrt(m + r), math.sqrt(max(m - r, 1e-30))
+    ph = _f18_np.linspace(0, 2 * math.pi, 720, endpoint=False)
+    q = _f18_np.cos(ph) ** 2 / s1 ** 2 + _f18_np.sin(ph) ** 2 / s2 ** 2
+    lo, hi = 0.0, 10 * (s1 + s2)
+    for _ in range(60):
+        md = (lo + hi) / 2
+        if float(_f18_np.mean((1 - _f18_np.exp(-md * md * q / 2)) / q) / (s1 * s2)) < 0.95:
+            lo = md
+        else:
+            hi = md
+    return (lo + hi) / 2
+
+
+_F18_CONV_CACHE = {}
+
+
+def _f18_conv(sysk="GPS", sP=_F18_SP, sL=_F18_SL, tropo=True, dt=30.0, T_=3600.0, mask=10.0):
+    key = (sysk, sP, sL, tropo, dt, T_, mask)
+    if key in _F18_CONV_CACHE:
+        return _F18_CONV_CACHE[key]
+    systems = _F18_SYSS[sysk]
+    epochs = [k * dt for k in range(int(round(T_ / dt)) + 1)]
+    vis = [_f18_vis(t, systems, mask) for t in epochs]
+    names = []
+    for v in vis:
+        for q in v:
+            if q[0] not in names:
+                names.append(q[0])
+    off = 4 if tropo else 3
+    nx = off + len(names)
+    J = _f18_np.zeros((nx, nx))
+    seen, out = [], []
+    for t, v in zip(epochs, vis):
+        H, Wt = [], []
+        for nm, el, az in v:
+            j = off + names.index(nm)
+            if j not in seen:
+                seen.append(j)
+            ce, se = math.cos(el * _F18_D2R), math.sin(el * _F18_D2R)
+            h = _f18_np.zeros(nx)
+            h[:3] = (-ce * math.sin(az * _F18_D2R), -ce * math.cos(az * _F18_D2R), -se)
+            if tropo:
+                h[3] = _f18_mT(el)
+            g = h.copy()
+            g[j] = 1.0
+            H += [h, g]
+            Wt += [1 / sP ** 2, 1 / sL ** 2]
+        H = _f18_np.array(H)
+        Wt = _f18_np.array(Wt)
+        u = H.T @ Wt
+        J += (H.T * Wt) @ H - _f18_np.outer(u, u) / Wt.sum()
+        idx = list(range(off)) + sorted(seen)
+        Cv = _f18_np.linalg.inv(J[_f18_np.ix_(idx, idx)])
+        out.append(dict(t=t, n=len(v), r95=_f18_r95(Cv[:2, :2]), su=math.sqrt(Cv[2, 2])))
+    _F18_CONV_CACHE[key] = out
+    return out
+
+
+def _f18_tconv(res, th=0.10):
+    for i, r in enumerate(res):
+        if all(q["r95"] < th for q in res[i:]):
+            return r["t"]
+    return None
+
+
+# 比べるための代表値（モデルではない）: RTK は 17 章 6 節、PPP-RTK は 5 節の CLAS の基準
+_F18_RTKREP = (10.0, 0.8, 0.02)          # 整数が決まる時刻 [s]・それまでの R95 [m]・決まった後の R95 [m]
+_F18_CLASREP = (60.0, 1.5, 0.06)
+
+
+# =====================================================================
+# 4 節: 位置の手がかりは衛星の向きの変化（1 つの衛星・東の成分）
+# =====================================================================
+def _f18_why_data():
+    sat = [s for s in gnss_const() if s["nm"] == "G6"][0]
+    ts = _f18_np.arange(0, 3601, 30.0)
+    le = []
+    for t in ts:
+        el, az, d = elaz(*_F18_TOK, sat_ecef(sat, t))
+        le.append(math.cos(el * _F18_D2R) * math.sin(az * _F18_D2R))
+    return ts, _f18_np.array(le)
+
+
+def _f18_why_fig():
+    o = []
+    ts, le = _f18_why_data()
+    sF = _F18_SL
+    de_true, beta = 0.30, 0.03
+    rng = _f18_np.random.default_rng(1810)
+    noise = rng.standard_normal(len(ts)) * sF
+    o.append(T(14, 18, "(a) 位相の残差を、視線の東の成分に対して並べる（G6、真の δe = 30 cm）", "start", 11.5, INK, True))
+    for j, (mins, x0) in enumerate(((10, 70), (30, 270))):
+        n = int(mins * 60 / 30) + 1
+        l = le[:n] - le[0]
+        y = -l * de_true + beta + noise[:n]
+        p = Plot(x0, 40, 150, 140, (-0.01, 0.21), (-0.10, 0.08))
+        o.append(p.axes(xl="l_k − l_0", yl="ΔΦ_k [cm]" if j == 0 else None, xt=[0, 0.1, 0.2], yt=[-0.08, -0.04, 0, 0.04, 0.08],
+                        xfmt=lambda v: "%g" % v, yfmt=lambda v: _f18_m(100 * v, 0)))
+        lb = float(_f18_np.mean(l))
+        sxx = float(_f18_np.sum((l - lb) ** 2))
+        sl = float(_f18_np.sum((l - lb) * (y - y.mean())) / sxx)
+        ic = float(y.mean() - sl * lb)
+        ss = sF / math.sqrt(sxx)
+        xs = _f18_np.linspace(-0.005, 0.205, 30)
+        up = [(x_, ic + sl * x_ + ss * (x_ - lb)) for x_ in xs]
+        dn = [(x_, ic + sl * x_ - ss * (x_ - lb)) for x_ in xs]
+        o.append(p.clip(up, c=GLD, lw=1.2, dash="4 3"))
+        o.append(p.clip(dn, c=GLD, lw=1.2, dash="4 3"))
+        o.append(p.clip([(x_, beta - de_true * x_) for x_ in xs], c=GRN, lw=1.8))
+        for a_, b_ in zip(l, y):
+            o.append(D(p.X(a_), p.Y(b_), SIG, 2.2))
+        o.append(p.clip([(x_, ic + sl * x_) for x_ in xs], c=GLD, lw=2))
+        o.append(T(p.x + p.w / 2, p.y - 6, "%d 分（%d 回）" % (mins, n), "middle", 10, INK, True))
+        o.append(TX(p.x + 6, p.y + p.h - 8, "δe の推定 %s ± %s cm" % (_f18_m(-100 * sl, 0), _f18_m(100 * ss, 0)), "start", 9.5, GLD, True, halo=True))
+    o.append(LEGL(70, 236, [(GRN, None, "本当の直線（傾き −δe）"), (GLD, None, "当てはめた直線"), (GLD, "4 3", "傾きの ±1σ")], 9.5, 14))
+    # (b) 推定の標準偏差と時間
+    o.append(T(462, 18, "(b) δe の推定の標準偏差", "start", 11.5, INK, True))
+    q = Plot(500, 40, 180, 160, (0, 60), (1, 1000), ylog=True)
+    o.append(q.axes(xl="経った時間 [分]", yl="標準偏差 [cm]", xt=[0, 10, 20, 30, 40, 50, 60], yt=[1, 10, 100, 1000], yfmt=lambda v: "%g" % v))
+    two, reg = [], []
+    for k in range(1, len(ts)):
+        two.append((ts[k] / 60, 100 * math.sqrt(2) * sF / abs(le[k] - le[0])))
+        l = le[:k + 1]
+        reg.append((ts[k] / 60, 100 * sF / math.sqrt(float(_f18_np.sum((l - l.mean()) ** 2)))))
+    o.append(q.clip(two, c=ALI, lw=2))
+    o.append(q.clip(reg, c=GLD, lw=2))
+    for mins in (10, 30):
+        k = int(mins * 2)
+        v = 100 * math.sqrt(2) * sF / abs(le[k] - le[0])
+        o.append(D(q.X(mins), q.Y(v), ALI, 3.6))
+        o.append(T(q.X(mins) + 5, q.Y(v) - 6, "%d cm" % round(v), "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(58), q.Y(300), "2 つの時刻", "end", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(58), q.Y(1.6), "30 s ごとの全部", "end", 9.5, GLD, True, halo=True))
+    return SVG(700, 250, o, "1 つの衛星の位相から、受信機の東の位置を求める簡単な場合（位相の雑音 σ_Φ = 2.1 cm、30 s ごと、β は実数の未知数）。")
+
+
+F["e18_why"] = _f18_why_fig()
+
+
+# =====================================================================
+# 4 節: PPP の水平の誤差が縮む様子（モデル）と、RTK・PPP-RTK の代表値
+# =====================================================================
+def _f18_conv_fig():
+    o = []
+    o.append(T(14, 18, "水平の誤差（R95）と、始めてからの時間", "start", 11.5, INK, True))
+    p = Plot(70, 32, 430, 230, (0, 60), (0.01, 10), ylog=True)
+    o.append(p.axes(xl="始めてからの時間 [分]", yl="水平の R95 [m]", xt=[0, 10, 20, 30, 40, 50, 60], yt=[0.01, 0.1, 1, 10],
+                    yfmt=lambda v: {0.01: "0.01", 0.1: "0.1", 1: "1", 10: "10"}[v]))
+    o.append(W(p.x, p.Y(0.1), p.x + p.w, p.Y(0.1), c=ALI, lw=1.2, dash="5 3"))
+    o.append(T(p.x + p.w - 4, p.Y(0.1) - 5, "10 cm", "end", 9.5, ALI, True, halo=True))
+    curves = [("GPS", True, _F18_SP, GLD, None, "PPP（GPS）"), ("ALL", True, _F18_SP, GLD, "6 4", "PPP（4 つの衛星系）"),
+              ("GPS", False, 1.12, TEA, "2 3", "電離層・対流圏を補正（GPS）")]
+    info = []
+    for sysk, tropo, sP, c, dash, lab in curves:
+        res = _f18_conv(sysk, sP, _F18_SL, tropo)
+        o.append(p.clip([(r["t"] / 60, r["r95"]) for r in res], c=c, lw=2.2, dash=dash))
+        tc = _f18_tconv(res)
+        info.append((lab, tc, c, dash))
+        if tc is not None and dash != "2 3":
+            o.append(W(p.X(tc / 60), p.Y(0.1), p.X(tc / 60), p.y + p.h, c=c, lw=1, dash="2 2"))
+            o.append(T(p.X(tc / 60) + 3, p.y + p.h - 6, "%.1f 分" % (tc / 60), "start", 9.5, c, True, halo=True))
+    # 代表値（モデルではない）
+    for (tf, a, b), c, lab in ((_F18_RTKREP, GRN, "RTK（17 章。代表値）"), (_F18_CLASREP, PUR, "PPP-RTK（CLAS の基準）")):
+        o.append(p.clip([(0, a), (tf / 60, a), (tf / 60, b), (60, b)], c=c, lw=2.2, dash="7 3"))
+    o.append(T(p.X(2.5), p.Y(0.02) - 5, "RTK 2 cm（10 s で決まる）", "start", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(2.5), p.Y(0.06) - 5, "CLAS 6 cm（1 分以内）", "start", 9.5, PUR, True, halo=True))
+    o.append(W(p.x, p.Y(6.6), p.x + p.w, p.Y(6.6), c=MUT, lw=1.2, dash="2 3"))
+    o.append(T(p.x + p.w - 4, p.Y(6.6) - 5, "単独（L1）6.6 m", "end", 9.5, MUT, True, halo=True))
+    # 凡例と読み
+    lx = 526
+    o.append(T(lx, 44, "PPP のモデル", "start", 10.5, INK, True))
+    for k, (lab, tc, c, dash) in enumerate(info):
+        y = 64 + k * 34
+        o.append(W(lx, y - 4, lx + 22, y - 4, c=c, lw=2.2, dash=dash))
+        o.append(T(lx + 28, y, lab, "start", 9.5, INK, True))
+        o.append(T(lx + 28, y + 14, "10 cm まで %.1f 分" % (tc / 60), "start", 9.5, c, True))
+    y = 64 + 3 * 34 + 6
+    o.append(T(lx, y, "代表値（モデルではない）", "start", 10.5, INK, True))
+    for k, (c, lab) in enumerate(((GRN, "RTK（17 章 6 節）"), (PUR, "PPP-RTK（5 節の CLAS）"))):
+        yy = y + 20 + k * 18
+        o.append(W(lx, yy - 4, lx + 22, yy - 4, c=c, lw=2.2, dash="7 3"))
+        o.append(T(lx + 28, yy, lab, "start", 9.5, INK, True))
+    return SVG(700, 300, o, "PPP の水平の誤差が縮む様子（東京で 30 s ごと、擬似距離 3.33 m・位相 2.1 cm、誤差は観測ごとに独立としたモデル）と、RTK・PPP-RTK の代表値。")
+
+
+F["e18_conv"] = _f18_conv_fig()
+
+
+# =====================================================================
+# 4 節: RTK・PPP・PPP-RTK で、何を配り、何を推定するか
+# =====================================================================
+def _f18_ssr_fig():
+    o = []
+    o.append(T(14, 18, "(a) 配る情報と、受信機が推定するもの", "start", 11.5, INK, True))
+    cols = [("基準局の", "観測"), ("衛星の軌道", "と時計"), ("衛星の", "バイアス"), ("電離層", ""), ("対流圏", "")]
+    cx = [180 + i * 70 for i in range(5)]
+    for x, c in zip(cx, cols):
+        o.append(T(x, 34 if c[1] else 44, c[0], "middle", 9.5, MUT, True))
+        if c[1]:
+            o.append(T(x, 47, c[1], "middle", 9.5, MUT, True))
+    o.append(T(590, 44, "受信機が推定するもの", "middle", 9.5, MUT, True))
+    rows = [("RTK（17 章）", GRN, ["全部まとめて", None, None, None, None], "位置・時計・整数値バイアス（整数）", "数秒〜数十秒"),
+            ("PPP", GLD, [None, "配る", "（製品による）", "2 周波で消す", "推定する"], "位置・時計・T_zw・β_i（実数）", "数十分"),
+            ("PPP-RTK", PUR, [None, "配る", "配る", "地域で配る", "地域で配る"], "位置・時計・整数値バイアス（整数）", "1 分ほど")]
+    for k, (nm, c, cells, est, tm) in enumerate(rows):
+        y = 58 + k * 40
+        o.append(RECT(14, y, 672, 32, 6, soft(c), "none", 0))
+        o.append(T(24, y + 14, nm, "start", 11, c, True))
+        o.append(T(24, y + 27, "初期化 " + tm, "start", 9, INK))
+        for x, v in zip(cx, cells):
+            if v is None:
+                o.append(T(x, y + 21, "—", "middle", 10, MUT))
+            else:
+                cw, _ = CHIP(x, y + 20, v, c=c if not v.startswith("（") and v not in ("2 周波で消す", "推定する") else MUT, sz=9, a="middle")
+                o.append(cw)
+        o.append(TX(590, y + 21, est, "middle", 9.5, INK, True))
+    # (b) 観測局の置き方と、使える範囲（模式）
+    yb = 200
+    o.append(T(14, yb, "(b) 補正を作る観測局の置き方と、使える範囲（模式）", "start", 11.5, INK, True))
+    rng = _f18_np.random.default_rng(1804)
+    for j, (ttl, c, sub) in enumerate((("RTK", GRN, "基準局の近く"), ("PPP", GLD, "どこでも（精密暦は全地球で同じ）"), ("PPP-RTK", PUR, "観測網のある地域"))):
+        x0 = 14 + j * 228
+        o.append(RECT(x0, yb + 12, 214, 132, 6, SCR, LIN, 1))
+        o.append(T(x0 + 8, yb + 28, ttl, "start", 10.5, c, True))
+        if j == 0:
+            o.append(CIRC(x0 + 107, yb + 82, 42, c=c, lw=1.4, fill=soft(c)))
+            o.append(D(x0 + 107, yb + 82, PUR, 4.5))
+            o.append(T(x0 + 107, yb + 100, "基準局", "middle", 9, PUR, True, halo=True))
+        elif j == 1:
+            for xx, yy in ((40, 50), (110, 40), (180, 60), (60, 110), (150, 120), (200, 100)):
+                o.append(D(x0 + xx * 0.95 + 4, yb + 12 + yy, PUR, 3.6))
+            o.append(RECT(x0 + 4, yb + 36, 206, 100, 4, soft(c), "none", 0))
+        else:
+            o.append(RECT(x0 + 50, yb + 40, 120, 90, 8, soft(c), c, 1.2))
+            for ix in range(6):
+                for iy in range(5):
+                    o.append(D(x0 + 60 + ix * 20, yb + 50 + iy * 18, PUR, 2.0))
+        o.append(T(x0 + 107, yb + 160, sub, "middle", 9.5, INK, True))
+    o.append(T(14, yb + 180, "紫の点: 補正を作る観測局（基準局）。色の付いた範囲で、補正を使える", "start", 9.5, MUT))
+    return SVG(700, yb + 192, o, "RTK・PPP・PPP-RTK で、配る補正の情報と、受信機が推定するもの（初期化の時間は代表値）。")
+
+
+F["e18_ssr"] = _f18_ssr_fig()
+
+
+# =====================================================================
+# 5 節: みちびきの補強（範囲の模式と、公式の基準。書いた時点）
+# =====================================================================
+def _f18_qzcover(step=5, mask=10.0):
+    """1 章の配置のみちびき 4 機のうち、いつも 1 機以上が仰角 mask 以上に見える点（緯度・経度の格子）。"""
+    qz = [s for s in gnss_const() if s["sys"] == "QZSS"]
+    ts = _f18_np.arange(0, 86164, 1800)
+    sp = [[sat_ecef(s, t) for t in ts] for s in qz]
+    out = []
+    for lat in range(-60, 61, step):
+        for lon in range(60, 241, step):
+            ok = True
+            for k in range(len(ts)):
+                if max(elaz(lat, lon, 0, sp[j][k])[0] for j in range(len(qz))) < mask:
+                    ok = False
+                    break
+            out.append((lat, lon, ok))
+    return out
+
+
+def _f18_ll(p):
+    x, y, z = p
+    return math.degrees(math.atan2(z, math.hypot(x, y))), math.degrees(math.atan2(y, x)) % 360
+
+
+def _f18_qzss_fig():
+    o = []
+    o.append(T(14, 18, "(a) みちびきの地上軌跡と、補正の範囲（模式）", "start", 11.5, INK, True))
+    p = Plot(56, 30, 400, 270, (60, 240), (-60, 60))
+    o.append(RECT(p.x, p.y, p.w, p.h, 0, SCR, LIN, 1))
+    for (lat, lon, ok) in _f18_qzcover():
+        if ok:
+            a0, a1 = max(lon - 2.5, 60), min(lon + 2.5, 240)
+            b0, b1 = max(lat - 2.5, -60), min(lat + 2.5, 60)
+            o.append(RECT(p.X(a0), p.Y(b1), p.X(a1) - p.X(a0) + 0.3, p.Y(b0) - p.Y(b1) + 0.3, 0, soft(TEA), "none", 0))
+    o.append(p.axes(xl="経度 [°]", yl="緯度 [°]", xt=[60, 90, 120, 150, 180, 210, 240], yt=[-60, -30, 0, 30, 60],
+                    xfmt=lambda v: ("%d°E" % v) if v <= 180 else ("%d°W" % (360 - v)), yfmt=lambda v: ("%d°N" % v) if v > 0 else (("%d°S" % -v) if v < 0 else "0°")))
+    qz = [s for s in gnss_const() if s["sys"] == "QZSS"]
+    pts = [_f18_ll(sat_ecef(qz[0], t)) for t in range(0, 86165, 600)]
+    o.append(PL([(p.X(b), p.Y(a)) for a, b in pts], c=TEA, lw=2))
+    o.append(D(p.X(127), p.Y(0), TEA, 5))
+    o.append(T(p.X(127) + 7, p.Y(0) + 4, "静止軌道 127°E", "start", 9, TEA, True, halo=True))
+    o.append(T(p.X(120), p.Y(-36), "準天頂軌道の地上軌跡", "end", 9, TEA, True, halo=True))
+    # 日本と沿岸（模式）
+    o.append(RECT(p.X(122), p.Y(46), p.X(154) - p.X(122), p.Y(20) - p.Y(46), 8, soft(PUR), PUR, 1.6))
+    o.append(T(p.X(156), p.Y(43), "日本と沿岸", "start", 9.5, PUR, True, halo=True))
+    o.append(T(p.X(156), p.Y(43) + 13, "CLAS・SLAS", "start", 9.5, PUR, True, halo=True))
+    for nm, lat, lon, a in (("東京", 35.7, 139.8, "start"), ("シンガポール", 1.3, 103.8, "end"), ("シドニー", -33.9, 151.2, "start"), ("ニューデリー", 28.6, 77.2, "start")):
+        o.append(D(p.X(lon), p.Y(lat), INK, 3))
+        o.append(T(p.X(lon) + (5 if a == "start" else -5), p.Y(lat) + 4, nm, a, 9, INK, halo=True))
+    o.append(T(p.x + 6, p.y + p.h - 8, "青緑の地: みちびきがいつも 1 機以上、仰角 10° 以上に見える範囲（1 章の配置で計算）", "start", 9, TEA, True, halo=True))
+    # (b) 3 つのサービス
+    x0 = 478
+    o.append(T(x0, 18, "(b) 公式の性能の基準（書いた時点）", "start", 11.5, INK, True))
+    svc = [("SLAS", SIG, ["L1S（L1 の周波数）", "日本と沿岸", "擬似距離の補正", "水平 1 m・垂直 2 m（95 %、静止）", "L1 の受信機（対応したもの）"]),
+           ("CLAS", PUR, ["L6D（L6 の周波数）", "日本と沿岸", "PPP-RTK", "水平 6 cm・垂直 12 cm（95 %、静止）", "初期化 1 分以内（95 %）", "多周波と L6（対応したもの）"]),
+           ("MADOCA-PPP", GLD, ["L6E（インターネットでも）", "アジア・オセアニア", "PPP", "30 分以内に水平 30 cm・", "垂直 50 cm（95 %）", "多周波と、L6 かインターネット"])]
+    y = 34
+    for nm, c, lines in svc:
+        h = 22 + len(lines) * 13
+        o.append(RECT(x0, y, 216, h, 6, soft(c), c, 1.2))
+        o.append(T(x0 + 10, y + 16, nm, "start", 11, c, True))
+        for k, l in enumerate(lines):
+            o.append(T(x0 + 12, y + 31 + k * 13, l, "start", 9.5, INK))
+        y += h + 8
+    return SVG(700, 350, o, "みちびきの地上軌跡と補正の範囲（範囲の形は模式）、SLAS・CLAS・MADOCA-PPP の公式の性能の基準（内閣府の公表による。書いた時点）。")
+
+
+F["e18_qzss"] = _f18_qzss_fig()
+
+
+def _f18_qzflow_fig():
+    o = []
+    o.append(T(14, 18, "みちびきの補正の情報ができて届くまで", "start", 11.5, INK, True))
+    lanes = [("CLAS", PUR, "全国の電子基準点", "（17 章 5 節）", "衛星の軌道・時計・バイアス", "地域ごとの電離層・対流圏", "みちびき L6D", "多周波・L6 の受信機", "PPP-RTK で整数を決める"),
+             ("MADOCA-PPP", GLD, "世界の監視局", "", "衛星の軌道・時計・バイアス", "（電離層・対流圏は含まない）", "みちびき L6E・インターネット", "多周波の受信機", "PPP で収束を待つ"),
+             ("SLAS", SIG, "国内の基準局", "", "擬似距離の補正", "", "みちびき L1S", "L1 の受信機", "SBAS と同じ使い方")]
+    for k, (nm, c, src, srcs, a1, a2, via, rx, how) in enumerate(lanes):
+        y = 34 + k * 74
+        o.append(T(14, y + 34, nm, "start", 11, c, True))
+        o.append(BOX(100, y + 8, 130, 50, src, srcs or None, c=c, fill=soft(c), sz=10.5, ssz=9))
+        o.append(ARR(232, y + 33, 258, y + 33, c=c, lw=1.6))
+        o.append(BOX(260, y + 8, 168, 50, None, None, c=c, fill=soft(c)))
+        o.append(T(344, y + 30 if a2 else y + 37, a1, "middle", 9.5, INK, True))
+        if a2:
+            o.append(T(344, y + 46, a2, "middle", 9.5, INK, True))
+        o.append(ARR(430, y + 33, 456, y + 33, c=c, lw=1.6))
+        o.append(BOX(458, y + 12, 104, 42, None, None, c=c, fill=SCR))
+        vl = via.split("・")
+        for q_, l_ in enumerate(vl):
+            o.append(T(510, y + 37 - 7 * (len(vl) - 1) + 14 * q_, l_, "middle", 9.5, c, True))
+        o.append(ARR(564, y + 33, 586, y + 33, c=c, lw=1.6))
+        o.append(BOX(588, y + 12, 104, 42, rx, None, c=SIG, fill=soft(SIG), sz=9.5))
+        o.append(T(640, y + 68, how, "middle", 9, MUT))
+    return SVG(700, 34 + 3 * 74 + 4, o, "CLAS・MADOCA-PPP・SLAS の補正の情報の流れ（内閣府の公表による。書いた時点）。")
+
+
+F["e18_qzflow"] = _f18_qzflow_fig()
+
+
+# =====================================================================
+# 6 節: 方式の選び方（精度と初期化の時間。代表値）
+# =====================================================================
+#  名前, 初期化の時間 [s] の範囲, 水平の 95 % [m] の範囲, 色, 出典
+_F18_METH = [("単独（L1）", (1, 35), (3.6, 8.2), SIG, "5・7 章"),
+             ("SBAS", (40, 300), (1.5, 3.0), SIG, "16 章"),
+             ("SLAS", (40, 300), (0.6, 1.0), SIG, "5 節"),
+             ("DGNSS", (3, 30), (1.5, 3.0), SIG, "16 章"),
+             ("RTK", (5, 60), (0.01, 0.03), GRN, "17 章"),
+             ("CLAS", (20, 60), (0.04, 0.12), PUR, "5 節"),
+             ("PPP", (600, 1800), (0.05, 0.3), GLD, "4・5 節")]
+
+
+def _f18_choose_fig():
+    o = []
+    o.append(T(14, 18, "水平の精度（95 %）と、初期化の時間（代表値・公式の基準）", "start", 11.5, INK, True))
+    p = Plot(78, 34, 460, 260, (1, 3600), (0.01, 20), xlog=True, ylog=True)
+    o.append(p.axes(xl="初期化の時間 [s]（対数）", yl="水平の 95 % の値 [m]（対数）", xt=[1, 10, 60, 600, 3600], yt=[0.01, 0.1, 1, 10],
+                    xfmt=lambda v: {1: "1 s", 10: "10 s", 60: "1 分", 600: "10 分", 3600: "1 時間"}[v], yfmt=lambda v: {0.01: "1 cm", 0.1: "10 cm", 1: "1 m", 10: "10 m"}[v]))
+    pos = {"単独（L1）": ("start", 4, -4), "SBAS": ("start", 4, -4), "SLAS": ("start", 4, -4), "DGNSS": ("end", -4, 12),
+           "RTK": ("start", 4, -4), "CLAS": ("start", 4, -4), "PPP": ("start", 4, -4)}
+    for nm, (t0, t1), (a0, a1), c, src in _F18_METH:
+        o.append(RECT(p.X(t0), p.Y(a1), p.X(t1) - p.X(t0), p.Y(a0) - p.Y(a1), 3, soft(c), c, 1.5))
+        an, dx, dy = pos[nm]
+        xx = p.X(t1) + dx if an == "start" else p.X(t0) + dx
+        yy = p.Y(a1) + dy if dy < 0 else p.Y(a0) + dy
+        o.append(T(xx, yy, nm, an, 10, c, True, halo=True))
+    o.append(T(p.X(3000), p.Y(14), "擬似距離だけ: すぐ使えて m 級", "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(3000), p.Y(0.035), "実数の整数値バイアス: 数十分", "end", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(1.2), p.Y(0.2), "整数に決める: 1 分ほどで cm 級", "start", 9.5, GRN, True, halo=True))
+    lx = 560
+    o.append(T(lx, 44, "値のもと", "start", 10.5, INK, True))
+    for k, (nm, tt, aa, c, src) in enumerate(_F18_METH):
+        o.append(T(lx, 64 + k * 17, nm, "start", 9.5, c, True))
+        o.append(T(lx + 64, 64 + k * 17, src, "start", 9.5, MUT))
+    o.append(T(lx, 64 + 7 * 17 + 10, "初期化の時間は、電源を", "start", 9, MUT))
+    o.append(T(lx, 64 + 7 * 17 + 23, "入れてから（単独は TTFF）", "start", 9, MUT))
+    return SVG(700, 340, o, "方式ごとの水平の精度と初期化の時間（各章の代表値と公式の基準。場所・時刻・受信機で大きく変わる）。")
+
+
+F["e18_choose"] = _f18_choose_fig()
+
+
+# 方式ごとの要るもの（w18_choose と同じ表）
+_F18_NEEDS = [("単独（L1）", ["L1 だけでよい", "要らない", "要らない", "どこでも"], [0, 0, 0, 0]),
+              ("SBAS", ["L1 だけでよい", "要らない", "静止衛星（L1）", "SBAS の範囲（日本は MSAS）"], [0, 0, 0, 1]),
+              ("SLAS", ["L1（対応したもの）", "要らない", "みちびき（L1S）", "日本と沿岸"], [0, 0, 0, 2]),
+              ("DGNSS", ["L1 だけでよい", "要る（自分か配信）", "無線・インターネット", "基準局から数百 km まで"], [0, 2, 2, 1]),
+              ("RTK", ["多周波が多い", "要る（自分か配信）", "無線・インターネット", "基準局の近く"], [1, 2, 2, 2]),
+              ("PPP", ["多周波", "要らない", "インターネット・衛星", "補正が届けばどこでも"], [1, 0, 1, 0]),
+              ("CLAS", ["多周波と L6（対応したもの）", "要らない", "みちびき（L6D）", "日本と沿岸"], [2, 0, 0, 2])]
+
+
+def _f18_needs_fig():
+    o = []
+    o.append(T(14, 18, "方式ごとに要るもの（費用は、受信機の種類と、基準局・通信が要るかで比べる）", "start", 11.5, INK, True))
+    heads = ["受信機", "基準局", "補正の届け方", "使える場所"]
+    xs = [96, 254, 376, 516]
+    ws = [150, 114, 132, 178]
+    for x, w, h in zip(xs, ws, heads):
+        o.append(T(x + w / 2, 44, h, "middle", 10, MUT, True))
+    cmap = [GRN, GLD, ALI]
+    for k, (nm, cells, lv) in enumerate(_F18_NEEDS):
+        y = 54 + k * 30
+        o.append(T(88, y + 17, nm, "end", 10.5, INK, True))
+        for x, w, c, l in zip(xs, ws, cells, lv):
+            col = cmap[l]
+            o.append(RECT(x, y + 3, w - 6, 22, 5, soft(col), col, 1.0))
+            o.append(T(x + (w - 6) / 2, y + 18, c, "middle", 9 if len(c) > 13 else 9.5, INK, True))
+    yl = 54 + 7 * 30 + 18
+    o.append(LEGEND(96, yl, [(GRN, "要らない・広い・L1 だけ"), (GLD, "少し要る・多周波"), (ALI, "要る・狭い・L6 も")], 9.5))
+    return SVG(700, yl + 12, o, "方式ごとに要る受信機・基準局・通信と、使える場所（代表的な場合）。")
+
+
+F["e18_needs"] = _f18_needs_fig()
