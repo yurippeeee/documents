@@ -567,7 +567,7 @@ def _f16_prc_fig():
     xd = _F16_A @ _f16_np.array([r["after"] for r in rows])
     prc = _f16_np.array([r["PRC"] for r in rows])
     yb = q.y + q.h + 54
-    o.append(TX(14, yb, "求めた時計のずれ b' = b_{rov} − b_{ref} %s m（b_{rov} = 1 ms 分の 299 792.5 m）。" % (("+ " if xd[3] >= 0 else "− ") + "%.2f" % abs(xd[3])), "start", 10, INK))
+    o.append(TX(14, yb, "求めた時計のずれ b′ と b_{rov} − b_{ref} の差は %s m（b_{rov} は 1 ms 分の 299 792.5 m）。" % _f16_m(xd[3], 2), "start", 10, INK))
     o.append(T(14, yb + 18, "補正値の平均（%s m）を全部の衛星から引いて配っても、位置は変わらず、b' が %.1f m 変わるだけ。" % (_f16_m(prc.mean(), 1), abs(prc.mean())), "start", 10, INK))
     return SVG(700, yb + 30, o, "DGNSS の数値の例（東京の 8 つの衛星、時刻 0。基準局は西へ 10 km。誤差は 7 章の大きさの乱数の 1 組）。")
 
@@ -614,16 +614,16 @@ def _f16_field_fig():
         X, Y = p.X(x), p.Y(y)
         if c == PUR:
             o.append(CIRC(X, Y, 5.5, c=PUR, lw=2, fill=SCR))
-            o.append(T(X - 8, Y + 18, "基準局 %s m" % _f16_m(v0, 1), "middle", 9.5, PUR, True, halo=True))
+            o.append(T(X - 8, Y + 18, "基準局 %s m" % _f16_m(v0, 2), "middle", 9.5, PUR, True, halo=True))
         else:
             o.append(W(p.X(0), p.Y(0), X, Y, c=MUT, lw=1, dash="3 3"))
             o.append(D(X, Y, GRN, 4.5))
             v = fn(x, y)
             if x > 0:
-                o.append(T(X, Y - 22, "%s: %s m" % (lab, _f16_m(v, 1)), "middle", 9.5, GRN, True, halo=True))
-                o.append(T(X, Y - 9, "（差 %s m）" % _f16_m(v - v0, 1), "middle", 9.5, GRN, True, halo=True))
+                o.append(T(X, Y - 22, "%s: %s m" % (lab, _f16_m(v, 2)), "middle", 9.5, GRN, True, halo=True))
+                o.append(T(X, Y - 9, "（差 %s m）" % _f16_m(v - v0, 2), "middle", 9.5, GRN, True, halo=True))
             else:
-                o.append(T(X - 6, Y - 8, "%s: %s m（差 %s m）" % (lab, _f16_m(v, 1), _f16_m(v - v0, 1)), "start", 9.5, GRN, True, halo=True))
+                o.append(T(X - 6, Y - 8, "%s: %s m（差 %s m）" % (lab, _f16_m(v, 2), _f16_m(v - v0, 2)), "start", 9.5, GRN, True, halo=True))
     o.append(T(p.x, p.y + p.h + 48, "金: モデルより遅れが大きい所、青: 小さい所（濃いほど大きい。±8 m で最も濃い）", "start", 9.5, MUT))
     # (b) 2 点の値の組
     x0 = 372
