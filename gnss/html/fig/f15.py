@@ -1209,7 +1209,7 @@ def _f15_power_fig():
         o.append(W(p.X(w / 60.0), 42, p.X(w / 60.0), 52, c=GRN, lw=1.6))
     o.append(T(p.x, 36, "間隔を延ばしたときに起きる時刻", "start", 9, GRN, True))
     o.append(T(p.X(118), p.Y(70) - 6, "探し続ける 35 mA: 70 mAh", "end", 9.5, ALI, True, halo=True))
-    o.append(T(p.X(118), p.Y(fixed[-1][1]) - 8, "60 s ごと: %.1f mAh" % fixed[-1][1], "end", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(118), p.Y(fixed[-1][1]) + 16, "60 s ごと: %.1f mAh" % fixed[-1][1], "end", 9.5, GLD, True, halo=True))
     o.append(T(p.X(118), p.Y(back[-1][1]) - 8, "2 倍ずつ延ばす: %.1f mAh" % back[-1][1], "end", 9.5, GRN, True, halo=True))
     o.append(T(p.X(118), p.Y(back[-1][1]) - 22, "（60 s から始め、上限 30 分。%d 回起きる）" % len(wb), "end", 9, GRN, halo=True))
     # (b) 電池の残りで切り替える
