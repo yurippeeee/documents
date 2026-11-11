@@ -21,7 +21,7 @@ REG.w09_friis=function(el,U){
   var lg=U.slider(r1,"LNA の利得",{min:0,max:30,step:0.5,value:18,fmt:function(v){return _w09_f(v,1)+" dB";},onInput:function(){draw();}});
   var r2=U.ctrls(el);
   var sl=U.slider(r2,"SAW フィルタの挿入損失",{min:0,max:4,step:0.1,value:1.5,fmt:function(v){return _w09_f(v,1)+" dB";},onInput:function(){draw();}});
-  var cm=U.slider(r2,"ケーブル（0.5 dB/m）",{min:0,max:30,step:0.5,value:0,fmt:function(v){return _w09_f(v,1)+" m・"+_w09_f(0.5*v,2)+" dB";},onInput:function(){draw();}});
+  var cm=U.slider(r2,"ケーブルの長さ",{min:0,max:30,step:0.5,value:0,fmt:function(v){return _w09_f(v,1)+" m（"+_w09_f(0.5*v,2)+" dB）";},onInput:function(){draw();}});
   var cnf=U.slider(r2,"チップの増幅器の雑音指数",{min:1,max:10,step:0.5,value:3,fmt:function(v){return _w09_f(v,1)+" dB";},onInput:function(){draw();}});
   /* 並び: 0 = LNA、1 = SAW、2 = ケーブル の順番 */
   var order=[0,1,2];
@@ -32,7 +32,7 @@ REG.w09_friis=function(el,U){
   U.button(br,"パッシブ + ケーブル 3 m（5 節）",function(){setAll([2,0,1],100,1.0,18,1.5,3,3);});
   U.button(br,"LNA の後にケーブル 3 m",function(){setAll([0,1,2],100,1.0,18,1.5,3,3);});
   var box=U.svgbox(el),ro=U.readout(el);
-  U.note(el,"上の段の箱（LNA・SAW・ケーブル）を左右にドラッグすると、並びが入れ替わる。アンテナは左端、受信用のチップ（20 dB と 68.5 dB の増幅）は右端に固定。");
+  U.note(el,"上の段の箱（LNA・SAW・ケーブル）を左右にドラッグすると、並びが入れ替わる。アンテナは左端、受信用のチップ（20 dB と 68.5 dB の増幅）は右端に固定。ケーブルの損失は 1 m あたり 0.5 dB（例の値）。");
   var NAME=["LNA","SAW","ケーブル"],COLS=["signal","gold","teal"];
   var geo={x0:0,w:0,y:0,h:0,xs:[]},dragI=-1,dragX=0,dragOff=0;
   function stages(){var st=[];order.forEach(function(k){
