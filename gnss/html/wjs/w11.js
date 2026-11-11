@@ -98,7 +98,7 @@ REG.w11_reflect=function(el,U){
   U.head(el,"WHY 50 Ω","50 Ω の部品の間の線 — 線の上の電圧の振幅とスミスチャート、手前から見た反射");
   var r1=U.ctrls(el);
   var brd=U.select(r1,"基板",["例の 4 層の基板（h = 0.2 mm）","2 層の基板（h = 1.6 mm）"],0,function(){zz.refresh();draw();});
-  var zz=U.slider(r1,"線の特性インピーダンス Z<sub>0</sub>",{min:25,max:130,step:1,value:75,fmt:function(v){var w=_w11_wfor(v,hh());return v+" Ω（幅 "+(w<0.03?"0.03 mm 未満で作れない":_w11_f(w,w<1?2:1)+" mm")+"）";},onInput:function(){draw();}});
+  var zz=U.slider(r1,"線の Z<sub>0</sub>",{min:25,max:130,step:1,value:75,fmt:function(v){var w=_w11_wfor(v,hh());return v+" Ω（幅 "+(w<0.03?"0.03 mm 未満で作れない":_w11_f(w,w<1?2:1)+" mm")+"）";},onInput:function(){draw();}});
   var ll=U.slider(r1,"線の長さ ℓ",{min:0,max:60,step:0.1,value:27.8,fmt:function(v){return _w11_f(v,1)+" mm";},onInput:function(){draw();}});
   var r2=U.ctrls(el);
   var LOADS=[{t:"モジュールの入力（50 Ω）",z:[50,0]},{t:"25 Ω",z:[25,0]},{t:"100 Ω",z:[100,0]},{t:"30 − j20 Ω（6 節の例のアンテナ）",z:[30,-20]},{t:"開放",z:[Infinity,0]},{t:"短絡",z:[0,0]}];

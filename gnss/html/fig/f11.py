@@ -550,8 +550,7 @@ def _f11_xsec_fig():
     _f11_xsec_panel(o, 14, 168, _F11_W50, None, "(a) マイクロストリップ線路", msol)
     _f11_xsec_panel(o, 362, 168, _F11_WG50, 0.20, "(b) コプレーナ線路（グラウンド付き）", gsol)
     o.append(T(14, 238, "紫の線: 等電位の線（線 1 V・グラウンド 0 V、0.1 V おき）。誘電体（比誘電率 4.4）・銅の厚さ 35 μm。", "start", 9.5, MUT))
-    o.append(T(14, 253, "(a) は電界が上の空気と横にも広がり、(b) は線と両側のグラウンドの隙間に集まる。", "start", 9.5, MUT))
-    return SVG(700, 262, o, "例の基板の 2 つの 50 Ω の線の断面と、2 次元の静電界を数値で解いた電位（線の付近を拡大）。")
+    return SVG(700, 248, o, "例の基板の 2 つの 50 Ω の線の断面と、2 次元の静電界を数値で解いた電位（線の付近を拡大）。")
 
 
 F["e11_xsec"] = _f11_xsec_fig()
@@ -581,10 +580,10 @@ def _f11_zw_fig():
     marks = [(_F11_WIPC, SIG, "0.33", -1), (_F11_W50, SIG, "0.35", 1), (_F11_WG50, PUR, "0.31", -1), (_F11_WGCM, PUR, "0.36", 1)]
     for k, (w, c, lab, side) in enumerate(marks):
         o.append(W(p.X(w), p.Y(50), p.X(w), p.Y(25), c=c, lw=0.8, dash="2 2"))
-    o.append(T(p.X(0.40), p.Y(85), "50 Ω になる幅 [mm]", "start", 9.5, INK, True, halo=True))
-    o.append(T(p.X(0.40), p.Y(85) + 14, "マイクロストリップ: 0.35（式 0.33）", "start", 9, SIG, True, halo=True))
-    o.append(T(p.X(0.40), p.Y(85) + 27, "コプレーナ: 0.31（式 0.36）", "start", 9, PUR, True, halo=True))
-    o.append(T(p.X(0.16), p.Y(87), "マイクロストリップ", "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(0.47), p.Y(80), "50 Ω になる幅 [mm]", "start", 9.5, INK, True, halo=True))
+    o.append(T(p.X(0.47), p.Y(80) + 14, "マイクロストリップ: 0.35（式 0.33）", "start", 9, SIG, True, halo=True))
+    o.append(T(p.X(0.47), p.Y(80) + 27, "コプレーナ: 0.31（式 0.36）", "start", 9, PUR, True, halo=True))
+    o.append(T(p.X(0.14), p.Y(87), "マイクロストリップ", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(0.105), p.Y(31), "コプレーナ（s = 0.2 mm）", "start", 9.5, PUR, True, halo=True))
     # (b) 2 層の基板
     xb = 372
@@ -949,8 +948,8 @@ def _f11_zone_fig():
     # USB の線が RF の線に沿って走る
     o.append(PL([(x0 + 324, y0 + 122), (x0 + 150, y0 + 122), (x0 + 150, y0 + 190)], c=PUR, lw=1.4))
     o.append(PL([(x0 + 324, y0 + 126), (x0 + 154, y0 + 126), (x0 + 154, y0 + 190)], c=PUR, lw=1.4))
-    o.append(T(x0 + 170, y0 + 142, "USB の線が RF に沿う", "start", 9, PUR, True, halo=True))
-    o.append(RECT(x0 + 40, y0 + 160, 16, 10, 2, PSOFT, PUR, 1.0)); o.append(T(x0 + 62, y0 + 169, "クロックがアンテナの近く", "start", 9, PUR, True))
+    o.append(T(x0 + 162, y0 + 143, "USB の線が", "start", 9, PUR, True, halo=True)); o.append(T(x0 + 162, y0 + 156, "RF に沿う", "start", 9, PUR, True, halo=True))
+    o.append(RECT(x0 + 40, y0 + 160, 16, 10, 2, PSOFT, PUR, 1.0)); o.append(T(x0 + 62, y0 + 165, "クロックが", "start", 9, PUR, True)); o.append(T(x0 + 62, y0 + 178, "アンテナの近く", "start", 9, PUR, True))
     # グラウンドの面の切れ目
     o.append(W(x0 + 226, y0 + 4, x0 + 226, y0 + 218, c=ALI, lw=1.8, dash="6 4"))
     o.append(T(x0 + 222, y0 + 204, "面の切れ目をまたぐ", "end", 9, ALI, True, halo=True))
