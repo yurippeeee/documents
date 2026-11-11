@@ -529,7 +529,7 @@ def _f09_active_fig():
     o.append(T(355, y + 52, "LNA は受信機の中", "middle", 9.5, MUT))
     o.append(T(440, y + 18, "ケーブルの損失が LNA の前", "start", 10, ALI, True))
     o.append(T(440, y + 32, "→ 雑音指数にそのまま足される", "start", 10, ALI, False))
-    o.append(T(14, 118, "(b) アクティブアンテナ", "start", 11.5, INK, True))
+    o.append(T(14, 108, "(b) アクティブアンテナ", "start", 11.5, INK, True))
     y = 134
     o.append(RECT(14, y - 14, 150, 96, 10, "none", MUT, 1.2, dash="5 4"))
     o.append(T(89, y + 96, "1 つの覆いの中", "middle", 9.5, MUT))
