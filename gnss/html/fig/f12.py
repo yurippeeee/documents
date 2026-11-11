@@ -975,7 +975,7 @@ def _f12_dm_fig():
             o.append(T(x0 + 24 + tw(b, 11, True) + 8, yy, u, "start", 9.5, MUT))
             yy += 21
         o.append(T(x0 + 8, yy + 2, "→ %d.%07d°（%s）" % (v // 10000000, v % 10000000, "北緯" if hemi == "N" else "東経"), "start", 10.5, GLD, True))
-    return SVG(700, 300, o, "度分形式の緯度・経度を、浮動小数点を使わずに 10⁻⁷ 度の整数に直す手順（例の GGA の値）。")
+    return SVG(700, 284, o, "度分形式の緯度・経度を、浮動小数点を使わずに 10⁻⁷ 度の整数に直す手順（例の GGA の値）。")
 
 
 F["e12_dm"] = _f12_dm_fig()
@@ -1155,10 +1155,14 @@ def _f12_gga2c_fig():
     cen = _f12_boxes(o, 14, 52, fl, 10.5, hl=use)
     mem = [("t_ms", "34 070 000", "nmea_time_ms", [1], SIG), ("lat", "356 810 000", "nmea_dm_e7", [2, 3], GLD),
            ("lon", "1 397 670 000", "nmea_dm_e7", [4, 5], GLD), ("quality", "1", "nmea_fix", [6], GRN), ("nsat", "8", "nmea_fix", [7], TEA),
-           ("hdop_c", "95", "nmea_fix（×100）", [8], TEA), ("alt_mm", "3 300", "nmea_fix（×1000）", [9], PUR), ("sep_mm", "36 700", "nmea_fix（×1000）", [11], PUR)]
-    yb, bw, gap = 142, 80, 4
+           ("hdop_c", "95", "nmea_fix", [8], TEA), ("alt_mm", "3 300", "nmea_fix", [9], PUR), ("sep_mm", "36 700", "nmea_fix", [11], PUR)]
+    yb, gap = 142, 6
+    wds = [86, 90, 104, 70, 62, 72, 72, 72]
+    xs0 = [12]
+    for w_ in wds[:-1]:
+        xs0.append(xs0[-1] + w_ + gap)
     for k, (nm, v, fn, src, c) in enumerate(mem):
-        x = 14 + k * (bw + gap)
+        x, bw = xs0[k], wds[k]
         o.append(RECT(x, yb, bw, 58, 5, soft(c), c, 1.2))
         o.append(T(x + bw / 2, yb + 16, nm, "middle", 10.5, c, True, True))
         o.append(T(x + bw / 2, yb + 33, v, "middle", 10.5, INK, True, True))
@@ -1169,7 +1173,7 @@ def _f12_gga2c_fig():
         o.append(ARR(xs, 98, x + bw / 2, yb - 2, c=c, lw=1.3, head=6))
     o.append(T(14, yb + 80, "has_pos = 1（[2]〜[5] が読めた）、has_alt = 1（[9]・[11] が読めた）。[10]・[12] の単位と、[13]・[14] の補正の欄は使わない", "start", 10, MUT))
     o.append(T(14, yb + 98, "alt_mm + sep_mm = 40 000 mm（楕円体高 40.0 m。2 節）、t_ms = 34 070 000 ms は 9 時 27 分 50 秒（UTC）", "start", 10, MUT))
-    return SVG(700, yb + 108, o, "GGA の欄と、構造体の値の対応（[k] は欄の番号 f[k]。下の箱の小さい文字は、変換に使う関数）。")
+    return SVG(700, yb + 108, o, "GGA の欄と、構造体の値の対応（[k] は欄の番号 f[k]。下の箱の小さい文字は変換に使う関数。hdop_c は HDOP の 100 倍、alt_mm・sep_mm は mm）。")
 
 
 F["e12_gga2c"] = _f12_gga2c_fig()
