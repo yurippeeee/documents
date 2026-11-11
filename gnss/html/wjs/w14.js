@@ -189,9 +189,9 @@ REG.w14_sawtooth=function(el,U){
   var br=U.btnrow(el),seed=1,cur=null,Dt=null,N=121;
   var tk=U.ticker(function(){cur+=1;if(cur>=N-1){cur=null;tk.stop();}draw();},300);
   function setAll(f,r){fq.set(f);rr.set(r);run();}
-  U.button(br,"本文の例（<i>ν</i> = 0.048）",function(){fq.set(48);rr.set(0.501);sg.set(0);cp.set(0);cor.set(false);run();});
-  U.button(br,"<i>ν</i> ≈ 0.5",function(){setAll(48,0.5104);});
-  U.button(br,"<i>ν</i> ≈ 0（とどまる）",function(){setAll(48,0.50002);});
+  U.button(br,"本文の例（<i style=\"font-family:serif\">ν</i> = 0.048）",function(){fq.set(48);rr.set(0.501);sg.set(0);cp.set(0);cor.set(false);run();});
+  U.button(br,"<i style=\"font-family:serif\">ν</i> ≈ 0.5",function(){setAll(48,0.5104);});
+  U.button(br,"<i style=\"font-family:serif\">ν</i> ≈ 0（とどまる）",function(){setAll(48,0.50002);});
   U.button(br,"再生",function(){cur=0;tk.start();});
   U.button(br,"止める",function(){tk.stop();cur=null;draw();});
   U.button(br,"もう一度（別の乱数で）",function(){seed++;run();});
@@ -238,7 +238,7 @@ REG.w14_sawtooth=function(el,U){
     if(o.cor&&o.dc>=100)h+="。<span class=\"warn\">捕獲の刻み 100 ns が鋸歯状の誤差より大きいので、補正値を引いても、ほとんど小さくならない</span>";
     else if(o.cor&&o.sig<=3)h+="。<span class=\"ok\">鋸歯状の誤差が消えた</span>";
     if(!o.cor&&per>200)h+="。<span class=\"warn\">ν が 0 に近く、平均しても誤差が消えない</span>";
-    h=h.replace(/ν/g,"<i>ν</i>");
+    h=h.replace(/ν/g,"<i style=\"font-family:serif\">ν</i>");
     ro.innerHTML=h+'<div class="wnote">本文 4 節の式で計算した（受信機は秒の頭にいちばん近い刻みでパルスを出し、初めの端数は 0.3 とした）。解の誤差は正規分布、捕獲の刻みの誤差は ±刻み/2 の一様分布の乱数（半カウントの一定のずれは引いた後）。補正値の形式・単位・符号は製品による。</div>';
   }
   run();

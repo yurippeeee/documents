@@ -586,7 +586,7 @@ def _f14_quant_fig():
     for k, q in qs:
         o.append(D(p.X(k), p.Y(q), SIG if k < 5 else ALI, 3.4))
     o.append(T(p.X(7), p.y + p.h + 44, "5 s ごとに跳ぶ（1/ν = 5）", "middle", 9.5, ALI, True))
-    return SVG(700, 58 + 5 * 40 + 10, _f14_nu(o), "量子化誤差の仕組み（例: クロック 48 MHz、1 秒の刻みの数の端数 <i>ν</i> = 0.2。受信機は秒の頭にいちばん近い刻みでパルスを出すとした）。")
+    return SVG(700, 58 + 5 * 40 + 10, _f14_nu(o), "量子化誤差の仕組み（例: クロック 48 MHz、1 秒の刻みの数の端数 <i style='font-family:serif'>ν</i> = 0.2。受信機は秒の頭にいちばん近い刻みでパルスを出すとした）。")
 
 
 F["e14_quant"] = _f14_quant_fig()
@@ -625,7 +625,7 @@ def _f14_saw_fig():
         o.append(T(70 + 610 * v / 120, yx + 14, "%d" % v, "middle", 9, MUT))
     o.append(TX(70 + 305, yx + 30, "時間 [s]（縦軸は量子化誤差 q_k [ns]）", "middle", 10, MUT))
     o.append(TX(30, y0 + 92 + 31, "q_k [ns]", "middle", 10, MUT, rot=-90))
-    return SVG(700, yx + 38, _f14_nu(o), "受信機の発振器の周波数の誤差（例: 0.5 ppm の近く）で決まる、鋸歯状の誤差の 3 つの形（クロック 48 MHz。<i>ν</i> は 1 秒の刻みの数 48 000 000 × (1 + 誤差) の端数）。")
+    return SVG(700, yx + 38, _f14_nu(o), "受信機の発振器の周波数の誤差（例: 0.5 ppm の近く）で決まる、鋸歯状の誤差の 3 つの形（クロック 48 MHz。<i style='font-family:serif'>ν</i> は 1 秒の刻みの数 48 000 000 × (1 + 誤差) の端数）。")
 
 
 F["e14_saw"] = _f14_saw_fig()
