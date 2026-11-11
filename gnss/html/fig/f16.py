@@ -311,8 +311,8 @@ def _f16_common_fig():
     wy = 214
     o.append(W(sx + 4, sy + 8, bx, wy, c=ALI, lw=1.3, dash="5 3"))
     o.append(ARR(bx, wy, r2[0] + 3, r2[1] - 6, c=ALI, lw=1.3, dash="5 3"))
-    o.append(T(bx + 44, 236, "反射波", "start", 9.5, ALI, True))
-    o.append(T(bx + 44, 249, "（マルチパス）", "start", 9.5, ALI, True))
+    o.append(T(bx + 42, 236, "反射波", "start", 9.5, ALI, True))
+    o.append(TX(bx + 42, 251, "M_i", "start", 10, ALI, True))
     for k, (rx, ry) in enumerate((r1, r2)):
         o.append(_f16_rx(rx, ry, GRN))
         o.append(T(rx, ry + 24, "受信機 %d" % (k + 1), "middle", 10, GRN, True))
@@ -748,7 +748,7 @@ def _f16_age_fig():
     o = []
     o.append(T(14, 18, "(a) 補正の年齢と、残る誤差（基線長 10 km）", "start", 11.5, INK, True))
     p = Plot(72, 34, 400, 180, (0, 900), (0, 2.5))
-    o.append(p.axes(xl="補正の年齢 τ [s]", yl="残る誤差の標準偏差 [m]", xt=[0, 60, 120, 300, 600, 900], yt=[0, 0.5, 1, 1.5, 2, 2.5]))
+    o.append(p.axes(xl="補正の年齢 τ [s]", yl="残る誤差の標準偏差 [m]", xt=[0, 120, 300, 600, 900], yt=[0, 0.5, 1, 1.5, 2, 2.5]))
     ts = [k * 5.0 for k in range(181)]
     rx = _f16_uere(_f16_budget(0, 0)[3:])
     o.append(W(p.X(0), p.Y(rx), p.X(900), p.Y(rx), c=MUT, lw=1.1, dash="4 3"))
@@ -757,18 +757,18 @@ def _f16_age_fig():
     o.append(p.line([(t, _f16_common(10, t)[2]) for t in ts], c=GRN, lw=2))
     o.append(p.line([(t, _f16_common(10, t)[1]) for t in ts], c=GLD, lw=2))
     o.append(p.line([(t, _f16_uere(_f16_budget(10, t))) for t in ts], c=INK, lw=2.6))
-    o.append(W(p.X(60), p.Y(0), p.X(60), p.Y(2.5), c=ALI, lw=1.2, dash="3 3"))
-    o.append(T(p.X(60) + 4, p.Y(2.38), "限度の例 60 s", "start", 9.5, ALI, True, halo=True))
+    o.append(W(p.X(30), p.Y(0), p.X(30), p.Y(2.5), c=ALI, lw=1.2, dash="3 3"))
+    o.append(T(p.X(30) + 4, p.Y(2.38), "限度の例 30 s", "start", 9.5, ALI, True, halo=True))
     o.append(LEGL(80, 266, [(INK, None, "UERE"), (GLD, None, "電離層"), (GRN, None, "対流圏"), (PUR, "5 3", "衛星の時計と軌道")], 10))
     x0 = 500
     o.append(T(x0, 44, "UERE [m]（基線長 10 km）", "start", 10.5, INK, True))
-    for k, t in enumerate((5, 60, 300, 600)):
+    for k, t in enumerate((5, 30, 60, 300, 600)):
         yy = 66 + k * 22
         o.append(T(x0 + 70, yy, "τ = %d s" % t, "end", 10, INK))
         o.append(T(x0 + 130, yy, "%.2f" % _f16_uere(_f16_budget(10, t)), "end", 10, INK, True))
-    o.append(T(x0, 164, "相関の時間（例の値）:", "start", 9.5, MUT))
-    o.append(T(x0, 178, "電離層 30 分・衛星 2 時間・", "start", 9.5, MUT))
-    o.append(T(x0, 192, "対流圏 1 時間", "start", 9.5, MUT))
+    o.append(T(x0, 186, "相関の時間（例の値）:", "start", 9.5, MUT))
+    o.append(T(x0, 200, "電離層 30 分・衛星 2 時間・", "start", 9.5, MUT))
+    o.append(T(x0, 214, "対流圏 1 時間", "start", 9.5, MUT))
     # (b) GGA
     yg = 312
     o.append(T(14, yg - 20, "(b) DGNSS の解を書いた GGA の文（12 章の例の文の、品質と 13・14 番の欄を書き換えた例）", "start", 11.5, INK, True))
@@ -829,10 +829,9 @@ def _f16_sbas_fig():
         o.append(ARR(geo[0] + 4, geo[1] + 10, ux, uy - 8, c=PUR, lw=1.6))
         o.append(_f16_rx(ux, uy, GRN))
     o.append(T(640, gy + 18, "利用者の受信機", "middle", 9.5, GRN, True))
-    o.append(T(606, 124, "L1・1 秒に 1 つの", "end", 9.5, PUR, True, halo=True))
-    o.append(T(606, 138, "メッセージ（250 bit）", "end", 9.5, PUR, True, halo=True))
+    o.append(T(690, gy + 33, "L1 で受ける（1 秒に 1 つ、250 bit のメッセージ）", "end", 9.5, PUR, True))
     # (b) 補正の分け方
-    yb = 246
+    yb = 256
     o.append(T(14, yb, "(b) 補正の分け方", "start", 11.5, INK, True))
     rows = [("衛星の時計と軌道", PUR, "衛星ごとの補正（速い補正・遅い補正）", "どこでも同じ値を使う"),
             ("電離層", GLD, "格子の点の天頂の遅れ", "自分の位置で補間する"),
@@ -893,7 +892,7 @@ def _f16_grid_fig():
     o.append(W(tx, ty, p.X(Lp), p.Y(Bp), c=GLD, lw=1.4, dash="4 2"))
     o.append(D(p.X(Lp), p.Y(Bp), GLD, 4.5))
     o.append(CIRC(tx, ty, 5, c=GRN, lw=2, fill=SCR))
-    o.append(T(tx + 7, ty - 5, "東京", "start", 10, GRN, True, halo=True))
+    o.append(T(tx - 7, ty - 6, "東京", "end", 10, GRN, True, halo=True))
     o.append(T(p.X(Lp) - 6, p.Y(Bp) + 15, "G22 の電波が通る点", "end", 9.5, GLD, True, halo=True))
     o.append(_f16_scale(p.x, p.y + p.h + 46, 160, 2.5, 7.5, "本当の天頂の遅れ [m]（例）", GLD, 10, 0.62, lambda v: "%.1f" % v))
     # (b) 升の中の補間
@@ -958,7 +957,7 @@ def _f16_integrity_fig():
     q = Plot(x0 + 70, 40, 180, 3 * 56, (0, 60), (0, 1))
     AL = 40
     o.append(q.axes(xl="位置の誤差の大きさ [m]", yl=None, xt=[0, 20, 40, 60], yt=[]))
-    cases = [("いつも", 2.0, 18.0, True), ("衛星が少ない", 3.0, 52.0, False), ("電離層が荒れた", 4.0, 46.0, False)]
+    cases = [("ふだん", 2.0, 18.0, True), ("衛星が少ない", 3.0, 52.0, False), ("電離層が荒れた", 4.0, 46.0, False)]
     for k, (lab, err, pl, ok) in enumerate(cases):
         yy = q.y + 12 + k * 56
         o.append(T(q.x - 8, yy + 12, lab, "end", 9.5, INK, True))
@@ -973,3 +972,283 @@ def _f16_integrity_fig():
 
 
 F["e16_integrity"] = _f16_integrity_fig()
+
+
+# =====================================================================
+# 5 節: RTCM の形
+# =====================================================================
+def _f16_crc24q(data):
+    crc = 0
+    for b in data:
+        crc ^= b << 16
+        for _ in range(8):
+            crc <<= 1
+            if crc & 0x1000000:
+                crc ^= 0x1864CFB
+    return crc & 0xFFFFFF
+
+
+def _f16_1005(sid, x, y, z):
+    """RTCM 版 3 の 1005（基準局のアンテナの位置）のフレーム。公開されている例のフレームを、この関数で再現できることを確かめた。"""
+    v, n = 0, 0
+    for val, nb in ((1005, 12), (sid, 12), (0, 6), (1, 1), (0, 1), (0, 1), (0, 1), (round(x * 1e4), 38), (0, 1), (0, 1),
+                    (round(y * 1e4), 38), (0, 2), (round(z * 1e4), 38)):
+        if val < 0:
+            val += 1 << nb
+        v = (v << nb) | val
+        n += nb
+    pay = v.to_bytes(n // 8, "big")
+    head = bytes([0xD3, (len(pay) >> 8) & 3, len(pay) & 0xFF])
+    return head + pay + _f16_crc24q(head + pay).to_bytes(3, "big")
+
+
+_F16_REFXYZ = geod2ecef(*_F16_REF)
+_F16_FR1005 = _f16_1005(123, *_F16_REFXYZ)
+
+
+def _f16_rtcm_fig():
+    o = []
+    fr = _F16_FR1005
+    o.append(T(14, 18, "(a) 版 3 のフレーム（例の基準局の 1005。%d バイト）" % len(fr), "start", 11.5, INK, True))
+    x0, u, y0 = 24, 26, 32
+    role = lambda i: ("同期", MUT) if i == 0 else (("長さ", GLD) if i < 3 else (("CRC", GRN) if i >= len(fr) - 3 else ("本体", SIG)))
+    for i, b in enumerate(fr):
+        nm, c = role(i)
+        o.append(RECT(x0 + i * u, y0, u - 2, 22, 3, soft(c), c, 1))
+        o.append(T(x0 + i * u + (u - 2) / 2, y0 + 15, "%02X" % b, "middle", 9.5, INK, False, True))
+    def brace(i0, i1, lab, c, yy):
+        xa, xb = x0 + i0 * u, x0 + i1 * u - 2
+        return W(xa, yy - 6, xa, yy, xb, yy, xb, yy - 6, c=c, lw=1.1) + T((xa + xb) / 2, yy + 13, lab, "middle", 9.5, c, True)
+    o.append(brace(0, 1, "同期 0xD3", MUT, y0 + 32))
+    o.append(brace(1, 3, "予備 6 bit・長さ 10 bit = 19", GLD, y0 + 46))
+    o.append(brace(3, len(fr) - 3, "本体 19 バイト（下の (b)）", SIG, y0 + 32))
+    o.append(brace(len(fr) - 3, len(fr), "CRC-24Q", GRN, y0 + 46))
+    # (b) 本体の欄（152 bit）
+    yb = 130
+    o.append(T(14, yb, "(b) 1005 の本体の欄（152 bit。座標は ECEF、0.1 mm 単位の 38 bit）", "start", 11.5, INK, True))
+    flds = [(12, "番号", PUR), (12, "基準局", PUR), (6, "", MUT), (4, "", MUT), (38, "X", SIG), (2, "", MUT), (38, "Y", SIG), (2, "", MUT), (38, "Z", SIG)]
+    bw = 652.0 / 152
+    xx = 24
+    for nb, nm, c in flds:
+        o.append(RECT(xx, yb + 12, nb * bw - 1, 22, 2, soft(c), c, 1))
+        if nm:
+            o.append(T(xx + nb * bw / 2, yb + 27, nm, "middle", 9.5, c, True))
+        xx += nb * bw
+    X, Y, Z = _F16_REFXYZ
+    o.append(T(24, yb + 52, "番号 1005（12 bit）・基準局の番号 123（12 bit。例）・灰は印と予備（衛星系の印・座標の年版など）", "start", 9.5, INK))
+    o.append(T(24, yb + 68, "X = %s m、Y = %s m、Z = %s m（西へ 10 km の例の基準局）" % (_f16_g(X, 4), _f16_g(Y, 4), _f16_g(Z, 4)), "start", 9.5, SIG, True))
+    # (c) メッセージの番号の例
+    yc = 236
+    o.append(T(14, yc, "(c) 版 3 のメッセージの番号の例", "start", 11.5, INK, True))
+    ms = [("1005・1006", "基準局のアンテナの位置（1006 はアンテナの高さも）"), ("1019", "GPS のエフェメリス"), ("1033", "受信機とアンテナの名前"),
+          ("1074・1077 など", "GPS の観測値（MSM。17 章）"), ("1084・1094・1124", "GLONASS・Galileo・BeiDou の MSM（例）")]
+    for k, (n, d) in enumerate(ms):
+        yy = yc + 22 + k * 20
+        o.append(T(24, yy, n, "start", 10, PUR, True, True))
+        o.append(T(150, yy, d, "start", 9.5, INK))
+    # (d) 版 2 の型 1
+    xd = 470
+    o.append(T(xd - 10, yc, "(d) 版 2 の型 1（30 bit のワード）", "start", 11.5, INK, True))
+    w1 = [(8, "同期", MUT), (6, "型", PUR), (10, "基準局", PUR), (6, "P", FNT)]
+    w2 = [(13, "時刻", GLD), (3, "", MUT), (5, "長", MUT), (3, "", MUT), (6, "P", FNT)]
+    bx = 210.0 / 30
+    for r, ww in enumerate((w1, w2)):
+        xx = xd + 12
+        yy = yc + 14 + r * 26
+        o.append(T(xd - 4, yy + 15, "%d" % (r + 1), "middle", 9.5, MUT))
+        for nb, nm, c in ww:
+            o.append(RECT(xx, yy, nb * bx - 1, 20, 2, soft(c), c, 1))
+            if nm:
+                o.append(T(xx + nb * bx / 2, yy + 14, nm, "middle", 9, c, True))
+            xx += nb * bx
+    ys = yc + 82
+    o.append(T(xd - 10, ys - 4, "衛星 1 つ分（40 bit）", "start", 9.5, INK, True))
+    sat = [(1, "", MUT), (2, "", MUT), (5, "衛星", PUR), (16, "PRC", SIG), (8, "RRC", SIG), (8, "IOD", GLD)]
+    bs = 210.0 / 40
+    xx = xd + 12
+    for nb, nm, c in sat:
+        o.append(RECT(xx, ys + 4, nb * bs - 1, 20, 2, soft(c), c, 1))
+        if nm:
+            o.append(T(xx + nb * bs / 2, ys + 18, nm, "middle", 9, c, True))
+        xx += nb * bs
+    o.append(T(xd - 10, ys + 42, "P はパリティ（6 bit）。灰は通し番号・状態・尺度・UDRE", "start", 9, MUT))
+    o.append(T(xd - 10, ys + 58, "8 衛星: 2 + 14 ワード = 480 bit", "start", 9.5, INK, True))
+    return SVG(700, ys + 70, o, "RTCM の形（版 3 のフレームと 1005、版 2 の型 1。欄は二次資料で確かめた範囲。細部は版による）。")
+
+
+F["e16_rtcm"] = _f16_rtcm_fig()
+
+
+# =====================================================================
+# 5 節: 届け方と、補正の年齢の変わり方
+# =====================================================================
+def _f16_delivery_fig():
+    o = []
+    # 1 段目: 無線
+    o.append(T(14, 20, "無線", "start", 11, INK, True))
+    o.append(_f16_base(110, 34, PUR))
+    o.append(T(110, 66, "基準局", "middle", 9.5, PUR, True))
+    for k in range(3):
+        o.append(PATH("M%g,%g A%g,%g 0 0,1 %g,%g" % (138 + k * 9, 28 - k * 5, 10 + k * 7, 10 + k * 7, 138 + k * 9, 46 + k * 5), c=PUR, lw=1.3))
+    o.append(ARR(170, 38, 316, 38, c=PUR, lw=1.8))
+    o.append(T(243, 30, "無線機（数 km〜数十 km。例）", "middle", 9.5, PUR, True, halo=True))
+    o.append(_f16_rx(340, 34, GRN))
+    o.append(T(340, 66, "移動局", "middle", 9.5, GRN, True))
+    o.append(T(392, 34, "日本の中波のビーコン（海上保安庁、全国 27 局）は", "start", 9.5, MUT))
+    o.append(T(392, 48, "1997 年から配り、2019 年 3 月 1 日に廃止した", "start", 9.5, MUT))
+    # 2 段目: インターネット
+    y2 = 94
+    o.append(T(14, y2, "インターネット（NTRIP）", "start", 11, INK, True))
+    o.append(_f16_base(60, y2 + 26, PUR))
+    o.append(T(60, y2 + 58, "基準局", "middle", 9.5, PUR, True))
+    o.append(RECT(104, y2 + 18, 96, 34, 6, PSOFT, PUR, 1.2))
+    o.append(T(152, y2 + 39, "送り出す側", "middle", 9.5, PUR, True))
+    o.append(ARR(76, y2 + 35, 102, y2 + 35, c=PUR, lw=1.6))
+    o.append(RECT(236, y2 + 10, 132, 96, 6, PSOFT, PUR, 1.3))
+    o.append(T(302, y2 + 28, "キャスタ（サーバ）", "middle", 10, PUR, True))
+    for k, nm in enumerate(("BASE01", "BASE02", "…")):
+        o.append(RECT(252, y2 + 38 + k * 21, 100, 17, 3, SCR if k else soft(GLD), GLD if k == 0 else LIN, 1))
+        o.append(T(302, y2 + 51 + k * 21, nm, "middle", 9.5, INK, k == 0, True))
+    o.append(ARR(200, y2 + 35, 234, y2 + 35, c=PUR, lw=1.6))
+    xr = 640
+    o.append(_f16_rx(xr, y2 + 28, GRN))
+    o.append(T(xr, y2 + 102, "移動局", "middle", 9.5, GRN, True))
+    o.append(T(690, y2 + 116, "（携帯電話の回線など）", "end", 9.5, MUT))
+    msg = [("① GET /BASE01 HTTP/1.1（流れの名前を指定）", GRN, -1), ("② 応答 200 OK", PUR, 1), ("③ RTCM の流れが届き続ける（TCP の上）", PUR, 1)]
+    for k, (s, c, dr) in enumerate(msg):
+        yy = y2 + 32 + k * 26
+        if dr < 0:
+            o.append(ARR(xr - 16, yy, 372, yy, c=c, lw=1.4))
+        else:
+            o.append(ARR(372, yy, xr - 16, yy, c=c, lw=1.4 if k == 1 else 2.4))
+        o.append(T((372 + xr - 16) / 2, yy - 5, s, "middle", 9.5, c, True, halo=True))
+    # 3 段目: 衛星
+    y3 = 218
+    o.append(T(14, y3, "衛星", "start", 11, INK, True))
+    o.append(_f16_sat(130, y3 + 14, TEA, 1.0))
+    o.append(ARR(150, y3 + 18, 316, y3 + 18, c=PUR, lw=1.8))
+    o.append(T(233, y3 + 10, "SBAS（4 節）・みちびきの補強（18 章）", "middle", 9.5, PUR, True, halo=True))
+    o.append(_f16_rx(340, y3 + 14, GRN))
+    # 4 段目: 補正の年齢
+    y4 = 268
+    o.append(T(14, y4, "補正の年齢の変わり方（例: 5 s ごとに送り、届くまで 0.5 s）", "start", 11, INK, True))
+    p = Plot(70, y4 + 12, 560, 80, (0, 20), (0, 6))
+    o.append(p.axes(xl="時刻 t [s]", yl="年齢 τ [s]", xt=[0, 5, 10, 15, 20], yt=[0, 2, 4, 6]))
+    pts = []
+    for k in range(4):
+        a = 5 * k + 0.5
+        pts += [(a, 0.5), (a + 5, 5.5)]
+    pts = [(0, 5.0), (0.5, 5.5)] + pts
+    segs = []
+    for k in range(0, len(pts) - 1, 2):
+        segs.append(p.clip([pts[k], pts[k + 1]], c=PUR, lw=2))
+    o.append("".join(segs))
+    for k in range(5):
+        a = 5 * k + 0.5
+        if a <= 20:
+            o.append(W(p.X(a), p.Y(0.5), p.X(a), p.Y(5.5), c=PUR, lw=1, dash="2 2"))
+            o.append(D(p.X(a), p.Y(0.5), PUR, 3))
+    o.append(T(p.X(10.6), p.Y(0.5) + 13, "届いた（τ = 0.5 s）", "start", 9.5, PUR, True, halo=True))
+    return SVG(700, y4 + 140, o, "補正の情報の届け方の例と、補正の年齢の変わり方（NTRIP のやり取りは要点だけ。流れの名前は例）。")
+
+
+F["e16_delivery"] = _f16_delivery_fig()
+
+
+# =====================================================================
+# 6 節: 誤差の予算の比べ
+# =====================================================================
+def _f16_cases():
+    """[(名前, 源ごとの 1σ（7 つ: 衛星・電離層・対流圏・移動局の M・移動局の ε・基準局の M・基準局の ε）)]"""
+    def dg(d, tau):
+        s, i, t = _f16_common(d, tau)
+        return [s, i, t, _F16_B7[3], _F16_B7[4], _F16_MREF, _F16_EREF]
+    return [("単独（7 章 6 節）", _F16_B7 + [0, 0]), ("SBAS（代表値）", _F16_SBAS + [0, 0]),
+            ("DGNSS 10 km・5 s", dg(10, 5)), ("DGNSS 300 km・5 s", dg(300, 5)), ("DGNSS 10 km・10 分", dg(10, 600))]
+
+
+def _f16_budget_fig():
+    o = []
+    cs = _f16_cases()
+    cols = [PUR, GLD, GRN, ALI, TEA, ALI, TEA]
+    o.append(T(14, 18, "(a) 源ごとの分散の積み上げ [m²]", "start", 11.5, INK, True))
+    o.append(T(440, 18, "(b) 分散の割合 [%]", "start", 11.5, INK, True))
+    pa = Plot(160, 30, 250, 5 * 30, (0, 18), (0, 1))
+    pb = Plot(440, 30, 250, 5 * 30, (0, 100), (0, 1))
+    o.append(pa.axes(xl=None, yl=None, xt=[0, 5, 10, 15], yt=[]))
+    o.append(pb.axes(xl=None, yl=None, xt=[0, 25, 50, 75, 100], yt=[]))
+    for k, (nm, v) in enumerate(cs):
+        yy = pa.y + 6 + k * 30
+        o.append(T(pa.x - 8, yy + 13, nm, "end", 10, INK, True))
+        tot = sum(x * x for x in v)
+        xa, xb = pa.X(0), pb.X(0)
+        for j, x in enumerate(v):
+            if x <= 0:
+                continue
+            wa = pa.X(x * x) - pa.X(0)
+            wb = pb.w * x * x / tot
+            dash = "3 2" if j >= 5 else None
+            o.append(RECT(xa, yy, max(wa, 0.4), 18, 0, soft(cols[j]), cols[j], 1, dash))
+            o.append(RECT(xb, yy, max(wb, 0.4), 18, 0, soft(cols[j]), cols[j], 1, dash))
+            xa += wa; xb += wb
+        o.append(T(xa + 5, yy + 13, "UERE %.2f m" % math.sqrt(tot), "start", 9.5, INK, True, halo=True))
+        mn = 100 * (v[3] ** 2 + v[4] ** 2 + v[5] ** 2 + v[6] ** 2) / tot
+        o.append(T(pb.x + pb.w - 4, yy + 13, "%.1f %%" % mn, "end", 9.5, INK, True, halo=True))
+    o.append(T(pb.x + pb.w, pb.y - 4, "右の数: マルチパスと雑音の割合", "end", 9, MUT))
+    yl = pa.y + pa.h + 28
+    o.append(LEGEND(14, yl, [(PUR, "衛星の時計と軌道"), (GLD, "電離層"), (GRN, "対流圏"), (ALI, "マルチパス"), (TEA, "受信機の雑音")], 10))
+    o.append(T(14, yl + 18, "破線の枠は、DGNSS の補正値に入って届く基準局のマルチパスと雑音（0.3 m ずつ。例の値）", "start", 9.5, MUT))
+    # (c) 精度
+    yc = yl + 46
+    o.append(T(14, yc, "(c) 位置の精度（東京の 8 つの衛星。HDOP 0.95・VDOP 1.30）", "start", 11.5, INK, True))
+    q = Plot(160, yc + 12, 470, 5 * 40, (0, 11), (0, 1))
+    o.append(q.axes(xl="誤差 [m]", yl=None, xt=[0, 2, 4, 6, 8, 10], yt=[]))
+    for k, (nm, v) in enumerate(cs):
+        u = math.sqrt(sum(x * x for x in v))
+        cep, r95, v95 = _f16_acc(u)
+        yy = q.y + 4 + k * 40
+        o.append(T(q.x - 8, yy + 18, nm, "end", 10, INK, True))
+        for j, (val, c, lab) in enumerate(((cep, SIG, "CEP"), (r95, ALI, "R95"), (v95, PUR, "上下 95 %"))):
+            y_ = yy + j * 11
+            o.append(RECT(q.X(0), y_, q.X(val) - q.X(0), 9, 1, soft(c), c, 1))
+            o.append(T(q.X(val) + 4, y_ + 8.5, "%s %.1f m" % (lab, val), "start", 9, c, True))
+    return SVG(700, q.y + q.h + 40, o, "単独・SBAS・DGNSS の誤差の予算と位置の精度（SBAS の値と DGNSS のモデルは例の値。年齢の 10 分は限度を超えても使った場合）。")
+
+
+F["e16_budget"] = _f16_budget_fig()
+
+
+# =====================================================================
+# 6 節: 位置の散らばり
+# =====================================================================
+def _f16_scatter_fig():
+    o = []
+    cs = _f16_cases()
+    pan = [("(a) 単独", cs[0][1], (0.0, 0.0)), ("(b) SBAS", cs[1][1], (0.0, 0.0)), ("(c) DGNSS 10 km", cs[2][1], (0.0, 0.0)),
+           ("(d) 基準局の座標が東へ 2 m", cs[2][1], (2.0, 0.0))]
+    rng = _f16_np.random.default_rng(1666)
+    lim = 8.0
+    for k, (ttl, v, sh) in enumerate(pan):
+        x0 = 14 + k * 170
+        o.append(T(x0, 18, ttl, "start", 10.5, INK, True))
+        p = Plot(x0 + 16, 30, 144, 144, (-lim, lim), (-lim, lim))
+        o.append(RECT(p.x, p.y, p.w, p.h, 2, SCR, LIN, 1))
+        o.append(p.axes(xl=None, yl=None, xt=[-8, 0, 8], yt=[-8, 0, 8], sz=9))
+        u = math.sqrt(sum(x * x for x in v))
+        eta = rng.standard_normal((400, 8)) * u
+        X = eta @ _F16_A.T
+        for e_, n_ in X[:, :2]:
+            e_, n_ = e_ + sh[0], n_ + sh[1]
+            if abs(e_) < lim and abs(n_) < lim:
+                o.append(D(p.X(e_), p.Y(n_), GLD, 1.1))
+        el = [(a + sh[0], b + sh[1]) for a, b in _f16_ellpts(_F16_S1 * u, _F16_S2 * u, _F16_ANG)]
+        o.append(p.clip(el, c=ALI, lw=1.8))
+        cep = _F16_KCEP * u
+        o.append(p.clip([(sh[0] + cep * math.cos(2 * math.pi * i / 96), sh[1] + cep * math.sin(2 * math.pi * i / 96)) for i in range(97)], c=SIG, lw=1.6, dash="4 2"))
+        o.append(W(p.X(0) - 6, p.Y(0), p.X(0) + 6, p.Y(0), c=GRN, lw=2)); o.append(W(p.X(0), p.Y(0) - 6, p.X(0), p.Y(0) + 6, c=GRN, lw=2))
+        o.append(T(p.x + p.w / 2, p.y + p.h + 30, "UERE %.2f m・CEP %.2f m" % (u, cep), "middle", 9.5, INK, True))
+    o.append(T(14, 236, "横: 東西、縦: 南北 [m]。金の点: 400 回解いた位置、赤: 誤差の楕円（1σ）、青の破線: CEP の円、緑の十字: 本当の位置", "start", 9.5, MUT))
+    return SVG(700, 246, o, "位置の散らばり（東京の 8 つの衛星、7 章と同じ計算。誤差の予算は上の図と同じ）。")
+
+
+F["e16_scatter"] = _f16_scatter_fig()
