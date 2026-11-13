@@ -417,6 +417,8 @@ def _f20_sources_fig():
             A_, f_, d_, tr_ = _F20_SRC_DCDC
             for n in range(786, 790):
                 fr = n * 2.0 - _F20_L1
+                if abs(fr) > 3.0:
+                    continue                     # 表示の範囲（±3 MHz）の外の線は描かない
                 v = _f20_dbm50(_f20_trap(A_, f_, d_ / f_, tr_, n))
                 inb = abs(fr) <= _F20_HB
                 o.append(_f20_spike(p, fr, v, ALI if inb else MUT, 1.8))
@@ -870,7 +872,7 @@ def _f20_radios_fig():
         o.append(W(X2(f), 196 + 74, X2(f), 196 + 4, c=ALI, lw=1.6))
         o.append(D(X2(f), 196 + 4, ALI, 3.2))
     o.append(CARR(X2(1781), 196 + 2, X1(1575.42) + 4, 40 + 76, 0.12, c=ALI, lw=1.4, head=7))
-    o.append(T(xa, 186, "2 × 1712.71 − 1850.00 = 1575.42 MHz（3 次の相互変調。9 章 4 節の例）", "start", 9.5, ALI, True, halo=True))
+    o.append(T(xb, 186, "2 × 1712.71 − 1850.00 = 1575.42 MHz（3 次の相互変調。9 章 4 節の例）", "end", 9.5, ALI, True, halo=True))
     o.append(T(xb, 196 + 64, "2412.00 − 836.58 = 1575.42 MHz（2 次の例）", "end", 9.5, ALI, True, halo=True))
     o.append(W(X2(2412), 196 + 74, X2(2412), 196 + 52, c=ALI, lw=1.4, dash="3 2"))
     return SVG(700, 196 + 108, o, "青は GNSS の帯域（2 章 1 節の値）。携帯電話は 3GPP の帯域の例、アマチュア無線は日本の 1200 MHz 帯、衛星の電話は L バンドの移動衛星の例。2 次の例の 836.58 MHz は 800 MHz 帯の送信の例（図の外）。")
