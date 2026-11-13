@@ -117,7 +117,7 @@ def _f19_upd(x, S, j, y, V):
 
 def _f19_kf1(seed=1, bias=True, wscale=1.0, tunnel=_F19_TUN, Tu=1.0, sy=_F19_SY, ba=_F19_BA, sa=_F19_SA,
              Tend=180.0, acc=_f19_acc1, lat=None, gate=False, outl=(), obsv=None, sv=_F19_SW, vrate=10,
-             every=10, axis=0, keep_innov=False):
+             every=10, axis=0, keep_innov=False, ks=0.0, bias_true=None):
     """1 次元の融合（4・5 節。デモ w19_kf の 1 つの軸・w19_bias と同じ計算）。
     IMU の雑音は U.rng(seed·7 + 1) を 1 周期に 2 つ（東・北）、GNSS の雑音は U.rng(seed·7 + 2) を 1 回に 2 つ（東・北）引き、axis 番目を使う。
     lat: None（遅れなし）・"ignore"（届いた時刻の予測と比べる）・"comp"（求めた時刻に戻して更新し、今まで予測し直す）。
@@ -180,7 +180,7 @@ def _f19_kf1(seed=1, bias=True, wscale=1.0, tunnel=_F19_TUN, Tu=1.0, sy=_F19_SY,
         # 車速・拘束（擬似的な観測）
         if obsv and k % vstep == 0:
             nv = rV.normal()
-            yv = (Vv[k] + sv * nv) if obsv == "wheel" else sv * nv
+            yv = ((1 + ks) * Vv[k] + sv * nv) if obsv == "wheel" else sv * nv
             x, S, _, _ = _f19_upd(x, S, 1, yv, sv * sv)
         if k % every == 0:
             rec["t"].append(t); rec["err"].append(x[0] - P[k]); rec["sp"].append(math.sqrt(max(S[0][0], 0.0)))
@@ -902,7 +902,7 @@ def _f19_kfmap_fig():
     o.append(RECT(462, 30, 196, 66, 8, PAN, LIN, 1.4))
     o.append(T(560, 48, "更新（観測更新）", "middle", 10.5, INK, True))
     o.append(TX(560, 68, "x̂ = x̂^{−} + H_k(y − Cx̂^{−})", "middle", 10, INK))
-    o.append(TX(560, 86, "Σ = (I − H_kC)Σ^{−}", "middle", 10, INK))
+    o.append(TX(560, 86, "Σ = (I − H_k C)Σ^{−}", "middle", 10, INK))
     o.append(ARR(404, 62, 462, 62, c=GLD, lw=1.8, head=8))
     o.append(TX(433, 54, "x̂^{−}・Σ^{−}", "middle", 9.5, GLD, True, halo=True))
     # GNSS
@@ -916,8 +916,7 @@ def _f19_kfmap_fig():
     o.append(ARR(309, 186, 309, 98, c=GLD, lw=1.3, head=7, dash="5 3"))
     o.append(T(318, 150, "次の周期の予測へ", "start", 9.5, GLD, True))
     o.append(T(318, 166, "（GNSS が来ない周期は x̂ = x̂⁻）", "start", 9, MUT))
-    o.append(T(14, 112, "状態 x = (p, ṗ, b_a)ᵀ", "start", 10, INK, True))
-    o.append(TX(14, 112, "", "start", 10, INK))
+    o.append(TX(14, 112, "状態 x = (p, \\dot{p}, b_a)^T", "start", 10, INK, True))
     # (b) 時間の軸
     yb = 214
     o.append(T(14, yb, "(b) 時間の軸の上の繰り返し", "start", 11, INK, True))
@@ -935,3 +934,440 @@ def _f19_kfmap_fig():
 
 
 F["e19_kfmap"] = _f19_kfmap_fig()
+
+
+# ---- 4 節の例の計算（図とデモで同じ値。結果を 1 回だけ計算して使い回す） ----
+_F19_RUN = {}
+
+
+def _f19_run(key):
+    if key not in _F19_RUN:
+        if key == "base":
+            _F19_RUN[key] = _f19_kf1()
+        elif key == "nobias":
+            _F19_RUN[key] = _f19_kf1(bias=False)
+        elif key == "model":
+            _F19_RUN[key] = _f19_kfm(sub=20)
+        elif key == "start":
+            _F19_RUN[key] = _f19_kf1(Tend=12.0, every=1)
+        elif key == "ignore":
+            _F19_RUN[key] = _f19_kf1(lat="ignore")
+        elif key == "comp":
+            _F19_RUN[key] = _f19_kf1(lat="comp")
+        elif key == "gate0":
+            _F19_RUN[key] = _f19_kf1(gate=False, outl=_F19_OUTL, keep_innov=True)
+        elif key == "gate1":
+            _F19_RUN[key] = _f19_kf1(gate=True, outl=_F19_OUTL, keep_innov=True)
+    return _F19_RUN[key]
+
+
+_F19_OUTL = ((140.0, 144.0, 25.0), (160.0, 161.0, 12.0))   # NLOS で飛んだ GNSS の位置（例: 140〜143 s に +25 m、160 s に +12 m）
+
+
+def _f19_at(r, tt):
+    return int(_f19_np.argmin(_f19_np.abs(r["t"] - tt)))
+
+
+def _f19_saw_fig():
+    o = []
+    # (a) 初めの 12 s の位置の推定誤差の標準偏差（のこぎりの形）
+    rs, rm = _f19_run("start"), _f19_run("model")
+    p = Plot(70, 30, 270, 220, (0, 12), (0, 5))
+    o.append(T(14, 16, "(a) 位置の推定誤差の標準偏差（初めの 12 s）", "start", 10.5, INK, True))
+    o.append(p.axes(xl="時間 t [s]", yl="標準偏差 [m]", xt=[0, 2, 4, 6, 8, 10, 12], yt=[0, 1, 2, 3, 4, 5]))
+    o.append(W(p.x, p.Y(_F19_SY), p.x + p.w, p.Y(_F19_SY), c=PUR, lw=1.2, dash="5 3"))
+    o.append(T(p.x + p.w + 4, p.Y(_F19_SY) + 3, "GNSS", "start", 9, PUR, True))
+    o.append(T(p.x + p.w + 4, p.Y(_F19_SY) + 15, "の 2 m", "start", 9, PUR, True))
+    mm = rm["t"] <= 12.0001
+    o.append(p.clip(list(zip(rm["t"][mm], rm["sp"][mm])), c=TEA, lw=1.8))
+    o.append(p.clip(list(zip(rs["t"], rs["sp"])), c=GLD, lw=2))
+    o.append(T(p.X(8.6), p.Y(4.55), "GNSS だけ（動きのモデル）", "middle", 9.5, TEA, True, halo=True))
+    o.append(T(p.X(6.0), p.Y(0.75), "IMU と GNSS", "middle", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(6.0), p.Y(0.35), "予測の間に増え、1 s ごとの更新で減る", "middle", 9, MUT, False, halo=True))
+    # (b) バイアスの推定
+    rb = _f19_run("base")
+    q = Plot(452, 30, 234, 220, (0, 90), (-0.1, 0.2))
+    o.append(T(392, 16, "(b) 加速度センサのバイアスの推定", "start", 10.5, INK, True))
+    o.append(q.axes(xl="時間 t [s]", yl="バイアス [m/s²]", xt=[0, 30, 60, 90], yt=[-0.1, 0, 0.1, 0.2]))
+    m = rb["t"] <= 90
+    tt, bb, sb = rb["t"][m], rb["b"][m], rb["sb"][m]
+    o.append(_f19_band(q, list(tt), list(bb - 2 * sb), list(bb + 2 * sb), GLD))
+    o.append(q.clip(list(zip(tt, bb)), c=GLD, lw=2))
+    o.append(W(q.x, q.Y(_F19_BA), q.x + q.w, q.Y(_F19_BA), c=GRN, lw=1.4, dash="5 3"))
+    o.append(T(q.X(88), q.Y(_F19_BA) - 6, "本当の値 0.05", "end", 9, GRN, True, halo=True))
+    o.append(T(q.X(26), q.Y(0.17), "推定 ±2σ", "start", 9, GLD, True, halo=True))
+    i = _f19_at(rb, 89.0)
+    o.append(T(q.X(88), q.Y(-0.07), "89 s で σ = %s m/s²" % _f19_m(rb["sb"][i], 4), "end", 9, GLD, True, halo=True))
+    return SVG(700, 300, o, "4 節の例の値（IMU は 100 Hz、GNSS は 1 Hz で東・北それぞれ 2 m）。(a) の「GNSS だけ」は IMU を使わず、加速度を標準偏差 3 m/s² と見込んだフィルタ。(b) は 1 回の走行の推定。")
+
+
+F["e19_saw"] = _f19_saw_fig()
+
+
+def _f19_gerr(seed=1, Tend=180.0, Tu=1.0, axis=0, sy=_F19_SY, tunnel=_F19_TUN):
+    """_f19_kf1 と同じ列の GNSS の誤差（時刻, 誤差）。トンネルの中は除く。"""
+    r = _F19_Rng(seed * 7 + 2)
+    out = []
+    n = int(round(Tend / Tu))
+    for j in range(n + 1):
+        t = j * Tu
+        g2 = (r.normal(), r.normal())
+        if not (tunnel[0] <= t < tunnel[1]):
+            out.append((t, sy * g2[axis]))
+    return out
+
+
+def _f19_tunnel_fig():
+    o = []
+    rb, rm, rn = _f19_run("base"), _f19_run("model"), _f19_run("nobias")
+    panels = [("(a) IMU と GNSS（バイアスも状態に入れる）", rb, GLD, (-8, 8), [-8, -4, 0, 4, 8]),
+              ("(b) GNSS だけ（13 章 4 節の動きのモデル。見込む加速度 3 m/s²）", rm, TEA, (-400, 400), [-400, -200, 0, 200, 400]),
+              ("(c) IMU と GNSS（バイアスを状態に入れない）", rn, ALI, (-40, 160), [0, 50, 100, 150])]
+    ys = [30, 186, 342]
+    for k, (ttl, r, c, yr, yt) in enumerate(panels):
+        y0 = ys[k]
+        o.append(T(14, y0 - 8, ttl, "start", 10.5, INK, True))
+        p = Plot(70, y0, 610, 112, (0, 180), yr)
+        o.append(_f19_shade(p, _F19_TUN[0], _F19_TUN[1], "トンネル" if k == 0 else None))
+        o.append(p.axes(xl="時間 t [s]" if k == 2 else None, yl="誤差 [m]", xt=[0, 30, 60, 90, 120, 150, 180], yt=yt,
+                        xfmt=(lambda v: "%g" % v) if k == 2 else (lambda v: ""), sz=9))
+        t = list(r["t"]); e = list(r["err"]); s2 = [2 * v for v in r["sp"]]
+        o.append(_f19_band(p, t, [-v for v in s2], s2, c))
+        if k == 0:
+            for (tg, eg) in _f19_gerr():
+                o.append(D(p.X(tg), p.Y(max(min(eg, 8), -8)), PUR, 1.6))
+        o.append(p.clip(list(zip(t, e)), c=c, lw=1.8))
+        o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=0.8))
+        i0, i1 = _f19_at(r, 89.9), _f19_at(r, 119.9)
+        if k == 0:
+            o.append(T(p.X(45), p.Y(6.2), "帯は推定 ±2σ（σ: Σ⁻ から）", "middle", 9, c, True, halo=True))
+            o.append(T(p.X(45), p.Y(-6.6), "紫の点: GNSS の位置の誤差", "middle", 9, PUR, True, halo=True))
+            o.append(T(p.X(88), p.Y(2 * r["sp"][i0]) - 5, "σ = %s m" % _f19_m(r["sp"][i0], 2), "end", 9, c, True, halo=True))
+            o.append(T(p.X(121), p.Y(2 * r["sp"][i1]) - 4, "σ = %s m" % _f19_m(r["sp"][i1], 2), "start", 9, c, True, halo=True))
+        elif k == 1:
+            o.append(T(p.X(121), p.Y(r["err"][i1]) - 4, "出口で誤差 %s m（σ = %s m）" % (_f19_m(r["err"][i1], 0), _f19_m(r["sp"][i1], 0)), "start", 9, c, True, halo=True))
+            mm = (r["t"] > 80) & (r["t"] < 90)
+            o.append(T(p.X(45), p.Y(130), "トンネルの前の σ = %s〜%s m（更新の直後〜直前）" % (_f19_m(r["sp"][mm].min(), 1), _f19_m(r["sp"][mm].max(), 1)), "middle", 9, c, True, halo=True))
+        else:
+            o.append(T(p.X(86), p.Y(r["err"][i0]) - 8, "トンネルの前で %s m（σ = %s m）" % (_f19_m(r["err"][i0], 0), _f19_m(r["sp"][i0], 2)), "end", 9, c, True, halo=True))
+            o.append(T(p.X(121), p.Y(r["err"][i1]) - 4, "出口で %s m" % _f19_m(r["err"][i1], 0), "start", 9, c, True, halo=True))
+    return SVG(700, 500, o, "直線の道の例（10 s から加速して 20 m/s、トンネルの中で 10 m/s まで減速）での位置の推定誤差。線は 1 回の走行、帯は推定 ±2σ（縦の目盛は 3 段で違う）。")
+
+
+F["e19_tunnel"] = _f19_tunnel_fig()
+
+
+def _f19_delay_fig():
+    o = []
+    td = _F19_TD
+    o.append(T(14, 16, "(a) 0.27 s 遅れて届いた位置の使い方", "start", 10.5, INK, True))
+    X = lambda t: 150 + (t - 39.9) * 330.0
+    rows = [("補わない", 52, ALI), ("予測で補う", 112, GLD)]
+    for nm, ya, c in rows:
+        o.append(T(14, ya + 4, nm, "start", 10, c, True))
+        o.append(W(X(39.9), ya, X(40.42), ya, c=MUT, lw=1.1))
+        o.append(PATH("".join("M%.2f,%gv-6" % (X(39.9 + 0.01 * k), ya + 3) for k in range(53)), c=SIG, lw=0.6))
+        o.append(D(X(40.0), ya, PUR, 4))
+        o.append(PL([(X(40.0 + td), ya - 7), (X(40.0 + td) - 5, ya - 17), (X(40.0 + td) + 5, ya - 17)], c=PUR, lw=1.2, fill=soft(PUR)))
+    for t_, lab in ((40.0, "40.00 s"), (40.0 + td, "40.27 s")):
+        o.append(T(X(t_), 152, lab, "middle", 9, MUT))
+    o.append(T(X(40.0) - 6, 30, "位置を求めた時刻", "end", 9, PUR, True))
+    o.append(T(X(40.0 + td) + 8, 30, "文が届く", "start", 9, PUR, True))
+    # 補わない: 届いた時刻の予測と比べる
+    o.append(CARR(X(40.0) + 4, 52 - 4, X(40.0 + td) - 2, 52 - 4, 0.35, c=ALI, lw=1.5, head=6))
+    o.append(T(340, 48, "40.27 s の予測と比べて更新する", "start", 9.5, ALI, True))
+    o.append(T(340, 63, "（20 m/s なら、位置が 20 × 0.27 = 5.4 m 食い違う）", "start", 9, ALI))
+    # 予測で補う: 40.00 s の予測に戻り、記録した IMU の値で予測し直す
+    o.append(CARR(X(40.0 + td) - 2, 112 + 6, X(40.0) + 4, 112 + 6, 0.4, c=GLD, lw=1.5, head=6))
+    o.append(CARR(X(40.0) + 4, 112 - 6, X(40.0 + td) - 2, 112 - 6, 0.4, c=GLD, lw=1.5, head=6))
+    o.append(T(340, 104, "① 記録しておいた 40.00 s の予測に戻って更新する", "start", 9.5, GLD, True))
+    o.append(T(340, 121, "② 記録した 27 回分の IMU の値で、今まで予測し直す", "start", 9.5, GLD, True))
+    # (b) 誤差
+    ri, rc = _f19_run("ignore"), _f19_run("comp")
+    p = Plot(70, 196, 610, 120, (0, 90), (-8, 4))
+    o.append(T(14, 184, "(b) 位置の推定誤差（トンネルの前の 90 s。20 m/s までは 10〜30 s で加速）", "start", 10.5, INK, True))
+    o.append(p.axes(xl="時間 t [s]", yl="誤差 [m]", xt=[0, 10, 20, 30, 45, 60, 75, 90], yt=[-8, -4, 0, 4], sz=9))
+    o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=0.8))
+    o.append(W(p.X(30), p.Y(-_F19_V0 * td), p.X(90), p.Y(-_F19_V0 * td), c=ALI, lw=1, dash="4 3"))
+    for r, c in ((ri, ALI), (rc, GLD)):
+        m = r["t"] <= 90
+        o.append(p.clip(list(zip(r["t"][m], r["err"][m])), c=c, lw=1.6))
+    o.append(T(p.X(60), p.Y(-_F19_V0 * td) + 16, "補わない: 平均 %s m（−20 m/s × 0.27 s = −5.4 m）" % _f19_m(float(_f19_np.mean(ri["err"][(ri["t"] > 40) & (ri["t"] < 89)])), 1), "middle", 9, ALI, True, halo=True))
+    o.append(T(p.X(60), p.Y(2.6), "予測で補う: 平均 %s m" % _f19_m(float(_f19_np.mean(rc["err"][(rc["t"] > 40) & (rc["t"] < 89)])), 2), "middle", 9, GLD, True, halo=True))
+    return SVG(700, 360, o, "GNSS の位置が 0.27 s 遅れて届くとき（4 節の例の値。遅れの値は 15 章 3 節と同じ例）。(b) の平均は 40〜89 s の誤差の平均。")
+
+
+F["e19_delay"] = _f19_delay_fig()
+
+
+def _f19_innov_fig():
+    o = []
+    r0, r1 = _f19_run("gate0"), _f19_run("gate1")
+    # (a) イノベーションと ±3√S
+    p = Plot(70, 30, 610, 150, (100, 180), (-15, 35))
+    o.append(T(14, 16, "(a) イノベーション y − Cx̂⁻ と、その標準偏差 √S の 3 倍", "start", 10.5, INK, True))
+    o.append(_f19_shade(p, 100, 120, "トンネル"))
+    o.append(p.axes(yl="イノベーション [m]", xt=[100, 120, 140, 160, 180], yt=[-10, 0, 10, 20, 30], xfmt=lambda v: "", sz=9))
+    t = [float(v) for v in r1["tin"]]
+    s3 = [3 * math.sqrt(v) for v in r1["Sin"]]
+    sel = [i for i, v in enumerate(t) if v >= 100]
+    o.append(_f19_band(p, [t[i] for i in sel], [-s3[i] for i in sel], [s3[i] for i in sel], MUT))
+    o.append(p.line([(t[i], s3[i]) for i in sel], c=MUT, lw=1.2))
+    o.append(p.line([(t[i], -s3[i]) for i in sel], c=MUT, lw=1.2))
+    for i in sel:
+        e = float(r1["innov"][i])
+        if r1["ok"][i]:
+            o.append(D(p.X(t[i]), p.Y(e), PUR, 2.4))
+        else:
+            o.append(_f19_cross(p.X(t[i]), p.Y(min(e, 34)), ALI, 4))
+    i120 = t.index(120.0)
+    o.append(T(p.X(121), p.Y(s3[i120]) - 5, "出口: 3√S = %s m" % _f19_m(s3[i120], 1), "start", 9, MUT, True, halo=True))
+    i150 = t.index(150.0)
+    o.append(T(p.X(150), p.Y(-s3[i150]) + 13, "3√S = %s m" % _f19_m(s3[i150], 1), "middle", 9, MUT, True, halo=True))
+    o.append(T(p.X(141.5), p.Y(31), "NLOS で 25 m 飛んだ値を捨てる", "middle", 9, ALI, True, halo=True))
+    o.append(T(p.X(160), p.Y(19), "12 m", "middle", 9, ALI, True, halo=True))
+    # (b) 位置の推定誤差
+    q = Plot(70, 214, 610, 110, (100, 180), (-4, 12))
+    o.append(T(14, 204, "(b) 位置の推定誤差", "start", 10.5, INK, True))
+    o.append(_f19_shade(q, 100, 120))
+    o.append(q.axes(xl="時間 t [s]", yl="誤差 [m]", xt=[100, 120, 140, 160, 180], yt=[-4, 0, 4, 8, 12], sz=9))
+    o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=0.8))
+    for r, c in ((r0, ALI), (r1, GLD)):
+        m = r["t"] >= 100
+        o.append(q.clip(list(zip(r["t"][m], r["err"][m])), c=c, lw=1.6))
+    m0 = (r0["t"] >= 139) & (r0["t"] < 170)
+    m1 = (r1["t"] >= 139) & (r1["t"] < 170)
+    o.append(T(q.X(146), q.Y(10.5), "すべて使う: 最大 %s m" % _f19_m(float(_f19_np.abs(r0["err"][m0]).max()), 1), "start", 9, ALI, True, halo=True))
+    o.append(T(q.X(146), q.Y(-2.6), "3√S を超えたら捨てる: 最大 %s m" % _f19_m(float(_f19_np.abs(r1["err"][m1]).max()), 1), "start", 9, GLD, True, halo=True))
+    return SVG(700, 368, o, "イノベーションの大きさで外れ値を捨てる（4 節の例に、NLOS で飛んだ GNSS の位置を混ぜた例）。紫の点は使った値、赤の × は捨てた値。")
+
+
+F["e19_innov"] = _f19_innov_fig()
+
+
+# =====================================================================
+# 5 節: 車速と動きの拘束（擬似的な観測）
+# =====================================================================
+def _f19_topcar(cx, cy, ang, c=GRN, s=1.0):
+    """上から見た車（ang: 北から東へ回った向き [°]。SVG の上が北）。"""
+    w, h = 18 * s, 38 * s
+    body = (RECT(cx - w / 2, cy - h / 2, w, h, 5 * s, soft(c), c, 1.4)
+            + RECT(cx - w / 2 + 2.5 * s, cy - h / 2 + 7 * s, w - 5 * s, 8 * s, 2, SCR, c, 1.0)
+            + "".join(RECT(cx + dx * (w / 2 + 1 * s) - 2 * s, cy + dy * 11 * s - 4.5 * s, 4 * s, 9 * s, 1, c, c, 0.8) for dx in (-1, 1) for dy in (-1, 1)))
+    return _f19_rot(cx, cy, ang, body)
+
+
+def _f19_nhc_fig():
+    o = []
+    # (a) 上から見た図
+    o.append(T(14, 16, "(a) 上から見た車（向き ψ は北から東へ）", "start", 10.5, INK, True))
+    cx, cy, ang = 150, 150, 60.0
+    a = ang * _F19_D
+    o.append(W(cx - 130 * math.sin(a), cy + 130 * math.cos(a), cx + 130 * math.sin(a), cy - 130 * math.cos(a), c=LIN, lw=16))
+    o.append(_f19_topcar(cx, cy, ang, GRN, 1.0))
+    fx, fy = math.sin(a), -math.cos(a)          # 前（SVG の座標）
+    rx, ry = math.cos(a), math.sin(a)           # 右（横）
+    o.append(ARR(cx, cy, cx + 92 * fx, cy + 92 * fy, c=SIG, lw=2.4, head=9))
+    o.append(T(cx + 98 * fx + 4, cy + 98 * fy, "前の速さ（車速が測る）", "start", 9.5, SIG, True, halo=True))
+    o.append(ARR(cx, cy, cx + 56 * rx, cy + 56 * ry, c=ALI, lw=1.6, head=7, dash="4 3"))
+    o.append(T(cx + 60 * rx + 2, cy + 60 * ry + 12, "横の速さ ≈ 0（拘束）", "start", 9.5, ALI, True, halo=True))
+    # 北の向きと ψ
+    nx, ny = 44, 118
+    o.append(ARR(nx, ny, nx, ny - 50, c=MUT, lw=1.4, head=7))
+    o.append(T(nx, ny - 56, "北", "middle", 9.5, INK, True))
+    o.append(W(nx, ny, nx + 46 * math.sin(a), ny - 46 * math.cos(a), c=SIG, lw=1.2, dash="4 3"))
+    rr = 26
+    o.append(PATH("M%g,%g A%g,%g 0 0,1 %g,%g" % (nx, ny - rr, rr, rr, nx + rr * math.sin(a), ny - rr * math.cos(a)), c=MUT, lw=1.2))
+    o.append(T(nx + 30 * math.sin(a / 2) + 3, ny - 30 * math.cos(a / 2) - 2, "ψ", "start", 10, INK, True))
+    # (b) 横から見た図
+    o.append(T(330, 16, "(b) 横から見た車", "start", 10.5, INK, True))
+    yg = 120
+    o.append(W(330, yg, 520, yg, c=MUT, lw=2))
+    o.append(_f19_car(400, yg, GRN, 1.3))
+    o.append(ARR(400, yg - 30, 476, yg - 30, c=SIG, lw=2.4, head=9))
+    o.append(T(480, yg - 34, "前", "start", 9.5, SIG, True, halo=True))
+    o.append(ARR(400, yg - 30, 400, yg - 78, c=ALI, lw=1.6, head=7, dash="4 3"))
+    o.append(T(406, yg - 72, "上の速さ ≈ 0（拘束）", "start", 9.5, ALI, True, halo=True))
+    # 車輪の回転
+    o.append(T(330, yg + 30, "車速: 車輪の回転の速さ × 車輪の半径", "start", 9.5, SIG, True))
+    o.append(T(330, yg + 46, "（半径が 0.5 % ずれると、車速も 0.5 % ずれる）", "start", 9, MUT))
+    # (c) 観測としての形
+    o.append(T(330, 204, "(c) 観測の形（1 次元の軸ごと）", "start", 10.5, INK, True))
+    o.append(TX(330, 226, "車速: y_w = \\dot{p}（進む向きの軸）+ 雑音", "start", 10, SIG))
+    o.append(TX(330, 246, "拘束: 0 = \\dot{p}（横の軸・上の軸）+ 雑音", "start", 10, ALI))
+    o.append(T(330, 266, "どちらも C = (0  1  0)：状態の速度を測る観測", "start", 9.5, INK))
+    return SVG(700, 284, o, "車速と動きの拘束（擬似的な観測）。車は向いている向きに進み、横と上には動かないとする（滑りと路面の凹凸は雑音とみなす）。")
+
+
+F["e19_nhc"] = _f19_nhc_fig()
+
+
+def _f19_nhcres_fig():
+    o = []
+    zero = lambda t: 0.0
+    ra = _f19_run("base")
+    rw = _f19_kf1(obsv="wheel")
+    rk = _f19_kf1(obsv="wheel", ks=0.005)
+    rc0 = _f19_kf1(axis=1, acc=zero, ba=_F19_BAN)
+    rc1 = _f19_kf1(axis=1, acc=zero, ba=_F19_BAN, obsv="zero", sv=_F19_SC)
+    P, V, A = _f19_truth1()
+    bg = 0.01 * _F19_D
+    k0, k1 = int(round(_F19_TUN[0] / _F19_TS)), int(round(_F19_TUN[1] / _F19_TS))
+    head = [(0.0, 0.0)]
+    lat = 0.0
+    for k in range(k0, k1):
+        lat += V[k] * bg * (k - k0) * _F19_TS * _F19_TS
+        if (k - k0) % 10 == 9:
+            head.append(((k + 1 - k0) * _F19_TS, lat))
+    panels = [("(a) 進む向き（車速を足す）", [(ra, GLD, "IMU と GNSS"), (rw, GRN, "+ 車速")], (rk, "車速の倍率が 0.5 % ずれたまま"), (-4, 8)),
+              ("(b) 横の向き（拘束を足す）", [(rc0, GLD, "IMU と GNSS"), (rc1, GRN, "+ 拘束")], None, (-8, 4))]
+    for j, (ttl, cur, bad, yr) in enumerate(panels):
+        x0 = 14 + j * 346
+        o.append(T(x0, 16, ttl, "start", 10.5, INK, True))
+        p = Plot(x0 + 50, 30, 270, 190, (80, 140), yr)
+        o.append(_f19_shade(p, _F19_TUN[0], _F19_TUN[1], "トンネル"))
+        o.append(p.axes(xl="時間 t [s]", yl="誤差 [m]", xt=[80, 90, 100, 110, 120, 130, 140], yt=list(range(yr[0], yr[1] + 1, 2)), sz=9))
+        o.append(W(p.x, p.Y(0), p.x + p.w, p.Y(0), c=MUT, lw=0.8))
+        for r, c, nm in cur:
+            m = (r["t"] >= 80) & (r["t"] <= 140)
+            t = list(r["t"][m]); s2 = [2 * v for v in r["sp"][m]]
+            o.append(_f19_band(p, t, [-v for v in s2], s2, c))
+        for r, c, nm in cur:
+            m = (r["t"] >= 80) & (r["t"] <= 140)
+            o.append(p.clip(list(zip(r["t"][m], r["err"][m])), c=c, lw=1.8))
+        if bad:
+            r, nm = bad
+            m = (r["t"] >= 80) & (r["t"] <= 140)
+            o.append(p.clip(list(zip(r["t"][m], r["err"][m])), c=ALI, lw=1.5, dash="5 3"))
+            o.append(T(p.X(82), p.Y(6.6), nm, "start", 9, ALI, True, halo=True))
+        else:
+            o.append(p.clip([(90 + a_, b_) for a_, b_ in head], c=ALI, lw=1.5, dash="5 3"))
+            o.append(T(p.X(81), p.Y(-6.1), "赤の破線: 向きの誤差が残す横のずれ", "start", 9, ALI, True, halo=True))
+            o.append(T(p.X(81), p.Y(-7.3), "（ジャイロのバイアス 0.01 °/s。式で）", "start", 9, ALI, False, halo=True))
+        i1 = _f19_at(cur[0][0], 119.9)
+        o.append(LEGL(x0 + 50, 262, [(GLD, None, cur[0][2]), (GRN, None, cur[1][2])], 9.5))
+        o.append(T(x0 + 50, 280, "出口の直前の σ: %s m → %s m" % (_f19_m(cur[0][0]["sp"][i1], 2), _f19_m(cur[1][0]["sp"][i1], 2)), "start", 9.5, INK, True))
+    return SVG(700, 292, o, "4 節の例のトンネルの前後（線は 1 回の走行の誤差、帯は推定 ±2σ）。車速と拘束は 10 Hz、雑音は 0.05 m/s と 0.1 m/s（例の値）。")
+
+
+F["e19_nhcres"] = _f19_nhcres_fig()
+
+
+# =====================================================================
+# 6 節: 結合の方式
+# =====================================================================
+def _f19_couple_fig():
+    o = []
+    rows = [("(a) 疎結合", ["位置・速度"], True, False), ("(b) 密結合", ["衛星ごとの", "擬似距離・ドップラー"], False, False), ("(c) 深い結合", ["衛星ごとの", "相関器の値"], False, True)]
+    for k, (ttl, sent, loose, deep) in enumerate(rows):
+        y0 = 26 + k * 118
+        o.append(T(14, y0 - 6, ttl, "start", 10.5, INK, True))
+        # 受信機
+        o.append(RECT(14, y0 + 4, 330, 68, 8, soft(PUR), PUR, 1.3, dash=None))
+        o.append(T(22, y0 + 18, "GNSS の受信機（モジュール）", "start", 9, PUR, True))
+        o.append(BOX(24, y0 + 26, 92, 38, "追尾", "DLL・PLL（5 章）", c=LIN, fill=PAN, sz=10, ssz=8.5))
+        if loose:
+            o.append(BOX(134, y0 + 26, 92, 38, "擬似距離", "ドップラー", c=LIN, fill=PAN, sz=10, ssz=8.5))
+            o.append(BOX(244, y0 + 26, 92, 38, "位置・速度", "を解く（6 章）", c=LIN, fill=PAN, sz=10, ssz=8.5))
+            o.append(ARR(116, y0 + 45, 134, y0 + 45, c=MUT, lw=1.3, head=6))
+            o.append(ARR(226, y0 + 45, 244, y0 + 45, c=MUT, lw=1.3, head=6))
+        elif not deep:
+            o.append(BOX(134, y0 + 26, 202, 38, "擬似距離・ドップラー", "衛星ごと（解かずに出す）", c=LIN, fill=PAN, sz=10, ssz=8.5))
+            o.append(ARR(116, y0 + 45, 134, y0 + 45, c=MUT, lw=1.3, head=6))
+        else:
+            o.append(BOX(134, y0 + 26, 202, 38, "相関器の値", "衛星ごと（E・P・L、I・Q）", c=LIN, fill=PAN, sz=10, ssz=8.5))
+            o.append(ARR(116, y0 + 45, 134, y0 + 45, c=MUT, lw=1.3, head=6))
+        # 融合のフィルタ
+        o.append(ARR(344, y0 + 38, 444, y0 + 38, c=PUR, lw=1.8, head=8))
+        for i_, line in enumerate(sent):
+            o.append(T(394, y0 + 30 - 14 * (len(sent) - 1 - i_), line, "middle", 9, PUR, True))
+        o.append(RECT(444, y0 + 12, 130, 52, 8, soft(GLD), GLD, 1.4))
+        o.append(T(509, y0 + 33, "融合のフィルタ", "middle", 10.5, GLD, True))
+        if loose:
+            o.append(T(509, y0 + 51, "位置・速度・バイアス", "middle", 8.5, MUT))
+        else:
+            o.append(TX(509, y0 + 51, "時計のずれ b・\\dot{b} も状態に", "middle", 8.5, MUT))
+        o.append(BOX(606, y0 + 12, 82, 52, "IMU", "100 Hz", c=SIG, fill=soft(SIG), tc=SIG, sz=10.5, ssz=9))
+        o.append(ARR(606, y0 + 38, 574, y0 + 38, c=SIG, lw=1.8, head=7))
+        o.append(ARR(509, y0 + 64, 509, y0 + 82, c=GLD, lw=1.6, head=6))
+        o.append(TX(517, y0 + 82, "x̂", "start", 10, GLD, True))
+        if deep:
+            o.append(W(470, y0 + 64, 470, y0 + 92, 70, y0 + 92, c=GLD, lw=1.4, dash="5 3"))
+            o.append(ARR(70, y0 + 92, 70, y0 + 64, c=GLD, lw=1.4, head=6, dash="5 3"))
+            o.append(T(84, y0 + 106, "予想したドップラーと符号の位相で、追尾のループを進める", "start", 9, GLD, True))
+    return SVG(700, 380, o, "GNSS と IMU の結合の方式。左が受信機の中、右が融合のフィルタ（4 節）。")
+
+
+F["e19_couple"] = _f19_couple_fig()
+
+
+_F19_LT = {}
+
+
+def _f19_ltrun(mode):
+    if mode not in _F19_LT:
+        _F19_LT[mode] = _f19_lt(mode)
+    return _F19_LT[mode]
+
+
+def _f19_canyon_fig():
+    o = []
+    rl, rt = _f19_ltrun("loose"), _f19_ltrun("tight")
+    # (a) ビル街の空
+    o.append(T(14, 16, "(a) ビル街で見える衛星", "start", 10.5, INK, True))
+    cx, cy, R = 104, 122, 72
+    sats = []
+    for nm, el, az in _F19_SATS:
+        vis = nm in _F19_CAN
+        sats.append((el, az, nm, PUR if vis else FNT))
+    o.append(sky(cx, cy, R, sats, dot=3.8, sz=9))
+    for nm, el, az in _F19_SATS:
+        if nm not in _F19_CAN:
+            x, y = skyxy(cx, cy, R, el, az)
+            o.append(_f19_cross(x, y, FNT, 3.2))
+    o.append(T(cx, cy + R + 30, "北東〜南西の通り: 3 つ", "middle", 9.5, PUR, True))
+    o.append(T(cx, cy + R + 44, "（灰色の × は建物でさえぎられる）", "middle", 9, MUT))
+    # (b) 時間とともに: 衛星の数と、誤差の楕円の長い半径
+    p = Plot(270, 30, 410, 54, (0, 180), (0, 8))
+    o.append(T(214, 16, "(b) 使える衛星の数と、水平の誤差の楕円の長い半径・短い半径", "start", 10.5, INK, True))
+    o.append(p.axes(yl="衛星", yt=[0, 4, 8], xt=[0, 30, 60, 90, 120, 150, 180], xfmt=lambda v: "", sz=9))
+    o.append(p.steps([(t, n) for t, n in zip(rl["t"][::10], rl["nsat"][::10])], c=PUR, lw=1.6))
+    q = Plot(270, 104, 410, 150, (0, 180), (0.3, 30), ylog=True)
+    o.append(q.axes(xl="時間 t [s]", yl="半径 [m]", xt=[0, 30, 60, 90, 120, 150, 180], yt=[1, 3, 10, 30], yfmt=lambda v: "%g" % v, sz=9))
+    for r, c, nm in ((rl, MUT, "疎結合"), (rt, GLD, "密結合")):
+        s1 = []; s2 = []
+        for i in range(0, len(r["t"]), 5):
+            a, b, _ = _f19_ell(r["C"][i])
+            s1.append((r["t"][i], a)); s2.append((r["t"][i], b))
+        o.append(q.clip(s1, c=c, lw=2))
+        o.append(q.clip(s2, c=c, lw=1.3, dash="4 3"))
+    o.append(LEGL(q.x + 10, q.y + 14, [(GLD, None, "密結合"), (MUT, None, "疎結合")], 9.5))
+    o.append(T(q.x + 10, q.y + 30, "実線: 長い半径　破線: 短い半径", "start", 9, MUT))
+    # (c) 誤差の楕円の比べ（7 章と同じ描き方: 共分散の行列から、1σ）
+    o.append(T(14, 316, "(c) 誤差の楕円（1σ）と、見える衛星の向き（水平の成分）", "start", 10.5, INK, True))
+    snaps = [(89.9, "89.9 s", "（1 つ目のビル街の終わり）"), (149.9, "149.9 s", "（2 つ目のビル街の終わり）")]
+    for j, (tt, lab, lab2) in enumerate(snaps):
+        x0 = 20 + j * 350
+        pp = Plot(x0 + 30, 338, 170, 170, (-20, 20), (-20, 20))
+        o.append(RECT(pp.x, pp.y, pp.w, pp.h, 2, SCR, LIN, 1))
+        o.append(pp.axes(xt=[-20, 0, 20], yt=[-20, 0, 20], sz=9))
+        i = int(round(tt * 10))
+        for r, c in ((rl, MUT), (rt, GLD)):
+            a, b, ang = _f19_ell(r["C"][i])
+            o.append(pp.clip(_f19_ellpts(a, b, ang), c=c, lw=2))
+        for nm, el, az in _F19_SATS:
+            if nm in _F19_CAN:
+                L = 17 * math.cos(el * _F19_D)
+                ex, ey = L * math.sin(az * _F19_D), L * math.cos(az * _F19_D)
+                o.append(ARR(pp.X(0), pp.Y(0), pp.X(ex), pp.Y(ey), c=PUR, lw=1.3, head=6))
+                o.append(T(pp.X(ex) + (4 if ex >= 0 else -4), pp.Y(ey) + (12 if ey < 0 else -4), nm, "start" if ex >= 0 else "end", 9, PUR, True, halo=True))
+        a1, b1, _ = _f19_ell(rl["C"][i]); a2, b2, _ = _f19_ell(rt["C"][i])
+        o.append(T(x0 + 210, 362, lab, "start", 9.5, INK, True))
+        o.append(T(x0 + 210, 377, lab2, "start", 9, INK))
+        o.append(T(x0 + 210, 400, "疎結合 %s m × %s m" % (_f19_m(a1, 1), _f19_m(b1, 1)), "start", 9.5, MUT, True))
+        o.append(T(x0 + 210, 418, "密結合 %s m × %s m" % (_f19_m(a2, 1), _f19_m(b2, 1)), "start", 9.5, GLD, True))
+        o.append(T(pp.x + pp.w / 2, pp.y + pp.h + 28, "東西（横）・南北（縦）[m]", "middle", 9, MUT))
+    return SVG(700, 548, o, "6 節の例（4 節の 1 次元のモデルを東・北・上に並べ、時計のずれとドリフトを足したフィルタ。擬似距離の誤差は 3 m、衛星は 6・7 章の東京・時刻 0 の GPS）。60〜90 s と 120〜150 s がビル街、90〜120 s がトンネル。")
+
+
+F["e19_canyon"] = _f19_canyon_fig()
