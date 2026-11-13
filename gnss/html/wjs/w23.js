@@ -62,7 +62,7 @@
       o.push(S.L(ax,P.Y(thr),ax+aw,P.Y(thr),"gold",1.1,"4 3"));
       o.push(S.T(ax+6,P.Y(thr)+13,"モデルのしきい値 "+_w23_f(thr,1)+" dBm","start",9.5,"gold",true,false,null,true));
       if(TR.last!==null){var li=-1;rows.forEach(function(r,i){if(r[0]===TR.last)li=i;});var lx=P.X((li+1)*dwell/60);
-        o.push(S.D(lx,P.Y(TR.last),"green",4.2));o.push(S.T(lx-8,P.Y(TR.last)-6,"読んだ値 "+_w23_f(TR.last,1)+" dBm","end",9.5,"green",true,false,null,true));}
+        o.push(S.D(lx,P.Y(TR.last),"green",4.2));o.push(S.T(lx-8,P.Y(thr)+13,"読んだ値 "+_w23_f(TR.last,1)+" dBm","end",9.5,"green",true,false,null,true));}
       var Q=U.plot(ax,186,aw,50,[0,Math.max(1,n/60)],[0,8]);
       o.push(Q.axes({xl:"時間 [分]",yl:"追う機数",yt:[0,4,8],nx:5}));
       var sp=[];for(var k=0;k<n;k+=Math.max(1,Math.floor(n/600)))sp.push([k/60,cnt[k]]);sp.push([n/60,cnt[n-1]]);

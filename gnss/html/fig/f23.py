@@ -659,7 +659,7 @@ def _f23_scale_fig():
         o.append(T((X(Ps[0]) + X(Ps[1])) / 2, ys + 43, "3.2 dB", "middle", 9, c, True, halo=True))
         o.append(TX(X(Ps[1]) + 6, rows[1][0] + 44, "%s C/N_0 = %d dB-Hz" % (nm, cth), "start", 9.5, c, True))
     return SVG(700, 304, o, "例の受信機（3 章 5 節の 1 段の例、雑音温度 75.1 K）の、入力の電力と C/N0 の目盛。帯は 3 章 6 節の代表値、"
-               "点線は例の受信機のしきい値（捕捉 32 dB-Hz・追尾 17 dB-Hz）。N0 はボルツマン定数 ×（入力の雑音温度 + 75.1 K）。")
+               "点線は例の受信機のしきい値（捕捉 32 dB-Hz・追尾 17 dB-Hz）。N<sub>0</sub> = k<sub>B</sub>T<sub>sys</sub>、T<sub>sys</sub> = 入力の雑音温度 + 75.1 K。")
 
 
 F["e23_scale"] = _f23_scale_fig()
@@ -709,7 +709,7 @@ def _f23_steps_fig():
     o.append(W(p.x, p.Y(_F23_CTRK + _F23_N0SIM), p.x + p.w, p.Y(_F23_CTRK + _F23_N0SIM), c=GLD, lw=1.1, dash="4 3"))
     o.append(T(p.x + 6, p.Y(_F23_CTRK + _F23_N0SIM) + 13, "モデルのしきい値 %s dBm" % _f23_f(_F23_CTRK + _F23_N0SIM, 1), "start", 9.5, GLD, True, halo=True))
     o.append(D(p.X(rows.index([r for r in rows if r[0] == last][0]) + 1), p.Y(last), GRN, 4.2))
-    o.append(T(p.X(rows.index([r for r in rows if r[0] == last][0]) + 1) - 8, p.Y(last) - 6, "読んだ値 %s dBm" % _f23_f(last, 0), "end", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(rows.index([r for r in rows if r[0] == last][0]) + 1) - 8, p.Y(_F23_CTRK + _F23_N0SIM) + 13, "読んだ値 %s dBm" % _f23_f(last, 0), "end", 9.5, GRN, True, halo=True))
     q = Plot(64, 304, 300, 56, (0, n / 60.0), (0, 8))
     o.append(q.axes(xl="時間 [分]", yl="追う機数", xt=[0, 5, 10, 15, 20, 25], yt=[0, 4, 8]))
     o.append(q.steps([(k / 60.0, cnt[k]) for k in range(0, n, 5)] + [(n / 60.0, cnt[-1])], c=SIG, lw=1.6))
@@ -730,7 +730,7 @@ def _f23_steps_fig():
     o.append(D(r.X(lastA), r.Y(1.0), GRN, 4.5))
     o.append(T(r.X(lastA) + 6, r.Y(1.0) + 16, "読んだ値 %s dBm" % _f23_f(lastA, 0), "start", 9.5, GRN, True, halo=True))
     o.append(T(r.X(-141.9), r.Y(0.5), "モデル", "end", 9.5, MUT, True, halo=True))
-    return SVG(700, 396, o, "GNSS シミュレータで電力を下げる試験の例（モデル。例の受信機のしきい値は追尾 17 dB-Hz・捕捉 32 dB-Hz、N0 = −173.0 dBm/Hz。"
+    return SVG(700, 396, o, "GNSS シミュレータで電力を下げる試験の例（モデル。例の受信機のしきい値は追尾 17 dB-Hz・捕捉 32 dB-Hz、N<sub>0</sub> = −173.0 dBm/Hz。"
                "(b) の右の目盛は C/N0、(c) の縦の線は 95 % の信頼区間）。")
 
 
@@ -860,8 +860,8 @@ def _f23_ttffdist_fig():
         o.append(D(s.X(n), s.Y(0.05), c, 3.6))
         o.append(T(s.X(n), s.Y(0.05) - 7, "%d" % n, "middle", 9, c, True, halo=True))
     o.append(LEGL(426, 412, [(GRN, None, "超えた 0 回"), (GLD, None, "1 回"), (ALI, None, "2 回")], 9.5, 10))
-    return SVG(700, 420, o, "TTFF の分布と推定（5 章 5 節のモデルのコールドスタートを 100 回。(b) は見えている衛星が 5 機で、各サブフレームを 10 % の確率で読み誤る例）。"
-               "(c) は同じ回数の試験を 1000 回くり返したときの推定のばらつき、(d) は超えた回の数ごとの、超える割合の 95 % の上限（クロッパー・ピアソン）。")
+    return SVG(700, 420, o, "TTFF の分布と推定（5 章 5 節のモデルのコールドスタート。(a)(b) は 100 回で、(b) は衛星 5 機・各サブフレームを 10 % の確率で読み誤る例。"
+               "(c) は同じ回数の試験を 1000 回くり返した推定、(d) は Clopper-Pearson の上限）。")
 
 
 F["e23_ttffdist"] = _f23_ttffdist_fig()
@@ -1057,7 +1057,7 @@ def _f23_length_fig():
     o.append(T(q.X(2.5), q.Y(_F23_MIX["cep"]) - 5, "多くの日の値 %s" % _f23_f(_F23_MIX["cep"], 2), "middle", 9, SIG, True, halo=True))
     o.append(LEGL(372, 270, [(SIG, None, "CEP"), (ALI, None, "R95"), (INK, "5 3", "多くの日の値"), (INK, "1 2", "7 章の中央値")], 9.5, 8))
     o.append(T(372, 286, "帯は 5〜95 %、点は中央値（始める時刻と乱数を変えた 100 本）", "start", 9, MUT))
-    return SVG(700, 296, o, "記録の長さと推定のばらつき。(a) 相関の時間 τc の誤差の平均（点は 200 本の数値の計算）、(b) 図の静止の記録のモデルの CEP・R95"
+    return SVG(700, 296, o, "記録の長さと推定のばらつき。(a) 相関の時間 τ<sub>c</sub> の誤差の平均（点は 200 本の数値の計算）、(b) 図の静止の記録のモデルの CEP・R95"
                "（6 時間と 24 時間は 10 s ごとの値で計算）。")
 
 
