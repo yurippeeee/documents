@@ -897,10 +897,10 @@ def _f24_fw_fig():
     yu = 34 + 6 * 42
     o.append(ARR(x0 + 40, yu - 12, x0 + 40, yu, c=SIG, lw=1.4, head=6))
     o.append(RECT(x0, yu, w0, 40, 6, soft(GRN), GRN, 1.5))
-    o.append(T(x0 + 8, yu + 17, "use_epoch（ブロック A）", "start", 10, GRN, True, True))
+    o.append(T(x0 + 8, yu + 17, "use_epoch（ブロック B）", "start", 10, GRN, True, True))
     o.append(T(x0 + 8, yu + 32, "使ってよい組なら 32 B の記録をフラッシュへ・got = 1", "start", 8.5, INK))
     # 右: 起きて、記録して、眠る（ブロック B）
-    o.append(T(330, 44, "logger_step（ブロック B）: 起きて、記録して、眠る", "start", 10.5, GRN, True))
+    o.append(T(330, 44, "logger_step（ブロック C）: 起きて、記録して、眠る", "start", 10.5, GRN, True))
     S = {"SLEEP": (420, 96, "眠る", "LG_SLEEP・2 µA"), "TXT": (600, 96, "文を待つ", "LG_WAIT_TXT"),
          "CFG": (600, 186, "設定を確かめる", "LG_CONFIG"), "FIX": (600, 276, "測位を待つ", "LG_WAIT_FIX"),
          "STOP": (420, 276, "止める", "LG_STOP")}
@@ -925,7 +925,7 @@ def _f24_fw_fig():
     # 主のループ（ブロック C）
     yb = 370
     o.append(RECT(330, yb - 16, 360, 30, 6, PAN, MUT, 1.2))
-    o.append(T(510, yb + 3, "主のループ: gnss_poll → logger_step → 眠る間は RTC を待つ", "middle", 9, INK, True))
+    o.append(T(510, yb + 3, "主のループ（ブロック D）: gnss_poll → logger_step → 眠る間は RTC を待つ", "middle", 9, INK, True))
     return SVG(700, 396, o, "ロガーのファームウェアの構成。15 章の部品の名前と型は変えずに、use_epoch の中身と、電源の管理（15 章 5 節の状態機械）を足した。")
 
 
@@ -1016,3 +1016,318 @@ def _f24_test_fig():
 
 
 F["e24_test"] = _f24_test_fig()
+
+
+# =====================================================================
+# 4 節: 1 日の電荷と電池の持ち時間（13 章 5 節の式を、例の 1 日で数え直す）
+# =====================================================================
+def _f24_cats(wakes, p=None):
+    """起きた回を、ホットで記録・ウォームで記録・位置が出ない、に分けた電荷 [mAh]（LNA とマイコンの分も含む）。"""
+    p = p or _F24_P
+    q = {"hot": 0.0, "warm": 0.0, "fail": 0.0}
+    for a, b, kind, ok, tf in wakes:
+        key = kind if ok else "fail"
+        on = b - a
+        c = p["I_ACQ"] * (tf - a) + p["I_TRK"] * (b - tf) if tf is not None else p["I_ACQ"] * on
+        q[key] += (c + (p["I_LNA"] + p["I_MCU"]) * on) / 3.6e6
+    return q
+
+
+def _f24_variant(**kw):
+    p = dict(_F24_P); out = kw.pop("out", None); p.update(kw)
+    return _f24_day(p, out)["days"]
+
+
+_F24_CONT = (_F24_P["I_TRK"] + _F24_P["I_LNA"] + _F24_P["I_MCU"] + _F24_P["I_AON"]) * 24    # 連続: 744 mAh/日
+
+
+def _f24_day_fig():
+    o = []
+    D_ = _F24_DAY
+    P = _F24_P
+    o.append(T(14, 18, "(a) 例の 1 日に使う電荷（2 日目の 0 時から足していく）", "start", 11, INK, True))
+    p = Plot(70, 36, 600, 120, (0, 24), (0, 45))
+    o.append(p.axes(xl="時刻 [時]", yl="電荷 [mAh]", xt=list(range(0, 25, 3)), yt=[0, 15, 30, 45]))
+    for a, b in _F24_OUT:
+        o.append(RECT(p.X(a / 3.6e6), p.y, p.X(b / 3.6e6) - p.X(a / 3.6e6), p.h, 0, soft(GRN), "none", 0))
+    o.append(T(p.X(8.5), p.y + 12, "屋外", "middle", 9, GRN, True, halo=True))
+    pts, q, last = [(0.0, 0.0)], 0.0, 86400000
+    I_off = P["I_BK"] + P["I_SLP"] + P["I_AON"]
+    for a, b, kind, ok, tf in D_["wakes"]:
+        q += I_off * (a - last) / 3.6e6
+        pts.append(((a - 86400000) / 3.6e6, q))
+        c = P["I_ACQ"] * (tf - a) + P["I_TRK"] * (b - tf) if tf is not None else P["I_ACQ"] * (b - a)
+        q += (c + (P["I_LNA"] + P["I_MCU"] + P["I_AON"]) * (b - a)) / 3.6e6
+        pts.append(((b - 86400000) / 3.6e6, q))
+        last = b
+    q += I_off * (2 * 86400000 - last) / 3.6e6
+    pts.append((24.0, q))
+    o.append(p.line(pts, c=GLD, lw=2))
+    o.append(T(p.X(23.8), p.Y(q) - 6, "%.1f mAh" % q, "end", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(4.5), p.Y(12), "屋内: 30 分ごとに 45 s 探して止める", "middle", 9, ALI, True, halo=True))
+    o.append(T(p.X(19.2), p.Y(24) - 22, "屋外: 60 s ごとに 4.25 s", "middle", 9, GRN, True, halo=True))
+    # (b) 内訳
+    cats = _f24_cats(D_["wakes"])
+    slp = D_["tot"] - sum(cats.values())
+    items = [("屋外で記録（ホット %d 回）" % sum(1 for x in D_["wakes"] if x[3] and x[2] == "hot"), cats["hot"], GRN),
+             ("エフェメリスを受け直す（ウォーム %d 回）" % sum(1 for x in D_["wakes"] if x[3] and x[2] == "warm"), cats["warm"], GLD),
+             ("屋内で探して止める（%d 回）" % sum(1 for x in D_["wakes"] if not x[3]), cats["fail"], ALI),
+             ("眠っている間（バックアップ 15 µA など）", slp, PUR),
+             ("電池の自己放電（1 か月に 2 %）", D_["sd"], MUT)]
+    tot = D_["tot"] + D_["sd"]
+    o.append(T(14, 218, "(b) 1 日の内訳 %.1f mAh/日 → 2000 mAh で %.1f 日" % (tot, D_["days"]), "start", 11, INK, True))
+    x = 24
+    for nm, v, c in items:
+        w = 640 * v / tot
+        o.append(RECT(x, 228, max(w, 1.0), 20, 1, soft(c), c, 1.0))
+        x += w
+    for i, (nm, v, c) in enumerate(items):
+        col, row = i % 2, i // 2
+        xx, yy = 24 + col * 330, 268 + row * 16
+        o.append(RECT(xx, yy - 9, 9, 9, 2, soft(c), c, 1))
+        o.append(T(xx + 14, yy, "%s %.2f mAh" % (nm, v), "start", 9, INK))
+    # (c) 設計を変えたときの電池の日数
+    o.append(T(14, 336, "(c) 設計や使い方を変えたときの電池の持ち時間（2000 mAh。仕様 30 日以上）", "start", 11, INK, True))
+    vs = [("例の 1 日（本文の設計）", D_["days"], GRN),
+          ("位置が出てすぐ記録（3 組待たない）", _f24_variant(UPN=1), GRN),
+          ("LNA を入れない", _f24_variant(I_LNA=0.0), GRN),
+          ("ずっと屋外", _f24_variant(out=[(0, 24 * _F24_H)]), GLD),
+          ("バックアップ電源なし（毎回 30 s 探す）", _f24_variant(T_EPH=0), ALI),
+          ("起きる間隔を延ばさない", _f24_variant(backoff=False), ALI),
+          ("連続（1 s ごとに記録）", P["Qb"] / (_F24_CONT + D_["sd"]), ALI)]
+    r = Plot(250, 350, 380, 7 * 20, (0, 60), (0, 1))
+    for v in (0, 15, 30, 45, 60):
+        o.append(W(r.X(v), r.y, r.X(v), r.y + r.h, c=GRD, lw=1))
+        o.append(T(r.X(v), r.y + r.h + 13, "%d 日" % v, "middle", 9, MUT))
+    o.append(W(r.X(30), r.y - 4, r.X(30), r.y + r.h, c=GLD, lw=1.5, dash="5 3"))
+    for i, (nm, v, c) in enumerate(vs):
+        y = r.y + i * 20
+        o.append(T(r.x - 8, y + 13, nm, "end", 9, INK))
+        o.append(RECT(r.X(0), y + 3, max(r.X(min(v, 60)) - r.X(0), 1.0), 13, 2, soft(c), c, 1.0))
+        o.append(T(r.X(min(v, 60)) + 5, y + 13, "%.1f 日" % v, "start", 9, c, True))
+    return SVG(700, 516, o, "電流は 2 節の表の例の値、1 日は 1 節の例（屋外 8 時間）。電池は表示の容量で計算した（取り出せる電荷は温度と電流で変わる）。")
+
+
+F["e24_day"] = _f24_day_fig()
+
+
+# =====================================================================
+# 5 節: 精度を上げる方法の選び方（18 章 6 節の図に、ロガーの条件を重ねる）
+# =====================================================================
+#  名前, 初期化の時間 [s] の範囲, 水平の 95 % [m] の範囲（18 章 6 節の代表値・公式の基準）, 使えない理由
+_F24_METH = [("単独（L1）", (1, 35), (3.6, 8.2), None),
+             ("SBAS", (40, 300), (1.5, 3.0), "初期化"),
+             ("SLAS", (40, 300), (0.6, 1.0), "初期化"),
+             ("DGNSS", (3, 30), (1.5, 3.0), "通信"),
+             ("RTK", (2, 60), (0.01, 0.04), "通信・多周波"),
+             ("CLAS", (20, 60), (0.04, 0.12), "L6"),
+             ("PPP", (600, 1800), (0.05, 0.3), "多周波・初期化")]
+_F24_IMU = 1.5                               # 融合のために IMU とマイコンを動かし続ける平均の電流 [mA]（例の値）
+
+
+def _f24_choose_fig():
+    o = []
+    o.append(T(14, 18, "(a) 18 章 6 節の方式に、ロガーの条件を重ねる", "start", 11, INK, True))
+    p = Plot(70, 40, 330, 230, (1, 3600), (0.01, 20), xlog=True, ylog=True)
+    o.append(RECT(p.X(5), p.y, p.x + p.w - p.X(5), p.h, 0, soft(ALI), "none", 0, op=0.6))
+    o.append(p.axes(xl="初期化の時間 [s]（対数）", yl="水平の 95 % の値 [m]（対数）", xt=[1, 10, 60, 600, 3600], yt=[0.01, 0.1, 1, 10],
+                    xfmt=lambda v: {1: "1 s", 10: "10 s", 60: "1 分", 600: "10 分", 3600: "1 時間"}[v],
+                    yfmt=lambda v: {0.01: "1 cm", 0.1: "10 cm", 1: "1 m", 10: "10 m"}[v]))
+    o.append(W(p.x, p.Y(10), p.x + p.w, p.Y(10), c=GLD, lw=1.5, dash="5 3"))
+    o.append(T(p.x + p.w - 3, p.Y(10) - 4, "仕様 R95 10 m", "end", 9, GLD, True, halo=True))
+    o.append(T(p.X(5) + 4, p.y + 12, "起きている 4 s より長い", "start", 9, ALI, True, halo=True))
+    pos = {"単独（L1）": ("start", 4, -4), "SBAS": ("start", 4, -4), "SLAS": ("start", 4, -4), "DGNSS": ("middle", 0, 12),
+           "RTK": ("start", 4, -4), "CLAS": ("start", 4, -4), "PPP": ("middle", 0, -5)}
+    for nm, (t0, t1), (a0, a1), why in _F24_METH:
+        c = GRN if why is None else MUT
+        o.append(RECT(p.X(t0), p.Y(a1), p.X(t1) - p.X(t0), p.Y(a0) - p.Y(a1), 3, soft(c), c, 1.6 if why is None else 1.0, None if why is None else "4 3"))
+        an, dx, dy = pos[nm]
+        xx = p.X(t1) + dx if an == "start" else (p.X(t0) + dx if an == "end" else math.sqrt(p.X(t0) * p.X(t1)) * 0 + (p.X(t0) + p.X(t1)) / 2)
+        yy = p.Y(a1) + dy if dy < 0 else p.Y(a0) + dy
+        o.append(T(xx, yy, nm + ("" if why is None else "（%s）" % why), an, 9, c if why is None else INK, True, halo=True))
+    _f24_lines(o, 14, 320, ["かっこの中: このロガーで使えない理由。", "初期化: 起きるたびの待ちが長い（連続なら使える）",
+                            "通信: 補正を受ける通信が無い", "多周波・L6: L1 の受信機（2 節）で受けられない"], 9, MUT, 13)
+    # (b) 精度と電池の日数
+    o.append(T(430, 18, "(b) 残った案の精度と電池の持ち時間", "start", 11, INK, True))
+    q = Plot(478, 40, 204, 200, (1, 100), (1, 12), xlog=True)
+    o.append(RECT(q.X(30), q.Y(10), q.x + q.w - q.X(30), q.Y(1) - q.Y(10), 0, soft(GRN), "none", 0))
+    o.append(q.axes(xl="電池の持ち時間 [日]（対数）", yl="R95 [m]（24 時間の中央値）", xt=[1, 3, 10, 30, 100], yt=[2, 4, 6, 8, 10, 12],
+                    xfmt=lambda v: "%d" % v))
+    o.append(W(q.X(30), q.y, q.X(30), q.y + q.h, c=GLD, lw=1.4, dash="5 3"))
+    o.append(W(q.x, q.Y(10), q.x + q.w, q.Y(10), c=GLD, lw=1.4, dash="5 3"))
+    o.append(T(q.X(55), q.Y(1.6), "仕様の内", "middle", 8.5, GRN, True, halo=True))
+    kG, k4 = _F24_ACC[0][0], _F24_ACC[3][0]
+    day = _F24_DAY
+    cont = _F24_P["Qb"] / (_F24_CONT + day["sd"])
+    imu = _F24_P["Qb"] / (day["tot"] + day["sd"] + _F24_IMU * 24)
+    pts = [("A", "単独・GPS だけ（60 s ごとに起きる）", day["days"], kG * _F24_UERE, MUT, (-9, 4)),
+           ("B", "単独・4 つの衛星系（60 s ごとに起きる）", day["days"], k4 * _F24_UERE, GRN, (8, 4)),
+           ("C", "連続 + SBAS（GPS）", cont, kG * _F24_UERE_SBAS, ALI, (-9, 4)),
+           ("D", "連続・4 つの衛星系", cont, k4 * _F24_UERE, ALI, (-9, 4)),
+           ("E", "B + 慣性センサとの融合", imu, k4 * _F24_UERE, ALI, (0, -8))]
+    for k, nm, dd, r95, c, (dx, dy) in pts:
+        o.append(D(q.X(dd), q.Y(r95), c, 4.4 if c == GRN else 4.0))
+        o.append(T(q.X(dd) + dx, q.Y(r95) + dy, k, "middle", 9.5, c if c != MUT else INK, True, halo=True))
+    for i, (k, nm, dd, r95, c, _) in enumerate(pts):
+        yy = 296 + i * 13
+        o.append(T(434, yy, "%s %s: %.1f m・%.1f 日" % (k, nm, r95, dd), "start", 8.5, c if c != MUT else INK, c == GRN))
+    return SVG(700, 372, o, "(a) の範囲は 18 章 6 節の代表値と公式の基準。(b) の R95 は 7 章 6 節（SBAS は 16 章 6 節）の誤差の予算と DOP から、電池の持ち時間は 4 節のモデルから（連続は 31 mA、融合は平均 1.5 mA を足した。電流は衛星系によらないとした。例の値）。")
+
+
+F["e24_choose"] = _f24_choose_fig()
+
+
+# =====================================================================
+# 5 節: 衛星系の数と、精度・通りで解ける割合・1 回の文の長さ
+# =====================================================================
+def _f24_sys_fig():
+    o = []
+    labs = ["GPS", "+GLONASS", "+Galileo", "+BeiDou"]
+    o.append(T(14, 18, "衛星系を 1 つずつ足したとき（東京。左から GPS、GPS + GLONASS、…、4 つ）", "start", 11, INK, True))
+    panels = [("(a) 開けた空の R95 [m]", [k * _F24_UERE for k, _ in _F24_ACC], (0, 10), 10.0, "仕様 10 m 以下", lambda v: v <= 10.0, "%.1f"),
+              ("(b) 通りで解ける時間 [%]", [100 * f for _, f in _F24_ACC], (0, 100), 90.0, "仕様 90 % 以上", lambda v: v >= 90.0, "%.0f"),
+              ("(c) 1 回の文 [B]（9600 bit/s）", [_f24_nbytes(n) for n in range(1, 5)], (0, 1100), 960.0, "1 秒に送れる 960 B", lambda v: v < 960, "%d")]
+    for k, (ttl, vals, yr, lim, limlab, ok, fm) in enumerate(panels):
+        x0 = 56 + k * 228
+        p = Plot(x0, 56, 170, 170, (0, 4), yr)
+        o.append(T(x0 - 40, 44, ttl, "start", 10, INK, True))
+        yt = [0, 2, 4, 6, 8, 10] if k == 0 else ([0, 25, 50, 75, 100] if k == 1 else [0, 250, 500, 750, 1000])
+        o.append(p.axes(xt=[], yt=yt, sz=9))
+        for i, v in enumerate(vals):
+            c = GRN if ok(v) else ALI
+            xx = p.X(i + 0.18); ww = p.X(i + 0.82) - xx
+            o.append(RECT(xx, p.Y(min(v, yr[1])), ww, p.Y(yr[0]) - p.Y(min(v, yr[1])), 2, soft(c), c, 1.2))
+            o.append(T(xx + ww / 2, p.Y(min(v, yr[1])) - 4, fm % v, "middle", 9, c, True, halo=True))
+            o.append(T(xx + ww / 2, p.y + p.h + 13, labs[i], "middle", 8, MUT, False))
+        if k == 2:
+            g2 = _f24_nbytes(1, ["GGA", "RMC"])
+            for i in range(4):
+                xx = p.X(i + 0.18); ww = p.X(i + 0.82) - xx
+                o.append(RECT(xx, p.Y(g2), ww, p.Y(0) - p.Y(g2), 2, soft(SIG), SIG, 1.2))
+            o.append(T(p.X(2), p.Y(g2) - 5, "GGA と RMC だけ: %d B（14.7 %%）" % g2, "middle", 8.5, SIG, True, halo=True))
+        o.append(W(p.x, p.Y(lim), p.x + p.w, p.Y(lim), c=GLD, lw=1.4, dash="5 3"))
+        if k == 0:
+            o.append(T(p.x + p.w, p.Y(lim) - 4, limlab, "end", 8.5, GLD, True, halo=True))
+        else:
+            o.append(T(p.x + 3, p.Y(lim) - 4, limlab, "start", 8.5, GLD, True, halo=True))
+    _f24_lines(o, 14, 262, ["(a) 24 時間・仰角マスク 10°・UERE 3.99 m（7 章 6 節）。(b) 22 章 1 節の通り（幅 18 m・高さ 24 m）で、直接届く衛星が未知数（位置 3 つと",
+                            "衛星系ごとの時計のずれ）より多い時間の割合。(c) 10 章 4 節の例の文（GGA・RMC・GSA・GSV・VTG・GLL）と、GGA・RMC だけ（青）"], 9, MUT, 13)
+    return SVG(700, 290, o, "衛星系の数で変わる精度と文の長さ（空は 1 章の近似の配置、文は 10 章 4 節と同じ作り方）。")
+
+
+F["e24_sys"] = _f24_sys_fig()
+
+
+# =====================================================================
+# 6 節: 充電の回路の雑音（10 章 2 節の例のモデル）と、21 章 3 節の LC フィルタ
+# =====================================================================
+def _f24_noise_fig():
+    o = []
+    o.append(T(14, 18, "(a) 電源の線の道（充電の回路 2 MHz・20 mVpp。10 章 2 節の例のモデル）", "start", 11, INK, True))
+    pe, pi = _f24_psrr(_F24_FSW, 60.0, 10e3), _f24_psrr(_F24_FSW, 40.0, 20e3)
+    af = _f24_af(_F24_FSW)
+    def sci(v):
+        if v >= 0.01:
+            return "%.2f" % v
+        e = int(math.floor(math.log10(v)))
+        return "%.1f×10^{−%d}" % (v / 10 ** e, -e)
+    for r, (filt, y) in enumerate(((False, 52), (True, 122))):
+        c = ALI if not filt else GRN
+        o.append(T(14, y - 10, "LC フィルタなし" if not filt else "21 章 3 節の LC フィルタ（2.2 µH・10 µF）を LDO の前に", "start", 9.5, c, True))
+        bx = [("充電の回路", "20 mVpp", ALI), ("LC フィルタ", "−%.1f dB" % af, GRN), ("LDO", "−%.1f dB" % pe, MUT), ("中の電源", "−%.1f dB" % pi, MUT)]
+        for k, (nm, sub, cc) in enumerate(bx):
+            x = 14 + k * 106
+            if k > 0:
+                o.append(ARR(x - 22, y + 18, x - 2, y + 18, c=MUT, lw=1.3, head=6))
+            if k == 1 and not filt:
+                o.append(W(x - 2, y + 18, x + 84, y + 18, c=MUT, lw=1.3))
+                o.append(T(x + 42, y + 13, "そのまま", "middle", 8.5, MUT))
+                continue
+            o.append(RECT(x, y, 84, 36, 5, soft(cc), cc, 1.2))
+            o.append(T(x + 42, y + 15, nm, "middle", 9, INK, True))
+            o.append(T(x + 42, y + 29, sub, "middle", 9, cc, True))
+        x = 14 + 4 * 106
+        o.append(ARR(x - 22, y + 18, x - 2, y + 18, c=MUT, lw=1.3, head=6))
+        vrf = _F24_VR * 10 ** (-(pe + pi + (af if filt else 0.0)) / 20)
+        q = vrf * vrf
+        o.append(TX(x, y + 14, "RF の段の揺れ %s mVpp" % sci(vrf), "start", 9, c, True))
+        o.append(TX(x, y + 30, "N_p/N_0 = %s → C/N_0 が %.2f dB 下がる" % (sci(q), 10 * math.log10(1 + q)), "start", 9, c, True))
+    # (b) C/N0 の比べ（20 章 6 節の方法: 充電を止めた・動かした）
+    o.append(TX(14, 210, "(b) 機能を入れ切りして C/N_0 を比べる（20 章 6 節。仰角 30° の衛星）", "start", 11, INK, True))
+    p = Plot(250, 222, 260, 3 * 26, (30, 50), (0, 1))
+    cn = _f24_cn0(30.0)
+    cases = [("USB をつながない", cn, GRN), ("USB で充電中（フィルタなし）", cn - _f24_drop(0.0), ALI), ("USB で充電中（フィルタあり）", cn - _f24_drop(af), GRN)]
+    for v in (30, 35, 41, 45, 50):
+        o.append(W(p.X(v), p.y - 2, p.X(v), p.y + p.h, c=GRD if v not in (35, 41) else (ALI if v == 35 else GLD), lw=1 if v not in (35, 41) else 1.4, dash=None if v not in (35, 41) else "4 3"))
+        o.append(T(p.X(v), p.y + p.h + 13, "%d" % v, "middle", 9, MUT))
+    o.append(T(p.X(41), p.y + p.h + 26, "仕様 41", "middle", 8.5, GLD, True))
+    o.append(T(p.X(35), p.y + p.h + 26, "捕捉 35", "middle", 8.5, ALI, True))
+    o.append(TX(p.X(50) + 6, p.y + p.h + 13, "[dB-Hz]", "start", 9, MUT))
+    for i, (nm, v, c) in enumerate(cases):
+        y = p.y + i * 26
+        o.append(T(p.x - 8, y + 15, nm, "end", 9.5, INK))
+        o.append(RECT(p.X(30), y + 4, p.X(v) - p.X(30), 15, 2, soft(c), c, 1.1))
+        o.append(T(p.X(v) + 5, y + 16, "%.1f" % v, "start", 9.5, c, True))
+    # (c) 空間と基板の道: 2 MHz の高調波
+    o.append(T(14, 352, "(c) 空間と基板の道（20 章 3 節）: 2 MHz の 788 倍が L1 の帯域の中", "start", 11, INK, True))
+    r = Plot(60, 366, 600, 32, (1572, 1579), (0, 1))
+    o.append(RECT(r.X(1575.42 - 1.023), r.y, r.X(1575.42 + 1.023) - r.X(1575.42 - 1.023), r.h, 0, soft(SIG), "none", 0))
+    o.append(T(r.X(1575.42), r.y + 12, "L1 C/A の帯域 ±1.023 MHz", "middle", 8.5, SIG, True, halo=True))
+    for n in range(786, 790):
+        f = 2.0 * n
+        inb = abs(f - 1575.42) <= 1.023
+        o.append(W(r.X(f), r.y + r.h, r.X(f), r.y + 2, c=ALI if inb else MUT, lw=2.2 if inb else 1.4))
+        o.append(T(r.X(f), r.y + r.h + 13, "%d 倍 %.0f MHz" % (n, f), "middle", 8.5, ALI if inb else MUT, inb))
+    o.append(T(14, r.y + r.h + 32, "必ずどれかの倍が帯域に入る（2 MHz は帯域の幅 2.046 MHz より狭い）。フィルタでは取れないので、置き場所で離し（3 節）、組んだ状態で比べる。", "start", 9, MUT))
+    return SVG(700, 440, o, "充電しながら記録するときの C/N0 の下がりの見積もり（10 章 2 節の例のモデルと 21 章 3 節の LC フィルタ。Q = 1）。")
+
+
+F["e24_noise"] = _f24_noise_fig()
+
+
+# =====================================================================
+# 6 節: ロガーの試験の計画（23 章 6 節の条件 × 1 節の仕様の表の行）
+# =====================================================================
+_F24_ROWS = ["1 開けた空の精度", "2 通りで位置が出る割合", "3 TTFF（ホット）", "4 受信の強さ（C/N_0）", "5 充電しながらの C/N_0",
+             "6 記録の時刻", "7 最短の記録の間隔", "8 記録できる量", "9 電池の持ち時間", "10 大きさ・防水"]
+
+
+def _f24_plan_fig():
+    o = []
+    o.append(T(14, 18, "ロガーの試験の計画（23 章 6 節の条件と方法を、1 節の仕様の表の各行に当てはめる）", "start", 11, INK, True))
+    cols = [("開けた空", GRN), ("都市", GLD), ("屋内・窓際", ALI), ("温度", PUR), ("机の上", SIG)]
+    cells = {(0, 0): ["基準点・静止", "24 時間（23 章 4 節）"],
+             (1, 1): ["歩いて記録し、", "RF の記録を再生"],
+             (2, 4): ["シミュレータ", "59 回（23 章 3 節）"], (2, 3): ["恒温槽で", "同じ試験"],
+             (3, 0): ["基準の受信機と", "並べる（23 章 2 節）"],
+             (4, 0): ["充電の入れ切りで", "比べる（20 章 6 節）"],
+             (5, 4): ["記録と時刻の欄を", "比べる（記録の再生）"], (5, 0): ["基準の受信機の", "組の時刻と比べる"],
+             (6, 4): ["HIL で 1 s ごとの", "文を流す（15 章 6 節）"],
+             (7, 4): ["フラッシュを", "満たす試験"],
+             (8, 4): ["状態ごとの電流の", "波形（組込みテスト）"], (8, 2): ["探して止める回", "の電流と回数"], (8, 3): ["低い温度での", "電池の容量"],
+             (9, 4): ["寸法・浸水の試験", "（筐体設計 12 章）"]}
+    x0, y0, lw, cw, rh = 14, 64, 150, 106, 30
+    for j, (nm, c) in enumerate(cols):
+        x = x0 + lw + j * cw
+        o.append(RECT(x + 2, y0 - 26, cw - 4, 22, 4, soft(c), c, 1.2))
+        o.append(T(x + cw / 2, y0 - 11, nm, "middle", 9.5, c, True))
+    for i, rn in enumerate(_F24_ROWS):
+        y = y0 + i * rh
+        if i % 2 == 0:
+            o.append(RECT(x0, y, lw + 5 * cw, rh, 0, soft(MUT), "none", 0, op=0.5))
+        o.append(TX(x0 + 4, y + 19, rn, "start", 9.5, INK, True))
+        for j in range(5):
+            if (i, j) in cells:
+                c = cols[j][1]
+                x = x0 + lw + j * cw
+                o.append(RECT(x + 3, y + 3, cw - 6, rh - 6, 3, PAN, c, 1.1))
+                l1, l2 = cells[(i, j)]
+                o.append(T(x + cw / 2, y + 13, l1, "middle", 8.5, INK))
+                o.append(T(x + cw / 2, y + 24, l2, "middle", 8.5, MUT))
+    yb = y0 + 10 * rh + 18
+    _f24_lines(o, 14, yb, ["合否は 23 章 6 節と同じく、分布の決めた % の点（R95・95 % の回）で決め、回数が少ないときは 23 章 3 節の上限で確かめる。",
+                           "机の上の試験は、ファームウェアを変えるたびに自動で流す。屋外・都市・温度の試験は、出荷の前にまとめて行う。"], 9, MUT, 14)
+    return SVG(700, yb + 24, o, "例のロガーの試験の計画（方法の名前は 23 章、組込みテストシリーズ 3 章、筐体設計シリーズ 12 章のもの）。")
+
+
+F["e24_plan"] = _f24_plan_fig()
