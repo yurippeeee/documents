@@ -79,7 +79,7 @@
       var a90=_w23_acq90(ca.get());o.push(S.L(R.X(a90),R.y,R.X(a90),R.y+R.h,"gold",1.1,"4 3"));
       if(AQ.last!==null){o.push(S.D(R.X(AQ.last),R.Y(1),"green",4.5));o.push(S.T(R.X(AQ.last)+6,R.Y(1)+16,"読んだ値 "+_w23_f(AQ.last,1),"start",9.5,"green",true,false,null,true));}
       var Hh=nar?by+190+52:286;
-      o.push(S.LEGL(nar?8:420,Hh,[["muted","5 3","モデル（4 機以上）"],["gold","4 3","モデルの 90 %"],["signal","2 2","95 % の信頼区間"]],9,8));
+      o.push(S.LEGL(nar?8:330,Hh,[["muted","5 3","モデル（4 機以上）"],["gold","4 3","モデルの 90 %"],["signal","2 2","95 % の信頼区間"]],9,8));
       box.set(S.svg(Wd,Hh+8,o));
       var t1=TR.last,a1=AQ.last,thrA=a90;
       var rows2=[["追尾感度",t1===null?"−":_w23_f(t1,1)+" dBm",_w23_f(thr,1)+" dBm",t1===null?"−":_w23_f(t1-thr,1)+" dB"],
@@ -223,11 +223,11 @@
       var ax=nar?44:56,aw=nar?344:630,hEnd=Math.max(24,Math.ceil((i0+L)/3600/6)*6);
       o.push(S.T(nar?6:10,16,"(a) 東・北の誤差（1 分ごと）と、選んだ記録","start",11,"ink",true));
       var P=U.plot(ax,26,aw,96,[0,hEnd],[-20,20]),xt=[];for(var h=0;h<=hEnd;h+=hEnd>24?12:(nar?6:3))xt.push(h);
-      o.push(P.axes({yl:"誤差 [m]",xt:xt,yt:[-20,-10,0,10,20],xfmt:function(){return "";},ylOff:34}));
+      o.push(P.axes({yl:"誤差 [m]",xt:xt,yt:[-10,0,10],xfmt:function(){return "";},ylOff:34}));
       var pe=[],pn=[];for(var k=0;k<hEnd*3600;k+=60){pe.push([k/3600,d[3*k]]);pn.push([k/3600,d[3*k+1]]);}
       o.push(P.clip(pe,"signal",0.9));o.push(P.clip(pn,"gold",0.9));
       var wx=P.X(i0/3600),ww=Math.max(3,P.X((i0+L)/3600)-wx);o.push(S.RECT(wx-1,P.y,ww+2,P.h,0,U.soft("purple"),"purple",1.2));
-      var Q=U.plot(ax,128,aw,28,[0,hEnd],[0.8,1.6]);o.push(Q.axes({xl:"時刻 [時間]（24 時より後は次の日）",yl:"HDOP",xt:xt,yt:[0.8,1.6],yfmt:function(v){return v.toFixed(1);},ylOff:34}));
+      var Q=U.plot(ax,132,aw,26,[0,hEnd],[0.8,1.6]);o.push(Q.axes({xl:"時刻 [時間]（24 時より後は次の日）",yl:"HDOP",xt:xt,yt:[0.8,1.6],yfmt:function(v){return v.toFixed(1);},ylOff:34}));
       var hp=[];for(var m=0;m<hEnd*60;m++)hp.push([m/60,geo.hdop[m%1440]]);o.push(Q.steps(hp,"teal",1.1));
       /* (b) 水平の散らばり */
       var by=212,lim=Math.max(10,Math.min(60,Math.ceil(Math.max(st.r95,st.d2)*1.25/5)*5)),sx=nar?52:62,sw=nar?220:230;
