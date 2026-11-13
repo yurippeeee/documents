@@ -558,7 +558,7 @@ def _f20_floor_fig():
         o.append(T(q.x + 4, q.Y(th) - 4, lab, "start", 9, MUT, False, halo=True))
     xs = _f20_np.linspace(-20, 30, 201)
     o.append(q.clip([(x, _F20_CN0 - _f20_drop(10 ** (x / 10))) for x in xs], c=ALI, lw=2.4))
-    pts = [(_f20_db(_F20_R1DB), "1 dB 下がる", -6, -8, "end"), (0.0, "3.0 dB 下がる", 6, 14, "start")]
+    pts = [(_f20_db(_F20_R1DB), "1 dB 下がる", 4, -9, "start"), (0.0, "3.0 dB 下がる", 6, 14, "start")]
     for x, lab, dx, dy, a in pts:
         y = _F20_CN0 - _f20_drop(10 ** (x / 10))
         o.append(D(q.X(x), q.Y(y), ALI, 3.8))
@@ -789,3 +789,343 @@ def _f20_cn0budget_fig():
 
 
 F["e20_cn0budget"] = _f20_cn0budget_fig()
+
+
+# =====================================================================
+# 5 節: 妨害の電波が届く距離（自由空間・0 dBi・帯域 2.046 MHz に平らな妨害）
+# =====================================================================
+_F20_LAM = 299792458.0 / (_F20_L1 * 1e6)
+
+
+def _f20_lfs(d):
+    return 20 * math.log10(4 * math.pi * d / _F20_LAM)
+
+
+def _f20_jam_fig():
+    o = []
+    o.append(TX(14, 18, "妨害の電波の EIRP と、受信機までの距離による等価な C/N_0", "start", 11.5, INK, True))
+    p = Plot(70, 36, 600, 220, (10, 1e5), (15, 50), xlog=True)
+    o.append(p.axes(xl="妨害の源からの距離 [m]", yl="等価な C/N_0 [dB-Hz]", xt=[10, 100, 1000, 1e4, 1e5], yt=[15, 20, 25, 30, 35, 40, 45, 50],
+                    xfmt=lambda v: {10: "10", 100: "100", 1000: "1 k", 1e4: "10 k", 1e5: "100 k"}.get(v, ""), yfmt=lambda v: "%d" % v))
+    for th, lab in ((_F20_ACQ, "捕捉の目安 35"), (_F20_TRK, "追尾の目安 25")):
+        o.append(W(p.x, p.Y(th), p.x + p.w, p.Y(th), c=MUT, lw=1, dash="4 3"))
+        o.append(T(p.x + 4, p.Y(th) - 4, lab, "start", 9, MUT, False, halo=True))
+    ds = _f20_np.logspace(1, 5, 241)
+    rows = [(0.0, ALI, None, "1 mW（0 dBm）"), (10.0, ALI, "6 3", "10 mW（10 dBm）"), (20.0, ALI, "2 3", "100 mW（20 dBm）")]
+    for eirp, c, dash, lab in rows:
+        o.append(p.clip([(d, _f20_cn0eq(eirp - _f20_lfs(d), _F20_BDB)) for d in ds], c=c, lw=2.2, dash=dash))
+        for th in (_F20_ACQ, _F20_TRK):
+            pj = _f20_pj_for(th, _F20_BDB)
+            d = _F20_LAM / (4 * math.pi) * 10 ** ((eirp - pj) / 20)
+            o.append(D(p.X(d), p.Y(th), c, 3.8))
+            o.append(T(p.X(d) + 4, p.Y(th) + 14, ("%.1f km" % (d / 1000)) if d >= 1000 else ("%d m" % round(d, -1)), "start", 9.5, c, True, halo=True))
+    o.append(LEGL(80, 300, [(c, dash, "EIRP " + lab) for e, c, dash, lab in rows], 9.5, 16))
+    return SVG(700, 312, o, "見通しのある自由空間で、妨害の源と受信機のアンテナの利得を 0 dBi、妨害は L1 の帯域 2.046 MHz に平らに広がるとした上限の目安（9 章 1 節の例の受信機）。地上では建物や地形で弱まるので、効く範囲はふつうこれより狭い。")
+
+
+F["e20_jam"] = _f20_jam_fig()
+
+
+# =====================================================================
+# 5 節: 近くの無線機の周波数と GNSS の帯域（範囲は例）
+# =====================================================================
+def _f20_radios_fig():
+    o = []
+    o.append(T(14, 18, "GNSS の帯域と、近くの無線機の周波数の例（範囲は例で、国・事業者・規格の版で違う）", "start", 11.5, INK, True))
+    gn = [("L5・E5a", 1166.22, 1186.68), ("L2", 1226.58, 1228.62), ("L6・E6", 1273.64, 1283.87), ("B1I", 1559.05, 1563.14), ("L1・E1", 1573.37, 1577.47), ("G1", 1597.55, 1605.89)]
+    rows = [(1150, 1680, 40, [("アマチュア無線 1200 MHz 帯", 1260, 1300, GLD, 0, "r"), ("1.5 GHz 帯の携帯電話（上り）", 1427.9, 1462.9, ALI, 1, "l"),
+                              ("（下り）", 1475.9, 1510.9, ALI, 2, "l"), ("衛星の電話の受信（例）", 1525, 1559, PUR, 0, "l"), ("イリジウム", 1616, 1626.5, PUR, 1, "r"),
+                              ("衛星の電話の送信（例）", 1626.5, 1660.5, PUR, 2, "l")]),
+            (1680, 2500, 196, [("1.7 GHz 帯（上り）", 1710, 1785, ALI, 0, "r"), ("（下り）", 1805, 1880, ALI, 1, "r"), ("2 GHz 帯（上り）", 1920, 1980, ALI, 0, "r"),
+                               ("（下り）", 2110, 2170, ALI, 1, "r"), ("2.4 GHz 帯（無線 LAN・Bluetooth）", 2400, 2483.5, TEA, 0, "l")])]
+    xa, xb = 40, 680
+    for k, (f0, f1, y, items) in enumerate(rows):
+        X = lambda f, f0=f0, f1=f1: xa + (f - f0) / (f1 - f0) * (xb - xa)
+        o.append(W(xa, y + 74, xb, y + 74, c=MUT, lw=1.2))
+        step = 50 if k == 0 else 100
+        v = int(math.ceil(f0 / step) * step)
+        while v <= f1:
+            o.append(W(X(v), y + 74, X(v), y + 78, c=MUT, lw=1))
+            o.append(T(X(v), y + 90, "%d" % v, "middle", 9, MUT))
+            v += step
+        if k == 0:
+            for nm, lo, hi in gn:
+                o.append(RECT(X(lo), y + 6, max(2.5, X(hi) - X(lo)), 68, 1, SSOFT, SIG, 1.2))
+            for nm, lo, hi in gn:
+                xm = (X(lo) + X(hi)) / 2
+                dx = {"B1I": -12, "L1・E1": 4, "G1": 16}.get(nm, 0)
+                o.append(T(xm + dx, y + 2, nm, "middle", 9, SIG, True, halo=True))
+        for nm, lo, hi, c, lev, side in items:
+            yy = y + 22 + lev * 17
+            o.append(RECT(X(lo), yy, max(2.5, X(hi) - X(lo)), 13, 2, soft(c), c, 1.1, op=0.85))
+            if side == "r":
+                o.append(T(X(hi) + 4, yy + 10, nm, "start", 9, c, True, halo=True))
+            else:
+                o.append(T(X(lo) - 4, yy + 10, nm, "end", 9, c, True, halo=True))
+        o.append(T(xb, y + 104, "周波数 f [MHz]", "end", 9.5, MUT))
+    # 組み合わせが L1 に落ちる例
+    X2 = lambda f: xa + (f - 1680) / (2500 - 1680) * (xb - xa)
+    X1 = lambda f: xa + (f - 1150) / (1680 - 1150) * (xb - xa)
+    for f in (1712.71, 1850.0):
+        o.append(W(X2(f), 196 + 74, X2(f), 196 + 4, c=ALI, lw=1.6))
+        o.append(D(X2(f), 196 + 4, ALI, 3.2))
+    o.append(CARR(X2(1781), 196 + 2, X1(1575.42) + 4, 40 + 76, 0.12, c=ALI, lw=1.4, head=7))
+    o.append(T(xa, 186, "2 × 1712.71 − 1850.00 = 1575.42 MHz（3 次の相互変調。9 章 4 節の例）", "start", 9.5, ALI, True, halo=True))
+    o.append(T(xb, 196 + 64, "2412.00 − 836.58 = 1575.42 MHz（2 次の例）", "end", 9.5, ALI, True, halo=True))
+    o.append(W(X2(2412), 196 + 74, X2(2412), 196 + 52, c=ALI, lw=1.4, dash="3 2"))
+    return SVG(700, 196 + 108, o, "青は GNSS の帯域（2 章 1 節の値）。携帯電話は 3GPP の帯域の例、アマチュア無線は日本の 1200 MHz 帯、衛星の電話は L バンドの移動衛星の例。2 次の例の 836.58 MHz は 800 MHz 帯の送信の例（図の外）。")
+
+
+F["e20_radios"] = _f20_radios_fig()
+
+
+# =====================================================================
+# 5 節: スプーフィング — 本物と偽の信号の違い
+# =====================================================================
+def _f20_spoof_fig():
+    o = []
+    o.append(T(14, 18, "(a) 本物の信号", "start", 11.5, INK, True))
+    o.append(T(250, 18, "(b) 1 つの送信機からの偽の信号", "start", 11.5, INK, True))
+    o.append(T(486, 18, "(c) 相関の山が 2 つになる", "start", 11.5, INK, True))
+    gy = 168
+    sats = [(40, 50), (95, 34), (165, 44), (210, 64)]
+    cn = [46, 43, 40, 37]
+    for k, x0 in enumerate((14, 250)):
+        o.append(W(x0, gy, x0 + 216, gy, c=MUT, lw=1.4))
+        rx = (x0 + 108, gy)
+        o.append(W(rx[0] - 7, gy, rx[0] + 7, gy, c=GRN, lw=2))
+        o.append(W(rx[0], gy, rx[0], gy - 9, c=GRN, lw=1.6))
+        o.append(D(rx[0], gy - 10, GRN, 3.4))
+        o.append(T(rx[0], gy + 14, "受信機", "middle", 9.5, GRN, True))
+        for i, (sx, sy) in enumerate(sats):
+            o.append(RECT(x0 + sx - 7, sy - 4, 14, 8, 1.5, SIG, SIG, 1))
+            o.append(W(x0 + sx - 13, sy, x0 + sx + 13, sy, c=SIG, lw=1.2))
+            if k == 0:
+                o.append(ARR(x0 + sx, sy + 6, rx[0], gy - 14, c=SIG, lw=1.3, head=6))
+        if k == 1:
+            tx = (x0 + 24, gy - 2)
+            o.append(RECT(tx[0] - 8, tx[1] - 16, 16, 16, 2, ASOFT, ALI, 1.4))
+            o.append(W(tx[0], tx[1] - 16, tx[0], tx[1] - 26, c=ALI, lw=1.6))
+            o.append(T(tx[0] - 6, gy + 14, "偽の送信機", "start", 9.5, ALI, True))
+            for dy in (-6, -2, 2, 6):
+                o.append(ARR(tx[0] + 10, tx[1] - 10 + dy * 0.3, rx[0] - 10, gy - 12 + dy, c=ALI, lw=1.2, head=6))
+            o.append(T(x0 + 120, 92, "全部が同じ向きから届く", "middle", 9.5, ALI, True, halo=True))
+        # C/N0 の棒
+        by = 196
+        o.append(TX(x0, by + 2, "C/N_0 [dB-Hz]", "start", 9.5, MUT))
+        vals = cn if k == 0 else [43.2, 43.0, 43.3, 42.9]
+        for i, v in enumerate(vals):
+            bx = x0 + 90 + i * 30
+            hgt = (v - 30) * 4
+            c = SIG if k == 0 else ALI
+            o.append(RECT(bx, by + 70 - hgt, 20, hgt, 2, soft(c), c, 1.1))
+            o.append(T(bx + 10, by + 70 - hgt - 4, "%d" % round(v), "middle", 9, c, True))
+        o.append(W(x0 + 84, by + 70, x0 + 214, by + 70, c=MUT, lw=1))
+        o.append(T(x0 + 150, by + 84, "仰角に応じてばらつく" if k == 0 else "そろった強さで届きやすい", "middle", 9.5, SIG if k == 0 else ALI, True))
+    # (c) 相関の山
+    p = Plot(510, 40, 170, 140, (-2, 3), (0, 1.6))
+    o.append(p.axes(xl="符号のずれ [チップ]", yl=None, xt=[-2, -1, 0, 1, 2, 3], yt=[0, 1], xfmt=lambda v: _f20_m(v, 0) if v else "0", yfmt=lambda v: "%d" % v))
+    xs = _f20_np.linspace(-2, 3, 201)
+    tri = lambda x, c0, a: a * max(0.0, 1 - abs(x - c0))
+    o.append(p.line([(x, tri(x, 0, 1.0)) for x in xs], c=SIG, lw=2))
+    o.append(p.line([(x, tri(x, 1.2, 1.4)) for x in xs], c=ALI, lw=2))
+    o.append(p.line([(x, tri(x, 0, 1.0) + tri(x, 1.2, 1.4)) for x in xs], c=INK, lw=1.2, dash="3 3"))
+    o.append(T(p.X(-0.1), p.Y(1.0) - 6, "本物", "end", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(1.3), p.Y(1.4) - 6, "偽", "start", 9.5, ALI, True, halo=True))
+    o.append(ARR(p.X(0.1), p.Y(0.35), p.X(1.0), p.Y(0.35), c=ALI, lw=1.4, head=6))
+    o.append(T(p.X(0.55), p.Y(0.35) + 14, "追尾が移る", "middle", 9, ALI, True, halo=True))
+    o.append(T(486, by + 30, "偽の山が本物の山に重なって", "start", 9.5, MUT))
+    o.append(T(486, by + 44, "から離れていくと、追尾が", "start", 9.5, MUT))
+    o.append(T(486, by + 58, "偽の山に移る（概念の図）", "start", 9.5, MUT))
+    return SVG(700, by + 92, o, "(a)(b) 空と受信機を横から見た図と、各衛星の C/N0（例の値）。(c) 縦軸は相関の大きさ（本物の山の高さを 1 とした）。")
+
+
+F["e20_spoof"] = _f20_spoof_fig()
+
+
+# =====================================================================
+# 6 節: 例の機器のモデル（w20.js の _W20_SATS・_W20_FUNCS と同じ。値は例の値）
+# =====================================================================
+# 衛星: (名前, PRN, 仰角 [°], 妨害が無いときの C/N0 [dB-Hz], ドップラー [Hz])
+_F20_HSATS = [("G05", 5, 72, 48.5, -420), ("G13", 13, 61, 47.8, 1210), ("G20", 20, 48, 46.5, -2380), ("G15", 15, 40, 45.2, 2950),
+              ("G24", 24, 33, 44.0, -3130), ("G18", 18, 25, 42.3, 3720), ("G29", 29, 17, 40.1, -1650), ("G02", 2, 11, 38.0, 4180)]
+# 機能: (名前, 種類, 値)。bb: 帯域に平らな妨害の N_J/N0 [dB]。cw: (L1 からの周波数の差 [Hz], 受信機の入力の電力 [dBm])
+_F20_HFUNCS = [("DC-DC", "cw", (580e3, -118.0)), ("カメラ", "bb", 2.0), ("USB", "bb", 6.0), ("ディスプレイ", "cw", (-420e3, -112.0))]
+
+
+def _f20_hunt(on):
+    """機能の入れ切り on（4 つの 0/1）→ (衛星ごとの C/N0 のリスト, AGC の利得の変化 [dB])。"""
+    out = []
+    for nm, prn, el, base, fd in _F20_HSATS:
+        r = 0.0
+        for (fn, kind, v), o_ in zip(_F20_HFUNCS, on):
+            if not o_:
+                continue
+            if kind == "bb":
+                r += 10 ** (v / 10)
+            else:
+                r += 10 ** ((v[1] - _F20_N0) / 10) * _f20_st(prn, [v[0] - fd], 1)[0]
+        out.append(base - _f20_drop(r))
+    p = 0.0
+    for (fn, kind, v), o_ in zip(_F20_HFUNCS, on):
+        if o_:
+            p += 10 ** ((_F20_N0 + v) / 10) * _F20_BW if kind == "bb" else 10 ** (v[1] / 10)
+    return out, -_f20_drop(p / 10 ** (_F20_NB / 10))
+
+
+def _f20_compare_fig():
+    o = []
+    o.append(TX(14, 18, "(a) 例の機器の C/N_0（8 機の平均。点は衛星ごとの値）", "start", 11.5, INK, True))
+    p = Plot(70, 40, 610, 190, (0, 11), (25, 50))
+    o.append(p.axes(yl="C/N_0 [dB-Hz]", xt=[], yt=[25, 30, 35, 40, 45, 50], yfmt=lambda v: "%d" % v))
+    groups = [("全部を動かして、1 つずつ止める", [1, 1, 1, 1], 0.5), ("全部を止めて、1 つずつ動かす", [0, 0, 0, 0], 6.0)]
+    names = ["DC-DC", "カメラ", "USB", "ディスプレイ"]
+    for gname, ref, x0 in groups:
+        cases = [("全部を動かす" if ref[0] else "全部を止める", ref)]
+        for i, nm in enumerate(names):
+            on = list(ref); on[i] = 1 - on[i]
+            cases.append(((nm + "を止める") if ref[0] else (nm + "だけ"), on))
+        base_avg = None
+        for j, (lab, on) in enumerate(cases):
+            cs, agc = _f20_hunt(on)
+            avg = sum(cs) / len(cs)
+            if base_avg is None:
+                base_avg = avg
+            xc = x0 + j * 0.95 + 0.4
+            c = MUT if j == 0 else (GRN if ref[0] else ALI)
+            o.append(RECT(p.X(xc - 0.33), p.Y(avg), p.X(xc + 0.33) - p.X(xc - 0.33), p.Y(25) - p.Y(avg), 2, soft(c), c, 1.2))
+            for v in cs:
+                o.append(D(p.X(xc), p.Y(v), INK, 1.8))
+            o.append(T(p.X(xc), p.Y(avg) - 5, "%.1f" % avg, "middle", 9.5, c if j else INK, True, halo=True))
+            if j:
+                o.append(T(p.X(xc), p.y + p.h + 30, ("%+.1f" % (avg - base_avg)).replace("-", "−"), "middle", 9.5, c, True))
+            o.append(T(p.X(xc), p.y + p.h + 13, lab if j == 0 else names[j - 1], "middle", 9, INK, j == 0))
+        o.append(T(p.X(x0 + 2.3), p.y + p.h + 48, gname, "middle", 10, GRN if ref[0] else ALI, True))
+    o.append(T(p.x - 6, p.y + p.h + 30, "差", "end", 9, MUT))
+    # (b) AGC と C/N0
+    y0 = 330
+    o.append(TX(14, y0, "(b) 妨害の電力と、AGC の利得・C/N_0 の下がる量", "start", 11.5, INK, True))
+    q = Plot(70, y0 + 20, 610, 170, (-145, -95), (0, 30))
+    o.append(q.axes(xl="受信機の入力の妨害の電力 P_J [dBm]", yl="下がる量 [dB]", xt=[-145, -135, -125, -115, -105, -95], yt=[0, 5, 10, 15, 20, 25, 30],
+                    xfmt=lambda v: _f20_m(v, 0), yfmt=lambda v: "%d" % v))
+    xs = _f20_np.linspace(-145, -95, 201)
+    s7b = _f20_db(_f20_st(1, [7000.0], 20)[0])
+    o.append(q.clip([(x, _f20_drop(10 ** ((x - _F20_NB) / 10))) for x in xs], c=TEA, lw=3))
+    o.append(q.clip([(x, _f20_drop(10 ** ((x - _F20_NB) / 10))) for x in xs], c=PUR, lw=1.8, dash="6 4"))
+    o.append(q.clip([(x, _F20_CN0 - _f20_cn0eq(x, s7b)) for x in xs], c=ALI, lw=2.2))
+    o.append(LEGL(80, y0 + 20 + 170 + 46, [(PUR, "6 4", "AGC の利得（どの形の妨害でも同じ）"), (TEA, None, "C/N_0（平らな雑音）")], 9.5, 14))
+    o.append(LEGL(80, y0 + 20 + 170 + 62, [(ALI, None, "C/N_0（連続波が PRN 1 の線に重なる、20 ms）")], 9.5, 14))
+    x1 = -130.0
+    v1 = _F20_CN0 - _f20_cn0eq(x1, s7b); a1 = _f20_drop(10 ** ((x1 - _F20_NB) / 10))
+    o.append(D(q.X(x1), q.Y(v1), ALI, 3.6)); o.append(D(q.X(x1), q.Y(a1), PUR, 3.6))
+    o.append(TX(q.X(x1) + 6, q.Y(v1) + 4, "C/N_0 は %.1f dB 下がる" % v1, "start", 9.5, ALI, True, halo=True))
+    o.append(T(q.X(x1) + 6, q.Y(a1) - 6, "AGC は %.2f dB しか動かない" % a1, "start", 9.5, PUR, True, halo=True))
+    return SVG(700, y0 + 20 + 170 + 72, o, "(a) 6 節の例の機器（例の値: DC-DC は L1 + 0.58 MHz に −118 dBm の連続波、カメラと USB は帯域に平らな妨害 +2 dB・+6 dB、ディスプレイは L1 − 0.42 MHz に −112 dBm の連続波）。(b) 9 章 1 節の例の受信機。")
+
+
+F["e20_compare"] = _f20_compare_fig()
+
+
+# =====================================================================
+# 6 節: スペクトラムアナライザの表示と、近傍界プローブで探す（例の機器・例の値）
+# =====================================================================
+# 近傍界プローブで見た源の強さ（基板の上で、源の真上の L1 の帯域の成分。相対値 [dB]）と位置 [mm]（w20.js と同じ）
+_F20_PROBE = [("DC-DC", 137, 78, -60.0, "cw", 0.58), ("カメラの線", 15, 85, -52.0, "bb", 0), ("USB", 149, 25, -40.0, "bb", 0),
+              ("ディスプレイの線", 90, 93, -46.0, "cw", -0.42), ("マイコン", 90, 50, -72.0, "bb", 0)]
+
+
+def _f20_probe_level(x, y, only=None):
+    t = 0.0
+    for i, (nm, px, py, lv, kind, df) in enumerate(_F20_PROBE):
+        if only is not None and i not in only:
+            continue
+        d2 = (x - px) ** 2 + (y - py) ** 2
+        t += 10 ** (lv / 10) / (1 + d2 / 64.0) ** 2
+    return 10 * math.log10(t + 1e-12)
+
+
+def _f20_db_sum(*v):
+    return 10 * math.log10(sum(10 ** (x / 10) for x in v))
+
+
+def _f20_measure_fig():
+    o = []
+    o.append(T(14, 18, "(a) L1 のまわりのスペクトラムアナライザの表示（例の機器、全部の機能を動かしたとき）", "start", 11.5, INK, True))
+    p = Plot(70, 36, 610, 180, (-5, 5), (-115, -78))
+    o.append(RECT(p.X(-_F20_HB), p.y, p.X(_F20_HB) - p.X(-_F20_HB), p.h, 0, SSOFT, "none", 0))
+    o.append(p.axes(xl="L1 からの周波数の差 [MHz]", yl="表示される電力 [dBm]", xt=[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5], yt=[-115, -110, -105, -100, -95, -90, -85, -80],
+                    xfmt=lambda v: _f20_m(v, 0) if v else "0", yfmt=lambda v: _f20_m(v, 0)))
+    bb = _f20_db(10 ** 0.6 + 10 ** 0.2 + 1)            # USB とカメラで上がった床（N0 に対して）
+    xs = _f20_np.linspace(-5, 5, 801)
+    def trace(gain, rbw, an=-160.0):
+        floor = _F20_N0 + bb + gain + 10 * math.log10(rbw)
+        anf = an + 10 * math.log10(rbw)
+        pts = []
+        for x in xs:
+            v = [floor, anf]
+            for df, pj in ((-0.42, -112.0), (0.58, -118.0)):
+                w = rbw / 1e6
+                v.append(pj + gain + 10 * math.log10(max(math.exp(-((x - df) / (0.6 * w)) ** 2), 1e-12)))
+            pts.append((x, _f20_db_sum(*v)))
+        return pts, floor, anf
+    t0, f0_, a0 = trace(0.0, 1e5)
+    t1, f1_, a1 = trace(28.0, 1e5)
+    t2, f2_, a2 = trace(28.0, 1e4)
+    o.append(p.clip(t0, c=MUT, lw=1.8))
+    o.append(p.clip(t1, c=SIG, lw=2))
+    o.append(p.clip(t2, c=GLD, lw=1.6, dash="5 3"))
+    o.append(W(p.x, p.Y(a0), p.x + p.w, p.Y(a0), c=FNT, lw=1, dash="2 3"))
+    o.append(T(p.X(4.95), p.Y(a0) + 13, "アナライザ自身の雑音 %s dBm（RBW 100 kHz）" % _f20_m(a0, 0), "end", 9, MUT, False, halo=True))
+    o.append(T(p.X(-4.9), p.Y(-108) - 2, "アンテナを直接つなぐ: ほとんど見えない", "start", 9.5, MUT, True, halo=True))
+    o.append(T(p.X(-4.9), p.Y(f1_) - 6, "LNA（28 dB）を通す: 床 %s dBm" % _f20_m(f1_), "start", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(-4.9), p.Y(f2_) + 14, "RBW を 10 kHz に: 床だけ 10 dB 下がる", "start", 9.5, GLD, True, halo=True))
+    o.append(T(p.X(-0.42) - 6, p.Y(-84) + 4, "ディスプレイ", "end", 9, ALI, True, halo=True))
+    o.append(T(p.X(0.58) + 6, p.Y(-90) - 2, "DC-DC", "start", 9, ALI, True, halo=True))
+    # (b) 近傍界プローブの地図
+    y0 = 270
+    o.append(T(14, y0, "(b) 近傍界プローブでなぞった強さ（濃いほど強い）", "start", 11.5, INK, True))
+    bx, by, sc = 24, y0 + 14, 2.2
+    o.append(RECT(bx, by, 160 * sc, 100 * sc, 4, GSOFT, GRN, 1.2))
+    cells = []
+    vals = []
+    for i in range(32):
+        for j in range(20):
+            x, y = i * 5 + 2.5, j * 5 + 2.5
+            vals.append((x, y, _f20_probe_level(x, y)))
+    vmin, vmax = -80.0, -42.0
+    for x, y, v in vals:
+        a = max(0.0, min(1.0, (v - vmin) / (vmax - vmin)))
+        if a > 0.02:
+            cells.append(RECT(bx + (x - 2.5) * sc, by + (y - 2.5) * sc, 5 * sc + 0.3, 5 * sc + 0.3, 0, ALI, "none", 0, op=round(0.85 * a, 3)))
+    o.append("".join(cells))
+    comps = [("アンテナ", 4, 4, 26, 24, SIG), ("GNSS モジュール", 38, 8, 26, 22, SIG), ("マイコン", 80, 40, 22, 20, MUT), ("DC-DC", 126, 66, 24, 24, MUT),
+             ("カメラ", 4, 74, 24, 22, MUT), ("ディスプレイ", 66, 86, 46, 12, MUT), ("USB", 140, 14, 18, 22, MUT)]
+    for nm, x, y, w, h, c in comps:
+        o.append(RECT(bx + x * sc, by + y * sc, w * sc, h * sc, 2, "none", c, 1.3))
+        o.append(T(bx + (x + w / 2) * sc, by + (y + h / 2) * sc + 4, nm, "middle", 9, c if c == SIG else INK, True, halo=True))
+    # プローブ
+    px_, py_ = bx + 149 * sc, by + 25 * sc
+    o.append(CIRC(px_ - 18, py_ + 30, 8, c=INK, lw=2))
+    o.append(W(px_ - 12, py_ + 36, px_ + 8, py_ + 62, c=INK, lw=3))
+    o.append(T(px_ - 30, py_ + 52, "プローブ", "end", 9, INK, True, halo=True))
+    # (c) 3 か所のスペクトラム
+    o.append(T(410, y0, "(c) プローブの位置ごとのスペクトラム", "start", 11.5, INK, True))
+    spots = [("USB の上", [2]), ("ディスプレイの線の上", [3]), ("DC-DC の上", [0])]
+    for k, (lab, idx) in enumerate(spots):
+        q = Plot(470, y0 + 22 + k * 68, 210, 42, (-5, 5), (-95, -35))
+        o.append(RECT(q.X(-_F20_HB), q.y, q.X(_F20_HB) - q.X(-_F20_HB), q.h, 0, SSOFT, "none", 0))
+        o.append(RECT(q.x, q.y, q.w, q.h, 0, "none", LIN, 0.8))
+        nm, x_, y_, lv, kind, df = _F20_PROBE[idx[0]]
+        base = -88.0
+        if kind == "bb":
+            o.append(q.line([(-5, lv), (5, lv)], c=ALI, lw=2))
+        else:
+            o.append(q.line([(-5, base), (5, base)], c=MUT, lw=1.2))
+            o.append(_f20_spike(q, df, lv, ALI, 2, base=base))
+        o.append(T(q.x - 6, q.y + 14, lab, "end", 9, INK, True))
+        o.append(T(q.x - 6, q.y + 28, "広い帯域" if kind == "bb" else "連続波", "end", 9, ALI, False))
+    o.append(T(575, y0 + 22 + 3 * 68 - 10, "横軸: L1 ±5 MHz、縦軸: 相対の電力", "middle", 9, MUT))
+    return SVG(700, by + 100 * sc + 14, o, "(a) RBW は分解能帯域幅。アナライザ自身の雑音は −160 dBm/Hz（代表値）とした。(b)(c) 源ごとの強さと、距離による弱まり方は例のモデル（プローブで見た値は場所の比べにだけ使う）。")
+
+
+F["e20_measure"] = _f20_measure_fig()
