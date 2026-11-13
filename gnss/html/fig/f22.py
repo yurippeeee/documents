@@ -1190,21 +1190,21 @@ def _f22_uses_fig():
     # ---- (c) 身に着ける機器 ----
     x0 = 8 + 2 * W_
     o.append(T(x0 + 4, 16, "(c) 身に着ける機器（北を向く）", "start", 11, INK, True))
-    px = x0 + 100
-    o.append(CIRC(px, 46, 13, c=INK, lw=1.4, fill=PAN))
-    o.append(PL([(px - 18, 62), (px + 18, 62), (px + 22, 140), (px - 22, 140)], c=INK, lw=1.4, fill=PAN))
-    o.append(W(px - 12, 140, px - 12, 182, c=INK, lw=6)); o.append(W(px + 12, 140, px + 12, 182, c=INK, lw=6))
-    o.append(W(px + 18, 70, px + 34, 102, px + 52, 96, c=INK, lw=5))
-    o.append(RECT(px + 46, 90, 10, 9, 2, GOSOFT, GLD, 1.2))
-    o.append(_f22_mark(px + 26, 82, "t"))
-    o.append(T(px + 34, 80, "胸", "start", 9.5, GLD, True, halo=True))
-    o.append(_f22_mark(px + 51, 112, "t"))
-    o.append(T(px + 60, 126, "腕時計", "start", 9.5, GLD, True, halo=True))
-    o.append(_f22_mark(px, 26, "o"))
-    o.append(T(px + 10, 22, "肩・帽子の上", "start", 9.5, GRN, True, halo=True))
-    o.append(RECT(px - 76, 60, 50, 80, 3, MSOFT, "none", 0, op=0.8))
-    o.append(T(px - 51, 96, "体の陰", "middle", 9.5, MUT, True))
-    o.append(T(px - 51, 110, "（南）", "middle", 9.5, MUT))
+    px, py = x0 + 100, 16
+    o.append(CIRC(px, 46 + py, 13, c=INK, lw=1.4, fill=PAN))
+    o.append(PL([(px - 18, 62 + py), (px + 18, 62 + py), (px + 22, 140 + py), (px - 22, 140 + py)], c=INK, lw=1.4, fill=PAN))
+    o.append(W(px - 12, 140 + py, px - 12, 182 + py, c=INK, lw=6)); o.append(W(px + 12, 140 + py, px + 12, 182 + py, c=INK, lw=6))
+    o.append(W(px + 18, 70 + py, px + 34, 102 + py, px + 52, 96 + py, c=INK, lw=5))
+    o.append(RECT(px + 46, 90 + py, 10, 9, 2, GOSOFT, GLD, 1.2))
+    o.append(_f22_mark(px + 26, 82 + py, "t"))
+    o.append(T(px + 34, 80 + py, "胸", "start", 9.5, GLD, True, halo=True))
+    o.append(_f22_mark(px + 51, 112 + py, "t"))
+    o.append(T(px + 60, 126 + py, "腕時計", "start", 9.5, GLD, True, halo=True))
+    o.append(_f22_mark(px, 26 + py, "o"))
+    o.append(T(px + 10, 22 + py, "肩・帽子の上", "start", 9.5, GRN, True, halo=True))
+    o.append(RECT(px - 76, 60 + py, 50, 80, 3, MSOFT, "none", 0, op=0.8))
+    o.append(T(px - 51, 96 + py, "体の陰", "middle", 9.5, MUT, True))
+    o.append(T(px - 51, 110 + py, "（南）", "middle", 9.5, MUT))
     # ---- 下の段: 空 ----
     skies = [("ダッシュボード", lambda a_: _f22_car(a_), None), ("", None, (25.0, 90.0)), ("胸の機器", lambda a_: _f22_body(a_), None)]
     for k, (nm, mf, tl) in enumerate(skies):
