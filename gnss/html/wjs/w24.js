@@ -151,7 +151,7 @@ REG.w24_budget=function(el,U){
     /* (c) 仰角と C/N0 */
     var cy0=nar?cy+R+34:by,P=nar?U.plot(52,cy0+16,330,150,[0,90],[20,56]):U.plot(320,by+22,350,170,[0,90],[20,56]);
     o.push(S.TX(nar?10:270,cy0,"(c) 仰角と C/N_0","start",nar?10:11,"ink",true));
-    o.push(P.axes({xl:"仰角 [°]",yl:"C/N_0 [dB-Hz]",xt:[0,30,60,90],yt:[20,25,30,35,40,45,50,55],sz:9,ylOff:34}));
+    o.push(P.axes({xl:"仰角 θ [°]",yl:"C/N_0 [dB-Hz]",xt:[0,30,60,90],yt:[20,25,30,35,40,45,50,55],sz:9,ylOff:34}));
     [[_W24_ACQ,"alias","捕捉の目安 35"],[_W24_TRK,"purple","追尾の目安 25"]].forEach(function(q){o.push(S.L(P.x,P.Y(q[0]),P.x+P.w,P.Y(q[0]),q[1],1,"3 3"));
       o.push(S.T(P.x+P.w-3,P.Y(q[0])-4,q[2],"end",8.5,q[1],false,false,null,true));});
     var base=[],cur=[];for(var e=2;e<=90;e+=2){base.push([e,_w24_cn0(e,_W24_BASE,U)]);cur.push([e,_w24_cn0(e,c,U)]);}
@@ -275,7 +275,7 @@ REG.w24_check=function(el,U){
   var br=U.btnrow(el);
   function set(o){an.set(o.an||"patch");ln.set(o.ln||"1");cs.set(o.cs||"2");lc.set(o.lc||"1");bk.set(o.bk||"1");sy.set(o.sy||"4");se.set(o.se||"0");
     bd.set(o.bd||"9600");ts.set(o.ts||"0");bo.set(o.bo||"1");bt.set(o.bt||"2000");fl.set(o.fl||"8");draw();}
-  U.button(br,"本文の設計（6 節で仕上げた後）",function(){set({});});
+  U.button(br,"本文の例（6 節で仕上げた設計）",function(){set({});});
   U.button(br,"LC フィルタを入れる前",function(){set({lc:"0"});});
   U.button(br,"例の 6 種類の文のまま",function(){set({se:"1"});});
   U.button(br,"GPS だけ・LNA なし",function(){set({sy:"1",ln:"0"});});
