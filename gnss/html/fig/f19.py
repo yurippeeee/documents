@@ -998,7 +998,7 @@ def _f19_saw_fig():
     o.append(T(q.X(26), q.Y(0.17), "推定 ±2σ", "start", 9, GLD, True, halo=True))
     i = _f19_at(rb, 89.0)
     o.append(T(q.X(88), q.Y(-0.07), "89 s で σ = %s m/s²" % _f19_m(rb["sb"][i], 4), "end", 9, GLD, True, halo=True))
-    return SVG(700, 300, o, "4 節の例の値（IMU は 100 Hz、GNSS は 1 Hz で東・北それぞれ 2 m）。(a) の「GNSS だけ」は IMU を使わず、加速度を標準偏差 3 m/s² と見込んだフィルタ。(b) は 1 回の走行の推定。")
+    return SVG(700, 300, o, "4 節の例の値（IMU は 100 Hz、GNSS は 1 Hz で誤差 2 m）。(a) の「GNSS だけ」は IMU を使わず、加速度を標準偏差 3 m/s² と見込んだフィルタ。(b) は 1 回の走行の推定。")
 
 
 F["e19_saw"] = _f19_saw_fig()

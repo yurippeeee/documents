@@ -64,9 +64,9 @@
   /* 街の道（例）: 15 m/s で東へ、左へ 90° 曲がって北へ、減速して右へ 90° 曲がり、加速する */
   function _w19_city(t){if(t>=20&&t<26)return [0,-15*_W19_D];if(t>=34&&t<38)return [-2.5,0];if(t>=40&&t<46)return [0,15*_W19_D];if(t>=46&&t<51)return [2,0];return [0,0];}
   function _w19_dr(U,o){var r=U.rng(o.seed*7+4),T=_W19_TS,N=Math.round(o.Tend/T),G=_W19_G,D=_W19_D;
-    var s=o.v0,ps=90*D,e=0,n=0,s2=o.v0,ps2=90*D,e2=0,n2=0,th2=0,R={t:[],e:[],n:[],e2:[],n2:[],al:[],cr:[]};
+    var s=o.v0,ps=90*D,e=0,n=0,s2=o.v0,ps2=90*D,e2=0,n2=0,th2=0,R={t:[],e:[],n:[],e2:[],n2:[],al:[],cr:[],ps:[]};
     for(var k=0;k<=N;k++){var t=k*T;
-      if(k%10===0){var de=e2-e,dn=n2-n;R.t.push(t);R.e.push(e);R.n.push(n);R.e2.push(e2);R.n2.push(n2);R.al.push(de*Math.sin(ps)+dn*Math.cos(ps));R.cr.push(de*Math.cos(ps)-dn*Math.sin(ps));}
+      if(k%10===0){var de=e2-e,dn=n2-n;R.t.push(t);R.e.push(e);R.n.push(n);R.e2.push(e2);R.n2.push(n2);R.al.push(de*Math.sin(ps)+dn*Math.cos(ps));R.cr.push(de*Math.cos(ps)-dn*Math.sin(ps));R.ps.push(ps);}
       var aw=o.route(t),a=aw[0],w=aw[1],z0=r.normal(),z1=r.normal(),z2=r.normal();
       var am=a+o.ba+_W19_SA*o.noise*z0,wm=w+(o.bg+_W19_SGD*o.noise*z1)*D,qm=o.bp?(o.bp+_W19_SGD*o.noise*z2)*D:0;
       th2+=qm*T;var af=am*Math.cos(th2)+G*Math.sin(th2);
@@ -81,7 +81,7 @@
     var sV=U.slider(r1,"速さ（まっすぐの道）",{min:5,max:30,step:1,value:20,fmt:function(v){return v+" m/s";},onInput:function(){run();}});
     var sN=U.slider(r1,"雑音（例の値の何倍か）",{min:0,max:5,step:0.5,value:1,fmt:function(v){return "× "+_w19_f(v,1);},onInput:function(){run();}});
     var r2=U.ctrls(el);
-    var sBa=U.slider(r2,"加速度センサのバイアス b_a",{min:0,max:0.2,step:0.01,value:0.05,fmt:function(v){return _w19_f(v,2)+" m/s²";},onInput:function(){run();}});
+    var sBa=U.slider(r2,U.htx("加速度センサのバイアス b_a"),{min:0,max:0.2,step:0.01,value:0.05,fmt:function(v){return _w19_f(v,2)+" m/s²";},onInput:function(){run();}});
     var sBg=U.slider(r2,"ジャイロのバイアス（向き）",{min:0,max:0.2,step:0.01,value:0.05,fmt:function(v){return _w19_f(v,2)+" °/s";},onInput:function(){run();}});
     var sBp=U.slider(r2,"ジャイロのバイアス（傾き。3 次元）",{min:0,max:0.2,step:0.01,value:0,fmt:function(v){return _w19_f(v,2)+" °/s";},onInput:function(){run();}});
     var br=U.btnrow(el),seed=1,R=null,G=null,cur=60,Tend=60;
@@ -96,36 +96,45 @@
       draw();}
     function draw(){
       var nar=_w19_nar(box),Wd=nar?400:700,o=[],ic=Math.round(cur*10),city=sRt.get()===1;
-      /* (a) 平面の図 */
+      /* (a) 上から見た道の全体 */
       var e0=Infinity,e1=-Infinity,n0=Infinity,n1=-Infinity,i;
       for(i=0;i<R.t.length;i++){e0=Math.min(e0,R.e[i],R.e2[i]);e1=Math.max(e1,R.e[i],R.e2[i]);n0=Math.min(n0,R.n[i],R.n2[i]);n1=Math.max(n1,R.n[i],R.n2[i]);}
-      var pw=nar?360:330,ph=nar?250:300,spanE=Math.max(e1-e0,50),spanN=Math.max(n1-n0,50),sc=Math.min(pw/spanE,ph/spanN)*0.92;
-      var ce=(e0+e1)/2,cn=(n0+n1)/2,ox=nar?20:14,oy=36,P={X:function(v){return ox+pw/2+(v-ce)*sc;},Y:function(v){return oy+ph/2-(v-cn)*sc;}};
+      var pw=nar?360:390,ph=nar?190:210,spanE=Math.max(e1-e0,50),spanN=Math.max(n1-n0,50),sc=Math.min(pw/spanE,ph/spanN)*0.9;
+      var ce=(e0+e1)/2,cn=(n0+n1)/2,ox=nar?20:14,oy=34,P={X:function(v){return ox+pw/2+(v-ce)*sc;},Y:function(v){return oy+ph/2-(v-cn)*sc;}};
       o.push(S.T(nar?10:14,18,"(a) 上から見た道（"+(city?"街の道":"まっすぐ東へ "+sV.get()+" m/s")+"）","start",nar?10:10.5,"ink",true));
       o.push(S.RECT(ox,oy,pw,ph,2,"var(--screen)","line",1));
-      /* 100 m の目盛 */
       var L=Math.pow(10,Math.floor(Math.log10(Math.max(spanE,spanN)/3)));o.push(S.L(ox+10,oy+ph-12,ox+10+L*sc,oy+ph-12,"ink",2));o.push(S.T(ox+10+L*sc/2,oy+ph-17,L+" m","middle",9,"ink",false,false,null,true));
-      var tr=[],dr=[];for(i=0;i<=ic&&i<R.t.length;i+=5){tr.push([P.X(R.e[i]),P.Y(R.n[i])]);dr.push([P.X(R.e2[i]),P.Y(R.n2[i])]);}
-      var full=[];for(i=0;i<R.t.length;i+=10)full.push([P.X(R.e[i]),P.Y(R.n[i])]);
+      var tr=[],dr=[],full=[];for(i=0;i<=ic&&i<R.t.length;i+=5){tr.push([P.X(R.e[i]),P.Y(R.n[i])]);dr.push([P.X(R.e2[i]),P.Y(R.n2[i])]);}
+      for(i=0;i<R.t.length;i+=10)full.push([P.X(R.e[i]),P.Y(R.n[i])]);
       o.push(S.PL(full,"faint",5,null,null));
-      G.forEach(function(gq){if(gq[0]>cur)return;var k=Math.round(gq[0]*10);o.push(S.D(P.X(R.e[k]+gq[1]),P.Y(R.n[k]+gq[2]),"purple",1.8));});
       if(tr.length>1){o.push(S.PL(tr,"green",2.2));o.push(S.PL(dr,"alias",2));}
       var kc=Math.min(ic,R.t.length-1);
       o.push(S.D(P.X(R.e[kc]),P.Y(R.n[kc]),"green",5));o.push(S.D(P.X(R.e2[kc]),P.Y(R.n2[kc]),"alias",5));
       o.push(S.LEGL(ox+8,oy+16,[["green",null,"本当の道"],["alias",null,"慣性航法だけ"]],9,12));
-      o.push(S.D(ox+12,oy+30,"purple",2.4));o.push(S.T(ox+20,oy+33,"GNSS の点（参考。1 s ごと）","start",9,"purple"));
-      /* (b) 誤差の育ち方（両対数） */
-      var qx=nar?60:430,qy=nar?oy+ph+64:40,qw=nar?320:250,qh=nar?200:280;
+      /* (b) 車のまわり（中心が本当の位置、右が進む向き） */
+      var al=R.al[kc],crs=R.cr[kc],need=Math.max(Math.abs(al),Math.abs(crs),6)*1.15,half=[10,20,50,100,200,500,1000,3000].find(function(v){return v>=need;})||3000;
+      var zx=nar?80:470,zy=nar?oy+ph+50:34,zw=nar?250:200,Z=U.plot(zx,zy,zw,zw,[-half,half],[-half,half]);
+      o.push(S.T(nar?10:zx-20,zy-14+(nar?0:-2),"(b) 車のまわり（中心が本当の位置）","start",nar?10:10.5,"ink",true));
+      o.push(S.RECT(Z.x,Z.y,Z.w,Z.h,2,"var(--screen)","line",1));
+      o.push(Z.axes({xt:[-half,0,half],yt:[-half,0,half],sz:9,xl:"進む向き [m]",yl:"左 [m]",ylOff:36}));
+      o.push(S.L(Z.X(0)-6,Z.Y(0),Z.X(0)+6,Z.Y(0),"green",2));o.push(S.L(Z.X(0),Z.Y(0)-6,Z.X(0),Z.Y(0)+6,"green",2));
+      G.forEach(function(gq){if(gq[0]>cur||gq[0]<=cur-5)return;var k=Math.round(gq[0]*10),ps=R.ps[k],ga=gq[1]*Math.sin(ps)+gq[2]*Math.cos(ps),gc=gq[1]*Math.cos(ps)-gq[2]*Math.sin(ps);
+        if(Math.abs(ga)<half&&Math.abs(gc)<half)o.push(S.D(Z.X(ga),Z.Y(-gc),"purple",2.6));});
+      o.push(S.ARR(Z.X(0),Z.Y(0),Z.X(Math.max(-half,Math.min(half,al))),Z.Y(Math.max(-half,Math.min(half,-crs))),"alias",1.6,7));
+      o.push(S.D(Z.X(Math.max(-half,Math.min(half,al))),Z.Y(Math.max(-half,Math.min(half,-crs))),"alias",4.5));
+      o.push(S.D(Z.x+8,Z.y+10,"purple",2.6));o.push(S.T(Z.x+14,Z.y+13,"GNSS（直前の 5 s）","start",9,"purple",false,false,null,true));
+      /* (c) 誤差の育ち方（両対数） */
+      var qx=nar?60:70,qy=nar?zy+zw+70:Math.max(oy+ph,zy+zw)+64,qw=nar?320:610,qh=nar?190:170;
       var Q=U.plot(qx,qy,qw,qh,[1,60],[0.01,1000],{xlog:true,ylog:true});
-      o.push(S.T(nar?10:qx-50,qy-14,"(b) 位置の誤差の大きさ（両対数）","start",nar?10:10.5,"ink",true));
+      o.push(S.T(nar?10:14,qy-12,"(c) 位置の誤差の大きさ（両対数）","start",nar?10:10.5,"ink",true));
       o.push(Q.axes({xt:[1,2,5,10,20,60],yt:[0.01,0.1,1,10,100,1000],xl:"時間 t [s]",yl:"誤差 [m]",sz:9,xfmt:function(v){return String(v);},yfmt:function(v){return String(v);},ylOff:36}));
       var ba=sBa.get(),bg=sBg.get()*_W19_D,bpv=sBp.get()*_W19_D,sp=city?15:sV.get(),fa=[],fh=[],k2;
       for(k2=0;k2<=60;k2++){var tt=Math.pow(10,k2/60*Math.log10(60));fa.push([tt,ba*tt*tt/2+_W19_G*bpv*tt*tt*tt/6]);fh.push([tt,sp*bg*tt*tt/2]);}
       o.push(Q.clip(fa,"alias",1.3,"5 3"));o.push(Q.clip(fh,"purple",1.3,"5 3"));
-      var al=[],cr=[];for(i=10;i<=ic&&i<R.t.length;i+=2){al.push([R.t[i],Math.max(Math.abs(R.al[i]),1e-3)]);cr.push([R.t[i],Math.max(Math.abs(R.cr[i]),1e-3)]);}
-      if(al.length>1){o.push(Q.clip(al,"alias",2));o.push(Q.clip(cr,"purple",2));}
-      o.push(S.LEGL(nar?10:qx-50,qy+qh+46,[["alias",null,"進む向き"],["purple",null,"横"],["muted","5 3","まっすぐの道の式"]],9,10));
-      box.set(S.svg(Wd,nar?qy+qh+60:Math.max(oy+ph+16,qy+qh+60),o));
+      var aa=[],cc=[];for(i=10;i<=ic&&i<R.t.length;i+=2){aa.push([R.t[i],Math.max(Math.abs(R.al[i]),1e-3)]);cc.push([R.t[i],Math.max(Math.abs(R.cr[i]),1e-3)]);}
+      if(aa.length>1){o.push(Q.clip(aa,"alias",2));o.push(Q.clip(cc,"purple",2));}
+      o.push(S.LEGL(Q.x+8,Q.y+14,[["alias",null,"進む向き"],["purple",null,"横"],["muted","5 3","まっすぐの道の式（3 節）"]],9,10));
+      box.set(S.svg(Wd,qy+qh+44,o));
       /* 読み出し */
       function at(tt){var j=Math.round(tt*10);return [R.al[j],R.cr[j]];}
       var h="時刻 <b>t = "+_w19_f(cur,0)+" s</b>: 進む向きの誤差 <b>"+_w19_f(R.al[kc],1)+" m</b>・横の誤差 <b>"+_w19_f(R.cr[kc],1)+" m</b><br>";
@@ -192,7 +201,7 @@
       var road=[],tu=[];for(i=0;i<truthE.length;i+=10){var tt=i/10;road.push([MX(truthE[i]),MY(truthN[i])]);if(tt>=tun[0]&&tt<=tun[1])tu.push([MX(truthE[i]),MY(truthN[i])]);}
       o.push(S.PL(road,"green",1.6));if(tu.length>1)o.push(S.PL(tu,"muted",7));
       o.push(S.D(MX(truthE[it]),MY(truthN[it]),"green",5));
-      var Lm=Math.pow(10,Math.floor(Math.log10(Math.max(e1-e0,n1-n0)/3)));o.push(S.L(ox+10,oy+ph-12,ox+10+Lm*sc,oy+ph-12,"ink",2));o.push(S.T(ox+10+Lm*sc/2,oy+ph-17,Lm+" m","middle",9,"ink",false,false,null,true));
+      var Lm=Math.pow(10,Math.floor(Math.log10(Math.max(e1-e0,n1-n0)/3)));o.push(S.L(ox+pw-10-Lm*sc,oy+ph-12,ox+pw-10,oy+ph-12,"ink",2));o.push(S.T(ox+pw-10-Lm*sc/2,oy+ph-17,Lm+" m","middle",9,"ink",false,false,null,true));
       /* (b) 車のまわりの拡大（本当の位置が中心） */
       var se=E.sp[ie],sn=Nn.sp[inn],ee=E.err[ie],en=Nn.err[inn],need=Math.max(3*Math.max(se,sn),Math.abs(ee),Math.abs(en),3),half=[10,30,100,300,1000].find(function(v){return v>=need;})||1000;
       var zx=nar?70:470,zy=nar?oy+ph+48:34,zw=nar?260:200;
@@ -208,12 +217,12 @@
       o.push(S.PL(_w19_ellpts(el2[0],el2[1],el2[2],ee,en,1).map(function(p){return [Z.X(Math.max(-half,Math.min(half,p[0]))),Z.Y(Math.max(-half,Math.min(half,p[1])))];}),"gold",1.8));
       if(Math.abs(ee)<half&&Math.abs(en)<half)o.push(S.D(Z.X(ee),Z.Y(en),"gold",4.5));
       /* (c)(d) 東と北の誤差の時間の変化 */
-      var ty=nar?Z.y+Z.h+70:262,tw=nar?320:610,th=nar?80:84,tx=nar?60:70;
+      var ty=nar?Z.y+Z.h+70:296,tw=nar?320:610,th=nar?80:84,tx=nar?60:70;
       var lim=Math.max(4,Math.min(400,Math.ceil(Math.max.apply(null,E.sp.concat(Nn.sp).map(function(v){return 2.2*v;}))/2)*2));
       [[E,"(c) 東の誤差","gold"],[Nn,"(d) 北の誤差","teal"]].forEach(function(q,j){var R=q[0],P=U.plot(tx,ty+j*(th+40),tw,th,[0,Tend],[-lim,lim]);
         o.push(S.T(nar?10:14,P.y-8,q[1]+"（帯は ±2σ）","start",nar?9.5:10,"ink",true));
         o.push(S.RECT(P.X(tun[0]),P.y,P.X(tun[1])-P.X(tun[0]),P.h,0,"var(--muted-soft)","none",0));
-        o.push(P.axes({xt:U.nice(0,Tend,6),yt:[-lim,0,lim],sz:9,xl:j?"時間 t [s]":null,xfmt:j?null:function(){return "";},yl:"[m]",ylOff:34}));
+        o.push(P.axes({xt:U.nice(0,Tend,6),yt:[-lim,0,lim],sz:9,xl:j?"時間 t [s]":null,xfmt:j?null:function(){return "";},yl:"誤差 [m]",ylOff:36}));
         var st=R.t.length>2000?3:1,xs=[],lo=[],hi=[],pts=[];for(var i2=0;i2<R.t.length;i2+=st){xs.push(R.t[i2]);hi.push(2*R.sp[i2]);lo.push(-2*R.sp[i2]);pts.push([R.t[i2],R.err[i2]]);}
         o.push(_w19_band(U,P,xs,lo,hi,q[2]));o.push(P.clip(pts,q[2],1.5));
         o.push(S.L(P.X(cur),P.y,P.X(cur),P.y+P.h,"ink",1,"3 3"));});
@@ -232,7 +241,7 @@
     var S=U.S;
     U.head(el,"BIAS STATE","バイアスを状態に入れる・入れない — 同じ値で比べる");
     var r1=U.ctrls(el);
-    var sB=U.slider(r1,"本当のバイアス b_a",{min:0,max:0.2,step:0.01,value:0.05,fmt:function(v){return _w19_f(v,2)+" m/s²";},onInput:function(){run();}});
+    var sB=U.slider(r1,U.htx("本当のバイアス b_a"),{min:0,max:0.2,step:0.01,value:0.05,fmt:function(v){return _w19_f(v,2)+" m/s²";},onInput:function(){run();}});
     var sTl=U.slider(r1,"トンネルの長さ",{values:[0,10,30,60],value:30,fmt:function(v){return v+" s";},onInput:function(){run();}});
     var sW=U.slider(r1,"入れないフィルタが見込む加速度の雑音",{values:[1,3,10,30,100],value:1,fmt:function(v){return "例の値の "+v+" 倍";},onInput:function(){run();}});
     var br=U.btnrow(el),seed=1,A=null,B=null,tun=[90,120],Tend=180;
@@ -258,7 +267,7 @@
       var y3=30+2*(th+44),bmax=Math.max(0.1,Math.ceil((sB.get()+0.05)*20)/20),P3=U.plot(tx,y3,tw,th,[0,Tend],[-bmax,bmax]);
       o.push(S.T(nar?10:14,y3-10,"(c) (a) のフィルタのバイアスの推定（±2σ）と、本当の値","start",nar?9.5:10.5,"ink",true));
       o.push(S.RECT(P3.X(tun[0]),P3.y,P3.X(tun[1])-P3.X(tun[0]),P3.h,0,"var(--muted-soft)","none",0));
-      o.push(P3.axes({xt:U.nice(0,Tend,6),yt:[-bmax,0,bmax],sz:9,xl:"時間 t [s]",yl:"[m/s²]",ylOff:36,yfmt:function(v){return _w19_f(v,2);}}));
+      o.push(P3.axes({xt:U.nice(0,Tend,6),yt:[-bmax,0,bmax],sz:9,xl:"時間 t [s]",yl:"バイアス [m/s²]",ylOff:40,yfmt:function(v){return _w19_f(v,2);}}));
       var xs=[],lo=[],hi=[],pts=[];for(i=0;i<A.t.length;i+=2){xs.push(A.t[i]);hi.push(A.b[i]+2*A.sb[i]);lo.push(A.b[i]-2*A.sb[i]);pts.push([A.t[i],A.b[i]]);}
       o.push(_w19_band(U,P3,xs,lo,hi,"gold"));o.push(P3.clip(pts,"gold",1.6));o.push(S.L(P3.x,P3.Y(sB.get()),P3.x+P3.w,P3.Y(sB.get()),"green",1.4,"5 3"));
       box.set(S.svg(Wd,y3+th+44,o));
