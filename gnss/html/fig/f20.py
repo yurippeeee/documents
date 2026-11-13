@@ -232,7 +232,7 @@ def _f20_paths_fig():
     o.append(W(xs[5] + 47, y2, xs[5] + 47, yr + 36, c=ALI, lw=1.2, dash="3 3"))
     o.append(T(xs[0] + 54, y2 - 6, "帯域内の妨害", "start", 10, ALI, True, halo=True))
     o.append(TX(xs[0] + 54, y2 + 16, "フィルタを通り抜けて相関器まで届き、C/N_0 を下げる（4 節）", "start", 9.5, MUT))
-    return SVG(700, y2 + 26, o, "妨害の源と、受信機までの道。帯域の外の妨害と内の妨害は、受信機の中で効く所が違う。")
+    return SVG(700, y2 + 26, o, "妨害の源と、受信機までの道（源と道は代表的なものを並べた）。")
 
 
 F["e20_paths"] = _f20_paths_fig()
@@ -346,7 +346,7 @@ def _f20_edges_fig():
         o.append(D(q.X(1575e6), q.Y(v), c, 3.6))
         o.append(T(q.X(1575e6) - 6, q.Y(v) + 4 + (0 if i else -2), "%.1f" % v, "end", 9.5, c, True, halo=True))
     o.append(TX(686, 290, "L1（63 次、1575.000 MHz）の線: %.1f・%.1f・%.1f dBμV（t_r = 1・3・10 ns）" % (vals[0][0], vals[1][0], vals[2][0]), "end", 9.5, INK))
-    return SVG(700, 300, o, "クロックの例（25 MHz・3.3 V・時間の割合 50 %、幅 τ = 20 ns）。包絡線は台形の波の式、細い線は t_r = 1 ns のときの各次の高調波（偶数次は 0）。")
+    return SVG(700, 300, o, "クロックの例（25 MHz・3.3 V・時間の割合 50 %、幅 τ = 20 ns）。包絡線は台形の波の式、細い線は立ち上がり 1 ns のときの各次の高調波（偶数次は 0）。")
 
 
 F["e20_edges"] = _f20_edges_fig()
@@ -525,7 +525,7 @@ def _f20_saw_fig():
         o.append(D(p.X(f), p.Y(dd), c, 3.8))
         lab = "%g MHz: %d 倍 %.3f" % (f, n, n * f)
         o.append(T(p.X(f), p.Y(dd) + dy, lab, "middle", 9, c, True, halo=True))
-    return SVG(700, 284, o, "歯の底（差 0）は f = 1575.42/n。歯の幅（隣の歯との間隔）は f が低いほど狭く、20 MHz より下では入る f と入らない f が細かく入れ替わる。")
+    return SVG(700, 284, o, "歯の底（差 0）は f = 1575.42/n（n は整数）の所。点は例の周波数。")
 
 
 F["e20_saw"] = _f20_saw_fig()
@@ -608,7 +608,7 @@ def _f20_despread_fig():
             o.append(D(p.X(0), p.Y(yv), ALI, 3.6))
             o.append(T(p.X(-2.45), p.Y(-188), "連続波: 符号のスペクトラムの形に", "start", 9.5, ALI, True, halo=True))
             o.append(T(p.X(-2.45), p.Y(-188) + 13, "広がる（1 kHz おきの線の並び）", "start", 9.5, ALI, True, halo=True))
-            o.append(T(p.X(-0.1), p.Y(yv) - 7, "窓の所 %s dBm/Hz（床の %s dB 上）" % (_f20_m(yv), _f20_m(yv - _F20_N0)), "end", 9, ALI, False, halo=True))
+            o.append(T(p.X(0.12), p.Y(yv) + 4, "床の %s dB 上" % _f20_m(yv - _F20_N0), "start", 9, ALI, True, halo=True))
             o.append(T(p.X(2.4), p.Y(_F20_N0) + 13, "雑音の床（変わらない）", "end", 9.5, TEA, True, halo=True))
     # (c) 窓のまわりの拡大
     y0 = 248
@@ -820,7 +820,7 @@ def _f20_jam_fig():
             o.append(D(p.X(d), p.Y(th), c, 3.8))
             o.append(T(p.X(d) + 4, p.Y(th) + 14, ("%.1f km" % (d / 1000)) if d >= 1000 else ("%d m" % round(d, -1)), "start", 9.5, c, True, halo=True))
     o.append(LEGL(80, 300, [(c, dash, "EIRP " + lab) for e, c, dash, lab in rows], 9.5, 16))
-    return SVG(700, 312, o, "見通しのある自由空間で、妨害の源と受信機のアンテナの利得を 0 dBi、妨害は L1 の帯域 2.046 MHz に平らに広がるとした上限の目安（9 章 1 節の例の受信機）。地上では建物や地形で弱まるので、効く範囲はふつうこれより狭い。")
+    return SVG(700, 312, o, "見通しのある自由空間で、妨害の源と受信機のアンテナの利得を 0 dBi、妨害は L1 の帯域 2.046 MHz に平らに広がるとした上限の目安（9 章 1 節の例の受信機）。")
 
 
 F["e20_jam"] = _f20_jam_fig()
@@ -1125,7 +1125,7 @@ def _f20_measure_fig():
         o.append(T(q.x - 6, q.y + 14, lab, "end", 9, INK, True))
         o.append(T(q.x - 6, q.y + 28, "広い帯域" if kind == "bb" else "連続波", "end", 9, ALI, False))
     o.append(T(575, y0 + 22 + 3 * 68 - 10, "横軸: L1 ±5 MHz、縦軸: 相対の電力", "middle", 9, MUT))
-    return SVG(700, by + 100 * sc + 14, o, "(a) RBW は分解能帯域幅。アナライザ自身の雑音は −160 dBm/Hz（代表値）とした。(b)(c) 源ごとの強さと、距離による弱まり方は例のモデル（プローブで見た値は場所の比べにだけ使う）。")
+    return SVG(700, by + 100 * sc + 14, o, "(a) RBW は分解能帯域幅。アナライザ自身の雑音は −160 dBm/Hz（代表値）とした。(b)(c) 源ごとの強さと、距離による弱まり方は例のモデル。")
 
 
 F["e20_measure"] = _f20_measure_fig()

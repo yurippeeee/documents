@@ -48,7 +48,7 @@ REG.w20_harmonic=function(el,U){
   var r2=U.ctrls(el);
   var trs=U.slider(r2,"立ち上がりの時間 t<sub>r</sub>",{min:0.2,max:20,log:true,value:1,fmt:function(v){return _w20_f(v,v<1?2:1)+" ns";},onInput:function(){draw();}});
   var duty=U.slider(r2,"時間の割合",{min:10,max:90,step:1,value:50,fmt:function(v){return v+" %";},onInput:function(){draw();}});
-  var amp=U.slider(r2,"振幅 A",{min:0.5,max:12,step:0.1,value:3.3,fmt:function(v){return _w20_f(v,1)+" V";},onInput:function(){draw();}});
+  var amp=U.slider(r2,"振幅",{min:0.5,max:12,step:0.1,value:3.3,fmt:function(v){return _w20_f(v,1)+" V";},onInput:function(){draw();}});
   var br=U.btnrow(el);
   function preset(i){var q=_W20_PRE[i];sel.set(String(i));fr.set(q[1]);trs.set(q[2]);duty.set(q[3]);amp.set(q[4]);draw();}
   U.button(br,"本文の例: 26 MHz",function(){preset(9);});
@@ -66,11 +66,12 @@ REG.w20_harmonic=function(el,U){
     o.push(P.line(pts,"alias",2));
     o.push(S.T(P.x+P.w/2,P.y+P.h+14,"時間（2 周期 = "+_w20_f(2e9/fh>=1000?2e6/fh:2e9/fh,2e9/fh>=1000?2:1)+(2e9/fh>=1000?" µs）":" ns）"),"middle",9,"muted"));
     var tx=nar?px+pw+10:px+pw+24;
-    o.push(S.T(tx,44,"f = "+_w20_mhz(f),"start",10,"ink",true));
-    o.push(S.TX(tx,60,"t_r = "+_w20_f(tr*1e9,tr<1e-9?2:1)+" ns・時間の割合 "+Math.round(D*100)+" %","start",9.5,"muted"));
-    o.push(S.T(tx,76,"線の高さ: 振幅 A の台形の波の各次の成分","start",9.5,"muted"));
+    o.push(S.T(tx,44,"f = "+_w20_mhz(f),"start",nar?11:10,"ink",true));
+    o.push(S.TX(tx,61,"t_r = "+_w20_f(tr*1e9,tr<1e-9?2:1)+" ns",nar?"start":"start",nar?10.5:9.5,"muted"));
+    o.push(S.T(tx,77,"時間の割合 "+Math.round(D*100)+" %","start",nar?10.5:9.5,"muted"));
+    if(!nar)o.push(S.T(tx,93,"線の高さ: 台形の波の各次の成分","start",9.5,"muted"));
     /* (b) 帯域ごとの帯 */
-    var y0=124,sh=nar?52:48,xa=nar?92:150,xb=Wd-10;
+    var y0=142,sh=nar?52:48,xa=nar?92:150,xb=Wd-10;
     o.push(S.T(nar?6:14,y0-6,"(b) 各帯域のまわりの高調波（赤: 帯域に入る）","start",11,"ink",true));
     _W20_BANDS.forEach(function(bd,i){var lo=bd[1],hi=bd[2],c=(lo+hi)/2,hw=(hi-lo)/2,R=Math.max(3*hw,Math.min(2.2*f,40)),yy=y0+i*sh+8;
       var Q=U.plot(xa,yy,xb-xa,sh-22,[c-R,c+R],[20,150]);
@@ -105,7 +106,7 @@ REG.w20_harmonic=function(el,U){
     var zero=res.some(function(r){return r.lev.some(function(x){return x===null;});});
     if(zero)h+="<br>点線の次数は、この波形では高さが 0 になる（時間の割合 "+Math.round(D*100)+" % と次数の積が整数のとき。ちょうど 50 % の方形波では偶数次が出ない）。実際のクロックは時間の割合がわずかにずれるので、小さく出る（時間の割合を動かして確かめられる）";
     var near=Math.round(_W20_L1/f);h+="<br>L1 に最も近い高調波: n = "+near+"（"+_w20_f(near*f,3)+" MHz、中心から "+((near*f-_W20_L1)>=0?"+":"−")+_w20_f(Math.abs(near*f-_W20_L1),3)+" MHz）";
-    ro.innerHTML=h+'<div class="wnote">帯域の端は 2 章 1 節の値から、L1 C/A・L2 は ±1.023 MHz、E1・B1C・B1I は ±2.046 MHz、L5 は ±10.23 MHz、G1 は 1597.55〜1605.89 MHz とした。線の高さは、振幅 A・時間の割合・立ち上がり t<sub>r</sub> の台形の波の式（源の所の電圧。どれだけ受信機に届くかは道で決まる）。</div>';
+    ro.innerHTML=h+'<div class="wnote">帯域の端は 2 章 1 節の値から、L1 C/A・L2 は ±1.023 MHz、E1・B1C・B1I は ±2.046 MHz、L5 は ±10.23 MHz、G1 は 1597.55〜1605.89 MHz とした。線の高さは、振幅・時間の割合・立ち上がり t<sub>r</sub> の台形の波の式（源の所の電圧。どれだけ受信機に届くかは道で決まる）。</div>';
   }
   draw();
 };
@@ -152,7 +153,7 @@ REG.w20_cn0drop=function(el,U){
       if(x1>x0)o.push(S.RECT(P.X(x0),P.Y(Math.min(-140,Math.max(dens,fl))),Math.max(1.5,P.X(x1)-P.X(x0)),P.Y(fl)-P.Y(Math.min(-140,Math.max(dens,fl))),0,U.soft("alias"),"alias",1.2));
       o.push(S.T(P.X(-2.4),P.y+12,"狭い帯域 "+_w20_f(dens,1)+" dBm/Hz","start",9.5,"alias",true,false,null,true));}
     /* (b) 窓のまわり（連続波）か、密度の比べ */
-    var bx=nar?58:420,by=nar?222:30,bw=nar?320:260,Q=U.plot(bx,by,bw,140,[-5,5],[-170,-110]);
+    var bx=nar?58:420,by=nar?244:30,bw=nar?320:260,Q=U.plot(bx,by,bw,140,[-5,5],[-170,-110]);
     o.push(S.T(nar?6:376,by-14,k==="cw"?"(b) 逆拡散の後: 窓のまわりの線":"(b) 雑音の床と、妨害を直した密度","start",11,"ink",true));
     if(k==="cw"){
       o.push(Q.axes({xl:"搬送波からの差 [kHz]",yl:"線の電力 [dBm]",xt:[-4,-2,0,2,4],yt:[-170,-150,-130,-110],sz:9,ylOff:44}));
@@ -171,8 +172,8 @@ REG.w20_cn0drop=function(el,U){
         o.push(S.T(B.X(i+0.5),B.Y(v)-5,_w20_f(q[1],1),"middle",9.5,q[2],true,false,null,true));o.push(S.TX(B.X(i+0.5),B.y+B.h+14,q[0],"middle",9,"muted"));});
     }
     /* (c) 妨害の電力と C/N0 */
-    var cy=nar?422:226,R=U.plot(nar?58:70,cy,nar?320:610,150,[-150,-80],[10,50]);
-    o.push(S.TX(nar?6:14,cy-12,"(c) 妨害の電力と等価な C/N_0（いまの形・周波数・T_{coh}・PRN）","start",11,"ink",true));
+    var cy=nar?452:226,R=U.plot(nar?58:70,cy,nar?320:610,150,[-150,-80],[10,50]);
+    o.push(S.TX(nar?6:14,cy-12,nar?"(c) 妨害の電力と等価な C/N_0":"(c) 妨害の電力と等価な C/N_0（いまの形・周波数・T_{coh}・PRN）","start",11,"ink",true));
     o.push(R.axes({xl:"妨害の電力 P_J [dBm]",yl:"等価な C/N_0",xt:[-150,-140,-130,-120,-110,-100,-90,-80],yt:[10,20,25,30,35,40,50],sz:9,ylOff:42}));
     [[_W20_ACQ,"捕捉 35"],[_W20_TRK,"搬送波の追尾 25"],[_W20_DLL,"符号の追尾 20"]].forEach(function(q){o.push(S.L(R.x,R.Y(q[0]),R.x+R.w,R.Y(q[0]),"muted",1,"4 3"));
       o.push(S.T(R.x+R.w-3,R.Y(q[0])-3,q[1],"end",8.5,"muted",false,false,null,true));});
