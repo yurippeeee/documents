@@ -55,16 +55,14 @@ REG.w21_ssc=function(el,U){
     o.push(S.T(nar?6:14,16,"(a) 高調波の周波数の時間の動き","start",11,"ink",true));
     o.push(S.RECT(A.x,A.Y(1.023),A.w,A.Y(-1.023)-A.Y(1.023),0,U.soft("signal"),"none",0));
     o.push(A.axes({xl:"時間 [µs]（f_m = 31.25 kHz）",yl:"L1 からの差 [MHz]",xt:[0,16,32,48,64],yt:[-20,-10,0,10,20],sz:9,ylOff:42}));
-    var inb=null;
     res.hs.forEach(function(h){var f0=h[1]/1e6,W=h[4]/1e6;if(h[3]/1e6<-20||h[2]/1e6>20)return;
       var pts=[];for(var i=0;i<=64;i+=2){var tri=_w21_tri(i/32),fr=k==="down"?f0-W*tri:f0-W/2+W*tri;pts.push([i,fr]);}
-      o.push(A.clip(pts,"alias",1.6));
-      if(h[2]<=-_W21_BW/2&&h[3]>=_W21_BW/2&&h[4]>0)inb=h;});
+      o.push(A.clip(pts,"alias",1.6));});
     var tcur=tt,curf=[];
     res.hs.forEach(function(h){var f0=h[1]/1e6,W=h[4]/1e6,tri=_w21_tri(tcur/32),fr=k==="down"?f0-W*tri:f0-W/2+W*tri;if(fr>=-20&&fr<=20)curf.push(fr);});
     o.push(S.L(A.X(tcur),A.y,A.X(tcur),A.y+A.h,"gold",1.4,"4 3"));
     curf.forEach(function(fr){var on=Math.abs(fr)<=1.023;o.push(S.D(A.X(tcur),A.Y(fr),on?"alias":"muted",on?5:3.4));});
-    if(inb)o.push(S.T(A.x+A.w-4,A.y+12,"帯域にいる時間の割合 "+_w21_f(100*_W21_BW/inb[4],1)+" %","end",9,"alias",true,false,null,true));
+    if(d>0&&res.pin>0)o.push(S.T(A.x+A.w-4,A.y+12,res.pin<=1?"どれかが帯域にいる時間の割合 "+_w21_f(100*res.pin,1)+" %":"帯域の中に平均 "+_w21_f(res.pin,1)+" 本","end",9,"alias",true,false,null,true));
     /* (b) スペクトラム */
     var bx=nar?lx:420,by=nar?246:30,B=U.plot(bx,by,pw-(nar?0:20),150,[-20,20],[-140,-90]);
     o.push(S.T(nar?6:376,by-14,"(b) L1 のまわりのスペクトラム","start",11,"ink",true));
@@ -81,14 +79,14 @@ REG.w21_ssc=function(el,U){
     /* 読み出し */
     var a0=Math.pow(10,(P-_W21_N0)/10),c0=_W21_CN0-_w21_drop(a0*res.nj0),c1=_W21_CN0-_w21_drop(a0*res.nj);
     var nn=Math.round(_W21_L1/fc),Wn=nn*fc*d;
-    var dmax=0;res.hs.forEach(function(h){if(h[4]>0){var dens=0;res.hs.forEach(function(g){if(g[4]>0&&h[1]>=g[2]&&h[1]<=g[3])dens+=1/g[4];});dmax=Math.max(dmax,dens);}});
-    var pk1=d>0?P+10*Math.log10(Math.min(1,dmax*100e3)):P;
+    var fn=nn*fc-_W21_L1,dn=0;res.hs.forEach(function(g){if(g[4]>0&&fn>=g[2]&&fn<=g[3])dn+=1/g[4];});
+    var pk1=d>0?P+10*Math.log10(Math.min(1,dn*100e3)):P;
     function pdb(x){return x>0?_w21_f(_w21_db(x),1)+" dB":"−∞";}
     var h="広がりの幅 W<sub>n</sub> = nδ<sub>s</sub>f = <b>"+_w21_f(Wn/1e6,2)+" MHz</b>（L1 に最も近い n = "+nn+"。帯域の幅 2.046 MHz の "+_w21_f(Wn/_W21_BW,1)+" 倍）<br>";
     h+="帯域に入る電力（P に対して）: <b>"+pdb(res.pin0)+" → "+pdb(res.pin)+"</b>、N<sub>J</sub>/N<sub>0</sub>: <b>"+_w21_pm(_w21_db(a0*res.nj0),1)+" → "+_w21_pm(_w21_db(a0*res.nj),1)+" dB</b><br>";
     var better=c1-c0;
     h+="C/N<sub>0</sub>: <b>"+_w21_f(c0,1)+" → "+_w21_f(c1,1)+" dB-Hz</b>（"+(better>0.05?'<span class="ok">'+_w21_f(better,1)+" dB 良くなる</span>":(better<-0.05?'<span class="warn">'+_w21_f(-better,1)+" dB 悪くなる</span>":"ほとんど変わらない"))+"）<br>";
-    h+="分解能帯域幅 100 kHz で見た山の高さ: "+_w21_f(P,0)+" → "+_w21_f(pk1,1)+" dBm（"+_w21_f(P-pk1,1)+" dB 低く見える）";
+    h+="分解能帯域幅 100 kHz で見た、L1 に最も近い高調波の山の高さ: "+_w21_f(P,0)+" → "+_w21_f(pk1,1)+" dBm（"+_w21_f(P-pk1,1)+" dB 低く見える）";
     ro.innerHTML=h+'<div class="wnote">9 章 1 節の例の受信機（C/N<sub>0</sub> 47.5 dB-Hz）。S̃ は 2 章 4 節の形の平均、広げた電力は幅の中に平らに広がるとした（三角波で周波数を動かす場合の近似）。電力 P は、どの高調波も同じとした例の値。</div>';
   }
   draw();
@@ -154,30 +152,31 @@ REG.w21_filter=function(el,U){
     var aSW=_w21_att(fsw,k,L,C,rd),aL1=_w21_att(1576e6,k,L,C,rd);
     [[fsw,"DC-DC",aSW],[_W21_L1,"L1",aL1]].forEach(function(q){o.push(S.L(B.X(q[0]),B.y,B.X(q[0]),B.y+B.h,"faint",1,"3 3"));o.push(S.T(B.X(q[0]),B.y-3,q[1],"middle",8.5,"muted",true));
       var vy=Math.max(-20,Math.min(100,q[2]));o.push(S.D(B.X(q[0]),B.Y(vy),"green",3.6));o.push(S.T(B.X(q[0])-5,B.Y(vy)-6,_w21_f(q[2],1),"end",9,"green",true,false,null,true));});
-    var mi=0;pts.forEach(function(p,i){if(p[1]<pts[mi][1])mi=i;});
+    var mi=0;pts.forEach(function(p,i){if(p[0]<=1e7&&p[1]<pts[mi][1])mi=i;});
     if(k!=="none"&&pts[mi][1]<-0.5){o.push(S.D(B.X(pts[mi][0]),B.Y(Math.max(-20,pts[mi][1])),"alias",3.6));o.push(S.T(B.X(pts[mi][0])+5,B.Y(Math.max(-20,pts[mi][1]))+12,"山 "+_w21_pm(-pts[mi][1],1)+" dB","start",9,"alias",true,false,null,true));}
     /* (c) 揺れの鎖（10 章 2 節の例のモデル） */
     var pin=_w21_psrr(fsw,40,20e3),pex=lo?_w21_psrr(fsw,60,10e3):0,v1=vr*Math.pow(10,-aSW/20),v2=v1*Math.pow(10,-(pex+pin)/20),q=v2*v2,cn=47.5-_w21_drop(q);
     var q0=Math.pow(vr*Math.pow(10,-(pex+pin)/20),2),need=10*Math.log10(q0)-10*Math.log10(Math.pow(10,0.05)-1);
     var cy=nar?332:236;o.push(S.T(nar?6:14,cy-12,"(c) DC-DC の揺れが RF の段に届くまで（10 章 2 節の例のモデル）","start",11,"ink",true));
-    var items=[["DC-DC の出力",_w21_f(vr,vr<10?1:0)+" mVpp","alias"],["フィルタの後",_w21_vstr(v1),"green"],["LDO と中の回路の後",_w21_vstr(v2),"purple"],["N_p/N_0",_w21_f(q,q<0.01?4:2),"teal"],["C/N_0",_w21_f(cn,1)+" dB-Hz",cn>47?"green":(cn>40?"gold":"alias")]];
-    var bw=nar?74:126,gap=nar?4:8;items.forEach(function(it,i){var xx=(nar?6:14)+i*(bw+gap);o.push(S.RECT(xx,cy,bw,40,6,U.soft(it[2]),it[2],1.2));
-      o.push(S.TX(xx+bw/2,cy+15,it[0],"middle",nar?8:9,"muted"));o.push(S.T(xx+bw/2,cy+32,it[1],"middle",nar?9:10.5,it[2],true));
-      if(i<items.length-1)o.push(S.ARR(xx+bw+1,cy+20,xx+bw+gap-1,cy+20,"muted",1.2,4));});
-    box.set(S.svg(Wd,cy+48,o));
+    var items=[["DC-DC の出力",_w21_f(vr,vr<10?1:0)+" mVpp","alias"],["フィルタの後",_w21_vstr(v1),"green"],["LDO と中の回路の後",_w21_vstr(v2),"purple"],["N_p/N_0",q>=0.01?_w21_f(q,2):_w21_f(10*Math.log10(q),1)+" dB","teal"],["C/N_0",_w21_f(cn,1)+" dB-Hz",cn>47?"green":(cn>40?"gold":"alias")]];
+    var bw=nar?186:126,gap=nar?8:8,bh=40;items.forEach(function(it,i){var xx=nar?6+(i%2)*(bw+gap):14+i*(bw+gap),yy=nar?cy+Math.floor(i/2)*(bh+6):cy;
+      o.push(S.RECT(xx,yy,bw,bh,6,U.soft(it[2]),it[2],1.2));
+      o.push(S.TX(xx+bw/2,yy+15,(nar?(i+1)+". ":"")+it[0],"middle",9,"muted"));o.push(S.T(xx+bw/2,yy+32,it[1],"middle",10.5,it[2],true));
+      if(!nar&&i<items.length-1)o.push(S.ARR(xx+bw+1,yy+20,xx+bw+gap-1,yy+20,"muted",1.2,4));});
+    box.set(S.svg(Wd,(nar?cy+3*(bh+6):cy+bh)+8,o));
     /* 読み出し */
     var Lt=((k==="lc"||k==="both")?L:0)+((k==="bead"||k==="both")?1.5e-6:0),Rt=((k==="lc"||k==="both")?0.1:0)+((k==="bead"||k==="both")?0.1:0)+rd+0.005;
     var h="";
     if(k!=="none"){var fLC=1/(2*Math.PI*Math.sqrt(Lt*C)),Q=Math.sqrt(Lt/C)/Rt;
       h+="共振の周波数 f<sub>LC</sub> = 1/(2π√(L C)) = <b>"+_w21_hz(fLC)+"</b>、Q = √(L/C)/R = <b>"+_w21_f(Q,2)+"</b>（直列の L "+_w21_f(Lt*1e6,2)+" µH・R "+_w21_f(Rt,3)+" Ω）。";
-      h+="いちばん持ち上がる所: "+_w21_hz(pts[mi][0])+" で "+_w21_pm(-pts[mi][1],1)+" dB<br>";}
+      h+=(pts[mi][1]<-0.5?"共振の山: "+_w21_hz(pts[mi][0])+" で "+_w21_pm(-pts[mi][1],1)+" dB":"共振の山はほとんど無い")+"<br>";}
     h+="減衰: DC-DC の周波数 "+_w21_hz(fsw)+" で <b>"+_w21_f(aSW,1)+" dB</b>（C/N<sub>0</sub> の下がりを 0.5 dB 以内にするには "+_w21_f(Math.max(0,need),1)+" dB 要る）、L1 の高さ（2 MHz の 788 次 1576 MHz）で <b>"+_w21_f(aL1,1)+" dB</b><br>";
     h+="C/N<sub>0</sub> = 47.5 − 10 log<sub>10</sub>(1 + N<sub>p</sub>/N<sub>0</sub>) = <b>"+_w21_f(cn,1)+" dB-Hz</b>"+(cn>=47?'（<span class="ok">ほぼ元に戻る</span>）':(cn<40?'（<span class="warn">大きく下がる</span>）':""));
     ro.innerHTML=h+'<div class="wnote">部品の寄生成分は例の値（コイルは 2.2 µH で 60 MHz で自己共振する巻線の間の容量、ビーズは 1.5 µH・60 MHz で抵抗に変わる傾向のモデル、コンデンサは ESR 5 mΩ・ESL 0.5 nH）。基板の上の結合は入れていないので、高い周波数の減衰は実際より大きく出る。揺れの鎖は 10 章 2 節の例のモデル（1 mVpp で N<sub>p</sub> = N<sub>0</sub>）。</div>';
   }
   draw();
 };
-function _w21_vstr(v){return v>=1?_w21_f(v,2)+" mVpp":(v>=0.001?_w21_f(v*1000,v>=0.01?0:1)+" µVpp":v.toExponential(1).replace("-","−")+" mVpp");}
+function _w21_vstr(v){if(v>=1)return _w21_f(v,2)+" mVpp";var u=v*1000;return (u>=100?_w21_f(u,0):(u>=10?_w21_f(u,1):(u>=0.01?_w21_f(u,2):u.toExponential(1).replace("-","−"))))+" µVpp";}
 
 /* ---- 4 節: シールドケースの隙間（目安の式 SE ≈ 20 log10(λ/(2ℓ))。f21.py の _f21_se と同じ） ---- */
 function _w21_se(l,f){var v=_W21_C/f/(2*l);return v>1?20*Math.log10(v):0;}
@@ -199,14 +198,16 @@ REG.w21_shield=function(el,U){
     var l=lsl.get()/1000,nj=jsl.get(),nar=_w21_nar(box),Wd=nar?400:700,o=[],fr=_W21_C/(2*l);
     /* (a) 隙間と半波長の目盛 */
     o.push(S.T(nar?6:14,16,"(a) 隙間の長さと、L1・L5 の半波長","start",11,"ink",true));
-    var sx=nar?1.6:3.0,x0=nar?14:24,y0=54,lmax=nar?200:200;
+    var sx=nar?1.75:1.65,x0=nar?14:24,y0=60,lmax=200;
     o.push(S.RECT(x0,y0,lmax*sx,14,2,U.soft("muted"),"muted",1.2));
     var lp=Math.min(l*1000,lmax);o.push(S.RECT(x0+4,y0+4,lp*sx,6,1,"var(--screen)","alias",1.6));
     var ah=Math.min(22,6+lp*0.15),apts=[];for(var i=0;i<=40;i++){var u=i/40;apts.push([x0+4+u*lp*sx,y0-2-ah*Math.sin(Math.PI*u)]);}
     o.push(S.PL(apts,"alias",1.6,null,"4 2"));
-    o.push(S.T(x0+4+lp*sx/2,y0-ah-6,"隙間 "+_w21_f(l*1000,l<0.01?1:0)+" mm（共振 "+_w21_hz(fr)+"）","middle",9,"alias",true,false,null,true));
+    var lab="隙間 "+_w21_f(l*1000,l<0.01?1:0)+" mm（共振 "+_w21_hz(fr)+"）",lw=U.tw(lab,9),lc=Math.max(x0+lw/2,Math.min(x0+lmax*sx-lw/2,x0+4+lp*sx/2));
+    o.push(S.T(lc,y0-ah-6,lab,"middle",9,"alias",true,false,null,true));
     [[_W21_C/_W21_L1/2,"L1 の λ/2","signal"],[_W21_C/1176.45e6/2,"L5 の λ/2","teal"],[_W21_C/_W21_L1/20,"L1 の λ/20","green"]].forEach(function(m,i){var xx=x0+4+m[0]*1000*sx;if(m[0]*1000>lmax)return;
-      o.push(S.L(xx,y0+16,xx,y0+30+i*0,m[2],1.6));o.push(S.T(xx,y0+42+(i===1?12:0),m[1]+" "+_w21_f(m[0]*1000,m[0]<0.02?1:0)+" mm","middle",8.5,m[2],true,false,null,true));});
+      var t=m[1]+" "+_w21_f(m[0]*1000,m[0]<0.02?1:0)+" mm",tx=Math.max(4+U.tw(t,8.5)/2,xx);
+      o.push(S.L(xx,y0+16,xx,y0+30,m[2],1.6));o.push(S.T(tx,y0+42+(i===1?12:0),t,"middle",8.5,m[2],true,false,null,true));});
     /* (b) SE と周波数 */
     var bx=nar?58:420,by=nar?140:30,B=U.plot(bx,by,nar?320:262,150,[0.3,6],[0,50],{xlog:true});
     o.push(S.T(nar?6:376,by-14,"(b) SE と周波数（目安の式）","start",11,"ink",true));
@@ -219,7 +220,7 @@ REG.w21_shield=function(el,U){
     if(fr/1e9<6&&fr/1e9>0.3){o.push(S.L(B.X(fr/1e9),B.y,B.X(fr/1e9),B.y+B.h,"alias",1,"3 3"));o.push(S.T(B.X(fr/1e9),B.y+12,"c/(2ℓ)","middle",8.5,"alias",true,false,null,true));}
     box.set(S.svg(Wd,B.y+B.h+(nar?44:40),o));
     var se=_w21_se(l,_W21_L1),se5=_w21_se(l,1176.45e6),r0=Math.pow(10,nj/10),r1=Math.pow(10,(nj-se)/10),c0=_W21_CN0-_w21_drop(r0),c1=_W21_CN0-_w21_drop(r1);
-    var h="漏れやすい周波数 c/(2ℓ) = <b>"+_w21_hz(fr)+"</b>。SE（目安）: L1 で <b>"+_w21_f(se,1)+" dB</b>、L5 で "+_w21_f(se5,1)+" dB"+(se<=0?'（<span class="warn">L1 で共振より上: ほとんど遮らない</span>）':"")+"<br>";
+    var h="漏れやすい周波数 c/(2ℓ) = <b>"+_w21_hz(fr)+"</b>。SE（目安）: L1 で <b>"+_w21_f(se,1)+" dB</b>、L5 で "+_w21_f(se5,1)+" dB"+(se<1?'（<span class="warn">隙間が L1 の半波長に近いか長い: ほとんど遮らない</span>）':"")+"<br>";
     h+="N<sub>J</sub>/N<sub>0</sub>: "+_w21_pm(nj,1)+" → <b>"+_w21_pm(nj-se,1)+" dB</b>、C/N<sub>0</sub>: "+_w21_f(c0,1)+" → <b>"+_w21_f(c1,1)+" dB-Hz</b>（L1 の妨害が、この隙間を通る経路だけで届くとき）";
     ro.innerHTML=h+'<div class="wnote">隙間 1 つの目安の式（筐体設計シリーズ 14 章 4 節）。隙間の幅・奥行き・数・源との位置、箱の中の共振で変わるので、桁を見るためのもの。9 章 1 節の例の受信機（C/N<sub>0</sub> 47.5 dB-Hz）。</div>';
   }
