@@ -1184,8 +1184,7 @@ def _f22_uses_fig():
     ex, ey = R2(0, 22)
     o.append(T(ex, ey + 16, "電池", "middle", 9, INK, True, halo=True))
     o.append(W(dcx, dcy, dcx, dcy - 62, c=FNT, lw=1, dash="3 3"))
-    o.append(PL(_f22_arc(dcx, dcy, 44, 90 - tilt, 90), c=GLD, lw=1.4))
-    o.append(T(dcx + 10, dcy - 48, "25°", "start", 9.5, GLD, True, halo=True))
+    o.append(PL(_f22_arc(dcx, dcy, 30, 90 - tilt, 90), c=GLD, lw=1.4))
     o.append(T(x0 + 118, 176, "機体（炭素繊維は電気を通す）", "middle", 9, MUT))
     # ---- (c) 身に着ける機器 ----
     x0 = 8 + 2 * W_

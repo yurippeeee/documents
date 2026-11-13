@@ -246,15 +246,16 @@
         o.push(S.RECT(P.X(10),y,Math.max(0,P.X(Math.max(10,Math.min(55,v.c0)))-P.X(10)),16,2,"none","muted",1,"3 2"));
         o.push(S.RECT(P.X(10),y+3,Math.max(0,P.X(Math.max(10,Math.min(55,v.c)))-P.X(10)),10,2,U.soft(c),c,1.2));
         o.push(S.T(Math.min(P.X(55)-2,P.X(Math.max(10,Math.min(55,v.c)))+4),y+12,_w22_f(v.c,1),"start",9,c,true,false,null,true));});
-      o.push(S.T(bx,by+bh+44,"破線の枠: 水平に置いたとき","start",9.5,"muted"));
+      o.push(S.T(bx,by+bh+44,"破線の枠: 同じ所に水平に置いたとき","start",9.5,"muted"));
       var hgt=nar?by+bh+56:Math.max(cy+R+60,by+bh+56);
       box.set(S.svg(Wd,hgt,o));
       /* 読み出し */
       var n35=vals.filter(function(v){return v.c>=35;}),n25=vals.filter(function(v){return v.c>=25;}),d35=_w22_dop(U,n35.map(function(v){return v.q;}));
       var h="35 dB-Hz 以上（捕捉の目安）<b>"+n35.length+"</b> つ: "+(d35?"HDOP <b>"+_w22_f(d35.H,2)+"</b>":'<span class="warn">解けない</span>')+"、25 dB-Hz 以上（追尾の目安）<b>"+n25.length+"</b> つ<br>";
       var worst=vals.slice().sort(function(p,q){return (p.c-p.c0)-(q.c-q.c0);})[0];
-      if(worst.c-worst.c0>-0.05)h+="どの衛星も、水平に置いたときより C/N0 が下がらない";
-      else h+="最も下がった衛星: "+worst.q.nm+"（仰角 "+_w22_f(worst.q.el,1)+"°、アンテナから見た仰角 θ<sub>a</sub> = "+_w22_f(worst.ea,1)+"°）で "+_w22_f(worst.c-worst.c0,1)+" dB";
+      if(worst.c-worst.c0>-0.05)h+="傾けたことによる C/N0 の下がりは無い";
+      else h+="傾けたことで最も下がった衛星: "+worst.q.nm+"（仰角 "+_w22_f(worst.q.el,1)+"°、アンテナから見た仰角 θ<sub>a</sub> = "+_w22_f(worst.ea,1)+"°）で "+_w22_f(worst.c-worst.c0,1)+" dB";
+      if(a>0)h+="。このほかに、周りの弱まり "+a+" dB で全部の衛星が同じだけ下がる";
       ro.innerHTML=h+'<div class="wnote">東京の 8 つの GPS の衛星（時刻 0）。利得は 8 章の例のアンテナの右旋の利得（方位によらない）、C/N0 は 3 章 3 節のモデル（EIRP 26.4 dBW、雑音は 290 K の熱雑音だけ）。目安は 3 章 6 節の代表値。</div>';
     }
     draw();
