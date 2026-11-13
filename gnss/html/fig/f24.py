@@ -637,7 +637,7 @@ def _f24_lna_fig():
         cn = _f24_cn0(30.0, case=False, line_cm=0.0, **kw)
         o.append(W(q.X(38), y + 15, q.X(cn), y + 15, c=soft(c) if c != MUT else GRD, lw=6))
         o.append(D(q.X(cn), y + 15, c if c != MUT else INK, 4.5))
-        o.append(T(q.X(cn) + (8 if cn < 46.5 else -8), y + 19, "%.1f" % cn, "start" if cn < 46.5 else "end", 9.5, c if c != MUT else INK, True, halo=True))
+        o.append(T(q.X(cn) + (8 if cn < 46.5 else -8), y + 19, "%.2f" % cn, "start" if cn < 46.5 else "end", 9.5, c if c != MUT else INK, True, halo=True))
     o.append(LEGEND(250, 52 + 5 * 44 + 36, [(TEA, "アンテナ（100 K）"), (SIG, "LNA"), (GLD, "SAW"), (PUR, "チップの増幅器")], 9.5))
     return SVG(700, 52 + 5 * 44 + 46, o, "9 章 1 節のフリスの式と 3 章 1 節の回線計算で求めた値（受信電力 −128.6 dBm、アンテナの雑音温度 100 K。部品の値は 9 章の例）。")
 
@@ -716,7 +716,7 @@ def _f24_layout_fig():
         s, w = CHIP(nx, yy, ch, c, 8.5, 3)
         o.append(s)
         _f24_lines(o, nx + 24, yy, ls, 9, INK, 13)
-    return SVG(700, 318, o, "基板の配置の例（4 層の FR-4、2 層目がグラウンド。11 章の例の基板）。左から RF・ディジタル・電源の区画に分けた。")
+    return SVG(700, 318, o, "基板の配置の例（4 層の FR-4、2 層目がグラウンド。11 章の例の基板）。左から RF・ディジタル・電源の区画に分けた。LC は 6 節で足す LC フィルタ。")
 
 
 F["e24_layout"] = _f24_layout_fig()
@@ -808,7 +808,7 @@ def _f24_cn0_fig():
     cn = p30 + g30 - lc - n0
     rows = [("0 dBi で受ける電力（3 章 1 節）", "%s dBm" % _f24_f(p30, 2), INK),
             ("アンテナの利得（仰角 30°。3 章 3 節の例）", "%s dB" % _f24_f(g30, 2), GLD),
-            ("筐体（共振を合わせたアンテナ。22 章 2 節）", "−%.2f dB" % lc, GLD),
+            ("筐体（共振を合わせたアンテナ。22 章 2 節）", _f24_f(-lc, 2) + " dB", GLD),
             ("受信電力 C", "%s dBm" % _f24_f(p30 + g30 - lc, 2), SIG)]
     y = 44
     for nm, v, c in rows:

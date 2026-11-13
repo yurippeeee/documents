@@ -167,7 +167,7 @@ REG.w24_budget=function(el,U){
     ro.innerHTML="T<sub>sys</sub> "+_w24_f(t.ts,1)+" K、N<sub>0</sub> "+_w24_f(n0,2)+" dBm/Hz"+
       (c.ant!=="active"&&c.case?"、筐体による右旋の損失 "+_w24_f(_w24_rhcp(_W24_DF+(c.case===2?5e6:0),U),2)+" dB":"")+"<br>"+
       "仰角 30° の C/N<sub>0</sub> <b>"+_w24_f(cn30,2)+" dB-Hz</b>、仕様 41 dB-Hz に対する余裕 "+(m>=0?'<span class="ok">'+_w24_f(m,1)+" dB</span>":'<span class="warn">'+_w24_f(m,1)+" dB（仕様を割る）</span>")+
-      "。仰角 "+ex+"° では "+_w24_f(cne,2)+" dB-Hz<br>見えている "+sats.length+" 機のうち、41 dB-Hz 以上 "+n41+" 機・捕捉の目安 35 以上 "+n35+" 機・追尾の目安 25 以上 "+n25+" 機";
+      "。"+(+ex!==30?"仰角 "+ex+"° では "+_w24_f(cne,2)+" dB-Hz。":"")+"<br>見えている "+sats.length+" 機のうち、41 dB-Hz 以上 "+n41+" 機・捕捉の目安 35 以上 "+n35+" 機・追尾の目安 25 以上 "+n25+" 機";
   }
   sync();draw();
 };
