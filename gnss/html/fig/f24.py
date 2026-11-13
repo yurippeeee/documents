@@ -468,7 +468,7 @@ def _f24_use_fig():
     # (b) 3 つの条件
     o.append(T(14, 118, "(b) 仕様の条件になる 3 つの場面（東京・4 つの衛星系・時刻 0）", "start", 11, INK, True))
     sats_all = _f24_vis(_F24_SYS4)
-    scenes = [("開けた空", lambda az: 10.0, GRN, ["精度・TTFF・受信の強さ", "・充電中の C/N0（1〜5 行）"]),
+    scenes = [("開けた空", lambda az: 10.0, GRN, ["精度・TTFF・受信の強さ", "・充電中の C/N0（1・3・4・5 行）"]),
               ("通り（幅 18 m・高さ 24 m）", _f24_canyon, GLD, ["位置が出る時間の割合", "（2 行。22 章 1 節）"]),
               ("屋内", None, ALI, ["位置は出なくてよい。電池を", "むだにしない（9 行）"])]
     for k, (nm, mf, c, rows) in enumerate(scenes):
@@ -994,7 +994,7 @@ def _f24_test_fig():
         o.append(T(r.X(h * 60), r.y + r.h + 26, "%d 時" % h, "middle", 9, MUT))
     o.append(T(r.X(9 * 60 + 37), r.y - 4, "2・4・8 分", "middle", 8.5, ALI, True))
     o.append(DARR(r.X(12 * 60 + 15), r.y + r.h + 36, r.X(12 * 60 + 30.5), r.y + r.h + 36, c=GLD, lw=1.1, head=5))
-    o.append(T(r.X(12 * 60 + 15) - 6, r.y + r.h + 40, "外に出てから最初の記録まで 15 分（12:30 のウォームスタート）", "end", 9, GLD, True))
+    o.append(T(r.X(12 * 60 + 15) - 6, r.y + r.h + 40, "外に出てから最初の記録まで 15.5 分（12:30 に起きてウォームスタート）", "end", 9, GLD, True))
     # (c) 試験のまとめ
     cnt = {"hot": 0, "warm": 0, "fail": 0}
     for a, b, kind, ok, tf in _F24_DAY["wakes"]:
