@@ -125,7 +125,7 @@
 /* 節の目次: 今いる節に印を付ける。狭い画面では「節 2/7」のボタンで開く */
 (function(){
   var nav=document.getElementById('toc'),btn=document.getElementById('tocBtn');if(!nav)return;
-  var as=[].slice.call(nav.querySelectorAll('a[href^="#"]')).slice(1),hs=as.map(function(a){return document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1)));});
+  var as=[].slice.call(nav.querySelectorAll('a[href^="#"]')).slice(1),hs=as.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));});
   var cur=-2,tick=false;
   function upd(){tick=false;var k=-1;for(var i=0;i<hs.length;i++){if(hs[i]&&hs[i].getBoundingClientRect().top<140)k=i;}
     if(k===cur)return;cur=k;as.forEach(function(a,i){a.classList.toggle('on',i===k);});
