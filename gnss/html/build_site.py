@@ -246,6 +246,14 @@ def convert_blocks(lines):
                 l = lines[i]
                 l = re.sub(r"^\s*>\s?", "", l)
                 inner.append(l); i += 1
+            if inner and inner[0].startswith("**この章で使う既出の用語"):
+                # 既出の用語は章が進むほど長くなるので、折りたたんで出す（開けば定義へのリンクが並ぶ）
+                rest = " ".join(x.strip() for x in inner[1:] if x.strip())
+                plain = re.sub(r"（\[[^\]]*\]\([^)]*\)）", "", rest)
+                nterm = len([t for t in re.split(r"[、・]", plain) if t.strip()])
+                out.append('<details class="known"><summary><b>この章で使う既出の用語</b><span>%d 語・開くと定義へのリンク</span></summary><p>%s</p></details>'
+                           % (nterm, convert_inline(rest)))
+                continue
             cls = ' class="learn"' if inner and inner[0].startswith("**この章で学ぶこと") else ""
             out.append("<blockquote%s>%s</blockquote>" % (cls, convert_blocks(inner)))
             continue
@@ -329,6 +337,11 @@ def page(num, title, body, prev_c, next_c):
     wscript = '<script defer src="widgets.js?v=%s"></script>' % _ver("widgets.js") if has_widget else ''
     tshort = re.sub(r'^[0-9]+[.\s]*', '', title)
     tshort_html = convert_inline(tshort)
+    # 節の目次: h2 の「— 副題」より前を並べる。広い画面では左に固定、狭い画面では上の「節」ボタンで開く
+    secs = [(i, re.sub(r"<[^>]+>", "", t).split(" — ")[0]) for i, t in re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', body)]
+    toc = "".join('<a href="#%s">%s</a>' % (i, t) for i, t in secs)
+    toc_btn = '<button class="toggle tocbtn" id="tocBtn" aria-expanded="false" aria-controls="toc">節</button>' if secs else ''
+    toc_nav = ('<nav class="toc" id="toc" aria-label="この章の節"><a class="tt" href="#top">%s</a>%s</nav>' % (esc(tshort.split(" — ")[0]), toc)) if secs else ''
     return f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -345,9 +358,11 @@ def page(num, title, body, prev_c, next_c):
   <a class="home" href="../../gnss.html">{HOME_LABEL}</a>
   <span class="cur">{esc(num)} · {esc(tshort)}</span>
   <span class="sp"></span>
+  {toc_btn}
   <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
 </header>
-<main class="doc">
+{toc_nav}
+<main class="doc" id="top">
   <p class="chno">Chapter {esc(num)}</p>
   <h1 class="doctitle">{tshort_html}</h1>
   {body}
@@ -363,6 +378,39 @@ def page(num, title, body, prev_c, next_c):
   b.addEventListener('click',function(){{root.setAttribute('data-theme',dark()?'light':'dark');sync();window.dispatchEvent(new Event('themechange'));}});
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){{sync();window.dispatchEvent(new Event('themechange'));}});
   sync();
+}})();
+/* 節の目次: 今いる節に印を付ける。狭い画面では「節 2/7」のボタンで開く */
+(function(){{
+  var nav=document.getElementById('toc'),btn=document.getElementById('tocBtn');if(!nav)return;
+  var as=[].slice.call(nav.querySelectorAll('a[href^="#"]')).slice(1),hs=as.map(function(a){{return document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1)));}});
+  var cur=-2,tick=false;
+  function upd(){{tick=false;var k=-1;for(var i=0;i<hs.length;i++){{if(hs[i]&&hs[i].getBoundingClientRect().top<140)k=i;}}
+    if(k===cur)return;cur=k;as.forEach(function(a,i){{a.classList.toggle('on',i===k);}});
+    btn.textContent=(k<0?'節':'節 '+(k+1)+'/'+as.length);}}
+  window.addEventListener('scroll',function(){{if(!tick){{tick=true;requestAnimationFrame(upd);}}}},{{passive:true}});upd();
+  function close(){{nav.classList.remove('open');btn.setAttribute('aria-expanded','false');}}
+  btn.addEventListener('click',function(e){{e.stopPropagation();var o=nav.classList.toggle('open');btn.setAttribute('aria-expanded',o?'true':'false');}});
+  nav.addEventListener('click',function(e){{if(e.target.tagName==='A')close();}});
+  document.addEventListener('click',function(e){{if(!nav.contains(e.target))close();}});
+  document.addEventListener('keydown',function(e){{if(e.key==='Escape')close();}});
+}})();
+/* 図の拡大: 幅の狭い画面では図の文字が小さくなるので、図を押すと大きく開く（横に動かして読む） */
+(function(){{
+  var figs=[].slice.call(document.querySelectorAll('.doc figure.dia')).filter(function(f){{return !f.closest('.widget')&&f.querySelector('svg');}});
+  if(!figs.length)return;
+  var ov=document.createElement('div');ov.className='zoom';ov.hidden=true;
+  ov.innerHTML='<button class="toggle zx" aria-label="閉じる">閉じる ×</button><div class="zin"></div>';
+  document.body.appendChild(ov);var zin=ov.querySelector('.zin');
+  function close(){{ov.hidden=true;zin.innerHTML='';document.documentElement.classList.remove('zoomed');}}
+  function open(f){{var sv=f.querySelector('svg'),c=sv.cloneNode(true),vb=(sv.getAttribute('viewBox')||'0 0 700 400').split(/\\s+/);
+    var w=Math.max(+vb[2]*1.5,Math.min(window.innerWidth,window.innerHeight*(+vb[2])/(+vb[3])));
+    c.removeAttribute('width');c.style.width=Math.round(w)+'px';c.style.maxWidth='none';zin.innerHTML='';zin.appendChild(c);
+    var cap=f.querySelector('figcaption');if(cap){{var p=document.createElement('p');p.innerHTML=cap.innerHTML;zin.appendChild(p);}}
+    ov.hidden=false;document.documentElement.classList.add('zoomed');zin.scrollTop=0;zin.scrollLeft=0;}}
+  figs.forEach(function(f){{f.classList.add('zoomable');f.querySelector('svg').addEventListener('click',function(){{if(window.innerWidth<=760)open(f);}});}});
+  ov.querySelector('.zx').addEventListener('click',close);
+  ov.addEventListener('click',function(e){{if(e.target===ov||e.target===zin)close();}});
+  document.addEventListener('keydown',function(e){{if(e.key==='Escape'&&!ov.hidden)close();}});
 }})();
 </script>
 </body>

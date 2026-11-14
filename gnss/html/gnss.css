@@ -177,3 +177,41 @@ blockquote.learn td:first-child{white-space:nowrap}
 @media (max-width:640px){blockquote.learn .tablewrap{overflow:visible}blockquote.learn table,blockquote.learn tbody,blockquote.learn tr,blockquote.learn td{display:block;width:auto}blockquote.learn thead{display:none}blockquote.learn tr{padding:.45rem 0;border-bottom:1px solid var(--line)}blockquote.learn tr:last-child{border-bottom:0}blockquote.learn td{border:0;padding:.12rem .7rem}blockquote.learn td:nth-child(2)::before{content:"用語: ";color:var(--muted)}blockquote.learn td:nth-child(3)::before{content:"説明できること: ";color:var(--muted)}}
 blockquote.learn td{overflow-wrap:anywhere}
 @media (max-width:640px){blockquote.learn td:first-child{white-space:normal}}
+
+/* 既出の用語（折りたたみ） */
+details.known{margin:1.3rem 0;background:var(--signal-soft);border:1px solid color-mix(in srgb,var(--signal) 26%,var(--line));border-radius:12px}
+details.known summary{cursor:pointer;padding:.7rem 1.1rem;display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .8rem;list-style:none}
+details.known summary::-webkit-details-marker{display:none}
+details.known summary::before{content:"▸";color:var(--signal);font-size:.9em;flex:none}
+details.known[open] summary::before{content:"▾"}
+details.known summary span{font-size:.84rem;color:var(--muted)}
+details.known summary:hover span{color:var(--ink)}
+details.known p{margin:0;padding:0 1.1rem .9rem;font-size:.92rem;line-height:1.9}
+/* 節の目次 */
+html{scroll-padding-top:4rem}
+.toc{display:none;position:fixed;z-index:19;top:3.1rem;right:clamp(.6rem,3vw,1.6rem);width:min(21rem,calc(100vw - 1.2rem));max-height:calc(100vh - 4.2rem);overflow:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.5rem;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.toc.open{display:block}
+.toc a{display:block;padding:.42rem .65rem;border-radius:8px;border-left:3px solid transparent;font-size:.88rem;line-height:1.45;color:var(--muted);text-decoration:none}
+.toc a:hover{color:var(--ink);background:var(--screen)}
+.toc a.on{color:var(--ink);font-weight:700;border-left-color:var(--signal);background:var(--signal-soft)}
+.toc a.tt{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;color:var(--signal);padding-bottom:.3rem}
+@media (min-width:1300px){
+  .tocbtn{display:none}
+  .toc,.toc.open{display:block;top:5.2rem;right:auto;left:max(1rem,calc(50% - var(--maxw)/2 - 16.5rem));width:14.5rem;max-height:calc(100vh - 6.5rem);
+    background:none;border:0;box-shadow:none;padding:0}
+}
+/* 図の拡大（幅の狭い画面） */
+.zoom{position:fixed;inset:0;z-index:40;background:var(--paper);display:flex;flex-direction:column}
+.zoom[hidden]{display:none}
+.zoom .zx{align-self:flex-end;margin:.5rem .7rem}
+.zoom .zin{flex:1;overflow:auto;padding:0 .7rem 1.2rem;-webkit-overflow-scrolling:touch}
+.zoom .zin svg{display:block;height:auto;background:var(--screen);border:1px solid var(--line);border-radius:12px;padding:.5rem}
+.zoom .zin p{margin:.6rem 0 0;font-size:.85rem;color:var(--muted);max-width:46rem;position:sticky;left:0}
+html.zoomed{overflow:hidden}
+@media (max-width:760px){
+  .doc figure.dia.zoomable{position:relative}
+  .doc figure.dia.zoomable svg{cursor:zoom-in}
+  .doc figure.dia.zoomable::before{content:"押すと拡大";position:absolute;top:.45rem;right:.5rem;z-index:1;font-size:.66rem;line-height:1;padding:.28rem .45rem;border-radius:6px;
+    background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);color:var(--muted);pointer-events:none}
+}
