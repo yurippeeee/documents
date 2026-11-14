@@ -295,9 +295,9 @@ F["e08_role"] = _f08_role_fig()
 def _f08_polcomp_fig():
     o = []
     o.append(T(14, 18, "(a) 直線偏波: 電界の向きは一定で、大きさと符号が変わる", "start", 11.5, INK, True))
-    x0, x1, yc, A = 30, 300, 112, 44
-    o.append(ARR(x0, yc, x1 + 14, yc, c=MUT, lw=1.4))
-    o.append(T(x1 + 14, yc + 18, "進む向き", "end", 9.5, MUT, True))
+    x0, x1, yc, A = 30, 262, 112, 44
+    o.append(ARR(x0, yc, x1 + 16, yc, c=MUT, lw=1.4))
+    o.append(T(x1 + 20, yc + 4, "進む向き", "start", 9.5, MUT, True))
     n = 2.0
     pts = [(x0 + (x1 - x0) * k / 200.0, yc - A * math.sin(2 * math.pi * n * k / 200.0)) for k in range(201)]
     o.append(PL(pts, c=SIG, lw=1.2, dash="3 3"))
@@ -1494,8 +1494,8 @@ def _f08_bands_fig():
     o.append(W(gx + 80, gy + 8, gx + 80, gy - 45, c=ALI, lw=1.4))
     o.append(W(gx + 104, gy + 8, gx + 104, gy - 23, c=ALI, lw=1.4))
     o.append(T(gx + 90, gy - 56, "L1 のパッチ（小さい）", "middle", 9.5, SIG, True))
-    o.append(T(gx + 150, gy - 6, "L5 のパッチ", "start", 9.5, PUR, True))
-    o.append(T(gx + 150, gy + 8, "（大きい）", "start", 9.5, PUR, True))
+    o.append(T(gx + 154, gy - 26, "L5 のパッチ", "start", 9.5, PUR, True))
+    o.append(T(gx + 154, gy - 12, "（大きい）", "start", 9.5, PUR, True))
     o.append(T(gx + 90, gy + 28, "地板", "middle", 9.5, MUT, True))
     o.append(T(gx + 90, gy + 44, "給電のピン（赤）は各パッチへ", "middle", 9.5, ALI))
     o.append(T(14, 228, "比誘電率 %g のセラミックで" % _F08_ER, "start", 9.5, INK))
@@ -1742,12 +1742,11 @@ def _f08_s11_fig():
     o.append(T(q.X(0) + 6, q.Y(ad) - 6, "L1 で %.1f dB" % ad, "start", 9.5, ALI, True, halo=True))
     o.append(T(q.X(0), q.y + 12, "%.1f MHz" % ((max(oka) - min(oka)) / 1e6), "middle", 9.5, GRN, True, halo=True))
     o.append(W(q.X(0), q.y, q.X(0), q.y + q.h, c=INK, lw=1, dash="2 3"))
-    o.append(LEGL(20, 276, [(SIG, None, "合っている"), (ALI, "5 3", "共振が 5 MHz 下がった")], 9.5, 14))
+    o.append(LEGL(20, 270, [(SIG, None, "合っている"), (ALI, "5 3", "共振が 5 MHz 下がった")], 9.5, 14))
     okl = [d for d in np.linspace(-25e6, 25e6, 10001) if 20 * math.log10(max(abs(_f08_s11_model(f0 + d, 0.0, None, "lin")[1]), 1e-4)) <= -10]
-    o.append(T(p.X(-24), p.Y(-34), "直線偏波（1 つの", "start", 9.5, MUT, False, halo=True))
-    o.append(T(p.X(-24), p.Y(-34) + 14, "モード）なら %.1f MHz" % ((max(okl) - min(okl)) / 1e6), "start", 9.5, MUT, False, halo=True))
+    o.append(T(20, 290, "直線偏波（1 つのモード）のパッチなら、−10 dB 以下は %.1f MHz" % ((max(okl) - min(okl)) / 1e6), "start", 9.5, MUT))
     # 共振がずれたときの L1 での値
-    yt = 318
+    yt = 332
     o.append(W(14, yt - 22, 686, yt - 22, c=LIN, lw=0.8))
     o.append(T(20, yt, "(d) 共振周波数が下がったときの、L1 での値", "start", 11.5, INK, True))
     ends = [150, 250, 340, 450, 590]
@@ -1762,5 +1761,5 @@ def _f08_s11_fig():
         for xe, v in zip(ends, vals):
             o.append(T(xe, yy, v, "end", 9.5, ALI if k == 0 else INK, k == 0))
     o.append(T(20, yt + 82, "右旋の損失は、合っているときからの減り。左旋を受ける強さは、軸比で決まる偏波の分（2 節の式）", "start", 9.5, MUT))
-    return SVG(700, 408, o, "S11 の測り方と、例のパッチの S11・軸比（3 節の 1 点給電のパッチで、Q = 100。2 つのモードの共振回路を直列につないだモデルで、L1 で 50 Ω とした。共振のずれは例の値）。")
+    return SVG(700, 422, o, "S11 の測り方と、例のパッチの S11・軸比（3 節の 1 点給電のパッチで、Q = 100。2 つのモードの共振回路を直列につないだモデルで、L1 で 50 Ω とした。共振のずれは例の値）。")
 F["e08_s11"] = _f08_s11_fig()
