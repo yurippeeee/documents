@@ -329,16 +329,19 @@ def _f07_sources_fig():
     o.append(p.axes(xl="擬似距離の誤差の大きさ [m]（対数の目盛）", yl=None, xt=xt, yt=[],
                     xfmt=lambda v: {0.1: "0.1", 1: "1", 10: "10", 100: "100", 1e3: "1 km", 1e4: "10 km", 1e5: "100 km"}[v]))
     same, diff = "近くの受信機でほぼ同じ", "受信機ごとに違う"
+    slow = "数分〜数時間でゆっくり変わる"
+    spd = [slow, slow, slow, "数十秒〜十分ほどで変わる", "1 秒ごとに変わる"]
     rows = [("① 衛星の時計と軌道", PUR, (1e3, 1.5e5, "時計の補正の値を使わないとき（2 章 5 節）"), (0.5, 2, "航法メッセージの値で直した後: 軌道 約 1 m・時計 約 5 ns（1.5 m）"), same),
             ("② 電離層", GLD, (1, 45, "天頂で 1〜10 m あまり、低い仰角で約 3 倍"), (0.5, 20, "クロブッチャー・モデルで直した後（約半分が残る。2 節）"), same),
             ("③ 対流圏", GRN, (2.3, 25, "天頂 約 2.4 m 〜 仰角 5° で約 25 m"), (0.05, 1, "気圧などからのモデルで直した後（2 節）"), same),
             ("④ マルチパス", ALI, (0.2, 50, "開けた空 〜1 m、ビル街で数十 m"), "補正の値は無い（アンテナ・相関器・置き場所・仰角マスクで減らす。3 節）", diff),
             ("⑤ 受信機の雑音", TEA, (0.1, 3, "C/N_0 と追尾の設定による"), "補正の値は無い（ループの帯域と E・L の間隔で小さくする。5 章 3 節）", diff)]
-    o.append(T(14, 22, "誤差の大きさの範囲（代表値）。薄い棒: 補正しないとき　濃い棒: 補正した後", "start", 10.5, INK, True))
+    o.append(T(14, 22, "誤差の大きさの範囲。薄い棒: 補正しないとき　濃い棒: 補正した後　左の列: 近くの受信機との違いと、変わる速さ", "start", 10.5, INK, True))
     for k, (nm, c, a, b, near) in enumerate(rows):
         y0 = 52 + k * 58
         o.append(T(p.x - 10, y0 + 14, nm, "end", 10.5, c, True))
-        o.append(T(p.x - 10, y0 + 30, near, "end", 9.5, MUT))
+        o.append(T(p.x - 10, y0 + 29, near, "end", 9.5, MUT))
+        o.append(T(p.x - 10, y0 + 43, spd[k], "end", 9.5, MUT))
         x1, x2 = p.X(a[0]), p.X(a[1])
         o.append(RECT(x1, y0, x2 - x1, 16, 3, soft(c), c, 1.1))
         lab = a[2]
@@ -352,7 +355,7 @@ def _f07_sources_fig():
             o.append(T(x2 + 6, y0 + 33, b[2], "start", 9.5, c, True))
         else:
             o.append(T(p.X(a[0]), y0 + 33, b, "start", 9.5, MUT))
-    return SVG(700, 384, o, "擬似距離の誤差の源ごとの大きさ（代表値。時刻・場所・受信機で大きく変わる。衛星の時計と軌道の補正の後の値は、国際的な観測網 IGS の公表による RMS）。")
+    return SVG(700, 384, o, "擬似距離の誤差の源ごとの大きさと性質（どれも代表値で、時刻・場所・受信機で大きく変わる。衛星の時計と軌道の補正の後の値は、国際的な観測網 IGS の公表による RMS）。")
 F["e07_sources"] = _f07_sources_fig()
 
 
@@ -538,7 +541,7 @@ def _f07_shell_fig():
     o.append(TX(rx + 36, ry - 5, "θ", "start", 11, SIG, True, halo=True))
     o.append(TX(rx - 12, ry + 30, "90° + θ", "end", 10, ALI, True, halo=True))
     o.append(TX(px + 9, py - 28, "z'", "start", 11, GLD, True, halo=True))
-    o.append(TX(px - 26, py + 28, "z'", "end", 11, ALI, True, halo=True))
+    o.append(TX(px + 7, py + 36, "z'", "start", 11, ALI, True, halo=True))
     o.append(T(14, 322, "赤の 2 つの角と、向かい合う 2 つの辺に、正弦定理を使う", "start", 9.5, ALI))
     o.append(TX(14, 340, "sin z' = R_E cos θ / (R_E + h_I)、倍率 m_I(θ) = 1 / cos z'", "start", 10.5, GLD, True))
     # (b) 倍率と仰角
@@ -905,15 +908,14 @@ def _f07_mpenv_fig():
     o.append(T(p.X(0.28), p.Y(72) + 13, "誤差 = 遅れの全部", "start", 9, ALI, True, halo=True))
     o.append(T(p.X(0.82), p.Y(73.3) - 4, "最大 γ × 間隔 / 2 = 0.25 チップ（73.3 m）", "start", 9.5, GLD, True, halo=True))
     o.append(T(p.X(0.62), p.Y(7.3) - 8, "最大 0.025 チップ（7.3 m）", "middle", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(1.59), p.Y(52), "余分の道のりが、間隔 1 チップで %.0f m、" % (1.5 * _F07_CTC), "end", 9.5, MUT, halo=True))
-    o.append(T(p.X(1.59), p.Y(52) + 14, "0.1 チップで %.0f m より長いと、誤差は 0" % (1.05 * _F07_CTC), "end", 9.5, MUT, halo=True))
+    o.append(T(74, 353, "線が 0 に戻る所: 余分の道のりが、間隔 1 チップで %.0f m、0.1 チップで %.0f m。これより長い反射波は、誤差を生まない" % (1.5 * _F07_CTC, 1.05 * _F07_CTC), "start", 9.5, MUT))
     o.append(T(p.X(1.59), p.Y(-48), "遅れの短い所では、2 つの間隔の線が重なる", "end", 9.5, INK, halo=True))
     o.append(T(p.X(1.59), p.Y(-48) + 14, "（0.1 チップでは、余分の道のりが、同じ位相で", "end", 9.5, MUT, halo=True))
     o.append(T(p.X(1.59), p.Y(-48) + 28, "%.0f m、逆の位相で %.1f m まで）" % ((1 + g) * 0.1 / 2 * _F07_CTC, (1 - g) * 0.1 / 2 * _F07_CTC), "end", 9.5, MUT, halo=True))
     o.append(LEGL(74, 334, [(GLD, None, "E と L の間隔 1 チップ"), (SIG, None, "0.1 チップ"), (ALI, "5 3", "NLOS")], 9.5, 16))
     # (b) 位相が回るときの誤差
-    o.append(TX(14, 372, "(b) 反射波の位相 ψ_M が回るときの誤差（余分の道のり cτ_M = 100 m、γ = 0.5）", "start", 11.5, INK, True))
-    q = Plot(74, 392, 560, 170, (0, 360), (-80, 80))
+    o.append(TX(14, 380, "(b) 反射波の位相 ψ_M が回るときの誤差（余分の道のり cτ_M = 100 m、γ = 0.5）", "start", 11.5, INK, True))
+    q = Plot(74, 400, 560, 170, (0, 360), (-80, 80))
     o.append(q.axes(xl="反射波の位相 ψ_M [°]", yl="擬似距離の誤差 [m]", xt=[0, 60, 120, 180, 240, 300, 360], yt=[-80, -40, 0, 40, 80]))
     o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
     tm = 100 / _F07_CTC
@@ -926,7 +928,7 @@ def _f07_mpenv_fig():
         stats.append((d, c, float(_f07_np.mean(vu)), float(_f07_np.sqrt(_f07_np.mean(_f07_np.square(vu)))), min(vals), max(vals)))
     for k, (d, c, mn, rms, lo, hi) in enumerate(stats):
         o.append(T(q.x, q.y + q.h + 52 + k * 16, ("E と L の間隔 %g チップ: %.1f〜%.1f m、RMS %.1f m、平均 %.1f m" % (d, lo, hi, rms, mn)).replace("-", "−"), "start", 9.5, c, True))
-    return SVG(700, 640, o, "マルチパスの誤差の包絡線と、位相が回るときの誤差（振幅の比 γ = 0.5 の例。(b) は 5 章 3 節の電力の差の判別器が 0 を横切る点を、数値で探した値）。")
+    return SVG(700, 648, o, "マルチパスの誤差の包絡線と、位相が回るときの誤差（振幅の比 γ = 0.5 の例。(b) は 5 章 3 節の電力の差の判別器が 0 を横切る点を、数値で探した値）。")
 F["e07_mpenv"] = _f07_mpenv_fig()
 
 
@@ -1511,7 +1513,7 @@ def _f07_acc_fig():
                 o.append(T(p.X(v) + 4, yy + 10, lab_, "start", 9, c, True))
             else:
                 o.append(T(p.X(v) - 4, yy + 9.5, lab_, "end", 9, c, True, halo=True))
-    return SVG(700, 400, o, "UERE と DOP からの精度の見積もり（どの衛星も同じ大きさの独立な誤差とした。CEP と R95 は誤差の楕円から、上下の 95 %% は 1.96 × VDOP × UERE で計算した。24 時間の値は、10 分おきの値の中央値）。")
+    return SVG(700, 400, o, "UERE と DOP からの精度の見積もり（どの衛星も同じ大きさの独立な誤差とした。CEP と R95 は誤差の楕円から、上下の 95 % は 1.96 × VDOP × UERE で計算した。24 時間の値は、10 分おきの値の中央値）。")
 F["e07_acc"] = _f07_acc_fig()
 
 
