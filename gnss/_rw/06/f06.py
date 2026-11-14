@@ -227,7 +227,7 @@ def _f06_eph_fig():
     steps = [("1. 時刻の差", ["送った時刻 − エフェメリスの基準の時刻", "（差が数時間までの範囲で使える。2 章 5 節）"], "基準の時刻"),
              ("2. 時間に比例して進む角度", ["基準の時刻の角度 + 角速度 × 時刻の差", "（楕円を一定の角速度で回るとしたときの角度）"], "角度・長半径・角速度の直し"),
              ("3. 楕円の上の位置", ["ケプラーの方程式を繰り返して解き、", "本当の角度と、地球の中心からの距離を求める"], "離心率"),
-             ("4. 周期的な直し", ["赤道のふくらみなどで楕円からずれる分を、", "軌道の上の角度・半径・傾きに足す"], "6 つの係数"),
+             ("4. 周期的な直し", ["赤道のふくらみなどで楕円からずれる分を、", "軌道の上の角度・半径・軌道の傾きに足す"], "6 つの係数"),
              ("5. ECEF の座標へ", ["軌道面を傾け、z 軸のまわりに回す", "（回す角度から、地球が回った分を引く）"], "傾き・軌道面の向き・その変化")]
     x0, y0, bw, bh, gap = 14, 34, 296, 54, 10
     for k, (ttl, sub, use) in enumerate(steps):
@@ -300,25 +300,25 @@ def _f06_plan_fig():
     wtot = (_f06_ctxw([("ρ_i", SIG), (" = ", INK)], sz) + 16 + _f06_ctxw(rad_, sz) + 4
             + _f06_ctxw([(" + ", INK), ("b", GLD), (" + ", INK), ("ε_i", TEA)], sz))
     x0 = (700 - wtot - 120) / 2
-    sv, xe = _f06_eq(x0, 40, sz)
+    sv, xe = _f06_eq(x0, 54, sz)
     o.append(sv)
-    o.append(T(xe + 16, 40, "（i = 1, 2, …, m）", "start", 11, INK))
+    o.append(T(xe + 16, 54, "（i = 1, 2, …, m）", "start", 11, INK))
     # 平方根の下と、式の数の下に番号を付ける
     w_lhs = _f06_ctxw([("ρ_i", SIG), (" = ", INK)], sz)
     xr0 = x0 + w_lhs + 2
     xr1 = xe - _f06_ctxw([(" + ", INK), ("b", GLD), (" + ", INK), ("ε_i", TEA)], sz) - 4
-    o.append(W(xr0, 50, xr0, 55, xr1, 55, xr1, 50, c=ALI, lw=1.3))
-    o.append(T((xr0 + xr1) / 2, 69, "① 平方根の中に未知数がある", "middle", 9.5, ALI, True))
+    o.append(W(xr0, 64, xr0, 69, xr1, 69, xr1, 64, c=ALI, lw=1.3))
+    o.append(T((xr0 + xr1) / 2, 83, "① 平方根の中に未知数がある", "middle", 9.5, ALI, True))
     xm0, xm1 = xe + 20, xe + 16 + tw("（i = 1, 2, …, m）", 11) - 6
-    o.append(W(xm0, 50, xm0, 55, xm1, 55, xm1, 50, c=ALI, lw=1.3))
-    o.append(T((xm0 + xm1) / 2, 69, "② 式が m 個", "middle", 9.5, ALI, True))
+    o.append(W(xm0, 64, xm0, 69, xm1, 69, xm1, 64, c=ALI, lw=1.3))
+    o.append(T((xm0 + xm1) / 2, 83, "② 式が m 個", "middle", 9.5, ALI, True))
     cols = [("① 1 次の式でない", ["未知数 x・y・z が、平方根の中で", "2 乗されている。行列の計算", "（消去法）で一度に解けない"],
              "2 節 線形化", ["仮の値のまわりで、", "1 次の式に置き換える"]),
             ("② 式が未知数より多い", ["衛星が 5 つ以上だと、誤差 ε_i の", "ために、全部の式を同時に満たす", "解が無い"],
              "3 節 最小二乗法", ["式とのずれが全体として", "最も小さくなる解を選ぶ"]),
             ("③ 近くでしか合わない", ["① で置き換えた 1 次の式は、", "仮の値の近くでしか、", "もとの式に合わない"],
              "4 節 繰り返して解く", ["求めた解を新しい仮の値に", "して、もう一度解く"])]
-    bw, y1, h1, y2, h2 = 216, 88, 76, 190, 62
+    bw, y1, h1, y2, h2 = 216, 100, 76, 200, 62
     for k, (t1, l1, t2, l2) in enumerate(cols):
         bx = 14 + k * (bw + 12)
         o.append(RECT(bx, y1, bw, h1, 6, ASOFT, ALI, 1.2))
@@ -331,7 +331,7 @@ def _f06_plan_fig():
         for j, ln in enumerate(l2):
             o.append(T(bx + bw / 2, y2 + 35 + j * 14, ln, "middle", 9.5, INK))
     o.append(T(14, 18, "観測方程式をそのまま解けない理由（赤）と、それを片付ける節（緑）", "start", 11.5, INK, True))
-    return SVG(700, 262, o, "観測方程式を解くまでに片付ける 3 つのことと、それを扱う節。")
+    return SVG(700, 272, o, "観測方程式を解くまでに片付ける 3 つのことと、それを扱う節。")
 F["e06_plan"] = _f06_plan_fig()
 
 
@@ -429,7 +429,7 @@ def _f06_lin_fig():
     xb = 372
     o.append(T(xb, 18, "(b) 衛星まで含めた全体（比は実際と違う）", "start", 11.5, INK, True))
     rxp = (xb + 50, 150)
-    Lb = 232.0
+    Lb = 176.0
     sp = (rxp[0] + Lb * lx, rxp[1] - Lb * ly)
     arc = [(sp[0] + Lb * math.cos(ang + math.pi + t), sp[1] - Lb * math.sin(ang + math.pi + t)) for t in _f06_np.linspace(-0.2, 0.2, 41)]
     o.append(PL(arc, c=SIG, lw=1.8))
@@ -438,9 +438,9 @@ def _f06_lin_fig():
     o.append(T(sp[0], sp[1] - 12, "衛星 i", "middle", 10, PUR, True, halo=True))
     o.append(RECT(rxp[0] - 9, rxp[1] - 9, 18, 18, 0, "none", GLD, 1.4))
     o.append(D(rxp[0], rxp[1], GRN, 2.6))
-    o.append(T(rxp[0] + 14, rxp[1] + 22, "(a) の範囲", "start", 9.5, GLD, True, halo=True))
+    o.append(T(rxp[0] - 14, rxp[1] + 4, "(a) の範囲", "end", 9.5, GLD, True, halo=True))
     o.append(TX((rxp[0] + sp[0]) / 2 + 10, (rxp[1] + sp[1]) / 2 + 16, "r̂_i = 20 200 km", "start", 10, MUT, True, halo=True))
-    o.append(T(arc[0][0] + 8, arc[0][1] + 4, "衛星から等しい距離の球", "start", 9.5, SIG, True, halo=True))
+    o.append(T(arc[-1][0] + 8, arc[-1][1] + 4, "衛星から等しい距離の球", "start", 9.5, SIG, True, halo=True))
     # (c) ずらす向きと、距離の変わる量
     yc = 210
     o.append(T(xb, yc, "(c) 仮の位置をずらしたときの、距離の変わる量", "start", 11.5, INK, True))
@@ -1318,10 +1318,10 @@ def _f06_rate_fig():
     o = []
     o.append(T(14, 18, "(a) ドップラーから擬似距離の変化率へ", "start", 11.5, INK, True))
     # 鎖: 距離が変わる → 周期の数が変わる → 周波数がずれる
-    bx = [(14, 150, "距離が 1 s に \\dot{r} 変わる", "（近づくとき \\dot{r} < 0）"),
-          (190, 190, "1 波長 λ 縮むごとに", "搬送波を 1 周期多く数える"),
-          (406, 132, "届く周波数が", "−\\dot{r}/λ ずれる"),
-          (564, 122, "\\dot{ρ}_i = −λ f_{D,i}", "（擬似距離の変化率）")]
+    bx = [(14, 146, "距離が 1 s に \\dot{r} 変わる", "（近づくとき \\dot{r} < 0）"),
+          (182, 180, "1 波長 λ 縮むごとに", "搬送波を 1 周期多く数える"),
+          (384, 160, "届く周波数のずれ f_D から", "\\dot{r} = −λ f_D"),
+          (566, 120, "\\dot{ρ}_i = −λ f_{D,i}", "（擬似距離の変化率）")]
     for k, (x, w_, l1, l2) in enumerate(bx):
         c = SIG if k == 3 else LIN
         o.append(RECT(x, 32, w_, 46, 6, soft(SIG) if k == 3 else PAN, c, 1.3))
@@ -1330,7 +1330,7 @@ def _f06_rate_fig():
         if k < 3:
             o.append(ARR(x + w_, 55, bx[k + 1][0], 55, c=MUT, lw=1.5, head=6))
     # 2 つの目盛を持つ軸: f_D [Hz] と ρ̇ [m/s]
-    ax0, ax1, ay = 60, 640, 128
+    ax0, ax1, ay = 118, 656, 128
     o.append(W(ax0, ay, ax1, ay, c=INK, lw=1.4))
     fmax = 5000.0
     for f in range(-5000, 5001, 1000):
@@ -1339,8 +1339,8 @@ def _f06_rate_fig():
         o.append(T(x, ay - 10, ("%+d" % f if f else "0").replace("-", "−"), "middle", 9.5, SIG, True))
         v = -_F06_LAM * f
         o.append(T(x, ay + 18, ("%+.0f" % v if f else "0").replace("-", "−"), "middle", 9.5, PUR, True))
-    o.append(TX(ax0 - 8, ay - 10, "f_D [Hz]", "end", 9.5, SIG, True))
-    o.append(TX(ax0 - 8, ay + 18, "\\dot{ρ} [m/s]", "end", 9.5, PUR, True))
+    o.append(TX(ax0 - 34, ay - 10, "f_D [Hz]", "end", 9.5, SIG, True))
+    o.append(TX(ax0 - 34, ay + 18, "\\dot{ρ} [m/s]", "end", 9.5, PUR, True))
     o.append(T(ax0, ay + 36, "← 遠ざかる（距離が伸びる）", "start", 9.5, MUT))
     o.append(T(ax1, ay + 36, "近づく（距離が縮む）→", "end", 9.5, MUT))
     o.append(TX(350, ay + 36, "1 Hz は %.3f m/s（λ = %.2f cm）" % (_F06_LAM, _F06_LAM * 100), "middle", 10, INK, True))
@@ -1351,7 +1351,7 @@ def _f06_rate_fig():
     cb = [(14, 142, "発振器の周波数が", "+0.5 ppm ずれる"),
           (182, 176, "時計が 1 s に 0.5 μs 進む", "δ\\dot{t}_r = 0.5 × 10^{−6}"),
           (384, 142, "距離に直す", "\\dot{b} = c δ\\dot{t}_r = %.1f m/s" % (_F06_C * dtr)),
-          (552, 134, "全部の衛星のドップラーに", "−\\dot{b}/λ = %s Hz" % _f06_m(-_F06_C * dtr / _F06_LAM, 1))]
+          (552, 134, "全部の衛星のドップラーが", "\\dot{b}/λ = %.1f Hz 下がる" % (_F06_C * dtr / _F06_LAM))]
     for k, (x, w_, l1, l2) in enumerate(cb):
         o.append(RECT(x, yb + 14, w_, 46, 6, GOSOFT if k >= 2 else PAN, GLD if k >= 2 else LIN, 1.3))
         o.append(TX(x + w_ / 2, yb + 33, l1, "middle", 10, INK, k < 2))
@@ -1397,7 +1397,7 @@ def _f06_dopgeom_fig():
     o.append(T(xf, 60, "距離の変わる速さ", "start", 10, MUT, True))
     o.append(TX(xf, 80, "\\dot{r}_i = l_i·(v_i − v)", "start", 12, INK, True))
     o.append(T(xf, 116, "擬似距離の変化率", "start", 10, MUT, True))
-    o.append(TX(xf, 136, "\\dot{ρ}_i = l_i·(v_i − v) + \\dot{b}", "start", 12, INK, True))
+    o.append(TX(xf, 136, "\\dot{ρ}_i = \\dot{b} + l_i·(v_i − v)", "start", 12, INK, True))
     o.append(TX(xf, 172, "\\dot{b}: 時計のドリフトを距離に直した値", "start", 9.5, MUT))
     return SVG(700, 212, o, "距離の変わる速さと、速度の視線の向きの成分（矢印の長さは、見やすい長さに描いた）。")
 F["e06_dopgeom"] = _f06_dopgeom_fig()
