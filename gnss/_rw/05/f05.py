@@ -50,7 +50,7 @@ def _f05_tlong(sec):
     """時間の文字（s・分・時間）。"""
     if sec < 100:
         return "%.0f s" % sec
-    if sec < 3600:
+    if sec < 7200:
         return "%.1f 分" % (sec / 60) if sec < 600 else "%.0f 分" % (sec / 60)
     return "%.1f 時間" % (sec / 3600)
 
