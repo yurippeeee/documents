@@ -315,7 +315,7 @@ def _f07_path_fig():
         o.append(T(xb + 70, yy, desc, "start", 9.5, c if c != INK else MUT))
     o.append(W(xb, 56 + 2 * 32 + 12, xb + 260, 56 + 2 * 32 + 12, c=LIN, lw=0.8, dash="3 3"))
     o.append(TX(xb + 8, 56 + 8 * 32, "①〜⑤ が、6 章でまとめて ε_i と書いた誤差", "start", 9.5, INK, True))
-    return SVG(700, 340, o, "擬似距離の誤差の源。(a) 衛星の電波は、衛星の時計と軌道の誤差（①）を含んで送られ、電離層（②）と対流圏（③）で遅れ、建物などで反射した電波（④）と混ざって、雑音（⑤）のある受信機で測られる。(b) 6 章でまとめて ε<sub>i</sub> と書いた誤差を、源ごとの 5 つの項に分けた式。色は、この章の図とデモで、どの源かを表す。")
+    return SVG(700, 340, o, "擬似距離の誤差の 5 つの源（色は、この章の図とデモで、どの源かを表す）。")
 F["e07_path"] = _f07_path_fig()
 
 
@@ -328,15 +328,17 @@ def _f07_sources_fig():
     xt = [0.1, 1, 10, 100, 1e3, 1e4, 1e5]
     o.append(p.axes(xl="擬似距離の誤差の大きさ [m]（対数の目盛）", yl=None, xt=xt, yt=[],
                     xfmt=lambda v: {0.1: "0.1", 1: "1", 10: "10", 100: "100", 1e3: "1 km", 1e4: "10 km", 1e5: "100 km"}[v]))
-    rows = [("① 衛星の時計と軌道", PUR, (1e3, 1.5e5, "時計の補正の値を使わないとき（2 章 5 節）"), (0.5, 2, "補正の後")),
-            ("② 電離層", GLD, (1, 45, "天頂で 1〜10 m あまり、低い仰角で約 3 倍"), (0.5, 20, "モデルで直した後（約半分）")),
-            ("③ 対流圏", GRN, (2.3, 25, "天頂 約 2.4 m 〜 仰角 5° で約 25 m"), (0.05, 1, "モデルで直した後")),
-            ("④ マルチパス", ALI, (0.2, 50, "開けた空 〜1 m、ビル街で数十 m"), None),
-            ("⑤ 受信機の雑音", TEA, (0.1, 3, "C/N_0 と追尾の設定による"), None)]
+    same, diff = "近くの受信機でほぼ同じ", "受信機ごとに違う"
+    rows = [("① 衛星の時計と軌道", PUR, (1e3, 1.5e5, "時計の補正の値を使わないとき（2 章 5 節）"), (0.5, 2, "航法メッセージの値で直した後: 軌道 約 1 m・時計 約 5 ns（1.5 m）"), same),
+            ("② 電離層", GLD, (1, 45, "天頂で 1〜10 m あまり、低い仰角で約 3 倍"), (0.5, 20, "クロブッチャー・モデルで直した後（約半分が残る。2 節）"), same),
+            ("③ 対流圏", GRN, (2.3, 25, "天頂 約 2.4 m 〜 仰角 5° で約 25 m"), (0.05, 1, "気圧などからのモデルで直した後（2 節）"), same),
+            ("④ マルチパス", ALI, (0.2, 50, "開けた空 〜1 m、ビル街で数十 m"), "補正の値は無い（アンテナ・相関器・置き場所・仰角マスクで減らす。3 節）", diff),
+            ("⑤ 受信機の雑音", TEA, (0.1, 3, "C/N_0 と追尾の設定による"), "補正の値は無い（ループの帯域と E・L の間隔で小さくする。5 章 3 節）", diff)]
     o.append(T(14, 22, "誤差の大きさの範囲（代表値）。薄い棒: 補正しないとき　濃い棒: 補正した後", "start", 10.5, INK, True))
-    for k, (nm, c, a, b) in enumerate(rows):
+    for k, (nm, c, a, b, near) in enumerate(rows):
         y0 = 52 + k * 58
         o.append(T(p.x - 10, y0 + 14, nm, "end", 10.5, c, True))
+        o.append(T(p.x - 10, y0 + 30, near, "end", 9.5, MUT))
         x1, x2 = p.X(a[0]), p.X(a[1])
         o.append(RECT(x1, y0, x2 - x1, 16, 3, soft(c), c, 1.1))
         lab = a[2]
@@ -344,13 +346,13 @@ def _f07_sources_fig():
             o.append(TX(x2 + 6, y0 + 12, lab, "start", 9.5, c))
         else:
             o.append(TX(x1 - 6, y0 + 12, lab, "end", 9.5, c))
-        if b:
+        if not isinstance(b, str):
             x1, x2 = p.X(b[0]), p.X(b[1])
             o.append(RECT(x1, y0 + 22, x2 - x1, 14, 3, c, c, 1.1))
             o.append(T(x2 + 6, y0 + 33, b[2], "start", 9.5, c, True))
         else:
-            o.append(T(p.X(a[0]), y0 + 33, "補正の値は無い（減らす工夫は 3 節・5 章 3 節）" if k == 3 else "補正の値は無い（追尾の工夫で小さくする。5 章 3 節）", "start", 9.5, MUT))
-    return SVG(700, 384, o, "擬似距離の誤差の源ごとの大きさ（代表値。時刻・場所・受信機で大きく変わる）。衛星の時計のずれは、補正しないと数十 km 以上になることもあるが、航法メッセージの値で直すと 1 m 前後になる。補正した後に最も大きく残るのは電離層である。マルチパスと受信機の雑音には、航法メッセージのような補正の値が無い。")
+            o.append(T(p.X(a[0]), y0 + 33, b, "start", 9.5, MUT))
+    return SVG(700, 384, o, "擬似距離の誤差の源ごとの大きさ（代表値。時刻・場所・受信機で大きく変わる。衛星の時計と軌道の補正の後の値は、国際的な観測網 IGS の公表による RMS）。")
 F["e07_sources"] = _f07_sources_fig()
 
 
@@ -422,8 +424,7 @@ def _f07_orbit_fig():
         o.append(T(q.X(v) + 5, yy + 14, "%.2f" % v, "start", 10, c, True))
     o.append(T(xb, 300, "半径の向きの誤差と時計の誤差は、ほぼそのまま入る。", "start", 9.5, INK))
     o.append(T(xb, 316, "進む向き・軌道面に垂直な向きの誤差は 1/7 ほどになる。", "start", 9.5, INK))
-    o.append(T(xb, 332, "（視線の単位ベクトルの成分の 2 乗を、見える範囲で平均）", "start", 9.5, MUT))
-    return SVG(700, 362, o, "衛星の軌道の誤差のうち、擬似距離に効くのは、受信機の視線の向きの成分だけである。(a) 2 万 km 先の衛星からは、地球は %.1f° の範囲にしか見えないので、どの受信機の視線も、衛星の半径の向きに近い。(b) 半径の向きの誤差は %.2f 倍、それに垂直な 2 つの向きの誤差は %.2f 倍で擬似距離に入る（衛星から見える地上の範囲で、面積の重みで 2 乗を平均して平方根をとった値。RMS）。時計の誤差は、どの受信機にも同じ量で入る。" % (_F07_NADIR, _F07_WR, _F07_WT))
+    return SVG(700, 362, o, "衛星の軌道と時計の誤差が、擬似距離に入る割合（(b) は、衛星から見える地上の範囲で、視線の単位ベクトルの成分の 2 乗を面積の重みで平均した平方根）。")
 F["e07_orbit"] = _f07_orbit_fig()
 
 
@@ -477,15 +478,23 @@ def _f07_atmos_fig():
         o.append(T(q.X(f / 1e6) + (6 if nm != "L5" else -7), q.Y(v) + (-7 if nm != "L5" else 17), "%s %.2f m" % (nm, v), "start" if nm != "L5" else "end", 9.5, GLD, True, halo=True))
     o.append(W(q.X(1100), q.Y(2.41), q.X(1700), q.Y(2.41), c=GRN, lw=2, dash="6 3"))
     o.append(T(q.X(1690), q.Y(2.41) + 14, "対流圏 約 2.4 m（周波数によらない）", "end", 9.5, GRN, True, halo=True))
-    o.append(TX(xb + 4, 330, "I = 40.3 TEC / f^2: L2 は L1 の %.2f 倍、L5 は %.2f 倍" % ((_F07_F1 / _F07_F2) ** 2, (_F07_F1 / _F07_F5) ** 2), "start", 9.5, GLD, True))
-    return SVG(700, 356, o, "電離層の遅れの源と、周波数による違い。(a) 電離層の電子は、高さ 300 km 前後で最も多く、昼は夜の数倍ある（形と数は代表的な例）。点線は、後半で電離層を薄い殻とみなす高さ 350 km。電波の通り道の電子の数の合計（TEC）が遅れを決める。(b) 昼の例の TEC（%.0f TECU）での天頂の遅れ。電離層の遅れは周波数の 2 乗に反比例し、L1 より低い L2・L5 では大きい。対流圏の遅れは、L バンドでは周波数によらない。" % _F07_TECD)
+    o.append(TX(xb + 4, 318, "I = 40.3 TEC / f^2: L2 は L1 の %.2f 倍、L5 は %.2f 倍" % ((_F07_F1 / _F07_F2) ** 2, (_F07_F1 / _F07_F5) ** 2), "start", 9.5, GLD, True))
+    o.append(T(xb + 4, 334, "L1 では 1 TECU あたり %.3f m（%.0f TECU で %.2f m）" % (40.3e16 / _F07_F1 ** 2, _F07_TECD, 40.3e16 * _F07_TECD / _F07_F1 ** 2), "start", 9.5, GLD, True))
+    return SVG(700, 356, o, "電離層の電子の数と、天頂の遅れ（電子の数の形と値は代表的な例。(a) の点線は、電離層を薄い殻とみなす高さ。(b) は昼の例の TEC %.0f TECU）。" % _F07_TECD)
 F["e07_atmos"] = _f07_atmos_fig()
 
 
 # =====================================================================
-# 2 節: 斜めに通ると長くなる（薄い殻）と、クロブッチャー・モデルの 1 日の形
+# 2 節: 斜めに通ると長くなる（薄い殻のマッピング関数）
 # =====================================================================
-def _f07_klob_fig():
+def _f07_angarc(x, y, r, v1, v2, c=MUT, lw=1.1):
+    """点 (x, y) で、向き v1 から向き v2 までの角を示す弧（近い側を回る）。"""
+    a1, a2 = math.atan2(v1[1], v1[0]), math.atan2(v2[1], v2[0])
+    da = (a2 - a1 + math.pi) % (2 * math.pi) - math.pi
+    return PL([(x + r * math.cos(a1 + da * k / 24), y + r * math.sin(a1 + da * k / 24)) for k in range(25)], c=c, lw=lw)
+
+
+def _f07_shell_fig():
     o = []
     o.append(T(14, 18, "(a) 薄い殻を斜めに通る（高さは誇張）", "start", 11.5, INK, True))
     cx, cy, R, hh = 175, 292, 120, 52           # 地球の中心・半径・殻の高さ（図の上の長さ）
@@ -505,26 +514,36 @@ def _f07_klob_fig():
     bq = 2 * ((rx - cx) * dx + (ry - cy) * dy); cq = (rx - cx) ** 2 + (ry - cy) ** 2 - (R + hh) ** 2
     s_ = (-bq + math.sqrt(bq * bq - 4 * cq)) / 2
     px, py = rx + s_ * dx, ry + s_ * dy
-    o.append(W(cx, cy, rx, ry, c=MUT, lw=1.1, dash="4 3"))
-    o.append(W(cx, cy, px, py, c=MUT, lw=1.1, dash="4 3"))
+    # 三角形（中心・受信機・通る点）
+    o.append(PL([(cx, cy), (rx, ry), (px, py)], c="none", lw=0, fill=MSOFT, op=0.5))
+    o.append(W(cx, cy, rx, ry, c=MUT, lw=1.3))
+    o.append(W(cx, cy, px, py, c=MUT, lw=1.3))
     o.append(D(cx, cy, MUT, 3))
     o.append(T(cx + 6, cy + 4, "地球の中心", "start", 9, MUT, halo=True))
-    o.append(TX((cx + rx) / 2 - 8, (cy + ry) / 2, "R_E", "end", 10.5, MUT, True, halo=True))
-    o.append(TX((cx + px) / 2 + 8, (cy + py) / 2 + 4, "R_E + h_I", "start", 10.5, MUT, True, halo=True))
+    o.append(TX((cx + rx) / 2 - 8, (cy + ry) / 2 + 8, "R_E", "end", 10.5, MUT, True, halo=True))
+    o.append(TX((cx + px) / 2 + 8, (cy + py) / 2 + 14, "R_E + h_I", "start", 10.5, MUT, True, halo=True))
     o.append(W(rx - hx * 40, ry - hy * 40, rx + hx * 40, ry + hy * 40, c=FNT, lw=1, dash="2 3"))
-    o.append(W(px, py, px + (px - cx) / (R + hh) * 46, py + (py - cy) / (R + hh) * 46, c=FNT, lw=1, dash="2 3"))
+    pux, puy = (px - cx) / (R + hh), (py - cy) / (R + hh)      # 通る点の真上の向き
+    o.append(W(px, py, px + pux * 46, py + puy * 46, c=FNT, lw=1, dash="2 3"))
     o.append(ARR(rx, ry, px + dx * 46, py + dy * 46, c=SIG, lw=2, head=7))
+    o.append(T(px + dx * 46 + 4, py + dy * 46 - 4, "衛星へ", "start", 9.5, SIG, True, halo=True))
+    # 角の印: 受信機の所の内角 90° + θ、通る点の所の内角 z'（と、真上の向きと衛星の向きのなす角 z'）
+    o.append(_f07_angarc(rx, ry, 17, (cx - rx, cy - ry), (dx, dy), ALI, 1.4))
+    o.append(_f07_angarc(px, py, 22, (cx - px, cy - py), (-dx, -dy), ALI, 1.4))
+    o.append(_f07_angarc(px, py, 22, (pux, puy), (dx, dy), GLD, 1.4))
+    o.append(_f07_angarc(rx, ry, 30, (hx, hy), (dx, dy), SIG, 1.2))
     o.append(_f07_rx(rx, ry - 5, GRN))
     o.append(D(px, py, GLD, 4.5))
-    o.append(T(px - 10, py + 4, "電離層を通る点", "end", 9.5, GLD, True, halo=True))
-    o.append(TX(rx + 34, ry - 4, "θ", "start", 11, SIG, True, halo=True))
-    o.append(TX(px + 12, py - 20, "z'", "start", 11, GLD, True, halo=True))
-    o.append(T(14, 318, "中心・受信機・通る点の三角形の正弦定理から", "start", 9.5, INK))
-    o.append(TX(14, 336, "sin z' = R_E cos θ / (R_E + h_I)", "start", 10.5, GLD, True))
-    o.append(TX(14, 354, "倍率 m_I(θ) = 1 / cos z'（R_E = 6 371 km、h_I = 350 km）", "start", 9.5, INK))
+    o.append(T(px - 12, py - 8, "電離層を通る点", "end", 9.5, GLD, True, halo=True))
+    o.append(TX(rx + 36, ry - 5, "θ", "start", 11, SIG, True, halo=True))
+    o.append(TX(rx - 12, ry + 30, "90° + θ", "end", 10, ALI, True, halo=True))
+    o.append(TX(px + 9, py - 28, "z'", "start", 11, GLD, True, halo=True))
+    o.append(TX(px - 26, py + 28, "z'", "end", 11, ALI, True, halo=True))
+    o.append(T(14, 322, "赤の 2 つの角と、向かい合う 2 つの辺に、正弦定理を使う", "start", 9.5, ALI))
+    o.append(TX(14, 340, "sin z' = R_E cos θ / (R_E + h_I)、倍率 m_I(θ) = 1 / cos z'", "start", 10.5, GLD, True))
     # (b) 倍率と仰角
     xb = 392
-    o.append(T(xb, 18, "(b) 天頂の何倍か（電離層の倍率）", "start", 11.5, INK, True))
+    o.append(TX(xb, 18, "(b) 電離層の倍率 m_I(θ)（天頂の何倍か）", "start", 11.5, INK, True))
     q = Plot(xb + 40, 40, 250, 200, (0, 90), (0, 3.5))
     o.append(q.axes(xl="仰角 θ [°]", yl="倍率", xt=[0, 15, 30, 45, 60, 75, 90], yt=[0, 1, 2, 3]))
     els = _f07_np.linspace(0, 90, 181)
@@ -533,26 +552,80 @@ def _f07_klob_fig():
     for e in (5, 10, 30, 90):
         o.append(D(q.X(e), q.Y(_f07_shell(e)), GLD, 3.6))
         o.append(T(q.X(e) + (5 if e < 90 else -4), q.Y(_f07_shell(e)) - 7, "%.2f" % _f07_shell(e), "start" if e < 90 else "end", 9.5, GLD, True, halo=True))
-    o.append(LEGL(xb + 10, 296, [(GLD, None, "薄い殻の 1/cos z'"), (MUT, "5 3", "モデルの近似の式")], 9.5))
-    # (c) 1 日の形
-    o.append(T(14, 388, "(c) クロブッチャー・モデルで計算した東京の天頂の遅れ（L1、例の 8 つの係数）", "start", 11.5, INK, True))
-    r = Plot(70, 408, 560, 170, (0, 24), (0, 5))
+    o.append(LEGL(xb + 10, 296, [(GLD, None, "薄い殻の 1/cos z'"), (MUT, "5 3", "クロブッチャー・モデルの近似の式")], 9.5))
+    o.append(T(xb + 10, 322, "仰角 5° で %.2f、10° で %.2f、30° で %.2f、地平線で %.2f" % (_f07_shell(5), _f07_shell(10), _f07_shell(30), _f07_shell(0)), "start", 9.5, GLD, True))
+    return SVG(700, 356, o, "薄い殻とみなした電離層のマッピング関数（地球の半径 R<sub>E</sub> = 6 371 km、殻の高さ h<sub>I</sub> = 350 km）。")
+F["e07_shell"] = _f07_shell_fig()
+
+
+# =====================================================================
+# 2 節: クロブッチャー・モデルの手順（東京の例）と、1 日の形
+# =====================================================================
+def _f07_sci(v):
+    """1.118 × 10⁻⁸ の形の文字。"""
+    e = int(math.floor(math.log10(abs(v))))
+    return ("%.3f × 10%s" % (v / 10 ** e, str(e).translate(_F07_SUP))).replace("-", "−")
+
+
+def _f07_klob_fig():
+    o = []
+    o.append(T(14, 18, "(a) 計算の手順と、東京の 14 時の例（L1）", "start", 11.5, INK, True))
+    tg = (14 - _F07_TOK[1] / 15) * 3600
+    dz = _f07_klob(_F07_TOK[0], _F07_TOK[1], 90, 180, tg, detail=True)
+    d5 = _f07_klob(_F07_TOK[0], _F07_TOK[1], 5, 180, tg, detail=True)
+    x1, x2 = 548, 686
+    o.append(T(x1, 40, "真上の衛星", "end", 9.5, MUT, True)); o.append(T(x2, 40, "南・仰角 5° の衛星", "end", 9.5, MUT, True))
+    o.append(W(14, 46, 686, 46, c=LIN, lw=0.8))
+    def hm(t):
+        return "%d:%02d" % (int(t // 3600), int(round(t % 3600 / 60)))
+    def pos(d):
+        return "北緯 %.1f°・東経 %.1f°" % (d["phi"] * 180, d["lam"] * 180)
+    steps = [("① 電離層を通る点（高さ 350 km）を、受信機の位置と衛星の仰角・方位角から求める", [
+                 ("地球の中心から見た、受信機と通る点の間の角", "%.1f°" % (dz["psi"] * 180), "%.1f°" % (d5["psi"] * 180)),
+                 ("通る点の緯度・経度", pos(dz), pos(d5))]),
+             ("② 通る点の地方時 t_I と、地磁気の緯度 B_m（地球の磁場の軸を基準にした緯度）を求める", [
+                 ("地方時 t_I（経度から求める）", hm(dz["t"]), hm(d5["t"])),
+                 ("B_m（180° を 1 とする半円の単位）", "%.3f" % dz["phm"], "%.3f" % d5["phm"])]),
+             ("③ 天頂の遅れ I_z = c{5 ns + A_I cos(2π(t_I − 50 400 s)/P_I)} を計算する（夜は c × 5 ns = %.2f m）" % (5e-9 * _F07_C), [
+                 ("振幅 A_I = A_0 + A_1 B_m + A_2 B_m^2 + A_3 B_m^3（c を掛けた値）", "%.2f m" % (dz["AMP"] * _F07_C), "%.2f m" % (d5["AMP"] * _F07_C)),
+                 ("周期 P_I = P_0 + P_1 B_m + P_2 B_m^2 + P_3 B_m^3", "%.1f 時間" % (dz["PER"] / 3600), "%.1f 時間" % (d5["PER"] / 3600)),
+                 ("通る点の天頂の遅れ I_z", "%.2f m" % (dz["Tv"] * _F07_C), "%.2f m" % (d5["Tv"] * _F07_C))]),
+             ("④ 斜めに通る分の倍率（薄い殻の近似の式）を掛ける。L1 以外の周波数 f では、さらに (f_{L1}/f)^2 を掛ける", [
+                 ("倍率 1 + 16(0.53 − θ/180°)^3", "%.2f" % dz["F"], "%.2f" % d5["F"]),
+                 ("L1 の遅れ I", "%.2f m" % (dz["T"] * _F07_C), "%.2f m" % (d5["T"] * _F07_C))])]
+    yy = 64
+    for ttl, rows in steps:
+        o.append(TX(14, yy, ttl, "start", 10, INK, True))
+        yy += 17
+        for k, (lab, v1, v2) in enumerate(rows):
+            last = ttl.startswith("④") and k == len(rows) - 1
+            o.append(TX(30, yy, lab, "start", 9.5, MUT))
+            o.append(T(x1, yy, v1, "end", 10, GLD, last)); o.append(T(x2, yy, v2, "end", 10, GLD, last))
+            yy += 16
+        yy += 7
+    o.append(W(14, yy - 12, 686, yy - 12, c=LIN, lw=0.8))
+    o.append(TX(14, yy + 4, "A_I が負なら 0、P_I が 72 000 s より短ければ 72 000 s とする。cos は、角の 4 乗の項までのテイラー展開で計算する。", "start", 9.5, MUT))
+    o.append(TX(14, yy + 21, "例の 8 つの係数（単位は s と s/半円^n）: A_0〜A_3 = " + "、".join(_f07_sci(v) for v in _F07_KA), "start", 9.5, MUT))
+    o.append(TX(14, yy + 38, "P_0〜P_3 = " + "、".join(_f07_sci(v) for v in _F07_KP), "start", 9.5, MUT))
+    # (b) 1 日の形
+    y0 = yy + 74
+    o.append(T(14, y0, "(b) 東京の真上の衛星の遅れの 1 日の変化（L1）", "start", 11.5, INK, True))
+    r = Plot(70, y0 + 20, 560, 170, (0, 24), (0, 5))
     o.append(r.axes(xl="電離層を通る点の地方時 [時]", yl="天頂の遅れ [m]", xt=list(range(0, 25, 2)), yt=[0, 1, 2, 3, 4, 5]))
     lts = _f07_np.linspace(0, 24, 481)
     vals = [_f07_klob_lt(lt) for lt in lts]
     o.append(r.line(list(zip(lts, vals)), c=GLD, lw=2.4))
     o.append(W(r.X(0), r.Y(1.499), r.X(24), r.Y(1.499), c=MUT, lw=1, dash="3 3"))
-    o.append(T(r.X(0.4), r.Y(1.499) - 6, "夜は一定の 5 ns（1.50 m）", "start", 9.5, MUT, True, halo=True))
+    o.append(T(r.X(0.4), r.Y(1.499) - 6, "夜は一定の 5 ns（%.2f m）" % (5e-9 * _F07_C), "start", 9.5, MUT, True, halo=True))
     pk = _f07_klob_lt(14.0)
     o.append(D(r.X(14), r.Y(pk), GLD, 4.5))
     o.append(T(r.X(14) + 10, r.Y(pk) - 4, "14 時に頂点 %.2f m" % pk, "start", 10, GLD, True, halo=True))
-    d0 = _f07_klob(_F07_TOK[0], _F07_TOK[1], 90, 180, (14 - _F07_TOK[1] / 15) * 3600, detail=True)   # 曲線（_f07_klob_lt）と同じ方位
-    half = d0["PER"] / 4 / 3600
+    half = dz["PER"] / 4 / 3600
     o.append(DIM(r.X(14 - half), r.Y(0.45), r.X(14 + half), r.Y(0.45), None, c=GLD))
-    o.append(TX(r.X(14), r.Y(0.45) - 6, "cos の半周期（周期 P_I = %.1f 時間の半分）" % (d0["PER"] / 3600), "middle", 9.5, GLD, halo=True))
+    o.append(TX(r.X(14), r.Y(0.45) - 6, "cos の半周期（周期 P_I = %.1f 時間の半分）" % (dz["PER"] / 3600), "middle", 9.5, GLD, halo=True))
     o.append(DIM(r.X(20.6), r.Y(1.499), r.X(20.6), r.Y(pk), None, c=GLD))
-    o.append(TX(r.X(20.9), r.Y((pk + 1.5) / 2) + 4, "振幅 A_I = %.2f m" % (d0["AMP"] * _F07_C), "start", 9.5, GLD, True, halo=True))
-    return SVG(700, 632, o, "電離層の遅れの計算。(a) 電離層を高さ h<sub>I</sub> の薄い殻とみなすと、仰角 θ で見た電波は、殻を天頂角 z' で斜めに横切り、遅れは天頂の 1/cos z' 倍になる。(b) その倍率は、真上で 1、仰角 30° で 1.75、5° で 3.04 になる。クロブッチャー・モデルの近似の式（破線）もほぼ同じ。(c) クロブッチャー・モデルの天頂の遅れは、夜は 5 ns で一定、昼は 14 時を頂点とする cos の半周期の形で、振幅と周期を、航法メッセージの 8 つの係数（ここでは例の値）から計算する。")
+    o.append(TX(r.X(20.9), r.Y((pk + 1.5) / 2) + 4, "振幅 A_I = %.2f m" % (dz["AMP"] * _F07_C), "start", 9.5, GLD, True, halo=True))
+    return SVG(700, y0 + 20 + 170 + 44, o, "クロブッチャー・モデルの手順と、東京の例（8 つの係数は例の値。手順は規格 IS-GPS-200 による）。")
 F["e07_klob"] = _f07_klob_fig()
 
 
@@ -620,15 +693,17 @@ def _f07_tropo_fig():
     for j, e in enumerate(cols):
         o.append(T(300 + j * 90, ty0, "%d°" % e, "end", 9.5, MUT, True))
     o.append(W(70, ty0 + 5, 640, ty0 + 5, c=LIN, lw=0.8))
-    rows = [("対流圏（近似の式、天頂 %.2f m）" % zt, GRN, lambda e: zt * _f07_mT(e)), ("電離層 14 時（クロブッチャー・モデル）", GLD, lambda e: _f07_klob_lt(14.0, e)),
-            ("電離層 2 時（同じ）", GLD, lambda e: _f07_klob_lt(2.0, e))]
-    for i, (lab, c, fn) in enumerate(rows):
+    rows = [("対流圏の倍率 m_T(θ)", GRN, lambda e: _f07_mT(e), "%.2f"), ("平らな層の倍率 1/sin θ", MUT, lambda e: 1 / math.sin(e * _F07_D2R), "%.2f"),
+            ("対流圏の遅れ（天頂 %.2f m × m_T）" % zt, GRN, lambda e: zt * _f07_mT(e), "%.2f m"),
+            ("電離層 14 時（クロブッチャー・モデル）", GLD, lambda e: _f07_klob_lt(14.0, e), "%.2f m"),
+            ("電離層 2 時（同じ）", GLD, lambda e: _f07_klob_lt(2.0, e), "%.2f m")]
+    for i, (lab, c, fn, ff) in enumerate(rows):
         yy = ty0 + 20 + i * 16
-        o.append(T(70, yy, lab, "start", 9.5, c, True))
+        o.append(TX(70, yy, lab, "start", 9.5, c, True))
         for j, e in enumerate(cols):
-            o.append(T(300 + j * 90, yy, "%.2f m" % fn(e), "end", 10, c))
-    o.append(LEGL(70, ty0 + 76, [(GRN, None, "対流圏 m_T(θ) の近似"), (GRN, "4 3", "対流圏 1/sin θ"), (GLD, None, "電離層 14 時"), (GLD, "6 3", "電離層 2 時")], 9.5, 14))
-    return SVG(700, 722, o, "対流圏の遅れ。(a) 天頂の遅れは約 2.4 m で、大部分は気圧から計算できる乾燥の部分である（湿潤の部分は例の値 0.1 m とした）。(b) 層を斜めに通ると、道のりは仰角 θ の低いほど長い。平らな層の 1/sin θ は地平線で限りなく大きくなるが、丸い地球では有限で、近似の式（Black と Eisner の式）が使われる。(c) 仰角と遅れ。対流圏は仰角 5° で天頂の約 10 倍、電離層は約 3 倍になる（電離層は昼と夜で大きく違う）。対流圏の遅れは周波数によらない。")
+            o.append(T(300 + j * 90, yy, ff % fn(e), "end", 10, c))
+    o.append(LEGL(70, ty0 + 108, [(GRN, None, "対流圏 m_T(θ) の近似"), (GRN, "4 3", "対流圏 1/sin θ"), (GLD, None, "電離層 14 時"), (GLD, "6 3", "電離層 2 時")], 9.5, 14))
+    return SVG(700, 754, o, "対流圏の遅れ（湿潤の部分は例の値 %.1f m とした。(b) の近似の式は Black と Eisner の式。(c) の電離層は、クロブッチャー・モデルの例の係数で計算した、東京から南の空の衛星の遅れ）。" % _F07_ZWD)
 F["e07_tropo"] = _f07_tropo_fig()
 
 
@@ -666,7 +741,8 @@ def _f07_mpgeom_fig():
     o.append(TX(Ai[0] + 30, Ai[1] - 26, "2h_a sin θ", "start", 10, ALI, True, halo=True))
     o.append(DIM(ax - 14, gy, ax - 14, gy - ha, None, c=MUT))
     o.append(TX(ax - 18, gy - ha / 2 + 4, "h_a", "end", 10, MUT, True))
-    o.append(T(14, 300, "1.5 m の高さ・仰角 30° で 1.5 m", "start", 9.5, INK))
+    o.append(T(14, 286, "高さ 1.5 m・仰角 30° で", "start", 9.5, INK))
+    o.append(T(14, 301, "%.1f m（%.3f チップ）" % (2 * 1.5 * math.sin(th), 2 * 1.5 * math.sin(th) / _F07_CTC), "start", 9.5, ALI, True))
     # (b) 壁の反射
     xb = 240
     o.append(T(xb, 18, "(b) 壁で反射", "start", 11.5, INK, True))
@@ -685,7 +761,8 @@ def _f07_mpgeom_fig():
     o.append(DIM(B[0], gy + 14, wx, gy + 14, None, c=MUT))
     o.append(TX((B[0] + wx) / 2, gy + 30, "d_w", "middle", 10, MUT, True))
     o.append(TX(xb + 4, 272, "余分の道のり 2d_w cos θ", "start", 10, ALI, True))
-    o.append(T(xb, 300, "20 m 先の壁・仰角 30° で 34.6 m", "start", 9.5, INK))
+    o.append(T(xb + 4, 286, "20 m 先の壁・仰角 30° で", "start", 9.5, INK))
+    o.append(T(xb + 4, 301, "%.1f m（%.3f チップ）" % (2 * 20 * math.cos(th), 2 * 20 * math.cos(th) / _F07_CTC), "start", 9.5, ALI, True))
     # (c) 見えない衛星の反射だけ
     xc = 470
     o.append(T(xc, 18, "(c) 直接波が届かない（NLOS）", "start", 11.5, INK, True))
@@ -707,31 +784,8 @@ def _f07_mpgeom_fig():
     o.append(ARR(Rx, Ry, C[0] + 3, C[1] - 3, c=ALI, lw=1.6, head=6, dash="6 3"))
     o.append(T(xc + 4, 272, "反射波だけを受け、その遅れの全部が", "start", 9.5, ALI, True))
     o.append(T(xc + 4, 287, "擬似距離の誤差になる（数十〜数百 m）", "start", 9.5, ALI, True))
-    # (d) 仰角マスク（横から見た図とスカイプロット）
-    o.append(T(14, 336, "(d) 仰角マスク（決めた仰角より低い衛星を使わない）", "start", 11.5, INK, True))
-    gy2 = 520
-    o.append(W(14, gy2, 380, gy2, c=MUT, lw=1.6))
-    ox = 200
-    o.append(_f07_rx(ox, gy2 - 6, GRN))
-    for side in (-1, 1):
-        o.append(W(ox, gy2 - 7, ox + side * 168, gy2 - 7 - 168 * math.tan(15 * _F07_D2R), c=ALI, lw=1.4, dash="5 3"))
-    o.append(T(34, 452, "マスク 15°", "start", 9.5, ALI, True, halo=True))
-    for el, az_s in ((75, 1), (40, -1), (22, 1), (10, -1), (4, 1)):
-        rr = 140
-        sx_, sy_ = ox + az_s * rr * math.cos(el * _F07_D2R), gy2 - 7 - rr * math.sin(el * _F07_D2R)
-        c = PUR if el > 15 else FNT
-        o.append(W(ox, gy2 - 7, sx_, sy_, c=c, lw=1, dash=None if el > 15 else "2 3"))
-        o.append(_f07_sat(sx_, sy_, c, 0.8))
-        o.append(T(sx_, sy_ - 10, "%d° %s" % (el, "使う" if el > 15 else "使わない"), "middle", 9, c if el > 15 else MUT, True, halo=True))
-    o.append(T(20, 546, "低い衛星の電波は、大気を長く通り、地面や建物で反射しやすく、", "start", 9.5, INK))
-    o.append(T(20, 562, "アンテナの利得も低い。ただし、使う衛星が減ると、衛星の並びで決まる", "start", 9.5, INK))
-    o.append(T(20, 578, "誤差の倍率（4 節）が大きくなる。", "start", 9.5, INK))
-    cx, cy, R = 560, 450, 95
-    sats = [(q[1], q[2], q[0], PUR if q[1] > 15 else FNT) for q in _F07_VL]
-    o.append(sky(cx, cy, R, sats, dot=4.2))
-    o.append(CIRC(cx, cy, R * (90 - 15) / 90, c=ALI, lw=1.4, dash="5 3"))
-    o.append(T(cx, cy + R + 32, "東京の空（時刻 0）。赤の破線の外を使わない", "middle", 9.5, MUT))
-    return SVG(700, 590, o, "反射の幾何と仰角マスク。(a) 地面で反射した電波は、地面に映ったアンテナの位置から来たように見え、余分の道のりは 2h<sub>a</sub> sin θ（h<sub>a</sub> はアンテナの地面からの高さ）。(b) 壁で反射すると 2d<sub>w</sub> cos θ（d<sub>w</sub> は壁までの距離。壁が、受信機から見て衛星と反対の側に、衛星の方位に垂直に立つ場合）。(c) 直接波が建物でさえぎられ、反射波だけが届くと、遅れの全部が誤差になる。(d) 仰角マスクは、地平線に近い衛星を使わない設定である。誤差の大きい衛星を除く代わりに、使う衛星が減る。")
+    o.append(LEGL(14, 330, [(SIG, None, "直接波"), (ALI, "6 3", "反射波（余分の道のり cτ_M、振幅は直接波の γ 倍、位相の差 ψ_M）")], 9.5, 16))
+    return SVG(700, 340, o, "反射波の通り道（h<sub>a</sub> はアンテナの地面からの高さ、d<sub>w</sub> は壁までの距離。(b) の式は、壁が、受信機から見て衛星と反対の側に、衛星の方位に垂直に立つ場合）。")
 F["e07_mpgeom"] = _f07_mpgeom_fig()
 
 
@@ -788,8 +842,41 @@ def _f07_mptri_fig():
         o.append(D(q.X(x), q.Y(0), GLD if x else GRN, 4.6))
         o.append(T(q.X(x), q.Y(0) + dy, lab.replace("-", "−"), "middle", 9.5, GLD if x else GRN, True, halo=True))
     o.append(LEGL(70, 590, [(GRN, "5 3", "反射波なし"), (SIG, None, "同じ位相の反射波"), (SIG, "7 3", "逆の位相の反射波")], 9.5, 14))
-    return SVG(700, 600, o, "反射波による相関のゆがみ（振幅の比 γ = 0.5、遅れ τ<sub>M</sub> = 0.5 チップ、E と L の間隔 1 チップ）。(a) 同じ位相の反射波は、直接波の三角形の右（遅い側）に足され、山は遅い側へ広がる。E と L の高さが等しくなる所は +0.167 チップ（+48.8 m）ずれる。(b) 逆の位相の反射波は、遅い側を削り、等しくなる所は早い側へ −0.200 チップ（−58.6 m）ずれる。(c) 判別器の S 字で見ると、出力が 0 を横切る点（DLL が落ち着く点）が、0 からずれる。このずれが、擬似距離の誤差 M<sub>i</sub> になる。")
+    return SVG(700, 600, o, "反射波による相関のゆがみ（例: 振幅の比 γ = %g、遅れ τ<sub>M</sub> = %g チップ（%.1f m）、E と L の間隔 %g チップ。γ は例の値）。" % (_F07_MPG, _F07_MPT, _F07_MPT * _F07_CTC, _F07_MPD))
 F["e07_mptri"] = _f07_mptri_fig()
+
+
+# =====================================================================
+# 3 節: 導出の場合分け — 反射波の山が、E と L に対してどこにあるか
+# =====================================================================
+def _f07_mpcase_fig():
+    o = []
+    g, d = 0.5, 0.5
+    cases = [("(a) 反射波の山が、E と L の間", 0.2, "山が L より早い: τ_M < (1 + γ)Δ_{EL}T_c/2", "Δτ* = γτ_M/(1 + γ)"),
+             ("(b) E も L も、反射波の左の辺", 0.6, "山が L より遅く、E は反射波の三角形の中", "Δτ* = γΔ_{EL}T_c/2"),
+             ("(c) L だけが、反射波の左の辺", 1.1, "E が三角形の外。τ_M ≤ (1 + Δ_{EL}/2)T_c まで", "Δτ* = γ{(1 + Δ_{EL}/2)T_c − τ_M}/(2 − γ)")]
+    us = _f07_np.linspace(-1.2, 2.3, 351)
+    for k, (ttl, tm, cond, frm) in enumerate(cases):
+        x0 = 14 + k * 230
+        o.append(T(x0, 18, ttl, "start", 11, INK, True))
+        p = Plot(x0 + 22, 46, 196, 130, (-1.2, 2.3), (0, 1.15))
+        o.append(p.axes(xl="局部の符号のずれ Δτ [チップ]", yl=None, xt=[-1, 0, 1, 2], yt=[0, 0.5, 1], xfmt=_f07_fmt, yfmt=_f07_fmt))
+        x = _f07_mpenv(g, tm, d, 1)
+        o.append(p.line([(u, _f07_lam(u)) for u in us], c=GRN, lw=1.6, dash="5 3"))
+        o.append(p.line([(u, g * _f07_lam(u - tm)) for u in us], c=ALI, lw=2.2))
+        o.append(W(p.X(tm), p.Y(g), p.X(tm), p.Y(0), c=ALI, lw=1, dash="2 2"))
+        o.append(TX(p.X(tm), p.Y(g) - 6, "τ_M", "middle", 9.5, ALI, True, halo=True))
+        for u, lab in ((x - d / 2, "E"), (x + d / 2, "L")):
+            o.append(W(p.X(u), p.Y(1.08), p.X(u), p.Y(0), c=GLD, lw=1.2, dash="3 2"))
+            o.append(T(p.X(u), p.Y(1.08) - 3, lab, "middle", 10, GLD, True, halo=True))
+            o.append(D(p.X(u), p.Y(_f07_lam(u)), GRN, 3.4))
+            o.append(D(p.X(u), p.Y(g * _f07_lam(u - tm)), ALI, 3.8))
+        o.append(TX(x0, 228, cond, "start", 9.5, MUT))
+        o.append(TX(x0, 246, frm, "start", 10, ALI, True))
+        o.append(TX(x0, 263, "τ_M = %g チップ → Δτ* = %.3f チップ（%.1f m）" % (tm, x, x * _F07_CTC), "start", 9.5, INK))
+    o.append(LEGL(14, 290, [(GRN, "5 3", "直接波の三角形"), (ALI, None, "反射波の三角形（同じ位相）"), (GLD, "3 2", "E と L の位置")], 9.5, 16))
+    return SVG(700, 300, o, "導出の 3 つの場合（例: 振幅の比 γ = %g、E と L の間隔 Δ<sub>EL</sub> = %g チップ、同じ位相の反射波）。" % (g, d))
+F["e07_mpcase"] = _f07_mpcase_fig()
 
 
 # =====================================================================
@@ -816,10 +903,14 @@ def _f07_mpenv_fig():
     o.append(T(p.X(0.28), p.Y(72) + 13, "誤差 = 遅れの全部", "start", 9, ALI, True, halo=True))
     o.append(T(p.X(0.82), p.Y(73.3) - 4, "最大 γ × 間隔 / 2 = 0.25 チップ（73.3 m）", "start", 9.5, GLD, True, halo=True))
     o.append(T(p.X(0.62), p.Y(7.3) - 8, "最大 0.025 チップ（7.3 m）", "middle", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(1.52), p.Y(-14), "1 + 間隔/2 より遅いと 0", "end", 9.5, MUT, halo=True))
+    o.append(T(p.X(1.59), p.Y(-13), "余分の道のりが %.0f m（間隔 1 チップ）・" % (1.5 * _F07_CTC), "end", 9.5, MUT, halo=True))
+    o.append(T(p.X(1.59), p.Y(-13) + 13, "%.0f m（0.1 チップ）より長いと 0" % (1.05 * _F07_CTC), "end", 9.5, MUT, halo=True))
+    o.append(T(p.X(0.05), p.Y(-58), "遅れの短い所は、間隔によらず同じ線", "start", 9.5, INK, halo=True))
+    o.append(T(p.X(0.05), p.Y(-58) + 13, "（0.1 チップでは、同じ位相で %.0f m、" % ((1 + g) * 0.1 / 2 * _F07_CTC), "start", 9.5, MUT, halo=True))
+    o.append(T(p.X(0.05), p.Y(-58) + 26, "逆の位相で %.1f m まで）" % ((1 - g) * 0.1 / 2 * _F07_CTC), "start", 9.5, MUT, halo=True))
     o.append(LEGL(74, 334, [(GLD, None, "E と L の間隔 1 チップ"), (SIG, None, "0.1 チップ"), (ALI, "5 3", "NLOS")], 9.5, 16))
     # (b) 位相が回るときの誤差
-    o.append(TX(14, 372, "(b) 反射波の位相 ψ_M が回るときの誤差（τ_M = 100 m、γ = 0.5、電力の差の判別器）", "start", 11.5, INK, True))
+    o.append(TX(14, 372, "(b) 反射波の位相 ψ_M が回るときの誤差（余分の道のり cτ_M = 100 m、γ = 0.5）", "start", 11.5, INK, True))
     q = Plot(74, 392, 560, 170, (0, 360), (-80, 80))
     o.append(q.axes(xl="反射波の位相 ψ_M [°]", yl="擬似距離の誤差 [m]", xt=[0, 60, 120, 180, 240, 300, 360], yt=[-80, -40, 0, 40, 80]))
     o.append(W(q.x, q.Y(0), q.x + q.w, q.Y(0), c=MUT, lw=1))
@@ -833,8 +924,95 @@ def _f07_mpenv_fig():
         stats.append((d, c, float(_f07_np.mean(vu)), float(_f07_np.sqrt(_f07_np.mean(_f07_np.square(vu)))), min(vals), max(vals)))
     for k, (d, c, mn, rms, lo, hi) in enumerate(stats):
         o.append(T(q.x, q.y + q.h + 52 + k * 16, ("E と L の間隔 %g チップ: %.1f〜%.1f m、RMS %.1f m、平均 %.1f m" % (d, lo, hi, rms, mn)).replace("-", "−"), "start", 9.5, c, True))
-    return SVG(700, 640, o, "マルチパスの誤差の大きさ。(a) 反射波の遅れ τ<sub>M</sub> ごとの、誤差の最大（同じ位相）と最小（逆の位相）。この 2 本の線の間を誤差の包絡線という。反射波の位相がほかの値のときは、誤差はこの間に入る。E と L の間隔を 0.1 チップに狭くすると、遅れの長い反射波の誤差は 1/10 になるが、遅れの短い反射波（γ = 0.5 なら、余分の道のりが同じ位相で 22 m、逆の位相で 7.3 m まで）の誤差は変わらない。直接波が届かない場合（NLOS。後の項）は、誤差は包絡線の外の、遅れの全部になる。(b) 衛星が動くと、反射波の位相 ψ<sub>M</sub> が回り、誤差は包絡線の中を揺れる。平均は 0 にならない。")
+    return SVG(700, 640, o, "マルチパスの誤差の包絡線と、位相が回るときの誤差（振幅の比 γ = 0.5 の例。(b) は 5 章 3 節の電力の差の判別器が 0 を横切る点を、数値で探した値）。")
 F["e07_mpenv"] = _f07_mpenv_fig()
+
+
+# =====================================================================
+# 3 節: マルチパスを減らす 4 つの方法（アンテナ・相関器・置き場所・仰角マスク）
+# =====================================================================
+def _f07_mpreduce_fig():
+    o = []
+    gy = 196
+    # (a) アンテナ
+    x0 = 14
+    o.append(T(x0, 18, "(a) アンテナ", "start", 11.5, INK, True))
+    o.append(W(x0, gy, x0 + 212, gy, c=MUT, lw=1.6))
+    ax, ay = x0 + 96, 132
+    o.append(W(ax, gy, ax, ay + 6, c=MUT, lw=2))
+    pat = []
+    for k in range(0, 73):
+        a = 2 * math.pi * k / 72
+        r = 6 + 44 * ((1 + math.cos(a)) / 2) ** 0.8
+        pat.append((ax + r * math.sin(a), ay - r * math.cos(a)))
+    o.append(PL(pat, c=GRN, lw=1.4, fill=soft(GRN), op=0.6))
+    o.append(_f07_rx(ax, ay, GRN))
+    o.append(T(ax, ay - 56, "受ける強さ", "middle", 9.5, GRN, True, halo=True))
+    a30 = 35 * _F07_D2R
+    o.append(ARR(ax - 96 * math.cos(a30), ay - 96 * math.sin(a30), ax - 8 * math.cos(a30), ay - 8 * math.sin(a30), c=SIG, lw=2, head=7))
+    o.append(T(x0, 44, "直接波（右旋）: 強く受ける", "start", 9.5, SIG, True, halo=True))
+    gx = ax + (gy - ay) / math.tan(a30)
+    o.append(W(gx + 60 * math.cos(a30), gy - 60 * math.sin(a30), gx, gy, c=ALI, lw=1.6, dash="6 3"))
+    o.append(ARR(gx, gy, ax + 7 * math.cos(a30), ay + 7 * math.sin(a30), c=ALI, lw=1.6, head=6, dash="6 3"))
+    o.append(T(x0 + 212, gy + 16, "反射波（左旋が多い）: 弱く受ける", "end", 9.5, ALI, True))
+    # (b) 相関器
+    x1 = 244
+    o.append(T(x1, 18, "(b) 相関器", "start", 11.5, INK, True))
+    p = Plot(x1 + 20, 40, 190, 120, (-1.2, 1.2), (0, 1.15))
+    o.append(p.axes(xl="局部の符号のずれ Δτ [チップ]", yl=None, xt=[-1, 0, 1], yt=[], xfmt=_f07_fmt))
+    o.append(p.line([(u, _f07_lam(u)) for u in (-1.2, -1, 0, 1, 1.2)], c=GRN, lw=1.8))
+    for d, c in ((1.0, GLD), (0.1, SIG)):
+        for sg, lab in ((-1, "E"), (1, "L")):
+            u = sg * d / 2
+            o.append(W(p.X(u), p.Y(_f07_lam(u)), p.X(u), p.Y(0), c=c, lw=1.2, dash="3 2"))
+            o.append(D(p.X(u), p.Y(_f07_lam(u)), c, 3.8))
+            if d == 1.0:
+                o.append(T(p.X(u) + sg * 9, p.Y(_f07_lam(u)) + 2, lab, "middle", 10, c, True, halo=True))
+    gg = 0.5
+    o.append(T(x1, gy + 16, "E と L の間隔を狭くする", "start", 9.5, INK, True))
+    o.append(T(x1, gy + 32, "1 チップ: 誤差の最大 %.1f m" % (gg * 1.0 / 2 * _F07_CTC), "start", 9.5, GLD, True))
+    o.append(T(x1, gy + 48, "0.1 チップ: %.1f m（γ = %g）" % (gg * 0.1 / 2 * _F07_CTC, gg), "start", 9.5, SIG, True))
+    # (c) 置き場所
+    x2 = 474
+    o.append(T(x2, 18, "(c) 置き場所", "start", 11.5, INK, True))
+    o.append(W(x2, gy, x2 + 212, gy, c=MUT, lw=1.6))
+    o.append(RECT(x2 + 6, 60, 38, gy - 60, 2, MSOFT, MUT, 1.2))
+    bx, gx2 = x2 + 62, x2 + 168
+    o.append(_f07_rx(bx, gy - 6, ALI))
+    o.append(_f07_rx(gx2, gy - 6, GRN))
+    wy = 128
+    o.append(W(bx + 60, wy - 60 * math.tan(a30), x2 + 44, wy + 16 * math.tan(a30), c=ALI, lw=1.4, dash="6 3"))
+    o.append(ARR(x2 + 44, wy + 16 * math.tan(a30), bx - 2, gy - 9, c=ALI, lw=1.4, head=6, dash="6 3"))
+    o.append(T(bx, gy + 16, "壁の近く", "middle", 9.5, ALI, True))
+    o.append(T(gx2, gy + 16, "離して、空の広い所", "middle", 9.5, GRN, True))
+    for sg in (-1, 1):
+        o.append(W(gx2, gy - 8, gx2 + sg * 40, gy - 8 - 40 * math.tan(60 * _F07_D2R) * 0.9, c=GRN, lw=1, dash="2 3"))
+    o.append(T(x2, gy + 48, "壁・金属の板・車の屋根の突起から離す（22 章）", "start", 9.5, MUT))
+    # (d) 仰角マスク（横から見た図とスカイプロット）
+    y0 = 282
+    o.append(T(14, y0, "(d) 仰角マスク（決めた仰角より低い衛星を使わない）", "start", 11.5, INK, True))
+    gy2 = y0 + 172
+    o.append(W(14, gy2, 380, gy2, c=MUT, lw=1.6))
+    ox = 200
+    o.append(_f07_rx(ox, gy2 - 6, GRN))
+    for side in (-1, 1):
+        o.append(W(ox, gy2 - 7, ox + side * 168, gy2 - 7 - 168 * math.tan(15 * _F07_D2R), c=ALI, lw=1.4, dash="5 3"))
+    o.append(T(34, gy2 - 68, "マスク 15°", "start", 9.5, ALI, True, halo=True))
+    for el, az_s in ((75, 1), (40, -1), (22, 1), (10, -1), (4, 1)):
+        rr = 140
+        sx_, sy_ = ox + az_s * rr * math.cos(el * _F07_D2R), gy2 - 7 - rr * math.sin(el * _F07_D2R)
+        c = PUR if el > 15 else FNT
+        o.append(W(ox, gy2 - 7, sx_, sy_, c=c, lw=1, dash=None if el > 15 else "2 3"))
+        o.append(_f07_sat(sx_, sy_, c, 0.8))
+        o.append(T(sx_, sy_ - 10, "%d° %s" % (el, "使う" if el > 15 else "使わない"), "middle", 9, c if el > 15 else MUT, True, halo=True))
+    cx, cy, R = 560, y0 + 104, 86
+    sats = [(q[1], q[2], q[0], PUR if q[1] > 15 else FNT) for q in _F07_VL]
+    o.append(sky(cx, cy, R, sats, dot=4.2))
+    o.append(CIRC(cx, cy, R * (90 - 15) / 90, c=ALI, lw=1.4, dash="5 3"))
+    low = [q for q in _F07_VL if q[1] <= 15]
+    o.append(T(14, gy2 + 22, "東京の空（時刻 0）では、マスク 15° で " + " と ".join("%s（仰角 %.1f°）" % (q[0], q[1]) for q in low) + " を使わない（右の図の赤の破線の外）", "start", 9.5, INK))
+    return SVG(700, gy2 + 34, o, "マルチパスを減らす 4 つの方法（(a) の受ける強さの形と、(b) の振幅の比 γ は例。(d) の右は東京の時刻 0 のスカイプロット）。")
+F["e07_mpreduce"] = _f07_mpreduce_fig()
 
 
 # =====================================================================
@@ -843,6 +1021,59 @@ F["e07_mpenv"] = _f07_mpenv_fig()
 def _f07_lsA(names):
     G = _f07_G([(_F07_V[n][1], _F07_V[n][2]) for n in names])
     return _f07_np.linalg.solve(G.T @ G, G.T)
+
+
+def _f07_dopcalc_fig():
+    o = []
+    ns = _F07_ALL
+    G = _f07_G([(_F07_V[n][1], _F07_V[n][2]) for n in ns])
+    H = _f07_H(ns); dd = _f07_dops(H)
+    o.append(TX(14, 18, "(a) 幾何行列 G（i 行目は、視線の単位ベクトルの東・北・上の成分の符号を変えた値と、1）", "start", 11, INK, True))
+    xs = [14, 80, 126, 186, 232, 278, 312]
+    for x, h in zip(xs, ["衛星", "仰角", "方位角", "東", "北", "上", "時計"]):
+        o.append(T(x, 42, h, "start" if x == 14 else "end", 9.5, MUT, True))
+    o.append(W(14, 47, 318, 47, c=LIN, lw=0.8))
+    for i, n in enumerate(ns):
+        yy = 64 + i * 17
+        o.append(T(xs[0], yy, n, "start", 10, PUR, True))
+        o.append(T(xs[1], yy, "%.1f°" % _F07_V[n][1], "end", 9.5, MUT)); o.append(T(xs[2], yy, "%.1f°" % _F07_V[n][2], "end", 9.5, MUT))
+        for j in range(4):
+            o.append(T(xs[3 + j], yy, _f07_m(G[i, j], 2) if j < 3 else "1", "end", 10, INK))
+    yb0, yb1 = 52, 64 + 7 * 17 + 6
+    for xx, sg in ((144, 1), (318, -1)):
+        o.append(W(xx + sg * 5, yb0, xx, yb0, xx, yb1, xx + sg * 5, yb1, c=INK, lw=1.2))
+    # (b) (GᵀG)⁻¹
+    xb = 356
+    o.append(TX(xb, 42, "(b) (G^{T}G)^{−1}（対角成分が D_e・D_n・D_u・D_b）", "start", 11, INK, True))
+    cs = [xb + 96, xb + 150, xb + 204, xb + 258]
+    nm = ["東", "北", "上", "時計"]; dn = ["D_e", "D_n", "D_u", "D_b"]
+    for x, h in zip(cs, nm):
+        o.append(T(x, 64, h, "end", 9.5, MUT, True))
+    for i in range(4):
+        yy = 84 + i * 20
+        o.append(T(xb + 40, yy, nm[i], "end", 9.5, MUT, True))
+        for j in range(4):
+            if i == j:
+                o.append(RECT(cs[j] - 42, yy - 13, 46, 18, 3, soft(ALI), ALI, 1))
+            o.append(T(cs[j], yy, _f07_m(H[i, j], 3), "end", 10, ALI if i == j else INK, i == j))
+        o.append(TX(cs[3] + 14, yy, dn[i], "start", 10, ALI, True))
+    for xx, sg in ((xb + 50, 1), (cs[3] + 6, -1)):
+        o.append(W(xx + sg * 5, 70, xx, 70, xx, 150, xx + sg * 5, 150, c=INK, lw=1.2))
+    o.append(ARR(326, 110, 350, 110, c=MUT, lw=1.6, head=7))
+    # (c) DOP
+    o.append(T(xb, 180, "(c) 対角成分から DOP を計算する", "start", 11, INK, True))
+    D_ = [H[i, i] for i in range(4)]
+    rows = [("HDOP = √(D_e + D_n) = √(%.3f + %.3f)" % (D_[0], D_[1]), dd["H"]), ("VDOP = √D_u = √%.3f" % D_[2], dd["V"]), ("TDOP = √D_b = √%.3f" % D_[3], dd["T"]),
+            ("PDOP = √(D_e + D_n + D_u)", dd["P"]), ("GDOP = √(D_e + D_n + D_u + D_b)", dd["G"])]
+    for i, (lab, v) in enumerate(rows):
+        yy = 200 + i * 17
+        o.append(TX(xb + 8, yy, lab, "start", 10, INK))
+        o.append(T(xb + 318, yy, "= %.2f" % v, "end", 10.5, ALI, True))
+    o.append(TX(14, 222, "擬似距離の誤差が σ = 1 m なら", "start", 9.5, MUT))
+    o.append(TX(14, 239, "水平の誤差の 2 乗の平均の平方根は %.2f m、上下の誤差の標準偏差は %.2f m" % (dd["H"], dd["V"]), "start", 9.5, INK))
+    o.append(TX(14, 256, "時計のずれ b の誤差の標準偏差は %.2f m（時間で %.1f ns）" % (dd["T"], dd["T"] / _F07_C * 1e9), "start", 9.5, INK))
+    return SVG(700, 290, o, "DOP の計算の例（東京、時刻 0 に見えている GPS の 8 つの衛星。6 章 3 節と同じ並び）。")
+F["e07_dopcalc"] = _f07_dopcalc_fig()
 
 
 def _f07_dopsky_fig():
@@ -872,7 +1103,8 @@ def _f07_dopsky_fig():
         o.append(T(x0 + 116, 404, "楕円 %.2f m × %.2f m" % (s1, s2), "middle", 10, ALI, True))
         o.append(T(x0 + 116, 422, "HDOP %.2f　VDOP %.2f" % (dd["H"], dd["V"]), "middle", 10.5, INK, True))
         o.append(T(x0 + 116, 438, "PDOP %.2f　TDOP %.2f　GDOP %.2f" % (dd["P"], dd["T"], dd["G"]), "middle", 9.5, MUT))
-    return SVG(700, 450, o, "衛星の並びと DOP（東京、時刻 0。どの衛星の擬似距離にも標準偏差 1 m の誤差）。上の段は使った衛星（紫）、下の段は、何回も解いた位置の誤差（金の点、300 回分）と、誤差の楕円（赤）。目盛は 3 枚で違う（±4 m・±2 m・±25 m）。楕円の 2 つの半径の 2 乗の和の平方根が HDOP に等しい。偏った並びでは、楕円が衛星の並ぶ向き（東西）に細長く伸びる。")
+        o.append(T(x0 + 116, 455, "上下と時計の誤差の相関係数 %.2f" % (H[2, 3] / math.sqrt(H[2, 2] * H[3, 3])), "middle", 9.5, MUT))
+    return SVG(700, 466, o, "衛星の並びと DOP・誤差の楕円（東京、時刻 0。擬似距離の誤差は標準偏差 σ = 1 m。金の点は、誤差を入れて 300 回解いた位置。目盛は 3 枚で違う）。")
 F["e07_dopsky"] = _f07_dopsky_fig()
 
 
@@ -902,7 +1134,7 @@ def _f07_vdop_fig():
         o.append(T(p.x + p.w / 2, p.y + p.h + 16, "時計で打ち消せる分（平均）%s" % _f07_m(mu, 2), "middle", 9.5, GLD, True))
         o.append(T(p.x + p.w / 2, p.y + p.h + 32, "残りの 2 乗の和 %.2f" % ss, "middle", 9.5, ALI, True))
         o.append(T(p.x + p.w / 2, p.y + p.h + 48, "1/√（2 乗の和）= %.2f" % (1 / math.sqrt(ss)), "middle", 9.5, INK, True))
-    o.append(T(14, 268, "棒: 衛星ごとの変化（仰角の高い順に G9・G6・G22・G2・G3・G13・G5・G16）。金の線: 平均（時計のずれを動かせば、どの衛星にも同じだけ足せる）。赤: 残り", "start", 9, MUT))
+    o.append(T(14, 268, "棒: 衛星ごとの変化 [m]。金の線: 平均（時計のずれを動かせば、どの衛星にも同じだけ足せる）。赤: 打ち消せない残り", "start", 9.5, MUT))
     # (b) 上下と時計の誤差の楕円
     o.append(T(14, 300, "(b) 上下と時計の誤差（8 つ、σ = 1 m）", "start", 11, INK, True))
     H = _f07_H(_F07_ALL)
@@ -921,32 +1153,79 @@ def _f07_vdop_fig():
     o.append(T(q.x + q.w + 12, q.y + 40, "相関係数 %.2f" % cr, "start", 10, ALI, True))
     o.append(T(q.x + q.w + 12, q.y + 58, "上に誤るときは、時計も", "start", 9.5, INK))
     o.append(T(q.x + q.w + 12, q.y + 72, "同じ向きに誤る", "start", 9.5, INK))
-    # (c) 円錐の並びと、仮に地平線の下にも衛星があったら
+    # (c) 残りからの見積もりと、全部の未知数で解いた倍率
     xc = 420
-    o.append(T(xc, 300, "(c) 並びを変えた例（σ = 1 m）", "start", 11, INK, True))
+    o.append(T(xc, 300, "(c) 残りからの見積もりと、4 つの未知数で解いた倍率", "start", 11, INK, True))
+    o.append(T(xc + 150, 326, "1/√（残りの 2 乗の和）", "end", 9.5, MUT, True)); o.append(TX(xc + 266, 326, "√D（4 つで解く）", "end", 9.5, MUT, True))
+    o.append(W(xc, 331, xc + 268, 331, c=LIN, lw=0.8))
+    for j, lab in enumerate(["東", "北", "上"]):
+        col = G[:, j]; ss = float(((col - col.mean()) ** 2).sum())
+        yy = 350 + j * 20
+        o.append(T(xc + 6, yy, lab, "start", 10, INK, True))
+        o.append(T(xc + 150, yy, "%.2f" % (1 / math.sqrt(ss)), "end", 10, INK))
+        o.append(T(xc + 266, yy, "%.2f" % math.sqrt(H[j, j]), "end", 10, ALI if j == 2 else INK, True))
+    o.append(T(xc, 430, "上の残りが最も小さく、上下の倍率（VDOP）が最も大きい", "start", 9.5, ALI, True))
+    return SVG(700, 552, o, "上下の誤差が水平より大きい理由（東京、時刻 0 の 8 つの衛星。(a) の棒は仰角の高い順。(b) の点は、σ = 1 m の誤差を入れて 300 回解いた値）。")
+F["e07_vdop"] = _f07_vdop_fig()
+
+
+# =====================================================================
+# 4 節: 解けない並び — 4 つの衛星が、受信機を頂点とする 1 つの円錐の上に並ぶ
+# =====================================================================
+def _f07_cone_fig():
+    o = []
+    o.append(T(14, 18, "(a) 1 つの円錐の上に並んだ 4 つの衛星", "start", 11.5, INK, True))
+    rx, ry, cyy, ea, eb = 170, 236, 78, 118, 24
+    o.append(W(20, ry + 6, 330, ry + 6, c=MUT, lw=1.4))
+    o.append(PATH("M%g,%g a%g,%g 0 1,0 %g,0 a%g,%g 0 1,0 %g,0" % (rx - ea, cyy, ea, eb, 2 * ea, ea, eb, -2 * ea), c=FNT, lw=1.2, dash="4 3"))
+    o.append(W(rx, ry, rx, cyy - 44, c=MUT, lw=1.2, dash="5 3"))
+    o.append(T(rx + 6, cyy - 38, "円錐の軸", "start", 9.5, MUT, halo=True))
+    pts = []
+    for a in (25, 115, 205, 295):
+        pts.append((rx + ea * math.cos(a * _F07_D2R), cyy + eb * math.sin(a * _F07_D2R)))
+    for k, (sx, sy) in enumerate(pts):
+        o.append(W(rx, ry, sx, sy, c=PUR, lw=1.1))
+        o.append(_f07_sat(sx, sy, PUR, 0.8))
+    sx, sy = rx + ea, cyy                              # 角 κ を示す母線（円錐の右の縁）
+    o.append(W(rx, ry, sx, sy, c=FNT, lw=1, dash="2 3"))
+    o.append(_f07_angarc(rx, ry, 58, (0, -1), (sx - rx, sy - ry), GLD, 1.4))
+    o.append(TX(rx + 18, ry - 64, "κ", "start", 11, GLD, True, halo=True))
+    o.append(ARR(rx, ry - 2, rx, ry - 40, c=ALI, lw=2.6, head=8))
+    o.append(TX(rx - 8, ry - 20, "a", "end", 11, ALI, True, halo=True))
+    o.append(_f07_rx(rx, ry, GRN))
+    o.append(TX(14, 266, "受信機を軸の向きに a 動かす → どの衛星までの距離も a cos κ 縮む", "start", 9.5, ALI, True))
+    o.append(TX(14, 283, "時計のずれを a cos κ 増やす → 全部の擬似距離が元に戻る", "start", 9.5, GLD, True))
+    o.append(T(14, 300, "擬似距離が変わらないので、この 2 つの動きを見分けられない", "start", 9.5, INK, True))
+    # (b) 並びを変えた例
+    xc = 392
+    o.append(T(xc, 18, "(b) 並びと DOP", "start", 11.5, INK, True))
     rows = []
-    for dl, lab in ((0.0, "4 つが同じ仰角 45°（方位 90° おき。解けない）"), (1.0, "仰角 46°・44°・46°・44°"), (5.0, "仰角 50°・40°・50°・40°")):
+    for dl, lab in ((0.0, "4 つが同じ仰角 45°（方位 90° おき）"), (1.0, "仰角 46°・44°・46°・44°"), (5.0, "仰角 50°・40°・50°・40°")):
         G4 = _f07_G([(45 + dl, 0), (45 - dl, 90), (45 + dl, 180), (45 - dl, 270)])
         M = G4.T @ G4
         if abs(_f07_np.linalg.det(M)) < 1e-9:
-            rows.append((lab, "∞", "∞"))
+            rows.append((lab, "解けない", "解けない"))
         else:
             Hh = _f07_np.linalg.inv(M); d4 = _f07_dops(Hh)
             rows.append((lab, "%.2f" % d4["H"], "%.1f" % d4["V"]))
+    H = _f07_H(_F07_ALL)
     els = [_F07_V[n][1] for n in _F07_ALL]; azs = [_F07_V[n][2] for n in _F07_ALL]
     Gh = _f07_G([(e if i % 2 == 0 else -e, a) for i, (e, a) in enumerate(zip(els, azs))])
     dh = _f07_dops(_f07_np.linalg.inv(Gh.T @ Gh))
-    rows.append(("8 つ（実際の並び）", "%.2f" % _f07_dops(H)["H"], "%.2f" % _f07_dops(H)["V"]))
+    rows.append(("東京の 8 つ（実際の並び）", "%.2f" % _f07_dops(H)["H"], "%.2f" % _f07_dops(H)["V"]))
     rows.append(("8 つのうち 4 つを地平線の下へ（仮）", "%.2f" % dh["H"], "%.2f" % dh["V"]))
-    o.append(T(xc + 196, 324, "HDOP", "end", 9.5, MUT, True)); o.append(T(xc + 270, 324, "VDOP", "end", 9.5, MUT, True))
-    o.append(W(xc, 329, xc + 272, 329, c=LIN, lw=0.8))
+    o.append(T(xc + 220, 44, "HDOP", "end", 9.5, MUT, True)); o.append(T(xc + 292, 44, "VDOP", "end", 9.5, MUT, True))
+    o.append(W(xc, 49, xc + 294, 49, c=LIN, lw=0.8))
     for i, (lab, hd, vd) in enumerate(rows):
-        yy = 346 + i * 30
+        yy = 66 + i * 30
         o.append(T(xc, yy, lab, "start", 9.5, INK))
-        o.append(T(xc + 196, yy + 14, hd, "end", 10, INK, True))
-        o.append(T(xc + 270, yy + 14, vd, "end", 10, ALI if i < 3 else INK, True))
-    return SVG(700, 552, o, "上下の誤差が水平より大きい理由（東京、時刻 0 の 8 つの衛星）。(a) 受信機を 1 m 動かしたときの擬似距離の変化は、G の位置の列そのものである。上へ動かすと、どの衛星の擬似距離も縮む（全部が負）ので、時計のずれを動かせば大部分を打ち消せ、測った値から見分けにくい。時計で打ち消せない残りの 2 乗の和が小さいほど、その向きの誤差は大きい（1/√ の値は、HDOP・VDOP の成分の値に近い）。(b) そのため、上下の誤差と時計の誤差は強く相関する。(c) 4 つの衛星が同じ仰角（受信機を頂点とする円錐の上）に並ぶと、上下と時計を見分けられず、解けない。衛星が地平線の下にもあれば（実際には見えない）、上下の誤差は水平と同じ程度になる。")
-F["e07_vdop"] = _f07_vdop_fig()
+        o.append(T(xc + 220, yy + 14, hd, "end", 10, ALI if i == 0 else INK, True))
+        o.append(T(xc + 292, yy + 14, vd, "end", 10, ALI if i < 3 else INK, True))
+    o.append(T(xc, 232, "同じ仰角に近いほど VDOP が大きい。", "start", 9.5, ALI, True))
+    o.append(T(xc, 249, "衛星が地平線の下にもあれば、VDOP は HDOP より", "start", 9.5, INK))
+    o.append(T(xc, 264, "小さくなる（実際には見えない）。", "start", 9.5, INK))
+    return SVG(700, 312, o, "解けない並びと、その近くの並びの DOP（(b) の上の 3 つは、方位角が 90° おきの 4 つの衛星）。")
+F["e07_cone"] = _f07_cone_fig()
 
 
 # =====================================================================
@@ -1006,7 +1285,7 @@ def _f07_dopday_fig():
         vals = ["%d°" % mk, "%d" % n1, "%.2f" % h1, "%.2f" % v1, "%d" % n2, "%.2f" % h2, "%.2f" % v2]
         for j, (x, v) in enumerate(zip(xs, vals)):
             o.append(T(x, yy, v, "start" if j == 0 else "end", 10, SIG if 1 <= j <= 3 else (INK if j else MUT), j in (2, 5)))
-    return SVG(700, 580, o, "DOP の時間の変化と、衛星系・仰角マスクの効果（1 章の近似の配置。GPS 24 機・GLONASS・Galileo・BeiDou 各 24 機・みちびき 4 機）。(a) 衛星が空を動くので、DOP は時間とともに変わる。衛星系を混ぜると、見える衛星が 4〜5 倍に増え、DOP は半分ほどになる（衛星系ごとに基準の時刻が違うので、時計のずれの未知数を衛星系ごとに 1 つずつ置いて計算した）。(b) 仰角マスクを上げると、使う衛星が減り、DOP が上がる。特に VDOP が大きく上がる。")
+    return SVG(700, 580, o, "東京の DOP の 24 時間の変化と、衛星系・仰角マスクの効果（1 章の近似の配置。衛星系を混ぜるときは、時計のずれの未知数を衛星系ごとに 1 つ置き、G の時計の列を衛星系の数だけにした）。")
 F["e07_dopday"] = _f07_dopday_fig()
 
 
@@ -1056,13 +1335,17 @@ def _f07_radial_fig():
     _f07_radial_panel(o, 14, _F07_ALL, 2.5, "(a) 円に近い場合（見えている 8 つ）", 501)
     _f07_radial_panel(o, 366, _F07_CL4, 25.0, "(b) 細長い場合（偏った 4 つ）", 502)
     o.append(T(14, 420, "どちらも、擬似距離の誤差 σ = 1 m の正規分布で 2000 回解いた位置（金の点）。緑の十字が本当の位置。", "start", 9.5, MUT))
-    return SVG(700, 430, o, "水平の精度の表し方。点は、解いた位置の誤差（2000 回分）。CEP は点の 50 % が入る円、R95 は 95 % が入る円の半径、DRMS は水平の誤差の 2 乗の平均の平方根、2DRMS はその 2 倍である。(a) 楕円が円に近いと、2DRMS の円には点の約 98 % が入る。(b) 楕円が細長いと、同じ 2DRMS の円に入るのは約 96 % で、CEP は DRMS に比べて小さくなる。「式の割合」は 2 次元の正規分布の積分、「点の割合」はシミュレーションの値。")
+    return SVG(700, 430, o, "水平の誤差の散らばりと、精度を表す 4 つの円（「式の割合」は 2 次元の正規分布の積分、「点の割合」は 2000 回の中で数えた値）。")
 F["e07_radial"] = _f07_radial_fig()
 
 
 # =====================================================================
 # 5 節: 半径の累積確率と、換算の係数（楕円の細長さで変わる）・上下の 95 %
 # =====================================================================
+# CEP の近似の式 0.59(σ₁ + σ₂) と、数値で積分した CEP の差（短い半径 ÷ 長い半径が 0.2〜1 の範囲の最大。近似の値を基準にした割合）
+_F07_CEPERR = max(abs(_f07_rad(0.5, 1.0, r) / (0.59 * (1.0 + r)) - 1) for r in _f07_np.linspace(0.2, 1.0, 81))
+
+
 def _f07_cdf_fig():
     o = []
     o.append(T(14, 18, "(a) 水平の誤差が半径 R の円に入る確率", "start", 11.5, INK, True))
@@ -1097,6 +1380,7 @@ def _f07_cdf_fig():
             o.append(T(x, yy, v, "start" if j == 0 else "end", 10, INK, j == 0))
     o.append(T(xb + 6, 206, "比 1: CEP = 1.177σ、R95 = 2.448σ（σ は 1 軸）", "start", 9.5, SIG))
     o.append(T(xb + 6, 222, "比 0（直線）: 1 次元の正規分布と同じ", "start", 9.5, ALI))
+    o.append(TX(xb + 6, 238, "比 0.2 以上: CEP ≈ 0.59(σ_1 + σ_2)（差は %.1f %% 以内）" % (100 * _F07_CEPERR), "start", 9.5, MUT))
     # (c) 上下（1 次元）
     o.append(T(xb, 262, "(c) 上下の誤差（1 次元の正規分布）", "start", 11.5, INK, True))
     q = Plot(xb + 14, 280, 260, 80, (-3.2, 3.2), (0, 0.42))
@@ -1111,7 +1395,7 @@ def _f07_cdf_fig():
         o.append(T(q.X(v), q.Y(0) + 13, ("%dσ" % v).replace("-", "−") if v else "0", "middle", 9, MUT))
     o.append(T(xb + 14, 390, "±1σ: 68.3 %　±1.96σ: 95.0 %　±2σ: 95.4 %", "start", 10, INK, True))
     o.append(T(xb + 14, 406, "上下の 95 % の値 = 1.96 × VDOP × σ", "start", 9.5, MUT))
-    return SVG(700, 420, o, "精度の値の換算。(a) 水平の誤差（楕円の 2 次元の正規分布）が、半径 R の円に入る確率。横軸は DRMS で割った半径。小さい半径では、楕円が細長いほど入る確率が大きく、大きい半径では逆に、円に近いほど大きい。(b) CEP・R95 と DRMS の比、DRMS・2DRMS の円に入る確率（数値で積分した値）。2DRMS の円に入る確率は 95.4〜98.2 % である。(c) 上下の誤差は 1 次元の正規分布で、±1.96σ に 95 % が入る。")
+    return SVG(700, 420, o, "半径 R の円に入る確率と、換算の係数（誤差の楕円の形ごとに、2 次元の正規分布を数値で積分した値。横軸は DRMS で割った半径）。")
 F["e07_cdf"] = _f07_cdf_fig()
 
 
@@ -1155,7 +1439,7 @@ def _f07_budget_fig():
         o.append(RECT(xb + 6, yy - 9, 10, 10, 2, soft(c), c, 1))
         o.append(T(xb + 22, yy, "%s %.2f m²（%.0f %%）" % (nm.split("（")[0], v * v, 100 * v * v / tot), "start", 9.5, c, True))
         yy += 17
-    o.append(T(xb + 6, 192, "電離層が分散の 3/4 を占める。", "start", 10, GLD, True))
+    o.append(TX(xb + 6, yy + 4, "合計 %.2f m² → σ_{UERE} = %.2f m" % (tot, _F07_UERE), "start", 10, INK, True))
     # (c) どれを減らすと効くか
     o.append(T(14, 300, "(c) 1 つの源を変えたときの UERE", "start", 11.5, INK, True))
     q = Plot(286, 316, 300, 150, (0, 4.5), (0, 1))
@@ -1174,7 +1458,7 @@ def _f07_budget_fig():
         o.append(T(q.x - 8, yy + 13, lab, "end", 9.5, c, True))
         o.append(RECT(q.X(0), yy + 2, q.X(u) - q.X(0), 16, 2, soft(c) if i else c, c, 1.2))
         o.append(T(q.X(u) + 5, yy + 14, ("%.2f m（%+.1f %%）" % (u, 100 * (u / _F07_UERE - 1))).replace("-", "−") if i else "%.2f m" % u, "start", 9.5, c, True))
-    return SVG(700, 514, o, "誤差の予算（L1 だけの受信機、開けた空、航法メッセージの補正とモデルを使う場合の代表値）。(a) 源ごとの誤差の標準偏差と、それらをまとめた UERE。独立な誤差は、2 乗（分散）で足し合わさる。(b) 分散の割合。最も大きい電離層が 3/4 を占める。(c) 電離層の誤差を半分にすると UERE は 35 % 下がるが、受信機の雑音を半分にしても 1 % も下がらない。大きい源から減らすのが効く。")
+    return SVG(700, 514, o, "誤差の予算の例（L1 だけの受信機、開けた空、航法メッセージの補正とモデルを使う場合の代表値）。")
 F["e07_budget"] = _f07_budget_fig()
 
 
@@ -1225,5 +1509,35 @@ def _f07_acc_fig():
                 o.append(T(p.X(v) + 4, yy + 10, lab_, "start", 9, c, True))
             else:
                 o.append(T(p.X(v) - 4, yy + 9.5, lab_, "end", 9, c, True, halo=True))
-    return SVG(700, 400, o, "UERE と DOP からの精度の見積もり（UERE は 6 節の例の %.2f m、どの衛星も同じ大きさの独立な誤差とした）。水平の CEP と R95 は誤差の楕円から、上下の 95 %% は 1.96 × VDOP × UERE で計算した。24 時間の値は、10 分おきに計算した値の中央値。衛星が多く空に広がるほど、同じ UERE でも位置の誤差は小さい。" % _F07_UERE)
+    return SVG(700, 400, o, "UERE と DOP からの精度の見積もり（どの衛星も同じ大きさの独立な誤差とした。CEP と R95 は誤差の楕円から、上下の 95 %% は 1.96 × VDOP × UERE で計算した。24 時間の値は、10 分おきの値の中央値）。")
 F["e07_acc"] = _f07_acc_fig()
+
+
+# =====================================================================
+# 6 節: 見積もりの前提 — 源ごとの、誤差が変わる時間の目安
+# =====================================================================
+def _f07_assume_fig():
+    o = []
+    o.append(T(14, 18, "誤差が変わる時間の目安（代表値）", "start", 11.5, INK, True))
+    p = Plot(176, 40, 480, 150, (0.5, 1e5), (0, 1), xlog=True)
+    xt = [1, 10, 60, 600, 3600, 36000]
+    o.append(p.axes(xl="誤差が変わる時間（対数の目盛）", yl=None, xt=xt, yt=[],
+                    xfmt=lambda v: {1: "1 秒", 10: "10 秒", 60: "1 分", 600: "10 分", 3600: "1 時間", 36000: "10 時間"}[v]))
+    rows = [("衛星の時計と軌道", "s", 120, 4 * 3600, "数分〜数時間"), ("電離層", "I", 120, 4 * 3600, "数分〜数時間"), ("対流圏", "T", 120, 4 * 3600, "数分〜数時間"),
+            ("マルチパス", "M", 30, 600, "数十秒〜十分ほど"), ("受信機の雑音", "e", 0.7, 1.4, "1 秒ごとに変わる")]
+    for i, (nm, k, a, b, lab) in enumerate(rows):
+        yy = 46 + i * 28
+        c = _F07_SC[k]
+        o.append(T(p.x - 8, yy + 13, nm, "end", 9.5, c, True))
+        o.append(RECT(p.X(a), yy + 2, p.X(b) - p.X(a), 15, 3, soft(c), c, 1.2))
+        if i < 3:
+            o.append(T(p.X(a) - 6, yy + 14, lab, "end", 9.5, c, True))
+        else:
+            o.append(T(p.X(b) + 6, yy + 14, lab, "start", 9.5, c, True))
+    xm = p.X(600)
+    o.append(W(xm, p.y - 4, xm, p.y + p.h, c=INK, lw=1.2, dash="4 3"))
+    o.append(T(xm, 252, "例: 位置を 10 分平均する", "middle", 9.5, INK, True))
+    o.append(ARR(xm - 8, 268, xm - 150, 268, c=GRN, lw=1.4, head=6)); o.append(T(xm - 158, 272, "速く変わる誤差は、平均で減る", "end", 9.5, GRN, True))
+    o.append(ARR(xm + 8, 268, xm + 60, 268, c=ALI, lw=1.4, head=6)); o.append(T(xm + 66, 272, "ゆっくり変わる誤差は残る", "start", 9.5, ALI, True))
+    return SVG(700, 284, o, "源ごとの、誤差が変わる時間の目安（代表値。色は 1 節の図と同じ）。")
+F["e07_assume"] = _f07_assume_fig()
