@@ -2793,7 +2793,7 @@
     var r1=U.ctrls(el);
     var md=U.select(r1,"例",["平面の例（1 章の 3 つの点。未知数 x・y・b）","東京の例（3 次元。未知数 x・y・z・b）"],0,function(){showCtl();reset();draw();});
     var ns=U.select(r1,"衛星（東京の例）",["1 章の 4 つ","見えている 8 つ"],0,function(){reset();draw();});
-    var rot=U.select(r1,"地球の自転（東京の例）",["考えない（本文の表と同じ）","擬似距離に含め、直す","擬似距離に含め、直さない"],0,function(){reset();draw();});
+    var rot=U.select(r1,"地球の自転（東京の例）",["考えない（本文の図と同じ）","擬似距離に含め、直す","擬似距離に含め、直さない"],0,function(){reset();draw();});
     var r2=U.ctrls(el);
     var pX=U.slider(r2,"初めの位置 x",{min:-20,max:20,step:0.5,value:-8,fmt:function(v){return _w06_f(v,1)+" km";},onInput:function(){reset();draw();}});
     var pY=U.slider(r2,"初めの位置 y",{min:-10,max:24,step:0.5,value:-6,fmt:function(v){return _w06_f(v,1)+" km";},onInput:function(){reset();draw();}});
