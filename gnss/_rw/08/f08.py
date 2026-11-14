@@ -1174,7 +1174,7 @@ def _f08_feed_fig():
         o.append(D(p.X(u), p.Y(Re * math.sin(math.pi * u) ** 2), c, 4.4))
     o.append(T(p.X(1 / 6.0) + 8, p.Y(50) + 16, "50 Ω: x = ℓ/6", "start", 10, GRN, True, halo=True))
     o.append(T(p.X(1 / 6.0) + 8, p.Y(50) + 31, "一辺 %.1f mm なら %.1f mm" % (l, l / 6), "start", 9.5, GRN, True, halo=True))
-    o.append(T(p.X(0.49), p.Y(200) + 16, "縁 R_e = %.0f Ω" % Re, "end", 9.5, ALI, True, halo=True))
+    o.append(TX(p.X(0.49), p.Y(200) + 16, "縁 R_e = %.0f Ω" % Re, "end", 9.5, ALI, True, halo=True))
     o.append(T(p.X(0.25) + 8, p.Y(100) + 12, "%.0f Ω" % (Re * 0.5), "start", 9.5, GLD, True, halo=True))
     return SVG(700, 236, o, "給電点の位置と入力の抵抗（縁で 200 Ω とした例。一辺は、比誘電率 20 の L1 のパッチの値）。")
 F["e08_feed"] = _f08_feed_fig()
