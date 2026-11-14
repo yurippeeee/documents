@@ -282,7 +282,7 @@ def _f08_role_fig():
         o.append(RECT(xl, yy, 286, 36, 6, soft(c), c, 1.2))
         o.append(T(xl + 10, yy + 15, t1, "start", 10.5, c, True))
         o.append(T(xl + 10, yy + 30, t2, "start", 9.5, INK))
-    return SVG(700, 350, o, "受信機の中のアンテナと、その役割。(a) アンテナは、空から来る電波（1 m² あたりの電力の密度 S）を、端子から取り出せる電力 C に変える。C は S に実効開口面積 A<sub>e</sub> を掛けた値である（3 章 1 節）。(b) GNSS のアンテナは、上の半分の空のどの向きの衛星の電波も受け、地面で反射した電波や地面の雑音は弱く受け、しかも機器の中に収まる大きさであることが求められる。")
+    return SVG(700, 350, o, "受信機の中のアンテナと、GNSS のアンテナに要る性質。")
 F["e08_role"] = _f08_role_fig()
 
 
@@ -341,7 +341,7 @@ def _f08_pattern_fig():
     o.append(T(x0, lab_y + 16, "熱（損失）%.1f %%" % (100 * loss), "start", 9.5, MUT))
     o.append(TX(x0, lab_y + 36, "効率 η_a = %.1f %%（放射した電力の割合）" % (100 * (a + b + d)), "start", 10, GRN, True))
     o.append(TX(x0, lab_y + 54, "真上の指向性 D_a = G_a/η_a = %.2f dBi" % (3 - 10 * math.log10(a + b + d)), "start", 10, INK, True))
-    return SVG(700, 396, o, "例のアンテナ（3 章 3 節の値に、この章で足した例の値を合わせたもの）。(a) 仰角の切り口の放射パターン。衛星の電波の偏波に対する利得（青）は、真上で +3 dBi、地平線に近づくと下がり、地平線より下（地板の裏）ではさらに小さい。どの方位でも同じとした。(b) 同じ利得を仰角の関数で描いた。点は 3 章 3 節の 3 つの値。赤の破線は、衛星の電波と逆の偏波（2 節）に対する利得。(c) 全部の向きの利得を積分すると、入れた電力のうち放射した割合（効率）が求まる。この例では 57 % で、真上の指向性は 5.5 dBi にあたる。")
+    return SVG(700, 396, o, "例のアンテナの放射パターンと、入れた電力の行き先（上の半分の利得は 3 章 3 節の値。地平線より下の利得と、逆の偏波の利得は、この章で足した例の値。どの方位でも同じとした）。")
 F["e08_pattern"] = _f08_pattern_fig()
 
 
@@ -401,8 +401,23 @@ def _f08_recip_fig():
         o.append(RECT(bx, yy, 30 * g, 18, 2, SSOFT, SIG, 1.2))
         o.append(T(bx + max(30 * g, 30) + 5, yy + 13, "%.2f" % g, "start", 9.5, SIG, True, halo=True))
     o.append(T(bx + 30, 194, "等方性", "middle", 9.5, MUT))
-    o.append(T(350, 286, "どちらも同じ倍率（2.00・0.80・0.32）。偏波も同じで、送るときの偏波の電波を、受けるときに最もよく受ける", "middle", 10, INK, True))
-    return SVG(700, 296, o, "可逆性。(a) アンテナに電力を入れると、向きごとに利得の倍率の強さで電波が出る（例のアンテナで、真上 2.00 倍・仰角 30° で 0.80 倍・5° で 0.32 倍）。(b) 同じアンテナで、どの向きからも同じ密度の電波を受けると、受ける電力は同じ倍率になる。受けたときの実効開口面積は G<sub>a</sub>λ²/(4π) である（3 章 1 節）。")
+    o.append(T(350, 286, "どちらも同じ倍率（%s）。偏波も同じで、送るときの偏波の電波を、受けるときに最もよく受ける" % "・".join("%.2f" % g for g in gs), "middle", 10, INK, True))
+    # (c) 実効開口面積の大きさ（同じ縮尺。1 px = 1 mm）
+    yc = 318
+    o.append(W(14, yc - 16, 686, yc - 16, c=LIN, lw=0.8))
+    o.append(TX(14, yc + 2, "(c) 受けるときの実効開口面積 A_e = G_{a}λ²/(4π)（L1。同じ縮尺の正方形で描いた）", "start", 10.5, INK, True))
+    a0 = _F08_LAM ** 2 / (4 * math.pi) * 1e4          # 0 dBi の実効開口面積 [cm²]
+    cer = 2.5 * 2.5                                    # 25 mm 角のセラミックの板 [cm²]
+    yb = yc + 98
+    sq = [(40, gs[0] * a0, SIG, SSOFT, "真上（+3 dBi）"), (290, a0, MUT, MSOFT, "等方性（0 dBi）"), (520, cer, GLD, GOSOFT, "セラミックの板")]
+    for x0, area, c, fl, nm in sq:
+        side = math.sqrt(area) * 10                    # 一辺 [mm] = [px]
+        o.append(RECT(x0, yb - side, side, side, 2, fl, c, 1.4))
+        o.append(T(x0 + side + 10, yb - 34, nm, "start", 10, c, True))
+        o.append(T(x0 + side + 10, yb - 18, "%.1f cm²" % area if c != GLD else "%.2f cm²" % area, "start", 10, INK, True))
+        o.append(T(x0 + side + 10, yb - 3, "（一辺 %.1f cm）" % (side / 10), "start", 9.5, MUT))
+    o.append(T(686, yc + 22, "真上の実効開口面積は、板の面積の %.1f 倍" % (gs[0] * a0 / cer), "end", 9.5, SIG, True))
+    return SVG(700, 426, o, "可逆性と実効開口面積（例のアンテナ。(b) は、どの向きからも同じ密度の電波が来るとした。(c) の板は、3 節の 25 mm 角のセラミックの板）。")
 F["e08_recip"] = _f08_recip_fig()
 
 
@@ -475,7 +490,7 @@ def _f08_horizon_fig():
     o.append(p.clip([(e, 20 * math.log10(max(comps(e)[1], 1e-9))) for e in es], c=TEA, lw=2.2))
     o.append(T(p.X(48), p.Y(-1.2) - 6, "垂直の成分", "middle", 9.5, PUR, True, halo=True))
     o.append(T(p.X(30), p.Y(-14), "水平の成分 ∝ sin θ", "start", 9.5, TEA, True, halo=True))
-    return SVG(700, 370, o, "地平線に近い向きで、衛星の電波を受ける強さが下がる理由。(a) 例のアンテナが出す電波を、電波の進む向きを含む垂直の面の中の成分（垂直の成分）と、それに直交する水平の成分に分けた。真上では 2 つの成分が同じ大きさだが、地平線に近づくと水平の成分が小さくなり、地平線で 0 になる。(b) 金属の面に沿う向きの電界は、面の中の電子が動いて打ち消すので、面のすぐ上では 0 になる（鏡に映した像が逆向きと考えてもよい）。面に垂直な電界は残る。地平線の向きに出る電波は地板に沿って進むので、水平の成分だけが打ち消される。(c) 例のアンテナの 2 つの成分の大きさ（水平の成分が仰角の sin に比例するとした）。")
+    return SVG(700, 370, o, "地平線に近い向きで、水平の成分が小さくなる理由（(a)・(c) は例のアンテナで、水平の成分が仰角の sin に比例するとした。(a) の矢印の長さと円の大きさは、成分の大きさに比例する）。")
 F["e08_horizon"] = _f08_horizon_fig()
 
 
@@ -554,7 +569,8 @@ def _f08_cp_fig():
         o.append(TX(ex_c, ey_c + sz + 18, s1, "middle", 9.5, INK))
         o.append(T(ex_c, ey_c + sz + 34, s2, "middle", 9.5, SIG if q < 0.99 else MUT, True))
     o.append(TX(xe, yb + 214, "a_L が a_R に近いほど楕円はつぶれ、等しいと直線になる。大きい方の向きに回る", "start", 9.5, INK))
-    return SVG(700, 456, o, "偏波の種類。(a) 空間の 1 点で、電界の向きが時間とともにどう変わるか（電波の進む向きに見た。矢印の薄いものは 1/8 周期ごとの向き）。直線偏波は向きが一定で大きさだけが変わり、円偏波は大きさが一定で向きが回る。電波の進む向きに見て時計回りが右旋（RHCP）、反時計回りが左旋（LHCP）である。(b) 右旋（青）と左旋（赤）の 2 つの円偏波を足すと、和の先は楕円を描く。長い軸は 2(a<sub>R</sub> + a<sub>L</sub>)、短い軸は 2|a<sub>R</sub> − a<sub>L</sub>| で、その比が軸比である（図は a<sub>L</sub>/a<sub>R</sub> = 0.3、軸比 1.86 = 5.4 dB）。")
+    o.append(TX(xe, yb + 54, "左の楕円は a_L/a_R = %g の例: AR = %.1f/%.1f = %.2f（%.1f dB）" % (aL / aR, aR + aL, aR - aL, (aR + aL) / (aR - aL), 20 * math.log10((aR + aL) / (aR - aL))), "start", 9.5, MUT))
+    return SVG(700, 456, o, "偏波の種類（電波の進む向きに見た。(a) の薄い矢印は、1/8 周期ごとの向き）。")
 F["e08_cp"] = _f08_cp_fig()
 
 
@@ -598,8 +614,11 @@ def _f08_plf_fig():
     # 表
     xt = 476
     o.append(T(xt, yb + 52, "受ける電力（式と同じ値）", "start", 10, INK, True))
-    rows = [("アンテナ", "電波", "電力"), ("右旋（理想）", "右旋", "0 dB"), ("右旋（理想）", "左旋", "0（−∞ dB）"), ("直線", "右旋", "−3.01 dB"),
-            ("右旋・軸比 3 dB", "右旋", "−0.13 dB"), ("右旋・軸比 3 dB", "左旋", "−15.5 dB"), ("右旋・軸比 1 dB", "左旋", "−24.8 dB")]
+    def pw(ar, left):
+        r = rho(ar)
+        return 10 * math.log10((r * r if left else 1) / (1 + r * r))
+    rows = [("アンテナ", "電波", "電力"), ("右旋（理想）", "右旋", "0 dB"), ("右旋（理想）", "左旋", "0（−∞ dB）"), ("直線", "右旋", "%s dB" % _f08_f(10 * math.log10(0.5), 2)),
+            ("右旋・軸比 3 dB", "右旋", "%s dB" % _f08_f(pw(3, False), 2)), ("右旋・軸比 3 dB", "左旋", "%s dB" % _f08_f(pw(3, True), 1)), ("右旋・軸比 1 dB", "左旋", "%s dB" % _f08_f(pw(1, True), 1))]
     for i, (a_, b_, c_) in enumerate(rows):
         yy = yb + 74 + i * 18
         bold = i == 0
@@ -608,8 +627,47 @@ def _f08_plf_fig():
         o.append(T(xt + 210, yy, c_, "end", 9.5, INK if not bold else MUT, bold))
         if i == 0:
             o.append(W(xt, yy + 5, xt + 212, yy + 5, c=LIN, lw=0.8))
-    return SVG(700, 456, o, "偏波が合わないときの損失。(a) 横と縦の 2 つの受け口の出力を、縦を 90° 遅らせて足すアンテナ（右旋を受ける組）。右旋の電波では 2 つが同じ位相になって強め合い、左旋では逆の位相になって打ち消し合う。横に振れる直線の電波では、横の受け口だけが受け、電力は半分になる（どれも電波の電力は同じ）。(b) アンテナに軸比があると、右旋の電波をわずかに損し、左旋の電波も少し受ける。軸比 3 dB のアンテナは、左旋の電波を 15.5 dB 弱く受ける。")
+    return SVG(700, 456, o, "偏波が合わないときに受ける電力（(a) は、3 つの電波の電力を同じにした。(b) は、右旋のアンテナの軸比を変えて、円偏波の電波を受けたとき）。")
 F["e08_plf"] = _f08_plf_fig()
+
+
+# =====================================================================
+# 2 節: 地平線の向きで、右旋の電波を受ける利得が下がる内訳
+# =====================================================================
+def _f08_hloss_fig():
+    o = []
+    g90 = 10 ** (_f08_ga3(90.0) / 10); g0 = 10 ** (_f08_ga3(0.0) / 10)
+    ev0 = 2 * g0                                   # 地平線の垂直の成分の電力（真上の垂直の成分を 1 として。真上は 2 つの成分が 1 ずつ）
+    steps = [("水平の成分が 0 になる", "出ていく電力が半分", 10 * math.log10(0.5), ALI),
+             ("直線偏波で右旋の電波を受ける", "受ける電力が半分", 10 * math.log10(0.5), ALI),
+             ("垂直の成分も真上より小さい", "例のアンテナの値", 10 * math.log10(ev0 / (g90 / 2)), GLD)]
+    x0, x1, v0, v1 = 330, 676, -8.0, 4.0
+    def X(v):
+        return x0 + (x1 - x0) * (v - v0) / (v1 - v0)
+    ytop = 40; rh = 34
+    for v in range(-8, 5, 2):
+        o.append(W(X(v), ytop - 8, X(v), ytop + rh * 5 - 6, c=GRD, lw=1))
+        o.append(T(X(v), ytop + rh * 5 + 8, _f08_m(v), "middle", 9.5, MUT))
+    o.append(T((x0 + x1) / 2, ytop + rh * 5 + 26, "右旋の電波に対する利得 [dBi]", "middle", 9.5, MUT))
+    v = _f08_ga3(90.0)
+    o.append(T(14, ytop + 14, "真上", "start", 10.5, SIG, True))
+    o.append(T(60, ytop + 14, "2 つの成分が同じ大きさ（円偏波）", "start", 9.5, INK))
+    o.append(D(X(v), ytop + 10, SIG, 5)); o.append(T(X(v) + 9, ytop + 14, "+%.1f dBi" % v, "start", 10, SIG, True))
+    for i, (t1, t2, dv, c) in enumerate(steps):
+        yy = ytop + rh * (i + 1)
+        o.append(T(14, yy + 8, "%s %s" % ("①②③"[i], t1), "start", 10, INK, True))
+        o.append(T(30, yy + 22, t2, "start", 9.5, MUT))
+        o.append(W(X(v), yy - rh + 10, X(v), yy + 10, c=FNT, lw=1, dash="3 3"))
+        o.append(ARR(X(v), yy + 10, X(v + dv), yy + 10, c=c, lw=2.6, head=8))
+        o.append(T((X(v) + X(v + dv)) / 2, yy + 3, "%s dB" % _f08_f(dv, 2), "middle", 10, c, True, halo=True))
+        v += dv
+    yy = ytop + rh * 4
+    o.append(W(X(v), yy - rh + 10, X(v), yy + 10, c=FNT, lw=1, dash="3 3"))
+    o.append(T(14, yy + 14, "地平線", "start", 10.5, SIG, True))
+    o.append(T(60, yy + 14, "① と ② で %s dB、③ も合わせて %s dB" % (_f08_f(steps[0][2] + steps[1][2], 2), _f08_f(sum(s_[2] for s_ in steps), 1)), "start", 9.5, INK))
+    o.append(D(X(v), yy + 10, SIG, 5)); o.append(T(X(v) + 9, yy + 14, "%s dBi" % _f08_f(v, 1), "start", 10, SIG, True))
+    return SVG(700, 246, o, "地平線の向きで、右旋の電波を受ける利得が下がる内訳（例のアンテナ。③ は例の値）。")
+F["e08_hloss"] = _f08_hloss_fig()
 
 
 def _f08_mirror_fig():
@@ -640,8 +698,8 @@ def _f08_mirror_fig():
             o.append(W(px - 4.5, py - 4.5, px + 4.5, py + 4.5, c=TEA, lw=1.8)); o.append(W(px - 4.5, py + 4.5, px + 4.5, py - 4.5, c=TEA, lw=1.8))
     o.append(T(xi - 6, yi - 8, "入射波（右旋）", "start", 10, SIG, True, halo=True))
     o.append(T(xr + 6, yr - 8, "反射波（左旋）", "end", 10, ALI, True, halo=True))
-    o.append(TX(20, 46, "垂直の成分（紫）の上下の部分: 同じ向き → Γ_V = +1", "start", 9.5, PUR, True))
-    o.append(TX(20, 62, "水平の成分（⊙ 手前向き → ⊗ 奥向き）: 逆向き → Γ_H = −1", "start", 9.5, TEA, True))
+    o.append(TX(20, 46, "V（入射面の中の成分。紫）の上下の部分: 同じ向き → Γ_V = +1", "start", 9.5, PUR, True))
+    o.append(TX(20, 62, "H（面に沿う成分。⊙ 手前向き → ⊗ 奥向き）: 逆向き → Γ_H = −1", "start", 9.5, TEA, True))
     o.append(T(20, 78, "面に沿う部分は、入射と反射で打ち消し合う（和が 0）", "start", 9.5, INK))
     # (b) 真上から当たるとき（上から見下ろした図）
     xb = 400
@@ -666,7 +724,7 @@ def _f08_mirror_fig():
         o.append(T(bx, by + rr + 34, "上から見て時計回り", "middle", 9.5, INK))
     o.append(T(xb + 145, 248, "空間で回る向きは反射しても同じ。進む向きだけが逆になるので、", "middle", 9.5, INK))
     o.append(T(xb + 145, 264, "進む向きに見た回り方が逆になる → 右旋は左旋に", "middle", 9.5, ALI, True))
-    return SVG(700, 290, o, "金属の面での反射。(a) 金属の面に沿う向きの電界は 0 なので、入射波と反射波の面に沿う部分が打ち消し合う。水平の成分（面に沿う）は逆向きに反射し（Γ<sub>H</sub> = −1）、垂直の成分は、面に沿う部分が打ち消し合うように反射するので、上下の部分は同じ向きになる（Γ<sub>V</sub> = +1）。(b) 真上から当たるときを上から見ると、電界が空間で回る向きは反射しても変わらないが、進む向きが逆になるので、進む向きに見た回る向きが逆になる。斜めに当たるときも、反射波は入射波を鏡に映した形（全体の符号は逆）で、回る向きが逆になる。")
+    return SVG(700, 290, o, "金属の面での反射（右旋の電波が入ったとき。(a) は横から見た図、(b) は真上から当たるときを上から見た図）。")
 F["e08_mirror"] = _f08_mirror_fig()
 
 
@@ -692,7 +750,8 @@ def _f08_fresnel_fig():
     o.append(TX(p.X(60), p.Y(0.42) - 10, "Γ_V（実線）", "middle", 9.5, INK, True, halo=True))
     o.append(TX(p.X(60), p.Y(-0.60) + 18, "Γ_H（破線）", "middle", 9.5, INK, True, halo=True))
     o.append(LEGL(70, 282, [(GLD, None, "乾いた地面 εr = 4"), (TEA, None, "湿った地面 εr = 20")], 9.5, 12))
-    o.append(TX(70, 300, "点: ブルースター角（Γ_V = 0）。金属は Γ_H = −1、Γ_V = +1", "start", 9.5, MUT))
+    o.append(TX(70, 300, "点: ブルースター角 ψ_B（Γ_V = 0）。εr = 6（壁の例）では %.1f°" % math.degrees(math.atan(1 / math.sqrt(6.0))), "start", 9.5, INK))
+    o.append(TX(70, 318, "金属は、どの角でも Γ_H = −1、Γ_V = +1", "start", 9.5, MUT))
     # (b) 反射波の右旋と左旋
     xb = 392
     o.append(T(xb, 18, "(b) 右旋の電波が反射した後の、右旋と左旋の電力", "start", 11.5, INK, True))
@@ -709,24 +768,39 @@ def _f08_fresnel_fig():
     o.append(T(q.X(88), q.Y(-6.2), "左旋になる（破線）", "end", 9.5, INK, True, halo=True))
     o.append(T(xb, 282, "ブルースター角より浅い（すれすれの）反射: 右旋が多い", "start", 9.5, INK))
     o.append(T(xb, 300, "深い反射: 左旋が多い（金属はどの角でも全部が左旋）", "start", 9.5, INK))
-    return SVG(700, 310, o, "誘電体の面での反射（比誘電率は例の値。損失は無いとした）。(a) 水平の成分の反射係数 Γ<sub>H</sub>（破線）はどの角でも負で、垂直の成分の反射係数 Γ<sub>V</sub>（実線）は、すれすれの −1 から増え、ブルースター角で 0 になり、その上で正になる。(b) 右旋の電波が反射した後の、右旋の成分 (Γ<sub>V</sub> + Γ<sub>H</sub>)/2 と左旋の成分 (Γ<sub>V</sub> − Γ<sub>H</sub>)/2 の電力。ブルースター角より浅い反射では右旋が多く残り、深い反射では左旋が多い。")
+    for v, dyr, dyl in ((10, 15, 15), (60, -7, -7)):
+        gh, gv = _f08_fres(4.0, math.radians(v)); a, b = _f08_rl(gh, gv)
+        ra, la = 20 * math.log10(abs(a)), 20 * math.log10(abs(b))
+        o.append(D(q.X(v), q.Y(ra), GLD, 3.8)); o.append(D(q.X(v), q.Y(la), GLD, 3.8))
+        o.append(T(q.X(v) + 6, q.Y(ra) + dyr, _f08_f(ra, 1), "start", 9.5, GLD, True, halo=True))
+        o.append(T(q.X(v) + 6, q.Y(la) + dyl, _f08_f(la, 1), "start", 9.5, GLD, True, halo=True))
+    o.append(T(xb, 318, "点: εr = 4 の面に ψ = 10° と 60° で当たるときの値 [dB]", "start", 9.5, GLD, True))
+    return SVG(700, 328, o, "誘電体の面での反射（損失の無い平らな面。比誘電率は例の値で、4 は乾いた地面、6 は壁のコンクリート、20 は湿った地面）。")
 F["e08_fresnel"] = _f08_fresnel_fig()
+
+
+def _f08_gam(er, th, kind, ant):
+    """反射波と直接波の振幅の比 γ。kind は "ground"（平らな地面）か "wall"（垂直な壁）、ant は "ex"（例のアンテナ）か "lin"（向きによらない利得の直線偏波）。"""
+    psi = th if kind == "ground" else 90.0 - th
+    gh, gv = _f08_fres(er, math.radians(psi)); a, b = _f08_rl(gh, gv)
+    if ant == "lin":
+        return math.sqrt(a * a + b * b)
+    gd = _f08_ex(th)[0]
+    gr, gl = _f08_ex(-th) if kind == "ground" else _f08_ex(th)
+    return math.sqrt((a * a * gr + b * b * gl) / gd)
+
+
+_F08_GCASES = [(30, "ground", 4.0, "地面（εr = 4）"), (30, "wall", 6.0, "壁（εr = 6）"), (10, "ground", 4.0, "地面（εr = 4）")]   # 本文の例
 
 
 def _f08_gamma_fig():
     o = []
     np = _f08_np
-    def gam(er, th, kind, ant):
-        psi = th if kind == "ground" else 90.0 - th
-        gh, gv = _f08_fres(er, math.radians(psi)); a, b = _f08_rl(gh, gv)
-        if ant == "lin":
-            return math.sqrt(a * a + b * b)
-        gd = _f08_ex(th)[0]
-        gr, gl = _f08_ex(-th) if kind == "ground" else _f08_ex(th)
-        return math.sqrt((a * a * gr + b * b * gl) / gd)
-    o.append(T(14, 18, "(a) 反射波の来る向き", "start", 11.5, INK, True))
+    gam = _f08_gam
+    dy = 18
+    o.append(T(14, 18, "(a) 反射波の来る向きと、受ける利得", "start", 11.5, INK, True))
     # 地面
-    gx, gy = 30, 150
+    gx, gy = 30, 150 + dy
     o.append(RECT(gx, gy, 150, 8, 0, MSOFT, MUT, 1.0)); o.append(T(gx + 150, gy + 22, "地面（εr = 4）", "end", 9.5, MUT, True))
     ax, ay = gx + 118, gy - 46
     o.append(W(ax, gy, ax, ay + 4, c=MUT, lw=1.2)); o.append(_f08_patchicon(ax, ay, 28))
@@ -736,10 +810,11 @@ def _f08_gamma_fig():
     o.append(W(ax - 140 * math.cos(th), gy - 140 * math.sin(th) + 46 + 0, xg, gy, c=ALI, lw=1.4, dash="5 3"))
     o.append(ARR(xg, gy, ax - 4, ay + 6, c=ALI, lw=1.6))
     o.append(T(gx, 40, "地面: 下から来る", "start", 10, INK, True))
-    o.append(T(gx, 56, "（面とのなす角 = 仰角 θ）", "start", 9.5, MUT))
+    o.append(T(gx, 56, "面とのなす角 ψ = θ", "start", 9.5, MUT))
+    o.append(TX(gx, 72, "受ける利得 G_R(−θ)・G_L(−θ)", "start", 9.5, ALI, True))
     # 壁
     wx = 214
-    o.append(RECT(wx + 150, 40, 8, 118, 0, MSOFT, MUT, 1.0)); o.append(RECT(wx, gy, 158, 8, 0, MSOFT, "none", 0))
+    o.append(RECT(wx + 150, 40 + dy, 8, 118, 0, MSOFT, MUT, 1.0)); o.append(RECT(wx, gy, 158, 8, 0, MSOFT, "none", 0))
     o.append(T(wx + 146, gy + 22, "壁（εr = 6）", "end", 9.5, MUT, True))
     bx, by = wx + 60, gy - 46
     o.append(W(bx, gy, bx, by + 4, c=MUT, lw=1.2)); o.append(_f08_patchicon(bx, by, 28))
@@ -748,34 +823,82 @@ def _f08_gamma_fig():
     tw_ = (wx + 150 - bx) / cw; pxw, pyw = wx + 150, by - 10 - tw_ * sw
     o.append(W(pxw - 58 * cw, pyw - 58 * sw, pxw, pyw, c=ALI, lw=1.4, dash="5 3"))
     o.append(ARR(pxw, pyw, bx + 6, by - 12, c=ALI, lw=1.6))
-    o.append(T(wx, 40 - 16 + 16, "壁: 上の横から来る", "start", 10, INK, True))
-    o.append(T(wx, 56, "（面とのなす角 = 90° − θ）", "start", 9.5, MUT))
-    o.append(LEGL(30, 196, [(SIG, None, "直接波"), (ALI, "5 3", "反射波")], 9.5, 14))
+    o.append(T(wx, 40, "壁: 上の横から来る", "start", 10, INK, True))
+    o.append(T(wx, 56, "面とのなす角 ψ = 90° − θ", "start", 9.5, MUT))
+    o.append(TX(wx, 72, "受ける利得 G_R(θ)・G_L(θ)", "start", 9.5, ALI, True))
+    o.append(LEGL(30, 196 + dy, [(SIG, None, "直接波（利得 G_R(θ)）"), (ALI, "5 3", "反射波")], 9.5, 14))
     # (b) γ と仰角
     xb = 404
     o.append(T(xb - 10, 18, "(b) 反射波と直接波の振幅の比 γ", "start", 11.5, INK, True))
     p = Plot(xb + 30, 34, 250, 170, (5, 80), (0, 1))
     o.append(p.axes(xl="衛星の仰角 θ [°]", yl="γ", xt=[5, 20, 40, 60, 80], yt=[0, 0.25, 0.5, 0.75, 1], xfmt=_f08_m, yfmt=_f08_m))
     o.append(W(p.X(5), p.Y(0.5), p.X(80), p.Y(0.5), c=MUT, lw=1.0, dash="2 3"))
-    o.append(T(p.X(56), p.Y(0.5) - 5, "7 章の例 γ = 0.5", "end", 9.5, MUT, False, halo=True))
+    o.append(T(p.X(78), p.Y(0.5) - 5, "7 章の例 γ = 0.5", "end", 9.5, MUT, False, halo=True))
     ths = np.linspace(5, 80, 151)
     for kind, er, c in (("ground", 4.0, GLD), ("wall", 6.0, PUR)):
         o.append(p.line([(t, gam(er, t, kind, "lin")) for t in ths], c=c, lw=1.6, dash="5 3"))
         o.append(p.line([(t, gam(er, t, kind, "ex")) for t in ths], c=c, lw=2.4))
-    for t, kind, er, c, dx, dy in ((10, "ground", 4.0, GLD, 6, -6), (30, "wall", 6.0, PUR, 6, 14)):
-        g1 = gam(er, t, kind, "ex"); g2 = gam(er, t, kind, "lin")
-        o.append(D(p.X(t), p.Y(g1), c, 4.2)); o.append(D(p.X(t), p.Y(g2), c, 4.2))
-        o.append(T(p.X(t) + dx, p.Y(g1) + dy, "%.2f" % g1, "start", 9.5, c, True, halo=True))
-        o.append(T(p.X(t) + dx, p.Y(g2) - 6, "%.2f" % g2, "start", 9.5, c, True, halo=True))
+    for t, kind, er, nm in _F08_GCASES:
+        c = GLD if kind == "ground" else PUR
+        for ant in ("ex", "lin"):
+            o.append(D(p.X(t), p.Y(gam(er, t, kind, ant)), c, 3.8))
     o.append(LEGL(xb - 10, 252, [(GLD, None, "地面・例のアンテナ"), (GLD, "5 3", "地面・直線")], 9.5, 10))
     o.append(LEGL(xb - 10, 270, [(PUR, None, "壁・例のアンテナ"), (PUR, "5 3", "壁・直線")], 9.5, 10))
     o.append(T(xb - 10, 292, "直線: 向きによらない利得の、直線偏波のアンテナ", "start", 9.5, MUT))
-    o.append(T(14, 232, "例のアンテナは、地面の反射を下の向きの小さい利得で、", "start", 9.5, INK))
-    o.append(T(14, 248, "壁の反射（深い反射で左旋になる）を偏波で弱く受ける", "start", 9.5, INK))
-    o.append(T(14, 270, "低い衛星の地面の反射は右旋のまま、地平線のすぐ下から", "start", 9.5, ALI, True))
-    o.append(T(14, 286, "来るので、弱めにくい（10° で γ = %.2f）" % gam(4.0, 10, "ground", "ex"), "start", 9.5, ALI, True))
-    return SVG(700, 300, o, "反射波と直接波の振幅の比 γ（7 章 3 節の記号）。(a) 地面の反射は地平線より下から、壁の反射は上の半分の横から来る。(b) 例のアンテナ（1 節。右旋を受け、下の向きの利得が小さい）と、向きによらない利得の直線偏波のアンテナで比べた（地面・壁の比誘電率と、例のアンテナの左旋と下の半分の利得は例の値。反射波の右旋と左旋の分を電力で足した）。仰角の低い衛星の地面の反射は、右旋のまま地平線のすぐ下から来るので、例のアンテナでも γ が大きく残る。")
+    # 点の値の表
+    yt = 244
+    cols = [(14, "start"), (150, "start"), (300, "end"), (366, "end")]
+    for (x, a), h in zip(cols, ("点の値  仰角", "反射する面", "例のアンテナ", "直線")):
+        o.append(T(x, yt, h, a, 9.5, MUT, True))
+    o.append(W(14, yt + 5, 370, yt + 5, c=LIN, lw=0.8))
+    for i, (t, kind, er, nm) in enumerate(_F08_GCASES):
+        yy = yt + 20 + i * 16
+        c = GLD if kind == "ground" else PUR
+        o.append(T(58, yy, "%d°" % t, "start", 9.5, INK, True))
+        o.append(T(150, yy, nm, "start", 9.5, c, True))
+        o.append(T(300, yy, "%.2f" % gam(er, t, kind, "ex"), "end", 9.5, INK, True))
+        o.append(T(366, yy, "%.2f" % gam(er, t, kind, "lin"), "end", 9.5, INK))
+    return SVG(700, 304, o, "反射波と直接波の振幅の比 γ（面の比誘電率は例の値。例のアンテナは 1 節のもの。反射波の右旋と左旋の分は、電力で足した）。")
 F["e08_gamma"] = _f08_gamma_fig()
+
+
+# =====================================================================
+# 2 節: γ が、マルチパスの誤差と C/N0 の揺れにどう効くか
+# =====================================================================
+def _f08_gammaeff_fig():
+    o = []
+    np = _f08_np
+    Tc = 1 / 1.023e6; kerr = _F08_C * Tc / 2        # 間隔 1 チップのときの、誤差の包絡線の最大 [m]（γ = 1 あたり）
+    cases = [(_f08_gam(4.0, 10, "ground", "ex"), SIG, "例のアンテナ"), (_f08_gam(4.0, 10, "ground", "lin"), ALI, "直線偏波")]
+    o.append(TX(14, 18, "(a) 誤差の包絡線の最大 γΔ_{EL}cT_c/2（間隔 Δ_{EL} = 1 チップ）", "start", 11.5, INK, True))
+    p = Plot(64, 38, 250, 150, (0, 1), (0, 150))
+    o.append(p.axes(xl="振幅の比 γ", yl="誤差の最大 [m]", xt=[0, 0.25, 0.5, 0.75, 1], yt=[0, 50, 100, 150], xfmt=_f08_m, yfmt=_f08_m))
+    o.append(p.line([(0, 0), (1, kerr)], c=MUT, lw=2.0))
+    for gm, c, nm in cases:
+        o.append(W(p.X(gm), p.Y(0), p.X(gm), p.Y(gm * kerr), c=c, lw=1.0, dash="3 3"))
+        o.append(D(p.X(gm), p.Y(gm * kerr), c, 4.4))
+        o.append(T(p.X(gm) - 7, p.Y(gm * kerr) - 6, "%.1f m" % (gm * kerr), "end", 10, c, True, halo=True))
+    xb = 372
+    o.append(TX(xb, 18, "(b) C/N0 の揺れ 20 log_{10}(1 ± γ)", "start", 11.5, INK, True))
+    q = Plot(xb + 50, 38, 250, 150, (0, 1), (-15, 7))
+    o.append(q.axes(xl="振幅の比 γ", yl="C/N0 の変化 [dB]", xt=[0, 0.25, 0.5, 0.75, 1], yt=[-15, -10, -5, 0, 5], xfmt=_f08_m, yfmt=_f08_m))
+    gs = np.linspace(0, 0.99, 200)
+    o.append(W(q.X(0), q.Y(0), q.X(1), q.Y(0), c=MUT, lw=1))
+    o.append(q.line([(g, 20 * math.log10(1 + g)) for g in gs], c=GRN, lw=2.0))
+    o.append(q.clip([(g, 20 * math.log10(1 - g)) for g in gs], c=GLD, lw=2.0))
+    o.append(T(q.X(0.98), q.Y(20 * math.log10(1.98)) - 6, "強め合う", "end", 9.5, GRN, True, halo=True))
+    o.append(T(q.X(0.60), q.Y(-12.5), "打ち消し合う", "end", 9.5, GLD, True, halo=True))
+    for gm, c, nm in cases:
+        up, dn = 20 * math.log10(1 + gm), 20 * math.log10(1 - gm)
+        o.append(DARR(q.X(gm), q.Y(up), q.X(gm), q.Y(dn), c=c, lw=1.6, head=5))
+        o.append(T(q.X(gm) - 6, q.Y(up) - 5, "+%.1f" % up, "end", 10, c, True, halo=True))
+        o.append(T(q.X(gm) - 6, q.Y(dn) + 13, _f08_f(dn, 1), "end", 10, c, True, halo=True))
+    yl = 238
+    for i, (gm, c, nm) in enumerate(cases):
+        o.append(D(24 + i * 330, yl - 4, c, 4.2))
+        o.append(T(34 + i * 330, yl, "%s: γ = %.2f（εr = 4 の地面・仰角 10° の例）" % (nm, gm), "start", 9.5, c, True))
+    return SVG(700, 250, o, "振幅の比 γ と、マルチパスの誤差・C/N0 の揺れ（(a) は 7 章 3 節の誤差の包絡線の最大で、L1 C/A・相関器の間隔 1 チップのとき）。")
+F["e08_gammaeff"] = _f08_gammaeff_fig()
 
 
 def _f08_patch_fig():
@@ -834,52 +957,115 @@ def _f08_patch_fig():
     yc = 200
     o.append(T(xb, yc, "(c) 縁で跳ね返る波が重なって、半波長の定在波になる", "start", 11.5, INK, True))
     p = Plot(xb + 56, yc + 20, 310, 120, (-0.5, 0.5), (-1.1, 1.1))
-    o.append(p.axes(xl="パッチの中心からの位置 x / ℓ", yl=None, xt=[-0.5, -1 / 6.0, 0, 1 / 6.0, 0.5], yt=[-1, 0, 1], xfmt=lambda v: {-3: "−1/2", -1: "−1/6", 0: "0", 1: "1/6", 3: "1/2"}[int(round(v * 6))], yfmt=_f08_m))
+    o.append(p.axes(xl="パッチの中心からの位置 x / ℓ", yl=None, xt=[-0.5, -0.25, 0, 0.25, 0.5], yt=[-1, 0, 1], xfmt=lambda v: {-2: "−1/2", -1: "−1/4", 0: "0", 1: "1/4", 2: "1/2"}[int(round(v * 4))], yfmt=_f08_m))
     xs = _f08_np.linspace(-0.5, 0.5, 201)
     o.append(p.line([(x, math.sin(math.pi * x)) for x in xs], c=PUR, lw=2.2))
     o.append(p.line([(x, math.cos(math.pi * x)) for x in xs], c=TEA, lw=2.0, dash="5 3"))
-    o.append(p.line([(x, math.sin(math.pi * x) ** 2) for x in xs], c=ALI, lw=1.8, dash="2 2"))
-    o.append(D(p.X(1 / 6.0), p.Y(0.25), ALI, 4.2))
-    o.append(T(p.X(1 / 6.0) + 6, p.Y(0.25) + 14, "50 Ω（縁で 200 Ω の例）", "start", 9.5, ALI, True, halo=True))
     o.append(T(p.X(0.49), p.Y(1.0) + 14, "電界", "end", 9.5, PUR, True, halo=True))
     o.append(T(p.X(-0.02), p.Y(0.98) - 6, "電流", "end", 9.5, TEA, True, halo=True))
-    o.append(T(p.X(-0.32), p.Y(0.35) - 6, "入力の抵抗 ∝ 電界²", "middle", 9.5, ALI, True, halo=True))
-    return SVG(700, 380, o, "パッチアンテナ（形と寸法は例）。(a) 地板の上に誘電体（セラミック）を置き、その上に金属のパッチを付けて、下から給電のピンでつなぐ。(b) パッチと地板の間の電界は、両端で向きが逆で、中心で 0 になる。両端の縁からはみ出した電界から電波が出る。(c) 縁で跳ね返った波が重なり、一辺が誘電体の中の半波長のとき、電界（実線）は両端で最も強く、電流（破線）は中心で最も強い定在波になる。給電点から見た入力の抵抗は電界の 2 乗に比例し、中心で 0、縁で最も大きい。縁で 200 Ω なら、中心から ℓ/6 の所で 50 Ω になる。")
+    o.append(TX(p.X(0.20), p.Y(-0.62), "電界 ∝ sin(πx/ℓ)", "start", 9.5, PUR, True, halo=True))
+    return SVG(700, 380, o, "パッチアンテナの形と、パッチの下の電界（形と寸法は例。(c) は、一辺が誘電体の中の半波長のとき）。")
 F["e08_patch"] = _f08_patch_fig()
+
+
+def _f08_sqpatch(er, h, f=None):
+    """縁の電界の分を入れた設計式（Hammerstad。emsim 17 章 2 節）で求めた、正方形のパッチの一辺 [m]。h は誘電体の厚さ [m]。"""
+    f = f or _F08_F1
+    L = _F08_C / f / (2 * math.sqrt(er))
+    for _ in range(60):
+        ee = (er + 1) / 2 + (er - 1) / 2 / math.sqrt(1 + 12 * h / L)
+        dL = 0.412 * h * (ee + 0.3) * (L / h + 0.264) / ((ee - 0.258) * (L / h + 0.8))
+        L = _F08_C / (2 * f * math.sqrt(ee)) - 2 * dL
+    return L
 
 
 def _f08_epsr_fig():
     o = []
-    o.append(T(14, 18, "(a) L1 のパッチの一辺 ℓ = λ/(2√εr)（同じ縮尺）", "start", 11.5, INK, True))
-    sc = 1.55   # px / mm
-    x = 24; yb = 196
-    for er, c, nm in ((1.0, MUT, "空気"), (4.4, GRN, "FR-4"), (10.2, TEA, ""), (20.0, SIG, "セラミック"), (37.0, PUR, "")):
-        l = _F08_LAM / (2 * math.sqrt(er)) * 1e3
-        w = l * sc
-        o.append(RECT(x, yb - w, w, w, 2, soft(c), c, 1.4))
-        o.append(T(x + w / 2, yb + 16, "εr = %g" % er, "middle", 9.5, c, True))
-        o.append(T(x + w / 2, yb + 31, "%.1f mm" % l, "middle", 9.5, INK))
-        if nm:
-            o.append(T(x + w / 2, yb + 46, nm, "middle", 9.5, MUT))
-        x += w + 14
-    o.append(W(24, yb + 56, 24 + 50 * sc, yb + 56, c=INK, lw=2)); o.append(T(24 + 25 * sc, yb + 70, "50 mm", "middle", 9.5, INK))
+    o.append(TX(14, 18, "(a) パッチの一辺 ℓ = λ/(2√εr)（L1 の正方形を同じ縮尺で。下の段は L5 の値）", "start", 11.5, INK, True))
+    sc = 1.42   # px / mm
+    x = 20; yb = 176
+    mats = ((1.0, MUT, "空気"), (2.2, GLD, "フッ素樹脂の基板"), (4.4, GRN, "FR-4 の基板"), (10.2, TEA, "高誘電率の基板"), (20.0, SIG, "セラミック"), (37.0, PUR, "セラミック"))
+    for er, c, nm in mats:
+        l1 = _F08_LAM / (2 * math.sqrt(er)) * 1e3; l5 = _F08_C / _F08_F5 / (2 * math.sqrt(er)) * 1e3
+        w = l1 * sc; slot = max(w, 92)
+        xc = x + slot / 2
+        o.append(RECT(xc - w / 2, yb - w, w, w, 2, soft(c), c, 1.4))
+        o.append(T(xc, yb + 16, "εr = %g" % er, "middle", 10, c, True))
+        o.append(T(xc, yb + 31, nm, "middle", 9.5, MUT))
+        o.append(T(xc, yb + 47, "L1 %.1f mm" % l1, "middle", 9.5, INK, True))
+        o.append(T(xc, yb + 62, "L5 %.1f mm" % l5, "middle", 9.5, INK))
+        x += slot + 10
+    o.append(W(540, 60, 540 + 50 * sc, 60, c=INK, lw=2)); o.append(T(540 + 25 * sc, 54, "50 mm", "middle", 9.5, INK))
+    o.append(T(686, 82, "比誘電率は例の値", "end", 9.5, MUT))
     # (b) 比誘電率とパターン（無限の地板の空洞のモデル）
-    xb = 420
-    o.append(T(xb - 14, 18, "(b) 右旋の指向性（地板が無限に大きいとき）", "start", 11.5, INK, True))
-    p = Plot(xb + 30, 36, 240, 170, (0, 90), (-8, 10))
+    yb2 = 262
+    o.append(W(14, yb2 - 8, 686, yb2 - 8, c=LIN, lw=0.8))
+    o.append(T(14, yb2 + 10, "(b) 右旋の指向性（地板が無限に大きいとき）", "start", 11.5, INK, True))
+    p = Plot(64, yb2 + 28, 280, 160, (0, 90), (-8, 10))
     o.append(p.axes(xl="仰角 θ [°]", yl="指向性 [dBi]", xt=[0, 30, 60, 90], yt=[-5, 0, 5, 10], xfmt=_f08_m, yfmt=_f08_m))
+    rows = []
     for er, c in ((1.0, MUT), (4.4, GRN), (20.0, SIG)):
         el, DR, DL = _f08_cav(er)
         o.append(p.line([(e, 10 * math.log10(max(d, 1e-9))) for e, d in zip(el, DR) if e >= 0.5], c=c, lw=2.2))
-        dz = 10 * math.log10(DR[-1]); i10 = int(_f08_np.argmin(_f08_np.abs(el - 10)))
-        dy_ = {1.0: -6, 4.4: -7, 20.0: 15}[er]
-        o.append(T(p.X(88), p.Y(dz) + dy_, "εr = %g: %.1f" % (er, dz), "end", 9.5, c, True, halo=True))
-        o.append(D(p.X(10), p.Y(10 * math.log10(DR[i10])), c, 3.6))
-    o.append(T(p.X(20), p.Y(-6.8), "点: 仰角 10° の値", "start", 9.5, MUT, False, halo=True))
-    o.append(T(xb - 14, 268, "比誘電率が高い → 小さい・上の半分を広く見る", "start", 10, SIG, True))
-    o.append(T(xb - 14, 286, "その代わり、帯域が狭く、効率が下がりやすい（emsim/17）", "start", 9.5, INK))
-    return SVG(700, 300, o, "誘電体の比誘電率とパッチ。(a) L1（波長 190.3 mm）のパッチの一辺を、簡単な式 λ/(2√εr) で計算し、同じ縮尺で並べた。比誘電率 20 のセラミックでは 21.3 mm になる（縁の電界で、実際は少し短い）。(b) 地板が無限に大きいとしたときの、右旋の指向性（方位で平均。空洞のモデルの計算）。比誘電率が高く小さいパッチほど、真上の指向性が下がり、地平線に近い向きが上がる。")
+        dz = 10 * math.log10(DR[-1]); i10 = int(_f08_np.argmin(_f08_np.abs(el - 10))); d10 = 10 * math.log10(DR[i10])
+        o.append(D(p.X(10), p.Y(d10), c, 3.6)); o.append(D(p.X(90), p.Y(dz), c, 3.6))
+        rows.append((er, c, dz, d10))
+    xt = 400
+    o.append(T(xt, yb2 + 44, "比誘電率", "start", 9.5, MUT, True)); o.append(T(xt + 150, yb2 + 44, "真上", "end", 9.5, MUT, True)); o.append(T(xt + 250, yb2 + 44, "仰角 10°", "end", 9.5, MUT, True))
+    o.append(W(xt, yb2 + 49, xt + 254, yb2 + 49, c=LIN, lw=0.8))
+    for i, (er, c, dz, d10) in enumerate(rows):
+        yy = yb2 + 64 + i * 16
+        o.append(W(xt, yy - 4, xt + 18, yy - 4, c=c, lw=2.2))
+        o.append(T(xt + 24, yy, "εr = %g" % er, "start", 9.5, c, True))
+        o.append(T(xt + 150, yy, "%s dBi" % _f08_f(dz, 1), "end", 9.5, INK, True)); o.append(T(xt + 250, yy, "%s dBi" % _f08_f(d10, 1), "end", 9.5, INK, True))
+    o.append(T(xt, yb2 + 132, "比誘電率が高い → 小さい・上の半分を広く見る", "start", 10, SIG, True))
+    o.append(T(xt, yb2 + 150, "その代わり、帯域が狭く、効率が下がりやすい", "start", 9.5, INK))
+    o.append(TX(xt, yb2 + 176, "縁の電界の分を入れた設計式では、εr = 20・", "start", 9.5, MUT))
+    o.append(TX(xt, yb2 + 192, "厚さ 4 mm の L1 のパッチの一辺は %.1f mm" % (_f08_sqpatch(_F08_ER, 4e-3) * 1e3), "start", 9.5, MUT))
+    return SVG(700, 494, o, "誘電体の比誘電率と、パッチの大きさ・指向性（(a) は簡単な式の値。(b) は空洞のモデルの計算で、方位で平均した）。")
 F["e08_epsr"] = _f08_epsr_fig()
+
+
+# =====================================================================
+# 3 節: 共振の応答 K(f)（電力と位相）
+# =====================================================================
+def _f08_q_fig():
+    o = []
+    np = _f08_np
+    f0 = _F08_F1
+    def K(d, Q):
+        f = f0 + d * 1e6
+        return 1 / (1 + 1j * Q * (f / f0 - f0 / f))
+    ds = np.linspace(-40, 40, 801)
+    o.append(TX(14, 18, "(a) 電力 |K|^2（共振周波数のときを 1）", "start", 11.5, INK, True))
+    p = Plot(64, 40, 262, 150, (-40, 40), (0, 1.1))
+    o.append(p.axes(xl="共振周波数からのずれ f − f_0 [MHz]", yl="|K|^2", xt=[-40, -20, 0, 20, 40], yt=[0, 0.5, 1], xfmt=_f08_m, yfmt=_f08_m))
+    o.append(W(p.x, p.Y(0.5), p.x + p.w, p.Y(0.5), c=MUT, lw=1, dash="3 3"))
+    o.append(p.line([(d, abs(K(d, 50)) ** 2) for d in ds], c=MUT, lw=1.8, dash="5 3"))
+    o.append(p.line([(d, abs(K(d, 100)) ** 2) for d in ds], c=SIG, lw=2.4))
+    for Q, c, yy in ((100, SIG, 0.5), (50, MUT, 0.5)):
+        w = f0 / Q / 1e6
+        o.append(D(p.X(-w / 2), p.Y(yy), c, 3.6)); o.append(D(p.X(w / 2), p.Y(yy), c, 3.6))
+    w100 = f0 / 100 / 1e6; w50 = f0 / 50 / 1e6
+    o.append(DARR(p.X(-w100 / 2), p.Y(0.5) + 12, p.X(w100 / 2), p.Y(0.5) + 12, c=SIG, lw=1.2, head=5))
+    o.append(TX(p.X(0), p.Y(0.5) + 28, "f_0/Q = %.2f MHz" % w100, "middle", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(0), p.Y(0.5) + 42, "（Q = 100）", "middle", 9.5, SIG, True, halo=True))
+    o.append(T(p.X(39), p.Y(0.5) - 22, "Q = 50:", "end", 9.5, MUT, True, halo=True))
+    o.append(T(p.X(39), p.Y(0.5) - 8, "%.1f MHz" % w50, "end", 9.5, MUT, True, halo=True))
+    o.append(T(p.X(-39), p.Y(0.5) - 6, "半分", "start", 9.5, MUT, False, halo=True))
+    xb = 372
+    o.append(T(xb, 18, "(b) 位相（Q = 100）", "start", 11.5, INK, True))
+    q = Plot(xb + 50, 40, 262, 150, (-40, 40), (-90, 90))
+    o.append(q.axes(xl="共振周波数からのずれ f − f_0 [MHz]", yl="K の位相 [°]", xt=[-40, -20, 0, 20, 40], yt=[-90, -45, 0, 45, 90], xfmt=_f08_m, yfmt=_f08_m))
+    o.append(q.line([(d, math.degrees(math.atan2(K(d, 100).imag, K(d, 100).real))) for d in ds], c=SIG, lw=2.4))
+    for sg in (-1, 1):
+        d = sg * w100 / 2; ph = math.degrees(math.atan2(K(d, 100).imag, K(d, 100).real))
+        o.append(D(q.X(d), q.Y(ph), GLD, 4.2))
+        o.append(T(q.X(d) + sg * 8, q.Y(ph) + (4 if sg > 0 else 4), "%s%.0f°" % ("+" if ph > 0 else "−", abs(ph)), "start" if sg > 0 else "end", 10, GLD, True, halo=True))
+    o.append(TX(q.X(38), q.Y(60), "点: f_0 ± f_0/(2Q)", "end", 9.5, GLD, True, halo=True))
+    o.append(T(q.X(38), q.Y(60) + 14, "電力が半分になる周波数", "end", 9.5, GLD, False, halo=True))
+    return SVG(700, 236, o, "共振の応答 K(f) の電力と位相（共振周波数は L1。Q = 100 と 50 は例の値）。")
+F["e08_q"] = _f08_q_fig()
 
 
 def _f08_cpfeed_fig():
@@ -951,8 +1137,47 @@ def _f08_cpfeed_fig():
     o.append(T(q.X(0), q.y + 13, "3 dB 以下: %.1f MHz" % (b1 - b0), "middle", 9.5, GRN, True, halo=True))
     o.append(TX(xc - 8, 290, "2 つのモードの周波数を f_0/Q だけ離すと、", "start", 9.5, INK))
     o.append(T(xc - 8, 306, "L1 で振幅が等しく位相が 90° ずれる", "start", 9.5, INK))
-    return SVG(700, 316, o, "パッチを円偏波にする 2 つの方法（形は例）。(a) 縦と横の 2 つのモード（定在波の向き）を 2 つの給電点で別々に起こし、一方を 90° 遅らせる。(b) 1 点で給電し、パッチの 2 つの角を切ると、対角の向きの 2 つのモードの共振周波数がわずかに離れる。(c) 共振の鋭さ Q = 100（例の値）のとき、2 つのモードの共振周波数を f<sub>0</sub>/Q = 15.75 MHz 離すと、L1 はどちらのモードにとっても振幅が 1/√2 になる周波数で、位相が −45° と +45°（差 90°）になり、軸比が 0 dB になる。L1 から離れると軸比が悪くなり、3 dB 以下に保てるのは %.1f MHz の幅である。" % (b1 - b0))
+    return SVG(700, 316, o, "パッチを円偏波にする 2 つの方法（形は例。(c) は Q = 100 で、2 つのモードの共振周波数を f<sub>0</sub>/Q = 15.75 MHz 離したとき）。")
 F["e08_cpfeed"] = _f08_cpfeed_fig()
+
+
+# =====================================================================
+# 3 節: 給電点の位置と入力の抵抗
+# =====================================================================
+def _f08_feed_fig():
+    o = []
+    Re = 200.0; l = _F08_LAM / (2 * math.sqrt(_F08_ER)) * 1e3     # 縁の入力の抵抗（例の値）と、一辺 [mm]
+    pos = [(0.0, MUT, "中心"), (1 / 6.0, GRN, "ℓ/6"), (0.25, GLD, "ℓ/4"), (0.5, ALI, "縁")]
+    o.append(T(14, 18, "(a) 給電点を置く位置（上から見る）", "start", 11.5, INK, True))
+    cx, cy, E = 150, 122, 150
+    o.append(RECT(cx - E / 2, cy - E / 2, E, E, 2, SSOFT, SIG, 1.6))
+    o.append(W(cx, cy, cx + E / 2 + 16, cy, c=MUT, lw=1, dash="3 3"))
+    o.append(T(cx + E / 2 + 20, cy + 4, "x", "start", 10, MUT, True))
+    for u, c, nm in pos:
+        if nm == "ℓ/4":
+            continue
+        r = Re * math.sin(math.pi * u) ** 2
+        xx = cx + E * u
+        o.append(D(xx, cy, c, 4.6))
+        o.append(T(xx, cy - 12, nm, "middle", 9.5, c, True, halo=True))
+        o.append(T(xx, cy + 20, "%.0f Ω" % r, "middle", 9.5, c, True, halo=True))
+    o.append(DIM(cx - E / 2, cy + E / 2 + 12, cx + E / 2, cy + E / 2 + 12, None, c=SIG))
+    o.append(TX(cx, cy + E / 2 + 28, "一辺 ℓ（定在波の向き）", "middle", 9.5, SIG, True))
+    xb = 340
+    o.append(TX(xb, 18, "(b) 入力の抵抗 R(x) = R_e sin^2(πx/ℓ)", "start", 11.5, INK, True))
+    p = Plot(xb + 50, 40, 280, 150, (0, 0.5), (0, 220))
+    o.append(p.axes(xl="パッチの中心からの位置 x / ℓ", yl="入力の抵抗 [Ω]", xt=[0, 1 / 6.0, 0.25, 0.5], yt=[0, 50, 100, 150, 200], xfmt=lambda v: {0: "0", 2: "1/6", 3: "1/4", 6: "1/2"}[int(round(v * 12))], yfmt=_f08_m))
+    xs = _f08_np.linspace(0, 0.5, 201)
+    o.append(p.line([(x, Re * math.sin(math.pi * x) ** 2) for x in xs], c=PUR, lw=2.4))
+    o.append(W(p.x, p.Y(50), p.x + p.w, p.Y(50), c=GRN, lw=1.2, dash="4 3"))
+    for u, c, nm in pos:
+        o.append(D(p.X(u), p.Y(Re * math.sin(math.pi * u) ** 2), c, 4.4))
+    o.append(T(p.X(1 / 6.0) + 8, p.Y(50) + 16, "50 Ω: x = ℓ/6", "start", 10, GRN, True, halo=True))
+    o.append(T(p.X(1 / 6.0) + 8, p.Y(50) + 31, "一辺 %.1f mm なら %.1f mm" % (l, l / 6), "start", 9.5, GRN, True, halo=True))
+    o.append(T(p.X(0.49), p.Y(200) + 16, "縁 R_e = %.0f Ω" % Re, "end", 9.5, ALI, True, halo=True))
+    o.append(T(p.X(0.25) + 8, p.Y(100) + 12, "%.0f Ω" % (Re * 0.5), "start", 9.5, GLD, True, halo=True))
+    return SVG(700, 236, o, "給電点の位置と入力の抵抗（縁で 200 Ω とした例。一辺は、比誘電率 20 の L1 のパッチの値）。")
+F["e08_feed"] = _f08_feed_fig()
 
 
 def _f08_gpidea_fig():
@@ -1013,7 +1238,7 @@ def _f08_gpidea_fig():
     o.append(T(390, yc + 72, "境目（地平線）でほぼ半分になる。", "start", 9.5, INK))
     o.append(T(390, yc + 92, "下の半分にも電波が回り込む", "start", 9.5, ALI, True))
     o.append(T(390, yc + 108, "→ 真下の向きの後ろのローブ", "start", 9.5, ALI, True))
-    return SVG(700, 380, o, "地板の働き。(a) 地板が無限に大きいと、下へ向かう電波は地板で跳ね返り、電波は上の半分だけに出る。地平線の向き（地板に沿う向き）でも、地板に垂直な成分は残る（1 節）。(b) 地板が有限だと、地板に沿って進む電波が縁で回り込み（回折）、縁を中心に広がる。(c) 地平線の前後の、垂直の成分の電界（地板が無限のときの、地平線のすぐ上の値を 1 とした。パッチは例の比誘電率 20 のもの。地板の奥行きを無限とした 2 次元の計算で、モーメント法による）。無限の地板では地平線を境に電界が急に 0 になるが、有限の地板では縁で回り込んだ電波が段差をならし、地平線でほぼ半分（約 −6 dB）になる。")
+    return SVG(700, 380, o, "地板の働き（(c) は、例の比誘電率 20 のパッチを一辺 70 mm の地板に置いたとき。地板の奥行きを無限とした 2 次元のモーメント法の計算で、無限の地板の、地平線のすぐ上の値を 1 とした）。")
 F["e08_gpidea"] = _f08_gpidea_fig()
 
 
@@ -1063,12 +1288,57 @@ def _f08_gpsize_fig():
         o.append(T(p.X(s) + 5, (p.Y(r[1]) + p.Y(r[3])) / 2 + 4, "前後比 %.1f dB" % (r[1] - r[3]), "start", 9.5, INK, True, halo=True))
     fb = {r[0]: r[1] - r[3] for r in rows}
     elI, dI = _f08_gp(None); hinf = dI[list(elI).index(0.0)]
-    o.append(T(xb, 300, "大きい地板ほど真下へ漏れる電波（後ろのローブ）が", "start", 9.5, INK))
-    o.append(T(xb, 316, "小さく、真上が強い。地平線は %s〜%s dB で、大きさで" % (_f08_f(hmin, 1), _f08_f(hmax, 1)), "start", 9.5, INK))
-    o.append(T(xb, 332, "あまり変わらない（無限の地板では %s dB）" % _f08_f(hinf, 1), "start", 9.5, INK))
-    o.append(T(xb, 352, "（50 mm 以上。1 波長は 190 mm）", "start", 9.5, MUT))
-    return SVG(700, 376, o, "地板の大きさによるパターンの違い（例の比誘電率 20 のパッチを、正方形の地板の中心に置いた。地板の奥行きを無限とした 2 次元のモーメント法の計算で、パッチの 2 つの縁を通る切り口の、地板に垂直な成分。値は無限の地板の真上に対する [dB]）。(a) 地板が小さいほど、真下へ漏れる電波（後ろのローブ）が大きく、真上が弱い。(b) 真上・地平線・真下の値と、地板の一辺。真上と真下の差（前後比）は、地板 50 mm で %.1f dB、150 mm で %.1f dB。地平線の値は、一辺が 50 mm 以上ならあまり変わらず、無限の地板のとき（%s dB）より %.1f〜%.1f dB 低い（電界でほぼ半分）。実際の 3 次元の地板では値が変わるので、傾向として見る。" % (fb[50], fb[150], _f08_f(hinf, 1), hinf - hmax, hinf - hmin))
+    o.append(T(xb, 300, "前後比: " + "、".join("%d mm で %.1f dB" % (s_, fb[s_]) for s_ in (50, 70, 150)), "start", 9.5, INK, True))
+    o.append(T(xb, 318, "地平線: 一辺 50 mm 以上で %s〜%s dB" % (_f08_f(hmin, 1), _f08_f(hmax, 1)), "start", 9.5, GLD, True))
+    o.append(T(xb, 334, "（無限の地板では %s dB。その差は %.1f〜%.1f dB）" % (_f08_f(hinf, 1), hinf - hmax, hinf - hmin), "start", 9.5, INK))
+    o.append(T(xb, 352, "L1 の 1 波長は %.0f mm" % (_F08_LAM * 1e3), "start", 9.5, MUT))
+    return SVG(700, 376, o, "地板の大きさとパターン（例の比誘電率 20 のパッチを、地板の中心に置いた。地板の奥行きを無限とした 2 次元のモーメント法の計算で、パッチの 2 つの縁を通る切り口の、地板に垂直な成分。無限の地板の真上を 0 dB とした）。")
 F["e08_gpsize"] = _f08_gpsize_fig()
+
+
+# =====================================================================
+# 4 節: 機器の中の地板と、アンテナの置き方
+# =====================================================================
+def _f08_gpuse_fig():
+    o = []
+    def patch(cx, cy, s=26):
+        return RECT(cx - s / 2 - 4, cy - s / 2 - 4, s + 8, s + 8, 2, GOSOFT, GLD, 1.2) + RECT(cx - s / 2, cy - s / 2, s, s, 1, SSOFT, SIG, 1.4)
+    cols = [(14, "(a) 資料の大きさの地板の中央に置く", GRN), (248, "(b) 地板が小さい・端に寄せる", ALI), (482, "(c) 上や近くに部品がある", ALI)]
+    for x0, t, c in cols:
+        o.append(T(x0, 18, t, "start", 11, INK, True))
+    o.append(W(238, 30, 238, 226, c=LIN, lw=0.8)); o.append(W(472, 30, 472, 226, c=LIN, lw=0.8))
+    yc = 100
+    # (a)
+    cx = 120
+    o.append(RECT(cx - 56, yc - 56, 112, 112, 3, MSOFT, MUT, 1.2))
+    o.append(patch(cx, yc))
+    o.append(DIM(cx - 56, yc + 68, cx + 56, yc + 68, None, c=MUT))
+    o.append(T(cx, yc + 84, "地板 70 mm 角（例）", "middle", 9.5, MUT))
+    o.append(T(cx, yc - 38, "基板のグラウンド", "middle", 9.5, MUT, True))
+    o.append(T(14, 206, "共振周波数とパターンが、資料の値に近い", "start", 9.5, GRN, True))
+    # (b)
+    cx = 356
+    o.append(RECT(cx - 56, yc - 56, 112, 112, 3, "none", FNT, 1.0, dash="3 3"))
+    o.append(RECT(cx - 56, yc - 20, 66, 56, 3, MSOFT, MUT, 1.2))
+    o.append(patch(cx - 6, yc + 2))
+    o.append(T(cx + 62, yc - 42, "資料の", "start", 9.5, FNT)); o.append(T(cx + 62, yc - 28, "地板", "start", 9.5, FNT))
+    for a in (20, 0, -20):
+        o.append(ARR(cx + 12, yc + 2 - a * 0.5, cx + 34, yc + 2 - a, c=ALI, lw=1.3, head=5))
+    o.append(T(cx + 40, yc + 6, "縁が近い", "start", 9.5, ALI, True))
+    o.append(T(248, 190, "縁の電界のはみ出し方が変わり、", "start", 9.5, INK))
+    o.append(T(248, 206, "共振周波数がずれ、パターンが偏る", "start", 9.5, ALI, True))
+    # (c)
+    cx = 590
+    o.append(RECT(cx - 56, yc - 56, 112, 112, 3, MSOFT, MUT, 1.2))
+    o.append(patch(cx, yc))
+    o.append(RECT(cx - 50, yc - 50, 44, 26, 2, PAN, INK, 1.2)); o.append(T(cx - 28, yc - 33, "電池", "middle", 9.5, INK, True))
+    o.append(RECT(cx + 12, yc - 14, 40, 60, 2, PAN, INK, 1.2)); o.append(T(cx + 32, yc + 20, "表示器", "middle", 9.5, INK, True))
+    o.append(PATH("M%g,%g C%g,%g %g,%g %g,%g" % (cx - 70, yc + 40, cx - 30, yc + 30, cx - 20, yc + 10, cx + 2, yc + 4), c=ALI, lw=2.2))
+    o.append(T(cx - 72, yc + 56, "ケーブル", "start", 9.5, ALI, True))
+    o.append(T(482, 190, "部品が地板の形を変え、", "start", 9.5, INK))
+    o.append(T(482, 206, "電波を遮り、反射する", "start", 9.5, ALI, True))
+    return SVG(700, 230, o, "機器の中の地板と、アンテナの置き方（上から見た図。形と寸法は例）。")
+F["e08_gpuse"] = _f08_gpuse_fig()
 
 
 def _f08_types_fig():
@@ -1154,7 +1424,7 @@ def _f08_types_fig():
     o.append(T(124, yp + 86, "直線偏波なので最大でも 3 dB 低い", "middle", 9.5, GLD))
     o.append(T(358, yp + 86, "例のアンテナ（1 節）", "middle", 9.5, SIG))
     o.append(T(592, yp + 86, "地平線に近い向きが下がりにくい", "middle", 9.5, PUR))
-    return SVG(700, 384, o, "GNSS の 3 つの形のアンテナ（形と寸法は代表的な例）。(a) チップアンテナ: 基板の端の、銅を置かない領域（キープアウト）に小さなセラミックの部品を載せる。基板のグラウンドにも電流が流れ、基板の全体がアンテナとして働く。(b) パッチアンテナ: 地板の上のセラミックの板とパッチ（3 節）。(c) ヘリカルアンテナ（四線巻き）: 円筒のまわりに 4 本の導線を巻き、90° ずつずらした位相で働かせる。下は、右旋の電波に対する利得の形の例（チップは直線偏波の小さなアンテナの例、パッチは 1 節の例のアンテナ、ヘリカルは地平線の利得を高めにした例。どれも例の値）。")
+    return SVG(700, 384, o, "GNSS の 3 つの形のアンテナ（形と寸法は代表的な例。下のパターンは形の例で、パッチは 1 節の例のアンテナ）。")
 F["e08_types"] = _f08_types_fig()
 
 
@@ -1214,7 +1484,7 @@ def _f08_bands_fig():
         for i, (Q, c, da) in enumerate(Qs):
             b0, b1 = band3(f0, Q)
             o.append(LEGL(x0, ys + i * 18, [(c, da, "Q = %d: 軸比 3 dB 以下 %.1f MHz" % (Q, b1 - b0))], 9.5, 10))
-    return SVG(700, 336, o, "多周波アンテナ。(a) L5 用の大きいパッチの上に L1 用の小さいパッチを重ねる形（構造は例）。(b) L1 C/A の信号（BPSK、主ローブの幅 2.046 MHz）は、Q = 100（例の値）の 1 点給電のパッチの、軸比 3 dB 以下の幅（青の地）に入る。(c) L5 の信号は主ローブの幅が 20.46 MHz あり、同じ Q = 100 のパッチを L5 に作ると、軸比 3 dB 以下の幅は主ローブの 1/5 しか覆えない。Q を 20 まで下げると、ほぼ覆える（緑の地）。信号の電力密度は、主ローブの中心を 0 dB にした。")
+    return SVG(700, 336, o, "多周波アンテナ（(a) の構造は例。(b)・(c) は 1 点給電のパッチで、Q は例の値。信号の電力密度は、主ローブの中心を 0 dB とした）。")
 F["e08_bands"] = _f08_bands_fig()
 
 
@@ -1257,18 +1527,26 @@ def _f08_mismatch_fig():
     # (c) リターンロスと不整合損失
     yc = 262
     o.append(W(14, 246, 686, 246, c=LIN, lw=0.8))
-    o.append(T(14, yc, "(c) リターンロスと不整合損失（点の横の数字は VSWR）", "start", 11.5, INK, True))
-    q = Plot(70, yc + 16, 560, 100, (0, 25), (0, 3.5))
+    o.append(T(14, yc, "(c) リターンロス・VSWR・不整合損失の換算", "start", 11.5, INK, True))
+    q = Plot(70, yc + 16, 300, 110, (0, 25), (0, 3.5))
     o.append(q.axes(xl="リターンロス RL [dB]", yl="不整合損失 [dB]", xt=[0, 3, 6, 10, 15, 20, 25], yt=[0, 1, 2, 3], xfmt=_f08_m, yfmt=_f08_m))
     rls = np.linspace(0.5, 25, 300)
     o.append(q.clip([(r, -10 * math.log10(1 - 10 ** (-r / 10))) for r in rls], c=SIG, lw=2.4))
-    for Gm in (0.707, 0.5, 0.316, 0.178, 0.1):
-        r = -20 * math.log10(Gm); ml = -10 * math.log10(1 - Gm * Gm); vs = (1 + Gm) / (1 - Gm)
-        o.append(D(q.X(r), q.Y(ml), SIG, 4))
-        o.append(T(q.X(r) + 7, q.Y(ml) - 7, "%s dB（%.2f）" % (_f08_f(ml, 2), vs), "start", 9.5, SIG, True, halo=True))
     o.append(W(q.X(10), q.y, q.X(10), q.y + q.h, c=GRN, lw=1.2, dash="4 3"))
-    o.append(T(q.X(10) + 4, q.y + 14, "目安 10 dB", "start", 9.5, GRN, True, halo=True))
-    return SVG(700, 424, o, "整合。(a) 内部の抵抗 50 Ω の信号源にアンテナをつなぐと、アンテナのインピーダンス Z<sub>A</sub> が 50 Ω と違う分だけ、電圧の波が跳ね返る。アンテナに渡る電力の割合は 1 − |Γ|² である（受けるときも同じ）。(b) 線路の上では、入っていく波と跳ね返る波が重なって定在波ができ、電圧の振幅は 1 − |Γ| と 1 + |Γ| の間で変わる。その比が VSWR である（図は |Γ| = 0.5）。(c) リターンロス −20 log<sub>10</sub>|Γ| と、不整合損失 −10 log<sub>10</sub>(1 − |Γ|²)。リターンロスが 10 dB を超えると、損失は 0.5 dB より小さい。")
+    o.append(T(q.X(10) + 4, q.y + 14, "目安 10 dB 以上", "start", 9.5, GRN, True, halo=True))
+    # 換算の表（|Γ| から計算）
+    xt = 420; ends = [xt + 38, xt + 92, xt + 146, xt + 206, xt + 264]
+    for xe, hd in zip(ends, ("|Γ|", "RL [dB]", "VSWR", "損失 [dB]", "渡る電力")):
+        o.append(T(xe, yc + 22, hd, "end", 9.5, MUT, True))
+    o.append(W(xt, yc + 27, xt + 266, yc + 27, c=LIN, lw=0.8))
+    for k, Gm in enumerate((0.1, 10 ** (-15 / 20.0), 10 ** (-10 / 20.0), 1 / 3.0, 0.5, 1 / math.sqrt(2))):
+        r = -20 * math.log10(Gm); ml = -10 * math.log10(1 - Gm * Gm); vs = (1 + Gm) / (1 - Gm)
+        yy = yc + 43 + k * 16; bold = abs(r - 10) < 0.01
+        o.append(D(q.X(r), q.Y(ml), GRN if bold else SIG, 4))
+        vals = ("%.3f" % Gm, "%.1f" % r, "%.2f" % vs, "%.2f" % ml, "%.1f %%" % (100 * (1 - Gm * Gm)))
+        for xe, v in zip(ends, vals):
+            o.append(T(xe, yy, v, "end", 9.5, GRN if bold else INK, bold))
+    return SVG(700, 424, o, "整合と、反射を表す 3 つの数（(b) は |Γ| = 0.5 の例。(c) の点は、右の表の値）。")
 F["e08_mismatch"] = _f08_mismatch_fig()
 
 
@@ -1294,7 +1572,9 @@ def _f08_smith_fig():
     o.append(T(p.X(50) + 6, p.Y(0) + 16, "50", "start", 9.5, GRN, True, halo=True))
     o.append(T(p.X(196), p.Y(120), "コイルの性質", "end", 9.5, MUT, False, halo=True))
     o.append(T(p.X(196), p.Y(-120) + 8, "コンデンサの性質", "end", 9.5, MUT, False, halo=True))
-    o.append(T(64, 324, "開放（∞）はこの平面に描けない", "start", 9.5, MUT))
+    o.append(T(64, 322, "開放（∞）はこの平面に描けない", "start", 9.5, MUT))
+    g5 = zg50 = (complex(50, 50) / 50.0 - 1) / (complex(50, 50) / 50.0 + 1)
+    o.append(T(64, 340, "50 + j50 Ω: |Γ| = %.3f（リターンロス %.1f dB）" % (abs(g5), -20 * math.log10(abs(g5))), "start", 9.5, ALI, True))
     # (b) Γ の平面（スミスチャート）
     xb = 360
     o.append(T(xb, 18, "(b) 同じものを Γ の平面に（スミスチャート）", "start", 11.5, INK, True))
@@ -1328,7 +1608,7 @@ def _f08_smith_fig():
     o.append(T(cx, cy - Rr - 8, "X > 0（コイルの性質）", "middle", 9.5, MUT))
     o.append(T(cx, cy + Rr + 18, "X < 0（コンデンサの性質）", "middle", 9.5, MUT))
     o.append(LEGL(xb, 336, [(SIG, None, "R が一定（実線 50 Ω）"), (GLD, "4 3", "X が一定"), (PUR, "2 3", "VSWR 2")], 9.5, 12))
-    return SVG(700, 350, o, "スミスチャートの読み方。(a) アンテナのインピーダンスを、抵抗とリアクタンスの平面に描いた。抵抗が一定の縦の線（25・50・100 Ω）と、リアクタンスが一定の横の線（±50・±100 Ω）。(b) 同じ点と線を、反射係数 Γ = (Z<sub>A</sub> − 50)/(Z<sub>A</sub> + 50) の平面に移したものがスミスチャートである。抵抗が一定の線は円に、リアクタンスが一定の線は円弧になり、全部が半径 1 の円に入る。中心が 50 Ω（整合）、左の端が短絡、右の端が開放である。中心からの距離が |Γ| なので、25 Ω と 100 Ω は、同じ VSWR 2 の円（紫の破線）の上にある。")
+    return SVG(700, 350, o, "スミスチャートの読み方（基準は 50 Ω。(a) と (b) で、同じ色の点と線は同じインピーダンス。紫の破線の円は |Γ| = 1/3）。")
 F["e08_smith"] = _f08_smith_fig()
 
 
@@ -1406,8 +1686,25 @@ def _f08_s11_fig():
     o.append(T(q.X(0) + 6, q.Y(ad) - 6, "L1 で %.1f dB" % ad, "start", 9.5, ALI, True, halo=True))
     o.append(T(q.X(0), q.y + 12, "%.1f MHz" % ((max(oka) - min(oka)) / 1e6), "middle", 9.5, GRN, True, halo=True))
     o.append(W(q.X(0), q.y, q.X(0), q.y + q.h, c=INK, lw=1, dash="2 3"))
-    o.append(LEGL(20, 286, [(SIG, None, "合っている"), (ALI, "5 3", "共振が 5 MHz 下がった")], 9.5, 14))
-    o.append(T(20, 310, "S11 の良い幅は、軸比の良い幅より", "start", 9.5, INK, True))
-    o.append(T(20, 326, "ずっと広い", "start", 9.5, INK, True))
-    return SVG(700, 340, o, "S11 の測り方と、例のパッチの S11。(a) ネットワークアナライザは、端子から送った波 a と戻ってきた波 b の比 S<sub>11</sub> を、周波数を変えながら測る。前もって、ケーブルの先で短絡・開放・50 Ω の 3 つの基準を測り、ケーブルの影響を除く（校正）。(b) 3 節の例のパッチ（1 点給電、Q = 100）の S11。2 つのモードの共振回路を直列につないだモデルで計算した（L1 で 50 Ω）。−10 dB 以下の幅は %.1f MHz ある。(c) 同じパッチの軸比。3 dB 以下は %.1f MHz しかない。樹脂の筐体などで共振が 5 MHz 下がると（例の値）、L1 での S11 は %s dB でまだ良いが、軸比は %.1f dB に悪くなる。" % (w10, (max(oka) - min(oka)) / 1e6, _f08_f(vd, 1), ad))
+    o.append(LEGL(20, 276, [(SIG, None, "合っている"), (ALI, "5 3", "共振が 5 MHz 下がった")], 9.5, 14))
+    okl = [d for d in fs if 20 * math.log10(max(abs(_f08_s11_model(f0 + d, 0.0, None, "lin")[1]), 1e-4)) <= -10]
+    o.append(T(p.X(-24), p.Y(-34), "直線偏波（1 つの", "start", 9.5, MUT, False, halo=True))
+    o.append(T(p.X(-24), p.Y(-34) + 14, "モード）なら %.1f MHz" % ((max(okl) - min(okl)) / 1e6), "start", 9.5, MUT, False, halo=True))
+    # 共振がずれたときの L1 での値
+    yt = 318
+    o.append(W(14, yt - 22, 686, yt - 22, c=LIN, lw=0.8))
+    o.append(T(20, yt, "(d) 共振周波数が下がったときの、L1 での値", "start", 11.5, INK, True))
+    ends = [150, 250, 340, 450, 590]
+    for xe, hd in zip(ends, ("共振のずれ", "|S11|", "軸比", "右旋の損失", "左旋を受ける強さ")):
+        o.append(T(xe, yt + 22, hd, "end", 9.5, MUT, True))
+    o.append(W(60, yt + 27, 600, yt + 27, c=LIN, lw=0.8))
+    P0 = _f08_s11_model(f0, 0.0)[2]
+    for k, sh in enumerate((-5e6, -10e6)):
+        Z, G, PR, PL_ = _f08_s11_model(f0, sh)
+        yy = yt + 43 + k * 16
+        vals = ("%s MHz" % _f08_m(sh / 1e6), "%s dB" % _f08_f(20 * math.log10(abs(G)), 1), "%.1f dB" % arv(0, sh), "%.2f dB" % (-10 * math.log10(PR / P0)), "%s dB" % _f08_f(10 * math.log10(PL_ / P0), 1))
+        for xe, v in zip(ends, vals):
+            o.append(T(xe, yy, v, "end", 9.5, ALI if k == 0 else INK, k == 0))
+    o.append(T(20, yt + 82, "右旋の損失と左旋を受ける強さは、合っているときに右旋を受ける電力を 0 dB とした値", "start", 9.5, MUT))
+    return SVG(700, 408, o, "S11 の測り方と、例のパッチの S11・軸比（3 節の 1 点給電のパッチで、Q = 100。2 つのモードの共振回路を直列につないだモデルで、L1 で 50 Ω とした。共振のずれは例の値）。")
 F["e08_s11"] = _f08_s11_fig()
