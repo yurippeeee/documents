@@ -552,8 +552,9 @@ def _f07_shell_fig():
     for e in (5, 10, 30, 90):
         o.append(D(q.X(e), q.Y(_f07_shell(e)), GLD, 3.6))
         o.append(T(q.X(e) + (5 if e < 90 else -4), q.Y(_f07_shell(e)) - 7, "%.2f" % _f07_shell(e), "start" if e < 90 else "end", 9.5, GLD, True, halo=True))
-    o.append(LEGL(xb + 10, 296, [(GLD, None, "薄い殻の 1/cos z'"), (MUT, "5 3", "クロブッチャー・モデルの近似の式")], 9.5))
-    o.append(T(xb + 10, 322, "仰角 5° で %.2f、10° で %.2f、30° で %.2f、地平線で %.2f" % (_f07_shell(5), _f07_shell(10), _f07_shell(30), _f07_shell(0)), "start", 9.5, GLD, True))
+    o.append(LEGL(xb + 10, 292, [(GLD, None, "薄い殻の 1/cos z'")], 9.5))
+    o.append(LEGL(xb + 10, 308, [(MUT, "5 3", "クロブッチャー・モデルの近似の式（次の項）")], 9.5))
+    o.append(T(xb + 10, 334, "仰角 5° で %.2f、10° で %.2f、30° で %.2f、地平線で %.2f" % (_f07_shell(5), _f07_shell(10), _f07_shell(30), _f07_shell(0)), "start", 9.5, GLD, True))
     return SVG(700, 356, o, "薄い殻とみなした電離層のマッピング関数（地球の半径 R<sub>E</sub> = 6 371 km、殻の高さ h<sub>I</sub> = 350 km）。")
 F["e07_shell"] = _f07_shell_fig()
 
@@ -741,8 +742,8 @@ def _f07_mpgeom_fig():
     o.append(TX(Ai[0] + 30, Ai[1] - 26, "2h_a sin θ", "start", 10, ALI, True, halo=True))
     o.append(DIM(ax - 14, gy, ax - 14, gy - ha, None, c=MUT))
     o.append(TX(ax - 18, gy - ha / 2 + 4, "h_a", "end", 10, MUT, True))
-    o.append(T(14, 286, "高さ 1.5 m・仰角 30° で", "start", 9.5, INK))
-    o.append(T(14, 301, "%.1f m（%.3f チップ）" % (2 * 1.5 * math.sin(th), 2 * 1.5 * math.sin(th) / _F07_CTC), "start", 9.5, ALI, True))
+    o.append(T(14, 308, "高さ 1.5 m・仰角 30° で", "start", 9.5, INK))
+    o.append(T(14, 323, "%.1f m（%.3f チップ）" % (2 * 1.5 * math.sin(th), 2 * 1.5 * math.sin(th) / _F07_CTC), "start", 9.5, ALI, True))
     # (b) 壁の反射
     xb = 240
     o.append(T(xb, 18, "(b) 壁で反射", "start", 11.5, INK, True))
@@ -760,9 +761,9 @@ def _f07_mpgeom_fig():
     o.append(ARR(wx, Wy, B[0] + 3, B[1] - 1, c=ALI, lw=1.6, head=6, dash="6 3"))
     o.append(DIM(B[0], gy + 14, wx, gy + 14, None, c=MUT))
     o.append(TX((B[0] + wx) / 2, gy + 30, "d_w", "middle", 10, MUT, True))
-    o.append(TX(xb + 4, 272, "余分の道のり 2d_w cos θ", "start", 10, ALI, True))
-    o.append(T(xb + 4, 286, "20 m 先の壁・仰角 30° で", "start", 9.5, INK))
-    o.append(T(xb + 4, 301, "%.1f m（%.3f チップ）" % (2 * 20 * math.cos(th), 2 * 20 * math.cos(th) / _F07_CTC), "start", 9.5, ALI, True))
+    o.append(TX(xb + 4, 290, "余分の道のり 2d_w cos θ", "start", 10, ALI, True))
+    o.append(T(xb + 4, 308, "20 m 先の壁・仰角 30° で", "start", 9.5, INK))
+    o.append(T(xb + 4, 323, "%.1f m（%.3f チップ）" % (2 * 20 * math.cos(th), 2 * 20 * math.cos(th) / _F07_CTC), "start", 9.5, ALI, True))
     # (c) 見えない衛星の反射だけ
     xc = 470
     o.append(T(xc, 18, "(c) 直接波が届かない（NLOS）", "start", 11.5, INK, True))
@@ -782,10 +783,10 @@ def _f07_mpgeom_fig():
     Rx, Ry = xc + 180, 118
     o.append(W(Rx + 122 * dvx, Ry + 122 * dvy, Rx, Ry, c=ALI, lw=1.6, dash="6 3"))
     o.append(ARR(Rx, Ry, C[0] + 3, C[1] - 3, c=ALI, lw=1.6, head=6, dash="6 3"))
-    o.append(T(xc + 4, 272, "反射波だけを受け、その遅れの全部が", "start", 9.5, ALI, True))
-    o.append(T(xc + 4, 287, "擬似距離の誤差になる（数十〜数百 m）", "start", 9.5, ALI, True))
-    o.append(LEGL(14, 330, [(SIG, None, "直接波"), (ALI, "6 3", "反射波（余分の道のり cτ_M、振幅は直接波の γ 倍、位相の差 ψ_M）")], 9.5, 16))
-    return SVG(700, 340, o, "反射波の通り道（h<sub>a</sub> はアンテナの地面からの高さ、d<sub>w</sub> は壁までの距離。(b) の式は、壁が、受信機から見て衛星と反対の側に、衛星の方位に垂直に立つ場合）。")
+    o.append(T(xc + 4, 290, "反射波だけを受け、その遅れの全部が", "start", 9.5, ALI, True))
+    o.append(T(xc + 4, 305, "擬似距離の誤差になる（数十〜数百 m）", "start", 9.5, ALI, True))
+    o.append(LEGL(14, 352, [(SIG, None, "直接波"), (ALI, "6 3", "反射波（余分の道のり cτ_M、振幅は直接波の γ 倍、位相の差 ψ_M）")], 9.5, 16))
+    return SVG(700, 362, o, "反射波の通り道（h<sub>a</sub> はアンテナの地面からの高さ、d<sub>w</sub> は壁までの距離。(b) の式は、壁が、受信機から見て衛星と反対の側に、衛星の方位に垂直に立つ場合）。")
 F["e07_mpgeom"] = _f07_mpgeom_fig()
 
 
@@ -873,9 +874,10 @@ def _f07_mpcase_fig():
             o.append(D(p.X(u), p.Y(g * _f07_lam(u - tm)), ALI, 3.8))
         o.append(TX(x0, 228, cond, "start", 9.5, MUT))
         o.append(TX(x0, 246, frm, "start", 10, ALI, True))
-        o.append(TX(x0, 263, "τ_M = %g チップ → Δτ* = %.3f チップ（%.1f m）" % (tm, x, x * _F07_CTC), "start", 9.5, INK))
-    o.append(LEGL(14, 290, [(GRN, "5 3", "直接波の三角形"), (ALI, None, "反射波の三角形（同じ位相）"), (GLD, "3 2", "E と L の位置")], 9.5, 16))
-    return SVG(700, 300, o, "導出の 3 つの場合（例: 振幅の比 γ = %g、E と L の間隔 Δ<sub>EL</sub> = %g チップ、同じ位相の反射波）。" % (g, d))
+        o.append(TX(x0, 264, "例: τ_M = %g チップのとき" % tm, "start", 9.5, INK))
+        o.append(TX(x0, 280, "Δτ* = %.3f チップ（%.1f m）" % (x, x * _F07_CTC), "start", 9.5, INK, True))
+    o.append(LEGL(14, 308, [(GRN, "5 3", "直接波の三角形"), (ALI, None, "反射波の三角形（同じ位相）"), (GLD, "3 2", "E と L の位置")], 9.5, 16))
+    return SVG(700, 318, o, "導出の 3 つの場合（例: 振幅の比 γ = %g、E と L の間隔 Δ<sub>EL</sub> = %g チップ、同じ位相の反射波）。" % (g, d))
 F["e07_mpcase"] = _f07_mpcase_fig()
 
 
@@ -903,11 +905,11 @@ def _f07_mpenv_fig():
     o.append(T(p.X(0.28), p.Y(72) + 13, "誤差 = 遅れの全部", "start", 9, ALI, True, halo=True))
     o.append(T(p.X(0.82), p.Y(73.3) - 4, "最大 γ × 間隔 / 2 = 0.25 チップ（73.3 m）", "start", 9.5, GLD, True, halo=True))
     o.append(T(p.X(0.62), p.Y(7.3) - 8, "最大 0.025 チップ（7.3 m）", "middle", 9.5, SIG, True, halo=True))
-    o.append(T(p.X(1.59), p.Y(-13), "余分の道のりが %.0f m（間隔 1 チップ）・" % (1.5 * _F07_CTC), "end", 9.5, MUT, halo=True))
-    o.append(T(p.X(1.59), p.Y(-13) + 13, "%.0f m（0.1 チップ）より長いと 0" % (1.05 * _F07_CTC), "end", 9.5, MUT, halo=True))
-    o.append(T(p.X(0.05), p.Y(-58), "遅れの短い所は、間隔によらず同じ線", "start", 9.5, INK, halo=True))
-    o.append(T(p.X(0.05), p.Y(-58) + 13, "（0.1 チップでは、同じ位相で %.0f m、" % ((1 + g) * 0.1 / 2 * _F07_CTC), "start", 9.5, MUT, halo=True))
-    o.append(T(p.X(0.05), p.Y(-58) + 26, "逆の位相で %.1f m まで）" % ((1 - g) * 0.1 / 2 * _F07_CTC), "start", 9.5, MUT, halo=True))
+    o.append(T(p.X(1.59), p.Y(52), "余分の道のりが、間隔 1 チップで %.0f m、" % (1.5 * _F07_CTC), "end", 9.5, MUT, halo=True))
+    o.append(T(p.X(1.59), p.Y(52) + 14, "0.1 チップで %.0f m より長いと、誤差は 0" % (1.05 * _F07_CTC), "end", 9.5, MUT, halo=True))
+    o.append(T(p.X(1.59), p.Y(-48), "遅れの短い所では、2 つの間隔の線が重なる", "end", 9.5, INK, halo=True))
+    o.append(T(p.X(1.59), p.Y(-48) + 14, "（0.1 チップでは、余分の道のりが、同じ位相で", "end", 9.5, MUT, halo=True))
+    o.append(T(p.X(1.59), p.Y(-48) + 28, "%.0f m、逆の位相で %.1f m まで）" % ((1 + g) * 0.1 / 2 * _F07_CTC, (1 - g) * 0.1 / 2 * _F07_CTC), "end", 9.5, MUT, halo=True))
     o.append(LEGL(74, 334, [(GLD, None, "E と L の間隔 1 チップ"), (SIG, None, "0.1 チップ"), (ALI, "5 3", "NLOS")], 9.5, 16))
     # (b) 位相が回るときの誤差
     o.append(TX(14, 372, "(b) 反射波の位相 ψ_M が回るときの誤差（余分の道のり cτ_M = 100 m、γ = 0.5）", "start", 11.5, INK, True))
@@ -1005,13 +1007,13 @@ def _f07_mpreduce_fig():
         o.append(W(ox, gy2 - 7, sx_, sy_, c=c, lw=1, dash=None if el > 15 else "2 3"))
         o.append(_f07_sat(sx_, sy_, c, 0.8))
         o.append(T(sx_, sy_ - 10, "%d° %s" % (el, "使う" if el > 15 else "使わない"), "middle", 9, c if el > 15 else MUT, True, halo=True))
-    cx, cy, R = 560, y0 + 104, 86
+    cx, cy, R = 560, y0 + 100, 84
     sats = [(q[1], q[2], q[0], PUR if q[1] > 15 else FNT) for q in _F07_VL]
     o.append(sky(cx, cy, R, sats, dot=4.2))
     o.append(CIRC(cx, cy, R * (90 - 15) / 90, c=ALI, lw=1.4, dash="5 3"))
     low = [q for q in _F07_VL if q[1] <= 15]
-    o.append(T(14, gy2 + 22, "東京の空（時刻 0）では、マスク 15° で " + " と ".join("%s（仰角 %.1f°）" % (q[0], q[1]) for q in low) + " を使わない（右の図の赤の破線の外）", "start", 9.5, INK))
-    return SVG(700, gy2 + 34, o, "マルチパスを減らす 4 つの方法（(a) の受ける強さの形と、(b) の振幅の比 γ は例。(d) の右は東京の時刻 0 のスカイプロット）。")
+    o.append(T(14, gy2 + 22, "東京の空（時刻 0）では、マスク 15° で " + " と ".join("%s（仰角 %.1f°）" % (q[0], q[1]) for q in low) + " を使わない", "start", 9.5, INK))
+    return SVG(700, gy2 + 36, o, "マルチパスを減らす 4 つの方法（(a) の受ける強さの形と、(b) の振幅の比 γ は例。(d) の右は東京の時刻 0 のスカイプロット）。")
 F["e07_mpreduce"] = _f07_mpreduce_fig()
 
 
@@ -1103,7 +1105,7 @@ def _f07_dopsky_fig():
         o.append(T(x0 + 116, 404, "楕円 %.2f m × %.2f m" % (s1, s2), "middle", 10, ALI, True))
         o.append(T(x0 + 116, 422, "HDOP %.2f　VDOP %.2f" % (dd["H"], dd["V"]), "middle", 10.5, INK, True))
         o.append(T(x0 + 116, 438, "PDOP %.2f　TDOP %.2f　GDOP %.2f" % (dd["P"], dd["T"], dd["G"]), "middle", 9.5, MUT))
-        o.append(T(x0 + 116, 455, "上下と時計の誤差の相関係数 %.2f" % (H[2, 3] / math.sqrt(H[2, 2] * H[3, 3])), "middle", 9.5, MUT))
+        o.append(T(x0 + 116, 455, "上下と時計の誤差の相関係数 %.3f" % (H[2, 3] / math.sqrt(H[2, 2] * H[3, 3])), "middle", 9.5, MUT))
     return SVG(700, 466, o, "衛星の並びと DOP・誤差の楕円（東京、時刻 0。擬似距離の誤差は標準偏差 σ = 1 m。金の点は、誤差を入れて 300 回解いた位置。目盛は 3 枚で違う）。")
 F["e07_dopsky"] = _f07_dopsky_fig()
 
@@ -1285,7 +1287,7 @@ def _f07_dopday_fig():
         vals = ["%d°" % mk, "%d" % n1, "%.2f" % h1, "%.2f" % v1, "%d" % n2, "%.2f" % h2, "%.2f" % v2]
         for j, (x, v) in enumerate(zip(xs, vals)):
             o.append(T(x, yy, v, "start" if j == 0 else "end", 10, SIG if 1 <= j <= 3 else (INK if j else MUT), j in (2, 5)))
-    return SVG(700, 580, o, "東京の DOP の 24 時間の変化と、衛星系・仰角マスクの効果（1 章の近似の配置。衛星系を混ぜるときは、時計のずれの未知数を衛星系ごとに 1 つ置き、G の時計の列を衛星系の数だけにした）。")
+    return SVG(700, 580, o, "東京の DOP の 24 時間の変化と、衛星系・仰角マスクの効果（1 章の近似の配置: GPS・GLONASS・Galileo・BeiDou 各 24 機、みちびき 4 機。衛星系を混ぜるときは、時計のずれの未知数を衛星系ごとに 1 つ置き、G の時計の列を衛星系の数だけにした）。")
 F["e07_dopday"] = _f07_dopday_fig()
 
 
