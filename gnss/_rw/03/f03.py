@@ -584,7 +584,7 @@ def _f03_iq_fig():
     o.append(W(xa + 13, ym, xs, ym, c=SIG, lw=1.6))
     o.append(W(xs, yI, xs, yQ, c=SIG, lw=1.6))
     o.append(D(xs, ym, SIG, 3.2))
-    for yy, tr, nm, up in ((yI, "2cos(2πf_{L1}t_k + ψ̂)", "Y_I", True), (yQ, "2sin(2πf_{L1}t_k + ψ̂)", "Y_Q", False)):
+    for yy, tr, nm, up in ((yI, "2cos（手元の搬送波）", "Y_I", True), (yQ, "2sin（手元の搬送波）", "Y_Q", False)):
         o.append(ARR(xs, yy, xc - 13, yy, c=SIG, lw=1.6))
         o.append(_f03_mult(xc, yy))
         if up:
@@ -599,10 +599,10 @@ def _f03_iq_fig():
         o.append(T(xk + 56, yy + 12, "J で割る", "middle", 9.5, INK, True))
         o.append(ARR(xk + 112, yy, 634, yy, c=SIG, lw=1.6))
         o.append(TX(642, yy + 4, nm, "start", 11.5, SIG, True))
-    o.append(T(xc, ym - 5, "手元で作った搬送波", "middle", 9.5, GLD, True, halo=True))
-    o.append(T(xc, ym + 9, "（cos と、90° ずらした sin）", "middle", 9, GLD, False, halo=True))
+    o.append(T(xc, ym - 5, "sin は、cos を", "middle", 9, GLD, False, halo=True))
+    o.append(T(xc, ym + 9, "90° ずらしたもの", "middle", 9, GLD, False, halo=True))
     o.append(TX(xk + 56, ym + 4, "積分の時間 T_{coh}", "middle", 9.5, PUR, True, True))
-    return SVG(700, 222, o, "Y<sub>I</sub> と Y<sub>Q</sub> の計算の流れ（k は標本の番号、J は積分の時間の中の標本の数、ψ̂ は手元で作る搬送波の位相。記号は、この後の導出で定義する）。")
+    return SVG(700, 222, o, "Y<sub>I</sub> と Y<sub>Q</sub> の計算の流れ（k は標本の番号、J は積分の時間の中の標本の数。式は、この後の導出に書く）。")
 F["e03_iq"] = _f03_iq_fig()
 
 
@@ -657,7 +657,7 @@ def _f03_snr_fig():
     o.append(T(r.X(1.08), r.Y(6.6), "35 dB-Hz", "start", 9.5, GRN, True, halo=True))
     o.append(LEGL(r.x - 30, r.y + r.h + 48, [(INK, None, "SNR = (C/N_0) T_{coh}"), (INK, "5 3", "SNR_I（2 倍）")], 9.5, 12))
     o.append(TX(r.x + r.w, r.y + r.h + 64, "○・□: シミュレーション（SNR・SNR_I）", "end", 9, MUT))
-    return SVG(700, 358, o, "相関の後の SN 比（(a) は、Y<sub>I</sub>・Y<sub>Q</sub> の計算を 160 回ずつ繰り返した点。黒い点は雑音が無いときの値。(b) のシミュレーションは、搬送波を 2.046 MHz に下げた実数の標本を 1 チップに 8 つとり、片側の密度 N<sub>0</sub> の白色雑音を足して、2500〜4000 回計算した）。")
+    return SVG(700, 358, o, "相関の後の SN 比（(a) は、Y<sub>I</sub>・Y<sub>Q</sub> の計算を 160 回ずつ繰り返した点。線の先の点は、雑音が無いときの値。(b) のシミュレーションは、搬送波を 2.046 MHz に下げた実数の標本を 1 チップに 8 つとり、片側の密度 N<sub>0</sub> の白色雑音を足して、2500〜4000 回計算した）。")
 F["e03_snr"] = _f03_snr_fig()
 
 
@@ -1002,7 +1002,7 @@ def _f03_ber_fig():
     xs = _f03_np.linspace(-2.6, 2.6, 261)
     for m, c in ((-1, PUR), (1, SIG)):
         tail = [x for x in xs if (x <= 0 if m > 0 else x >= 0)]
-        o.append(PL([(g.X(tail[0]), g.Y(0))] + [(g.X(x), g.Y(pdf(x, m))) for x in tail] + [(g.X(tail[-1]), g.Y(0))], c="none", lw=0, fill=ASOFT))
+        o.append(PL([(g.X(tail[0]), g.Y(0))] + [(g.X(x), g.Y(pdf(x, m))) for x in tail] + [(g.X(tail[-1]), g.Y(0))], c="none", lw=0, fill=ALI, op=0.55))
         o.append(g.line([(x, pdf(x, m)) for x in xs], c=c, lw=2.0))
         o.append(W(g.X(m), g.Y(0), g.X(m), g.Y(pdf(m, m)), c=c, lw=1, dash="3 3"))
         o.append(TX(g.X(m), g.Y(0) + 14, "−√(2C)" if m < 0 else "+√(2C)", "middle", 9.5, c, True))
@@ -1012,7 +1012,7 @@ def _f03_ber_fig():
     o.append(T(g.X(0), g.y - 4, "正か負かで読む", "middle", 9, INK))
     o.append(DIM(g.X(1), g.Y(pdf(1 + sd, 1)), g.X(1 + sd), g.Y(pdf(1 + sd, 1)), None, c=SIG))
     o.append(TX(g.X(1 + sd) + 6, g.Y(pdf(1 + sd, 1)) + 4, "標準偏差 √(N_0/T_b)", "start", 9, SIG))
-    o.append(TX(g.X(-2.55), g.Y(0) + 30, "赤い部分: 雑音で正負が逆になり、読み誤る。面積が P_b = %s" % _f03_sci(_f03_pb(cex)), "start", 9.5, ALI, True))
+    o.append(TX(g.X(-2.55), g.Y(0) + 30, "赤い部分: 雑音で正負が逆になり、読み誤る。片方の面積が P_b = %s" % _f03_sci(_f03_pb(cex)), "start", 9.5, ALI, True))
     y0 = 186
     o.append(T(14, y0 + 2, "(b) ビット誤り率", "start", 11.5, INK, True))
     p = Plot(78, y0 + 24, 270, 190, (14, 34), (1e-10, 1), ylog=True)
@@ -1032,6 +1032,7 @@ def _f03_ber_fig():
     o.append(W(p.x, p.Y(1e-5), p.X(c5), p.Y(1e-5), c=MUT, lw=1, dash="3 3"))
     o.append(D(p.X(c5), p.Y(1e-5), SIG, 4.4))
     o.append(T(p.X(c5) + 6, p.Y(1e-5) - 4, "%s dB-Hz で 10⁻⁵" % _f03_f(c5), "start", 9.5, SIG, True, halo=True))
+    o.append(TX(p.X(c5) + 6, p.Y(1e-5) + 10, "（E_b/N_0 = %s dB）" % _f03_f(c5 + _f03_dB(0.02)), "start", 9, SIG, False, True))
     o.append(TX(p.X(15), p.Y(1e-8), "P_b = Q(√(2E_b/N_0))", "start", 9.5, SIG, True, halo=True))
     o.append(T(p.X(15), p.Y(1e-8) + 14, "○: シミュレーション", "start", 9, ALI, False, halo=True))
     for c in (14, 18, 22, 26, 30, 34):
