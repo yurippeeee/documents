@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>組み込みの仕様書と設計書 — 書き方の一般論と実例</title>
+<link rel="stylesheet" href="site.css">
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "7b6e9d2633b64a6bba9a294bb612c422"}'></script><!-- End Cloudflare Web Analytics -->
+</head>
+<body>
+<div class="toprow">
+  <a class="home" href="index.html">← トップ</a>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</div>
+<div class="lp">
+  <p class="eyebrow">SPEC &amp; DESIGN</p>
+  <h1>組み込みの仕様書と設計書</h1>
+  <p class="lede">組み込み機器の開発では、<strong>何を作るか</strong>をシステム仕様書に、<strong>どう作るか</strong>を設計書に書き、試験でその両方を確かめます。このシリーズでは、2 つの文書に何をどの形で書くかの一般論と、同じ型で書いた実例（電池で動く温湿度ロガー）を、図と動くデモで示します。要求文の曖昧さを点検し、状態遷移の抜けを見つけ、電池寿命の予算を動かして、文書が設計と試験にどうつながるかを確かめられます。試験の進め方は <a href="embtest.html" style="color:var(--signal)">ブラックボックステストのシリーズ</a>、電池と省電力は <a href="periph.html" style="color:var(--signal)">電源と周辺の制御のシリーズ</a>、タスクの設計は <a href="freertos.html" style="color:var(--signal)">OS のシリーズ</a>、BLE は <a href="comm.html" style="color:var(--signal)">通信のシリーズ</a> が詳しく扱っています。</p>
+
+  <h2>一般論</h2>
+  <p class="part">システム仕様書と、その下の設計書に、何をどの形で書くか。どの組み込み機器にも通じる書き方の型と、その理由。</p>
+  <div class="grid">
+    <a class="ch" href="spec/html/01.html"><span class="n">CH 01</span><span class="t">システム仕様書の書き方</span><span class="d">文書の階層と V 字、システムの境界とコンテキスト図、ユースケースと動作モード、1 文 1 要求で検証できる要求文、機能以外の要求、トレーサビリティと版の管理。</span><span class="live">▶ LIVE ×4 ・ 図 16</span></a>
+    <a class="ch" href="spec/html/02.html"><span class="n">CH 02</span><span class="t">設計書の書き方</span><span class="d">要求の割り当て、ブロック図とハードウェア・ソフトウェアの分担、インタフェースの設計、状態遷移表とシーケンス図、電力・メモリ・処理時間の予算、設計判断の記録と詳細設計。</span><span class="live">▶ LIVE ×4 ・ 図 16</span></a>
+  </div>
+
+  <h2>実例 — 電池で動く温湿度ロガー</h2>
+  <p class="part">一般論の型で書いた、実際の仕様書と設計書。要求の ID が、設計と試験までつながっている。</p>
+  <div class="grid">
+    <a class="ch" href="spec/html/03.html"><span class="n">CH 03</span><span class="t">実例 システム仕様書</span><span class="d">電池で動く温湿度ロガーのシステム仕様書。境界とモード、測定・記録・読み出し・警報の要求、性能・電源・環境の要求、要求と試験の対応表。</span><span class="live">▶ LIVE ×3 ・ 図 15</span></a>
+    <a class="ch" href="spec/html/04.html"><span class="n">CH 04</span><span class="t">実例 設計書</span><span class="d">同じロガーの設計書。ブロック図と要求の割り当て、センサ・フラッシュ・BLE・記録の形式、層とタスクと状態遷移表、電池寿命と記録容量の見積もり、異常時の設計。</span><span class="live">▶ LIVE ×4 ・ 図 15</span></a>
+  </div>
+
+  <h2>読み方</h2>
+  <div class="paths">
+    <div class="path"><b>はじめて</b><span>01 → 02 → 03 → 04</span></div>
+    <div class="path"><b>まず実物を見る</b><span>03 → 04 → 01 → 02</span></div>
+  </div>
+
+  <footer class="lpf">GitHub Pages で配信。図はダーク/ライト対応。実例の製品・部品・数値は、説明のための架空の例です。</footer>
+</div>
+<script src="site.js"></script>
+</body>
+</html>

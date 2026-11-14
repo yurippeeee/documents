@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>動かして理解する GNSS — 信号・受信機・回路・プログラム・RTK・ノイズ対策</title>
+<link rel="stylesheet" href="site.css">
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "7b6e9d2633b64a6bba9a294bb612c422"}'></script><!-- End Cloudflare Web Analytics -->
+</head>
+<body>
+<div class="toprow">
+  <a class="home" href="index.html">← トップ</a>
+  <button class="toggle" id="themeBtn" aria-label="配色切替"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span id="themeLbl">テーマ</span></button>
+</div>
+<div class="lp">
+  <p class="eyebrow">GNSS</p>
+  <h1>動かして理解する GNSS</h1>
+  <p class="lede">GNSS（GPS・Galileo・みちびきなどの衛星測位）の受信機は、熱雑音より弱い衛星の電波から、衛星までの距離を測り、位置と時刻を求めます。このシリーズでは、<strong>その仕組みと設計を、図と、値を動かせるデモ</strong>で示します。符号をずらすと相関の山が現れ、衛星の並びを変えると DOP が変わり、DC-DC のスイッチング周波数を変えると高調波が L1 の帯域に落ちるのが目に見えます。信号と受信機の原理、位置の解き方と誤差から始めて、アンテナ・LNA・モジュールの回路と RF の基板、NMEA とバイナリのプログラム、1PPS、DGNSS・RTK・PPP・慣性センサとの融合、ノイズ対策と筐体、評価の方法までを、途中の式を省略せずに扱います。基板の一般的な設計は <a href="pcb.html" style="color:var(--signal)">基板アートワークシリーズ</a>、筐体は <a href="enclosure.html" style="color:var(--signal)">筐体設計シリーズ</a>、電波と受信機の雑音は <a href="radar.html" style="color:var(--signal)">レーダーシリーズ</a>、カルマンフィルタは <a href="control.html" style="color:var(--signal)">制御工学シリーズ</a> が詳しく扱っています。</p>
+
+  <h2>第 I 部 — GNSS の仕組み</h2>
+  <p class="part">衛星までの距離から位置を求める原理、信号の作りと強さ、受信機の中の処理、位置の解き方と誤差。</p>
+  <div class="grid">
+    <a class="ch" href="gnss/html/01.html"><span class="n">CH 01</span><span class="t">GNSS とは何か</span><span class="d">三辺測量、電波の届く時間と光の速さ、受信機の時計のずれと 4 つ目の衛星、衛星系と軌道、座標と時刻。</span><span class="live">▶ LIVE ×4 ・ 図 16</span></a>
+    <a class="ch" href="gnss/html/02.html"><span class="n">CH 02</span><span class="t">衛星の信号</span><span class="d">L1・L2・L5、1023 チップの拡散符号と相関、BPSK と BOC、航法メッセージ、信号の時間の構造。</span><span class="live">▶ LIVE ×4 ・ 図 21</span></a>
+    <a class="ch" href="gnss/html/03.html"><span class="n">CH 03</span><span class="t">雑音より弱い電波を受ける</span><span class="d">約 −130 dBm の信号、熱雑音、C/N0、逆拡散と処理利得、雑音指数、C/N0 で決まる性能。</span><span class="live">▶ LIVE ×4 ・ 図 20</span></a>
+    <a class="ch" href="gnss/html/04.html"><span class="n">CH 04</span><span class="t">受信機の中</span><span class="d">RF フロントエンド、中間周波数とサンプリング、相関器、チャネル、モジュールの中身。</span><span class="live">▶ LIVE ×4 ・ 図 19</span></a>
+    <a class="ch" href="gnss/html/05.html"><span class="n">CH 05</span><span class="t">捕捉と追尾</span><span class="d">符号の位相とドップラーの探索、FFT による捕捉、DLL・PLL・FLL、TTFF とスタートの種類、A-GNSS。</span><span class="live">▶ LIVE ×4 ・ 図 21</span></a>
+    <a class="ch" href="gnss/html/06.html"><span class="n">CH 06</span><span class="t">位置を解く</span><span class="d">擬似距離の式、線形化、最小二乗法と繰り返し、ドップラーから速度、緯度・経度・高さへの変換。</span><span class="live">▶ LIVE ×4 ・ 図 24</span></a>
+    <a class="ch" href="gnss/html/07.html"><span class="n">CH 07</span><span class="t">誤差と DOP</span><span class="d">誤差の源、電離層と対流圏、マルチパス、DOP、CEP と 2DRMS、誤差の予算。</span><span class="live">▶ LIVE ×4 ・ 図 22</span></a>
+  </div>
+
+  <h2>第 II 部 — 回路</h2>
+  <p class="part">アンテナ・LNA・フィルタ・モジュールの周辺回路と、RF の基板設計。</p>
+  <div class="grid">
+    <a class="ch" href="gnss/html/08.html"><span class="n">CH 08</span><span class="t">アンテナ</span><span class="d">利得と指向性、右旋円偏波、パッチアンテナの寸法、地板の大きさ、チップ・ヘリカル・多周波、整合。</span><span class="live">▶ LIVE ×4 ・ 図 25</span></a>
+    <a class="ch" href="gnss/html/09.html"><span class="n">CH 09</span><span class="t">LNA とフィルタ</span><span class="d">フリスの式、LNA の選び方、フィルタの位置、帯域の外の強い電波、アクティブアンテナの給電と監視。</span><span class="live">▶ LIVE ×3 ・ 図 14</span></a>
+    <a class="ch" href="gnss/html/10.html"><span class="n">CH 10</span><span class="t">モジュールの回路</span><span class="d">モジュールの端子、雑音の少ない電源、バックアップ電源とホットスタート、UART・I2C・SPI、1PPS、省電力。</span><span class="live">▶ LIVE ×3 ・ 図 16</span></a>
+    <a class="ch" href="gnss/html/11.html"><span class="n">CH 11</span><span class="t">RF の基板設計</span><span class="d">50 Ω の伝送線路、マイクロストリップとコプレーナ線路、グラウンドとビア、部品の配置、区分けと遮へい。</span><span class="live">▶ LIVE ×3 ・ 図 14</span></a>
+  </div>
+
+  <h2>第 III 部 — プログラム</h2>
+  <p class="part">NMEA とバイナリのプロトコル、時刻と 1PPS、マイコンでの受信と状態の管理。</p>
+  <div class="grid">
+    <a class="ch" href="gnss/html/12.html"><span class="n">CH 12</span><span class="t">NMEA を読む</span><span class="d">NMEA 0183 の文、GGA・RMC・GSA・GSV、チェックサム、C の状態機械による解析、数値への変換と落とし穴。</span><span class="live">▶ LIVE ×3 ・ 図 16</span></a>
+    <a class="ch" href="gnss/html/13.html"><span class="n">CH 13</span><span class="t">バイナリプロトコルと設定</span><span class="d">バイナリの形式とチェックサム、フレームを組む・解く C のコード、更新レート・衛星系・省電力の設定。</span><span class="live">▶ LIVE ×3 ・ 図 15</span></a>
+    <a class="ch" href="gnss/html/14.html"><span class="n">CH 14</span><span class="t">時刻と 1PPS</span><span class="d">GPS 時刻と UTC とうるう秒、1PPS、タイマで捕まえて時計を合わせる、鋸歯状の誤差、衛星が見えない間。</span><span class="live">▶ LIVE ×3 ・ 図 16</span></a>
+    <a class="ch" href="gnss/html/15.html"><span class="n">CH 15</span><span class="t">組み込みでの実装</span><span class="d">割り込み・DMA・リングバッファ、測位の品質と状態機械、時刻とデータをそろえる、電源の管理、記録を流す試験。</span><span class="live">▶ LIVE ×3 ・ 図 15</span></a>
+  </div>
+
+  <h2>第 IV 部 — 精度を上げる</h2>
+  <p class="part">補正・搬送波位相・多周波・慣性センサで、メートル級からセンチメートル級へ。</p>
+  <div class="grid">
+    <a class="ch" href="gnss/html/16.html"><span class="n">CH 16</span><span class="t">DGNSS と SBAS</span><span class="d">共通の誤差、基準局による補正、基線長と効き方、SBAS、RTCM、効果と限界。</span><span class="live">▶ LIVE ×3 ・ 図 15</span></a>
+    <a class="ch" href="gnss/html/17.html"><span class="n">CH 17</span><span class="t">搬送波位相と RTK</span><span class="d">搬送波位相、整数値バイアス、二重差、フロート解とフィックス解、基準局と補正の配信、サイクルスリップ。</span><span class="live">▶ LIVE ×3 ・ 図 16</span></a>
+    <a class="ch" href="gnss/html/18.html"><span class="n">CH 18</span><span class="t">多周波と PPP</span><span class="d">2 周波で電離層を消す、多周波の受信機とアンテナ、PPP と収束の時間、CLAS と MADOCA、方式の選び方。</span><span class="live">▶ LIVE ×3 ・ 図 16</span></a>
+    <a class="ch" href="gnss/html/19.html"><span class="n">CH 19</span><span class="t">慣性センサとの融合</span><span class="d">慣性航法と誤差の育ち方、カルマンフィルタによる融合、車速と動きの拘束、疎結合と密結合。</span><span class="live">▶ LIVE ×3 ・ 図 15</span></a>
+  </div>
+
+  <h2>第 V 部 — ノイズ対策・筐体・評価</h2>
+  <p class="part">機器の中と外のノイズとその対策、筐体とアンテナの置き方、評価の方法、総合演習。</p>
+  <div class="grid">
+    <a class="ch" href="gnss/html/20.html"><span class="n">CH 20</span><span class="t">妨害とノイズの源</span><span class="d">帯域の内と外の妨害、DC-DC・クロック・高速の信号のノイズ、高調波の計算、C/N0 の低下、ジャミング。</span><span class="live">▶ LIVE ×3 ・ 図 16</span></a>
+    <a class="ch" href="gnss/html/21.html"><span class="n">CH 21</span><span class="t">ノイズ対策の設計</span><span class="d">源・経路・受け側の順番、拡散スペクトラムとエッジ、フィルタとフェライト、シールドケース、効果の確かめ方。</span><span class="live">▶ LIVE ×3 ・ 図 15</span></a>
+    <a class="ch" href="gnss/html/22.html"><span class="n">CH 22</span><span class="t">筐体とアンテナの置き方</span><span class="d">仰角と遮るもの、樹脂の誘電率と共振のずれ、金属と近くの部品、地板と向き、外付けのアンテナ、用途ごとの置き方。</span><span class="live">▶ LIVE ×3 ・ 図 14</span></a>
+    <a class="ch" href="gnss/html/23.html"><span class="n">CH 23</span><span class="t">評価と試験</span><span class="d">感度・TTFF・精度・時刻の測り方、基準点と統計、シミュレータと記録の再生、試験の計画。</span><span class="live">▶ LIVE ×3 ・ 図 16</span></a>
+    <a class="ch" href="gnss/html/24.html"><span class="n">CH 24</span><span class="t">総合演習</span><span class="d">仕様から回路・基板・筐体・ファームウェア・精度の向上・評価まで、シリーズの道具を通しで使う。</span><span class="live">▶ LIVE ×3 ・ 図 14</span></a>
+  </div>
+
+  <h2>近道ルート</h2>
+  <div class="paths">
+    <div class="path"><b>はじめて</b><span>01 → 02 → 03 → …（順に）</span></div>
+    <div class="path"><b>回路と基板を設計する</b><span>01 → 03 → 08 → 09 → 10 → 11 → 20 → 21</span></div>
+    <div class="path"><b>ファームウェアを書く</b><span>01 → 06 → 12 → 13 → 14 → 15</span></div>
+    <div class="path"><b>精度を上げる</b><span>06 → 07 → 16 → 17 → 18 → 19</span></div>
+    <div class="path"><b>ノイズと筐体</b><span>03 → 09 → 20 → 21 → 22 → 23</span></div>
+  </div>
+
+  <footer class="lpf">GitHub Pages で配信。図はダーク/ライト対応。部品や機器の数値は、計算のための例の値です。規格の値は各規格の文書で確かめてください。</footer>
+</div>
+<script src="site.js"></script>
+</body>
+</html>
